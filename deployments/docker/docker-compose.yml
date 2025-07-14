@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: webscan
+      POSTGRES_USER: webscan
+      POSTGRES_PASSWORD: webscan_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webscan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check
+      - "55679:55679" # zpages
+
+  webscan-worker:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+    command: ["worker", "--config", "/app/config.yaml"]
+    depends_on:
+      - redis
+      - postgres
+      - otel-collector
+    environment:
+      WEBSCAN_REDIS_ADDR: redis:6379
+      WEBSCAN_DATABASE_DSN: "host=postgres user=webscan password=webscan_password dbname=webscan sslmode=disable"
+      WEBSCAN_TELEMETRY_ENDPOINT: otel-collector:4317
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      replicas: 3
+    restart: unless-stopped
+
+  nmap:
+    image: instrumentisto/nmap:latest
+    network_mode: host
+    command: ["tail", "-f", "/dev/null"]
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+  zap:
+    image: owasp/zap2docker-stable:latest
+    ports:
+      - "8090:8090"
+    command: ["zap.sh", "-daemon", "-port", "8090", "-host", "0.0.0.0", "-config", "api.key=webscan-api-key"]
+    
+volumes:
+  redis_data:
+  postgres_data:

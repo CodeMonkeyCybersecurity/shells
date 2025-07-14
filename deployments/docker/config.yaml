@@ -1,0 +1,59 @@
+logger:
+  level: info
+  format: json
+  output_paths:
+    - stdout
+
+database:
+  driver: postgres
+  dsn: "host=postgres user=webscan password=webscan_password dbname=webscan sslmode=disable"
+  max_connections: 25
+  max_idle_conns: 10
+  conn_max_lifetime: 1h
+
+redis:
+  addr: redis:6379
+  db: 0
+  max_retries: 3
+  dial_timeout: 5s
+  read_timeout: 3s
+  write_timeout: 3s
+
+worker:
+  count: 1
+  queue_poll_interval: 5s
+  max_retries: 3
+  retry_delay: 10s
+
+telemetry:
+  enabled: true
+  service_name: webscan
+  exporter_type: otlp
+  endpoint: otel-collector:4317
+  sample_rate: 1.0
+
+security:
+  rate_limit:
+    requests_per_second: 10
+    burst_size: 20
+  scope_file: /app/scope.txt
+  enable_auth: false
+
+tools:
+  nmap:
+    binary_path: /usr/bin/nmap
+    timeout: 30m
+    profiles:
+      default: "-sS -sV -O"
+      fast: "-T4 -F"
+      thorough: "-sS -sV -sC -O -A"
+      
+  ssl:
+    timeout: 10s
+    follow_redirects: true
+    check_revocation: true
+    
+  zap:
+    api_endpoint: http://zap:8090
+    api_key: webscan-api-key
+    timeout: 60m
