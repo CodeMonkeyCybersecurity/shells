@@ -39,7 +39,7 @@ Shells_BUILD_PATH="$Shells_SRC_DIR/$Shells_BINARY_NAME"
 INSTALL_PATH="/usr/local/bin/$Shells_BINARY_NAME"
 
 # Go installation settings
-GO_VERSION="1.23.4"
+GO_VERSION="1.24.4"
 GO_INSTALL_DIR="/usr/local"
 
 # --- Directories ---
@@ -91,7 +91,15 @@ install_go() {
     
     # Simple version comparison - check if current version is at least the required version
     if printf '%s\n%s\n' "$GO_VERSION" "$current_version" | sort -V | head -n1 | grep -q "^$GO_VERSION$"; then
-      log INFO " Go is already up-to-date (version $current_version >= $GO_VERSION)"
+      # Check if this is the system Go vs our installed Go
+      local go_path="$(command -v go)"
+      if [[ "$go_path" == "/usr/bin/go" ]] && [[ -x "/usr/local/go/bin/go" ]]; then
+        log INFO " System Go is up-to-date but preferring /usr/local/go/bin/go"
+        # Update PATH to prefer /usr/local/go/bin
+        export PATH="/usr/local/go/bin:$PATH"
+      else
+        log INFO " Go is already up-to-date (version $current_version >= $GO_VERSION)"
+      fi
     else
       log INFO " Go version is older (wanted: $GO_VERSION, found: $current_version)"
       need_go_install=true
@@ -145,20 +153,25 @@ install_go() {
       local profile_file="/etc/profile.d/go.sh"
       log INFO " Setting up Go environment in ${profile_file}..."
       tee "${profile_file}" >/dev/null <<EOF
-export PATH=\$PATH:/usr/local/go/bin
+# Add Go to PATH, prioritizing /usr/local/go/bin over system Go
+export PATH="/usr/local/go/bin:\$PATH"
 EOF
       
-      # Symlink for global access
-      if [ ! -f /usr/bin/go ]; then
+      # Symlink for global access - but don't overwrite system Go
+      # Instead, make sure /usr/local/go/bin is in PATH
+      if [ ! -f /usr/bin/go ] || [ ! -x /usr/local/go/bin/go ]; then
         log INFO "🔗 Creating symlink for global Go access..."
         ln -sf /usr/local/go/bin/go /usr/bin/go
+      else
+        log INFO "🔗 Go binary exists, ensuring /usr/local/go/bin is in PATH..."
+        # Don't overwrite system Go, just make sure PATH is correct
       fi
       
       # Clean up
       rm -f "$go_tarball"
       
-      # Update PATH for current script execution
-      export PATH="${GO_INSTALL_DIR}/go/bin:$PATH"
+      # Update PATH for current script execution - prioritize new Go installation
+      export PATH="/usr/local/go/bin:$PATH"
       
       log INFO " Go installed successfully"
     fi
@@ -282,16 +295,44 @@ build_shells_binary() {
   cd "$Shells_SRC_DIR"
   rm -rf "$Shells_BINARY_NAME"
   
-  # Set environment variables to help with toolchain issues
-  export GOTOOLCHAIN=local
-  export GOPROXY=direct
+  # Ensure we use the correct Go version
+  # Check if we have a newer Go installation that we just installed
+  local go_cmd="go"
+  if [[ -x "/usr/local/go/bin/go" ]]; then
+    go_cmd="/usr/local/go/bin/go"
+    log INFO " Using Go from: /usr/local/go/bin/go"
+  elif [[ -x "$HOME/go/bin/go" ]]; then
+    go_cmd="$HOME/go/bin/go"
+    log INFO " Using Go from: $HOME/go/bin/go"
+  else
+    log INFO " Using Go from PATH: $(which go)"
+  fi
   
-  # Use the 'go' command which should now be in PATH due to check_prerequisites
-  if ! go build -o "$Shells_BINARY_NAME" .; then
+  # Check if the Go version is sufficient
+  local go_version_output="$($go_cmd version)"
+  local go_version=$(echo "$go_version_output" | awk '{print $3}' | sed 's/go//')
+  local required_version=$(grep '^go ' go.mod | cut -d' ' -f2)
+  
+  log INFO " Using Go version: $go_version_output"
+  log INFO " Required Go version: $required_version"
+  
+  # Simple version comparison
+  if ! printf '%s\n%s\n' "$required_version" "$go_version" | sort -V | head -n1 | grep -q "^$required_version$"; then
+    log ERR " Go version $go_version is older than required $required_version"
+    log ERR " Please install a newer version of Go"
+    exit 1
+  fi
+  
+  # Set environment variables - allow toolchain downloads if needed
+  export GOPROXY=direct
+  unset GOTOOLCHAIN  # Allow Go to download required toolchain
+  
+  # Use the selected Go command
+  if ! $go_cmd build -o "$Shells_BINARY_NAME" .; then
     log ERR " Failed to build Shells binary"
     log ERR " This might be due to Go version mismatch or missing dependencies"
-    log ERR " Current Go version: $(go version)"
-    log ERR " Required Go version from go.mod: $(grep '^go ' go.mod | cut -d' ' -f2)"
+    log ERR " Current Go version: $go_version_output"
+    log ERR " Required Go version from go.mod: $required_version"
     exit 1
   fi
 }
