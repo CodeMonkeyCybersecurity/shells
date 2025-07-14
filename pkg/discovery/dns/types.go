@@ -5,13 +5,13 @@ import (
 )
 
 type DNSHistory struct {
-	Domain        string                         `json:"domain"`
-	Subdomains    map[string][]HistoricalRecord `json:"subdomains"`
-	IPHistory     map[string][]IPRecord         `json:"ip_history"`
-	NSHistory     []NameserverRecord            `json:"ns_history"`
-	MXHistory     []MXRecord                    `json:"mx_history"`
-	Findings      []Finding                     `json:"findings"`
-	LastUpdated   time.Time                     `json:"last_updated"`
+	Domain      string                        `json:"domain"`
+	Subdomains  map[string][]HistoricalRecord `json:"subdomains"`
+	IPHistory   map[string][]IPRecord         `json:"ip_history"`
+	NSHistory   []NameserverRecord            `json:"ns_history"`
+	MXHistory   []MXRecord                    `json:"mx_history"`
+	Findings    []Finding                     `json:"findings"`
+	LastUpdated time.Time                     `json:"last_updated"`
 }
 
 type HistoricalRecord struct {
@@ -45,11 +45,11 @@ type MXRecord struct {
 }
 
 type Finding struct {
-	Type     string `json:"type"`
-	Severity string `json:"severity"`
-	Domain   string `json:"domain"`
-	Details  string `json:"details"`
-	IP       string `json:"ip,omitempty"`
+	Type     string   `json:"type"`
+	Severity string   `json:"severity"`
+	Domain   string   `json:"domain"`
+	Details  string   `json:"details"`
+	IP       string   `json:"ip,omitempty"`
 	CVEs     []string `json:"cves,omitempty"`
 }
 
@@ -70,17 +70,17 @@ type Subdomain struct {
 }
 
 type Pattern struct {
-	Type        string   `json:"type"`
-	Pattern     string   `json:"pattern"`
-	Examples    []string `json:"examples"`
-	Confidence  float64  `json:"confidence"`
+	Type       string   `json:"type"`
+	Pattern    string   `json:"pattern"`
+	Examples   []string `json:"examples"`
+	Confidence float64  `json:"confidence"`
 }
 
 type Statistics struct {
-	TotalSubdomains int `json:"total_subdomains"`
-	ActiveSubdomains int `json:"active_subdomains"`
-	UniqueIPs       int `json:"unique_ips"`
-	Sources         map[string]int `json:"sources"`
+	TotalSubdomains  int            `json:"total_subdomains"`
+	ActiveSubdomains int            `json:"active_subdomains"`
+	UniqueIPs        int            `json:"unique_ips"`
+	Sources          map[string]int `json:"sources"`
 }
 
 type SecurityTrailsResponse struct {

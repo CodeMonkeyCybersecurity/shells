@@ -12,7 +12,7 @@ var scheduleCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(scheduleCmd)
-	
+
 	scheduleCmd.AddCommand(scheduleCreateCmd)
 	scheduleCmd.AddCommand(scheduleListCmd)
 	scheduleCmd.AddCommand(scheduleDeleteCmd)
@@ -27,9 +27,9 @@ var scheduleCreateCmd = &cobra.Command{
 		cron, _ := cmd.Flags().GetString("cron")
 		scanType, _ := cmd.Flags().GetString("type")
 		profile, _ := cmd.Flags().GetString("profile")
-		
+
 		log.Info("Creating schedule", "target", target, "cron", cron, "type", scanType, "profile", profile)
-		
+
 		return nil
 	},
 }
@@ -49,9 +49,9 @@ var scheduleDeleteCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		scheduleID := args[0]
-		
+
 		log.Info("Deleting schedule", "scheduleID", scheduleID)
-		
+
 		return nil
 	},
 }

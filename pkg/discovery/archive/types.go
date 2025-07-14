@@ -5,18 +5,18 @@ import (
 )
 
 type ArchiveReport struct {
-	Domain          string           `json:"domain"`
-	URLs            []ArchivedURL    `json:"urls"`
-	Secrets         []Secret         `json:"secrets"`
-	AdminPanels     []AdminPanel     `json:"admin_panels"`
-	SensitiveFiles  []SensitiveFile  `json:"sensitive_files"`
-	ParameterNames  []string         `json:"parameter_names"`
-	Endpoints       []Endpoint       `json:"endpoints"`
-	JSFiles         []JSFile         `json:"js_files"`
-	Comments        []Comment        `json:"comments"`
-	TotalSnapshots  int              `json:"total_snapshots"`
-	DateRange       DateRange        `json:"date_range"`
-	Sources         []string         `json:"sources"`
+	Domain         string          `json:"domain"`
+	URLs           []ArchivedURL   `json:"urls"`
+	Secrets        []Secret        `json:"secrets"`
+	AdminPanels    []AdminPanel    `json:"admin_panels"`
+	SensitiveFiles []SensitiveFile `json:"sensitive_files"`
+	ParameterNames []string        `json:"parameter_names"`
+	Endpoints      []Endpoint      `json:"endpoints"`
+	JSFiles        []JSFile        `json:"js_files"`
+	Comments       []Comment       `json:"comments"`
+	TotalSnapshots int             `json:"total_snapshots"`
+	DateRange      DateRange       `json:"date_range"`
+	Sources        []string        `json:"sources"`
 }
 
 type ArchivedURL struct {
@@ -47,33 +47,33 @@ type AdminPanel struct {
 }
 
 type SensitiveFile struct {
-	URL        string    `json:"url"`
-	Type       string    `json:"type"`
-	Size       int64     `json:"size"`
-	Timestamp  time.Time `json:"timestamp"`
-	Content    string    `json:"content,omitempty"`
-	Hash       string    `json:"hash"`
+	URL       string    `json:"url"`
+	Type      string    `json:"type"`
+	Size      int64     `json:"size"`
+	Timestamp time.Time `json:"timestamp"`
+	Content   string    `json:"content,omitempty"`
+	Hash      string    `json:"hash"`
 }
 
 type Endpoint struct {
-	Path       string    `json:"path"`
-	Method     string    `json:"method"`
-	Parameters []string  `json:"parameters"`
-	FirstSeen  time.Time `json:"first_seen"`
-	LastSeen   time.Time `json:"last_seen"`
-	Frequency  int       `json:"frequency"`
-	Confidence string    `json:"confidence"`
-	StillExists bool     `json:"still_exists"`
+	Path        string    `json:"path"`
+	Method      string    `json:"method"`
+	Parameters  []string  `json:"parameters"`
+	FirstSeen   time.Time `json:"first_seen"`
+	LastSeen    time.Time `json:"last_seen"`
+	Frequency   int       `json:"frequency"`
+	Confidence  string    `json:"confidence"`
+	StillExists bool      `json:"still_exists"`
 }
 
 type JSFile struct {
-	URL        string    `json:"url"`
-	Size       int64     `json:"size"`
-	Timestamp  time.Time `json:"timestamp"`
-	Variables  []string  `json:"variables"`
-	Functions  []string  `json:"functions"`
-	APIs       []string  `json:"apis"`
-	Secrets    []Secret  `json:"secrets"`
+	URL       string    `json:"url"`
+	Size      int64     `json:"size"`
+	Timestamp time.Time `json:"timestamp"`
+	Variables []string  `json:"variables"`
+	Functions []string  `json:"functions"`
+	APIs      []string  `json:"apis"`
+	Secrets   []Secret  `json:"secrets"`
 }
 
 type Comment struct {
@@ -115,17 +115,17 @@ type Statistics struct {
 }
 
 type ArchiveAnalysis struct {
-	TechnologyStack    []string          `json:"technology_stack"`
-	FrameworksDetected []string          `json:"frameworks_detected"`
-	DatabasesDetected  []string          `json:"databases_detected"`
-	PathPatterns       []PathPattern     `json:"path_patterns"`
+	TechnologyStack    []string           `json:"technology_stack"`
+	FrameworksDetected []string           `json:"frameworks_detected"`
+	DatabasesDetected  []string           `json:"databases_detected"`
+	PathPatterns       []PathPattern      `json:"path_patterns"`
 	ParameterPatterns  []ParameterPattern `json:"parameter_patterns"`
 }
 
 type PathPattern struct {
-	Pattern   string  `json:"pattern"`
+	Pattern   string   `json:"pattern"`
 	Examples  []string `json:"examples"`
-	Frequency int     `json:"frequency"`
+	Frequency int      `json:"frequency"`
 }
 
 type ParameterPattern struct {

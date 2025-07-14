@@ -12,7 +12,7 @@ var configCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(configCmd)
-	
+
 	configCmd.AddCommand(configProfileCmd)
 	configCmd.AddCommand(configScopeCmd)
 	configCmd.AddCommand(configToolCmd)
@@ -30,9 +30,9 @@ var configProfileCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		description, _ := cmd.Flags().GetString("description")
-		
+
 		log.Info("Creating profile", "name", name, "description", description)
-		
+
 		return nil
 	},
 }
@@ -57,9 +57,9 @@ var configScopeAddCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pattern := args[0]
-		
+
 		log.Info("Adding to scope", "pattern", pattern)
-		
+
 		return nil
 	},
 }
@@ -81,9 +81,9 @@ var configToolCmd = &cobra.Command{
 func init() {
 	configProfileCmd.AddCommand(configProfileCreateCmd)
 	configProfileCmd.AddCommand(configProfileListCmd)
-	
+
 	configScopeCmd.AddCommand(configScopeAddCmd)
 	configScopeCmd.AddCommand(configScopeListCmd)
-	
+
 	configProfileCreateCmd.Flags().String("description", "", "Profile description")
 }

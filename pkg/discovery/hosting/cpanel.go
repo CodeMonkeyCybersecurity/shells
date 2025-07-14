@@ -79,12 +79,12 @@ type MisconfigCheck struct {
 }
 
 type CPanelReport struct {
-	Domain      string            `json:"domain"`
-	Instances   []CPanelInstance  `json:"instances"`
-	Summary     Summary           `json:"summary"`
-	Findings    []Finding         `json:"findings"`
-	Subdomains  []string          `json:"subdomains_checked"`
-	LastUpdated time.Time         `json:"last_updated"`
+	Domain      string           `json:"domain"`
+	Instances   []CPanelInstance `json:"instances"`
+	Summary     Summary          `json:"summary"`
+	Findings    []Finding        `json:"findings"`
+	Subdomains  []string         `json:"subdomains_checked"`
+	LastUpdated time.Time        `json:"last_updated"`
 }
 
 type Summary struct {
@@ -175,7 +175,7 @@ func (c *CPanelDiscovery) FindCPanelInstances(ctx context.Context, domain string
 	for _, sub := range cpanelSubdomains {
 		subdomain := fmt.Sprintf("%s.%s", sub, domain)
 		report.Subdomains = append(report.Subdomains, subdomain)
-		
+
 		for _, check := range checks {
 			wg.Add(1)
 			go func(sd string, ch CPanelCheck) {
@@ -236,7 +236,7 @@ func (c *CPanelDiscovery) checkCPanelInstance(ctx context.Context, domain string
 	}
 
 	content := string(body)
-	
+
 	// Check if this is actually a cPanel instance
 	if !c.isCPanelInstance(content, resp) {
 		return nil
@@ -289,7 +289,7 @@ func (c *CPanelDiscovery) isCPanelInstance(content string, resp *http.Response) 
 	}
 
 	contentLower := strings.ToLower(content)
-	
+
 	for _, indicator := range indicators {
 		if strings.Contains(contentLower, strings.ToLower(indicator)) {
 			return true
@@ -346,26 +346,26 @@ func (c *CPanelDiscovery) detectVersion(content string) string {
 
 func (c *CPanelDiscovery) detectFeatures(content string) []string {
 	features := []string{}
-	
+
 	featurePatterns := map[string][]string{
-		"File Manager": {"filemanager", "file_manager", "fileman"},
-		"Email": {"webmail", "email", "horde", "squirrelmail", "roundcube"},
-		"Database": {"phpmyadmin", "mysql", "database", "phpMyAdmin"},
-		"FTP": {"ftp", "file_transfer", "net2ftp"},
-		"DNS": {"dns", "zone", "subdomain"},
-		"SSL": {"ssl", "certificate", "https"},
-		"Backup": {"backup", "restore", "backups"},
-		"Cron Jobs": {"cron", "scheduled", "tasks"},
-		"Logs": {"logs", "error_log", "access_log"},
-		"Security": {"security", "ip_blocker", "hotlink", "leech"},
-		"Redirects": {"redirect", "301", "302"},
-		"Subdomains": {"subdomain", "parked", "addon"},
-		"Statistics": {"awstats", "webalizer", "statistics", "stats"},
+		"File Manager":  {"filemanager", "file_manager", "fileman"},
+		"Email":         {"webmail", "email", "horde", "squirrelmail", "roundcube"},
+		"Database":      {"phpmyadmin", "mysql", "database", "phpMyAdmin"},
+		"FTP":           {"ftp", "file_transfer", "net2ftp"},
+		"DNS":           {"dns", "zone", "subdomain"},
+		"SSL":           {"ssl", "certificate", "https"},
+		"Backup":        {"backup", "restore", "backups"},
+		"Cron Jobs":     {"cron", "scheduled", "tasks"},
+		"Logs":          {"logs", "error_log", "access_log"},
+		"Security":      {"security", "ip_blocker", "hotlink", "leech"},
+		"Redirects":     {"redirect", "301", "302"},
+		"Subdomains":    {"subdomain", "parked", "addon"},
+		"Statistics":    {"awstats", "webalizer", "statistics", "stats"},
 		"Autoinstaller": {"softaculous", "fantastico", "installer"},
 	}
 
 	contentLower := strings.ToLower(content)
-	
+
 	for feature, patterns := range featurePatterns {
 		for _, pattern := range patterns {
 			if strings.Contains(contentLower, pattern) {
@@ -450,13 +450,13 @@ func (c *CPanelDiscovery) checkVersionVulnerabilities(version string) []Vulnerab
 func (c *CPanelDiscovery) isOldVersion(version string) bool {
 	// Simple version comparison - in practice, you'd want proper semver
 	oldVersions := []string{"11.60", "11.70", "11.80", "11.90"}
-	
+
 	for _, oldVer := range oldVersions {
 		if strings.HasPrefix(version, oldVer) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -699,13 +699,13 @@ func (c *CPanelDiscovery) hasPhpMyAdminVulns(content string) bool {
 
 func (c *CPanelDiscovery) extractHeaders(headers http.Header) map[string]string {
 	headerMap := make(map[string]string)
-	
+
 	for key, values := range headers {
 		if len(values) > 0 {
 			headerMap[key] = values[0]
 		}
 	}
-	
+
 	return headerMap
 }
 
@@ -719,7 +719,7 @@ func (c *CPanelDiscovery) extractTitle(content string) string {
 
 func (c *CPanelDiscovery) extractSSLInfo(resp *http.Response) SSLInfo {
 	sslInfo := SSLInfo{}
-	
+
 	if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
 		cert := resp.TLS.PeerCertificates[0]
 		sslInfo.Enabled = true
@@ -729,7 +729,7 @@ func (c *CPanelDiscovery) extractSSLInfo(resp *http.Response) SSLInfo {
 		sslInfo.ValidTo = cert.NotAfter
 		sslInfo.SelfSigned = cert.Subject.String() == cert.Issuer.String()
 	}
-	
+
 	return sslInfo
 }
 
@@ -761,19 +761,19 @@ func (c *CPanelDiscovery) generateFindings(report *CPanelReport) {
 
 func (c *CPanelDiscovery) generateSummary(report *CPanelReport) {
 	summary := Summary{}
-	
+
 	summary.TotalInstances = len(report.Instances)
-	
+
 	for _, instance := range report.Instances {
 		if instance.Accessible {
 			summary.AccessibleInstances++
 		}
-		
+
 		if len(instance.Vulnerabilities) > 0 {
 			summary.VulnerableInstances++
 		}
 	}
-	
+
 	for _, finding := range report.Findings {
 		switch finding.Severity {
 		case "HIGH", "CRITICAL":
@@ -784,7 +784,7 @@ func (c *CPanelDiscovery) generateSummary(report *CPanelReport) {
 			summary.LowRiskFindings++
 		}
 	}
-	
+
 	report.Summary = summary
 }
 

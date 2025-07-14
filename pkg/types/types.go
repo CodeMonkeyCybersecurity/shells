@@ -28,11 +28,11 @@ const (
 type ScanStatus string
 
 const (
-	ScanStatusPending    ScanStatus = "pending"
-	ScanStatusRunning    ScanStatus = "running"
-	ScanStatusCompleted  ScanStatus = "completed"
-	ScanStatusFailed     ScanStatus = "failed"
-	ScanStatusCancelled  ScanStatus = "cancelled"
+	ScanStatusPending   ScanStatus = "pending"
+	ScanStatusRunning   ScanStatus = "running"
+	ScanStatusCompleted ScanStatus = "completed"
+	ScanStatusFailed    ScanStatus = "failed"
+	ScanStatusCancelled ScanStatus = "cancelled"
 )
 
 type Finding struct {
@@ -74,7 +74,7 @@ type ScanResult struct {
 }
 
 type Summary struct {
-	Total    int            `json:"total"`
+	Total      int              `json:"total"`
 	BySeverity map[Severity]int `json:"by_severity"`
 	ByTool     map[string]int   `json:"by_tool"`
 }

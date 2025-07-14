@@ -41,16 +41,16 @@ func NewArchiveCache() *ArchiveCache {
 
 func (w *WaybackScanner) ScanDomain(ctx context.Context, domain string) (*ArchiveReport, error) {
 	report := &ArchiveReport{
-		Domain:          domain,
-		URLs:            []ArchivedURL{},
-		Secrets:         []Secret{},
-		AdminPanels:     []AdminPanel{},
-		SensitiveFiles:  []SensitiveFile{},
-		ParameterNames:  []string{},
-		Endpoints:       []Endpoint{},
-		JSFiles:         []JSFile{},
-		Comments:        []Comment{},
-		Sources:         []string{"wayback"},
+		Domain:         domain,
+		URLs:           []ArchivedURL{},
+		Secrets:        []Secret{},
+		AdminPanels:    []AdminPanel{},
+		SensitiveFiles: []SensitiveFile{},
+		ParameterNames: []string{},
+		Endpoints:      []Endpoint{},
+		JSFiles:        []JSFile{},
+		Comments:       []Comment{},
+		Sources:        []string{"wayback"},
 	}
 
 	// Get all archived URLs
@@ -216,7 +216,7 @@ func (w *WaybackScanner) fetchArchivedContent(ctx context.Context, u ArchivedURL
 	}
 
 	content := string(body)
-	
+
 	// Cache the content
 	w.cache.Content[u.URL] = content
 	w.cache.URLs[u.URL] = u
@@ -555,7 +555,7 @@ func (w *WaybackScanner) getContext(content, match string) string {
 
 func (w *WaybackScanner) isInterestingComment(comment string) bool {
 	comment = strings.ToLower(comment)
-	
+
 	interestingKeywords := []string{
 		"password", "secret", "key", "token", "api",
 		"admin", "auth", "login", "user", "pass",
@@ -597,9 +597,9 @@ func (w *WaybackScanner) processResults(results <-chan ArchiveFinding, report *A
 
 		case "ADMIN_PANEL":
 			adminMap[finding.URL] = AdminPanel{
-				URL:       finding.URL,
-				Type:      finding.Name,
-				Timestamp: finding.Timestamp,
+				URL:        finding.URL,
+				Type:       finding.Name,
+				Timestamp:  finding.Timestamp,
 				Accessible: false, // Would need to test
 			}
 
@@ -623,11 +623,11 @@ func (w *WaybackScanner) processResults(results <-chan ArchiveFinding, report *A
 				endpointMap[key] = existing
 			} else {
 				endpointMap[key] = Endpoint{
-					Path:       finding.Value,
-					FirstSeen:  finding.Timestamp,
-					LastSeen:   finding.Timestamp,
-					Frequency:  1,
-					Confidence: "MEDIUM",
+					Path:        finding.Value,
+					FirstSeen:   finding.Timestamp,
+					LastSeen:    finding.Timestamp,
+					Frequency:   1,
+					Confidence:  "MEDIUM",
 					StillExists: false, // Would need to test
 				}
 			}
@@ -703,7 +703,7 @@ func (w *WaybackScanner) FindOldEndpoints(ctx context.Context, domain string) ([
 		// If seen multiple times in history, likely important
 		if len(urls) > 3 {
 			stillExists := w.endpointStillExists(ctx, domain, path)
-			
+
 			endpoints = append(endpoints, Endpoint{
 				Path:        path,
 				FirstSeen:   urls[0].Timestamp,
@@ -728,7 +728,7 @@ func (w *WaybackScanner) extractPath(urlStr string) string {
 
 func (w *WaybackScanner) endpointStillExists(ctx context.Context, domain, path string) bool {
 	testURL := fmt.Sprintf("https://%s%s", domain, path)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "HEAD", testURL, nil)
 	if err != nil {
 		return false

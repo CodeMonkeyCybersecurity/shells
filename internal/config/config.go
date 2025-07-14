@@ -15,8 +15,8 @@ type Config struct {
 }
 
 type LoggerConfig struct {
-	Level       string `mapstructure:"level"`
-	Format      string `mapstructure:"format"`
+	Level       string   `mapstructure:"level"`
+	Format      string   `mapstructure:"format"`
 	OutputPaths []string `mapstructure:"output_paths"`
 }
 
@@ -46,18 +46,18 @@ type WorkerConfig struct {
 }
 
 type TelemetryConfig struct {
-	Enabled      bool   `mapstructure:"enabled"`
-	ServiceName  string `mapstructure:"service_name"`
-	ExporterType string `mapstructure:"exporter_type"`
-	Endpoint     string `mapstructure:"endpoint"`
+	Enabled      bool    `mapstructure:"enabled"`
+	ServiceName  string  `mapstructure:"service_name"`
+	ExporterType string  `mapstructure:"exporter_type"`
+	Endpoint     string  `mapstructure:"endpoint"`
 	SampleRate   float64 `mapstructure:"sample_rate"`
 }
 
 type SecurityConfig struct {
-	RateLimit    RateLimitConfig `mapstructure:"rate_limit"`
-	ScopeFile    string          `mapstructure:"scope_file"`
-	APIKey       string          `mapstructure:"api_key"`
-	EnableAuth   bool            `mapstructure:"enable_auth"`
+	RateLimit  RateLimitConfig `mapstructure:"rate_limit"`
+	ScopeFile  string          `mapstructure:"scope_file"`
+	APIKey     string          `mapstructure:"api_key"`
+	EnableAuth bool            `mapstructure:"enable_auth"`
 }
 
 type RateLimitConfig struct {
@@ -84,9 +84,9 @@ type NmapConfig struct {
 }
 
 type SSLConfig struct {
-	Timeout          time.Duration `mapstructure:"timeout"`
-	FollowRedirects  bool          `mapstructure:"follow_redirects"`
-	CheckRevocation  bool          `mapstructure:"check_revocation"`
+	Timeout         time.Duration `mapstructure:"timeout"`
+	FollowRedirects bool          `mapstructure:"follow_redirects"`
+	CheckRevocation bool          `mapstructure:"check_revocation"`
 }
 
 type ZAPConfig struct {
@@ -144,43 +144,43 @@ func (c *Config) Validate() error {
 	if c.Logger.Level == "" {
 		c.Logger.Level = "info"
 	}
-	
+
 	if c.Logger.Format == "" {
 		c.Logger.Format = "json"
 	}
-	
+
 	if c.Database.Driver == "" {
 		c.Database.Driver = "sqlite3"
 	}
-	
+
 	if c.Redis.Addr == "" {
 		c.Redis.Addr = "localhost:6379"
 	}
-	
+
 	if c.Worker.Count < 1 {
 		c.Worker.Count = 1
 	}
-	
+
 	if c.Worker.QueuePollInterval == 0 {
 		c.Worker.QueuePollInterval = 5 * time.Second
 	}
-	
+
 	if c.Security.RateLimit.RequestsPerSecond == 0 {
 		c.Security.RateLimit.RequestsPerSecond = 10
 	}
-	
+
 	if c.Telemetry.ServiceName == "" {
 		c.Telemetry.ServiceName = "shells"
 	}
-	
+
 	return nil
 }
 
 func DefaultConfig() *Config {
 	return &Config{
 		Logger: LoggerConfig{
-			Level:  "info",
-			Format: "json",
+			Level:       "info",
+			Format:      "json",
 			OutputPaths: []string{"stdout"},
 		},
 		Database: DatabaseConfig{

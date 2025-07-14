@@ -14,29 +14,29 @@ import (
 )
 
 type WordPressScanner struct {
-	client      *http.Client
-	userAgent   string
-	timeout     time.Duration
-	workers     int
-	pluginDB    *PluginVulnDB
-	themeDB     *ThemeVulnDB
-	rateLimit   time.Duration
+	client    *http.Client
+	userAgent string
+	timeout   time.Duration
+	workers   int
+	pluginDB  *PluginVulnDB
+	themeDB   *ThemeVulnDB
+	rateLimit time.Duration
 }
 
 type WordPressReport struct {
-	URL                string               `json:"url"`
-	Version            string               `json:"version"`
-	Themes             []Theme              `json:"themes"`
-	Plugins            []Plugin             `json:"plugins"`
-	Users              []User               `json:"users"`
-	Vulnerabilities    []Vulnerability      `json:"vulnerabilities"`
-	AdvancedFindings   []AdvancedFinding    `json:"advanced_findings"`
-	Configuration      Configuration        `json:"configuration"`
-	SecurityHeaders    SecurityHeaders      `json:"security_headers"`
-	LastUpdated        time.Time            `json:"last_updated"`
-	ScanDuration       time.Duration        `json:"scan_duration"`
-	IsWordPress        bool                 `json:"is_wordpress"`
-	ConfidenceScore    float64              `json:"confidence_score"`
+	URL              string            `json:"url"`
+	Version          string            `json:"version"`
+	Themes           []Theme           `json:"themes"`
+	Plugins          []Plugin          `json:"plugins"`
+	Users            []User            `json:"users"`
+	Vulnerabilities  []Vulnerability   `json:"vulnerabilities"`
+	AdvancedFindings []AdvancedFinding `json:"advanced_findings"`
+	Configuration    Configuration     `json:"configuration"`
+	SecurityHeaders  SecurityHeaders   `json:"security_headers"`
+	LastUpdated      time.Time         `json:"last_updated"`
+	ScanDuration     time.Duration     `json:"scan_duration"`
+	IsWordPress      bool              `json:"is_wordpress"`
+	ConfidenceScore  float64           `json:"confidence_score"`
 }
 
 type Theme struct {
@@ -61,14 +61,14 @@ type Plugin struct {
 }
 
 type User struct {
-	ID           int    `json:"id"`
-	Username     string `json:"username"`
-	DisplayName  string `json:"display_name"`
-	Email        string `json:"email"`
-	Role         string `json:"role"`
-	PostCount    int    `json:"post_count"`
-	AvatarURL    string `json:"avatar_url"`
-	Source       string `json:"source"`
+	ID          int    `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+	Role        string `json:"role"`
+	PostCount   int    `json:"post_count"`
+	AvatarURL   string `json:"avatar_url"`
+	Source      string `json:"source"`
 }
 
 type Vulnerability struct {
@@ -112,13 +112,13 @@ type Configuration struct {
 }
 
 type SecurityHeaders struct {
-	XFrameOptions         string `json:"x_frame_options"`
-	XContentTypeOptions   string `json:"x_content_type_options"`
-	XSSProtection         string `json:"xss_protection"`
+	XFrameOptions           string `json:"x_frame_options"`
+	XContentTypeOptions     string `json:"x_content_type_options"`
+	XSSProtection           string `json:"xss_protection"`
 	StrictTransportSecurity string `json:"strict_transport_security"`
-	ContentSecurityPolicy string `json:"content_security_policy"`
-	ReferrerPolicy        string `json:"referrer_policy"`
-	PermissionsPolicy     string `json:"permissions_policy"`
+	ContentSecurityPolicy   string `json:"content_security_policy"`
+	ReferrerPolicy          string `json:"referrer_policy"`
+	PermissionsPolicy       string `json:"permissions_policy"`
 }
 
 type PluginVulnDB struct {
@@ -165,7 +165,7 @@ func NewWordPressScanner() *WordPressScanner {
 
 func (w *WordPressScanner) DeepScan(ctx context.Context, target string) (*WordPressReport, error) {
 	startTime := time.Now()
-	
+
 	report := &WordPressReport{
 		URL:              target,
 		Themes:           []Theme{},
@@ -219,7 +219,7 @@ func (w *WordPressScanner) DeepScan(ctx context.Context, target string) (*WordPr
 	report.AdvancedFindings = w.advancedChecks(ctx, target)
 
 	report.ScanDuration = time.Since(startTime)
-	
+
 	return report, nil
 }
 
@@ -411,11 +411,11 @@ func (w *WordPressScanner) enumeratePlugins(ctx context.Context, target string) 
 
 	// Method 2: Common plugin paths
 	commonPlugins := w.getCommonPlugins()
-	
+
 	// Use worker pool for concurrent checking
 	pluginChan := make(chan string, len(commonPlugins))
 	resultChan := make(chan Plugin, len(commonPlugins))
-	
+
 	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < w.workers; i++ {
@@ -462,11 +462,11 @@ func (w *WordPressScanner) enumeratePlugins(ctx context.Context, target string) 
 
 func (w *WordPressScanner) extractPluginsFromSource(content string) []Plugin {
 	plugins := []Plugin{}
-	
+
 	// Extract from wp-content/plugins/ paths
 	pluginPattern := regexp.MustCompile(`wp-content/plugins/([^/\s"']+)`)
 	matches := pluginPattern.FindAllStringSubmatch(content, -1)
-	
+
 	seen := make(map[string]bool)
 	for _, match := range matches {
 		if len(match) > 1 && !seen[match[1]] {
@@ -478,13 +478,13 @@ func (w *WordPressScanner) extractPluginsFromSource(content string) []Plugin {
 			})
 		}
 	}
-	
+
 	return plugins
 }
 
 func (w *WordPressScanner) checkPlugin(ctx context.Context, target, pluginSlug string) *Plugin {
 	pluginURL := fmt.Sprintf("%s/wp-content/plugins/%s/", target, pluginSlug)
-	
+
 	if resp, err := w.makeRequest(ctx, pluginURL); err == nil {
 		if resp.StatusCode == 200 || resp.StatusCode == 403 {
 			plugin := &Plugin{
@@ -492,16 +492,16 @@ func (w *WordPressScanner) checkPlugin(ctx context.Context, target, pluginSlug s
 				Directory: pluginSlug,
 				Active:    true,
 			}
-			
+
 			// Try to get plugin details from readme.txt
 			if readmeContent, err := w.fetchContent(ctx, pluginURL+"readme.txt"); err == nil {
 				w.parsePluginReadme(plugin, readmeContent)
 			}
-			
+
 			return plugin
 		}
 	}
-	
+
 	return nil
 }
 
@@ -511,13 +511,13 @@ func (w *WordPressScanner) parsePluginReadme(plugin *Plugin, content string) {
 	if matches := versionPattern.FindStringSubmatch(content); len(matches) > 1 {
 		plugin.Version = strings.TrimSpace(matches[1])
 	}
-	
+
 	// Extract description
 	descPattern := regexp.MustCompile(`(?i)description:\s*([^\r\n]+)`)
 	if matches := descPattern.FindStringSubmatch(content); len(matches) > 1 {
 		plugin.Description = strings.TrimSpace(matches[1])
 	}
-	
+
 	// Extract author
 	authorPattern := regexp.MustCompile(`(?i)contributors?:\s*([^\r\n]+)`)
 	if matches := authorPattern.FindStringSubmatch(content); len(matches) > 1 {
@@ -542,7 +542,7 @@ func (w *WordPressScanner) enumerateThemes(ctx context.Context, target string) (
 
 	// Method 2: Common theme paths
 	commonThemes := w.getCommonThemes()
-	
+
 	for _, themeSlug := range commonThemes {
 		if theme := w.checkTheme(ctx, target, themeSlug); theme != nil {
 			themes = append(themes, *theme)
@@ -561,7 +561,7 @@ func (w *WordPressScanner) extractActiveTheme(content string) *Theme {
 	// Extract active theme from wp-content/themes/ paths
 	themePattern := regexp.MustCompile(`wp-content/themes/([^/\s"']+)`)
 	matches := themePattern.FindAllStringSubmatch(content, -1)
-	
+
 	if len(matches) > 0 {
 		return &Theme{
 			Name:      matches[0][1],
@@ -569,13 +569,13 @@ func (w *WordPressScanner) extractActiveTheme(content string) *Theme {
 			Active:    true,
 		}
 	}
-	
+
 	return nil
 }
 
 func (w *WordPressScanner) checkTheme(ctx context.Context, target, themeSlug string) *Theme {
 	themeURL := fmt.Sprintf("%s/wp-content/themes/%s/", target, themeSlug)
-	
+
 	if resp, err := w.makeRequest(ctx, themeURL); err == nil {
 		if resp.StatusCode == 200 || resp.StatusCode == 403 {
 			theme := &Theme{
@@ -583,16 +583,16 @@ func (w *WordPressScanner) checkTheme(ctx context.Context, target, themeSlug str
 				Directory: themeSlug,
 				Active:    false, // We can't determine if it's active just from this
 			}
-			
+
 			// Try to get theme details from style.css
 			if styleContent, err := w.fetchContent(ctx, themeURL+"style.css"); err == nil {
 				w.parseThemeStyle(theme, styleContent)
 			}
-			
+
 			return theme
 		}
 	}
-	
+
 	return nil
 }
 
@@ -602,7 +602,7 @@ func (w *WordPressScanner) parseThemeStyle(theme *Theme, content string) {
 	if matches := versionPattern.FindStringSubmatch(content); len(matches) > 1 {
 		theme.Version = strings.TrimSpace(matches[1])
 	}
-	
+
 	authorPattern := regexp.MustCompile(`(?i)author:\s*([^\r\n]+)`)
 	if matches := authorPattern.FindStringSubmatch(content); len(matches) > 1 {
 		theme.Author = strings.TrimSpace(matches[1])
@@ -632,7 +632,7 @@ func (w *WordPressScanner) enumerateUsers(ctx context.Context, target string) ([
 
 func (w *WordPressScanner) getUsersFromRESTAPI(ctx context.Context, target string) ([]User, error) {
 	users := []User{}
-	
+
 	apiURL := target + "/wp-json/wp/v2/users"
 	if content, err := w.fetchContent(ctx, apiURL); err == nil {
 		var apiUsers []map[string]interface{}
@@ -641,7 +641,7 @@ func (w *WordPressScanner) getUsersFromRESTAPI(ctx context.Context, target strin
 				user := User{
 					Source: "rest_api",
 				}
-				
+
 				if id, ok := apiUser["id"].(float64); ok {
 					user.ID = int(id)
 				}
@@ -651,18 +651,18 @@ func (w *WordPressScanner) getUsersFromRESTAPI(ctx context.Context, target strin
 				if slug, ok := apiUser["slug"].(string); ok {
 					user.Username = slug
 				}
-				
+
 				users = append(users, user)
 			}
 		}
 	}
-	
+
 	return users, nil
 }
 
 func (w *WordPressScanner) getUsersFromAuthors(ctx context.Context, target string) ([]User, error) {
 	users := []User{}
-	
+
 	// Try author enumeration
 	for i := 1; i <= 10; i++ {
 		authorURL := fmt.Sprintf("%s/?author=%d", target, i)
@@ -679,7 +679,7 @@ func (w *WordPressScanner) getUsersFromAuthors(ctx context.Context, target strin
 			}
 		}
 	}
-	
+
 	return users, nil
 }
 
@@ -691,7 +691,7 @@ func (w *WordPressScanner) extractUsernameFromAuthorPage(resp *http.Response) st
 			return matches[1]
 		}
 	}
-	
+
 	return ""
 }
 
@@ -768,29 +768,29 @@ func (w *WordPressScanner) advancedChecks(ctx context.Context, target string) []
 		{Path: "/.wp-config.php.swp", Type: "CONFIG_SWAP", Severity: "HIGH"},
 		{Path: "/wp-config.old", Type: "CONFIG_OLD", Severity: "HIGH"},
 		{Path: "/debug.log", Type: "DEBUG_LOG", Severity: "MEDIUM"},
-		
+
 		// Database exposure
 		{Path: "/wp-content/backup-db/", Type: "DB_BACKUP", Severity: "CRITICAL"},
 		{Path: "/wp-content/uploads/dump.sql", Type: "DB_DUMP", Severity: "CRITICAL"},
-		
+
 		// User enumeration endpoints
 		{Path: "/wp-json/wp/v2/users", Type: "REST_API_USERS", Severity: "MEDIUM"},
 		{Path: "/?author=1", Type: "AUTHOR_ENUM", Severity: "LOW"},
-		
+
 		// XMLRPC
 		{Path: "/xmlrpc.php", Type: "XMLRPC_ENABLED", Severity: "MEDIUM"},
-		
+
 		// Upload directory listing
 		{Path: "/wp-content/uploads/", Type: "UPLOAD_LISTING", Severity: "LOW"},
-		
+
 		// Admin interfaces
 		{Path: "/wp-admin/", Type: "ADMIN_ACCESS", Severity: "LOW"},
 		{Path: "/wp-login.php", Type: "LOGIN_PAGE", Severity: "LOW"},
-		
+
 		// Information disclosure
 		{Path: "/readme.html", Type: "README_EXPOSED", Severity: "LOW"},
 		{Path: "/license.txt", Type: "LICENSE_EXPOSED", Severity: "LOW"},
-		
+
 		// Backup files
 		{Path: "/wp-config.php~", Type: "CONFIG_BACKUP", Severity: "HIGH"},
 		{Path: "/wp-config.bak", Type: "CONFIG_BACKUP", Severity: "HIGH"},
@@ -856,7 +856,7 @@ func (w *WordPressScanner) getCheckTitle(checkType string) string {
 		"README_EXPOSED":  "README File Exposed",
 		"LICENSE_EXPOSED": "License File Exposed",
 	}
-	
+
 	if title, exists := titles[checkType]; exists {
 		return title
 	}
@@ -880,7 +880,7 @@ func (w *WordPressScanner) getCheckDescription(checkType string) string {
 		"README_EXPOSED":  "README file is exposed, reveals WordPress version",
 		"LICENSE_EXPOSED": "License file is exposed",
 	}
-	
+
 	if desc, exists := descriptions[checkType]; exists {
 		return desc
 	}
@@ -904,7 +904,7 @@ func (w *WordPressScanner) getRemediation(checkType string) string {
 		"README_EXPOSED":  "Remove or restrict access to readme.html",
 		"LICENSE_EXPOSED": "Remove or restrict access to license.txt",
 	}
-	
+
 	if remediation, exists := remediations[checkType]; exists {
 		return remediation
 	}

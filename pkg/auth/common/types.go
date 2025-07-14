@@ -20,19 +20,19 @@ const (
 
 // Vulnerability represents a security vulnerability in authentication
 type Vulnerability struct {
-	ID          string        `json:"id"`
-	Type        string        `json:"type"`
-	Protocol    AuthProtocol  `json:"protocol"`
-	Severity    string        `json:"severity"`
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	Impact      string        `json:"impact"`
-	Evidence    []Evidence    `json:"evidence"`
-	References  []string      `json:"references"`
-	Remediation Remediation   `json:"remediation"`
-	CVSS        float64       `json:"cvss"`
-	CWE         string        `json:"cwe"`
-	CreatedAt   time.Time     `json:"created_at"`
+	ID          string       `json:"id"`
+	Type        string       `json:"type"`
+	Protocol    AuthProtocol `json:"protocol"`
+	Severity    string       `json:"severity"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Impact      string       `json:"impact"`
+	Evidence    []Evidence   `json:"evidence"`
+	References  []string     `json:"references"`
+	Remediation Remediation  `json:"remediation"`
+	CVSS        float64      `json:"cvss"`
+	CWE         string       `json:"cwe"`
+	CreatedAt   time.Time    `json:"created_at"`
 }
 
 // Evidence represents proof of a vulnerability
@@ -56,80 +56,80 @@ type Remediation struct {
 
 // AttackChain represents a sequence of attacks
 type AttackChain struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Steps       []AttackStep    `json:"steps"`
-	Impact      string          `json:"impact"`
-	Severity    string          `json:"severity"`
-	Prerequisites []string      `json:"prerequisites"`
-	Mitigations []string        `json:"mitigations"`
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	Description   string       `json:"description"`
+	Steps         []AttackStep `json:"steps"`
+	Impact        string       `json:"impact"`
+	Severity      string       `json:"severity"`
+	Prerequisites []string     `json:"prerequisites"`
+	Mitigations   []string     `json:"mitigations"`
 }
 
 // AttackStep represents a single step in an attack chain
 type AttackStep struct {
-	Order       int           `json:"order"`
-	Protocol    AuthProtocol  `json:"protocol"`
-	Technique   string        `json:"technique"`
-	Description string        `json:"description"`
-	Payload     string        `json:"payload,omitempty"`
-	Evidence    []Evidence    `json:"evidence"`
-	Success     bool          `json:"success"`
+	Order       int          `json:"order"`
+	Protocol    AuthProtocol `json:"protocol"`
+	Technique   string       `json:"technique"`
+	Description string       `json:"description"`
+	Payload     string       `json:"payload,omitempty"`
+	Evidence    []Evidence   `json:"evidence"`
+	Success     bool         `json:"success"`
 }
 
 // AuthEndpoint represents an authentication endpoint
 type AuthEndpoint struct {
-	URL       string            `json:"url"`
-	Protocol  AuthProtocol      `json:"protocol"`
-	Method    string            `json:"method"`
-	Headers   map[string]string `json:"headers"`
-	Metadata  map[string]string `json:"metadata"`
-	Verified  bool              `json:"verified"`
+	URL      string            `json:"url"`
+	Protocol AuthProtocol      `json:"protocol"`
+	Method   string            `json:"method"`
+	Headers  map[string]string `json:"headers"`
+	Metadata map[string]string `json:"metadata"`
+	Verified bool              `json:"verified"`
 }
 
 // AuthConfiguration represents authentication configuration
 type AuthConfiguration struct {
-	Endpoints    []AuthEndpoint    `json:"endpoints"`
-	Protocols    []AuthProtocol    `json:"protocols"`
+	Endpoints    []AuthEndpoint     `json:"endpoints"`
+	Protocols    []AuthProtocol     `json:"protocols"`
 	Certificates []x509.Certificate `json:"certificates"`
-	Metadata     map[string]string `json:"metadata"`
+	Metadata     map[string]string  `json:"metadata"`
 }
 
 // Finding represents a general security finding
 type Finding struct {
-	ID          string        `json:"id"`
-	Type        string        `json:"type"`
-	Severity    string        `json:"severity"`
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	URL         string        `json:"url"`
-	Method      string        `json:"method"`
-	Evidence    []Evidence    `json:"evidence"`
-	Risk        string        `json:"risk"`
-	Confidence  string        `json:"confidence"`
-	CreatedAt   time.Time     `json:"created_at"`
+	ID          string     `json:"id"`
+	Type        string     `json:"type"`
+	Severity    string     `json:"severity"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	URL         string     `json:"url"`
+	Method      string     `json:"method"`
+	Evidence    []Evidence `json:"evidence"`
+	Risk        string     `json:"risk"`
+	Confidence  string     `json:"confidence"`
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 // AuthReport represents the main authentication report
 type AuthReport struct {
-	Target         string              `json:"target"`
-	StartTime      time.Time           `json:"start_time"`
-	EndTime        time.Time           `json:"end_time"`
-	Configuration  AuthConfiguration   `json:"configuration"`
-	Vulnerabilities []Vulnerability    `json:"vulnerabilities"`
-	AttackChains   []AttackChain       `json:"attack_chains"`
-	Summary        ReportSummary       `json:"summary"`
-	Protocols      map[string]interface{} `json:"protocols"`
+	Target          string                 `json:"target"`
+	StartTime       time.Time              `json:"start_time"`
+	EndTime         time.Time              `json:"end_time"`
+	Configuration   AuthConfiguration      `json:"configuration"`
+	Vulnerabilities []Vulnerability        `json:"vulnerabilities"`
+	AttackChains    []AttackChain          `json:"attack_chains"`
+	Summary         ReportSummary          `json:"summary"`
+	Protocols       map[string]interface{} `json:"protocols"`
 }
 
 // ReportSummary provides high-level statistics
 type ReportSummary struct {
 	TotalVulnerabilities int            `json:"total_vulnerabilities"`
-	BySeverity          map[string]int  `json:"by_severity"`
-	ByProtocol          map[string]int  `json:"by_protocol"`
-	HighestSeverity     string          `json:"highest_severity"`
-	AttackChains        int             `json:"attack_chains"`
-	Exploitable         int             `json:"exploitable"`
+	BySeverity           map[string]int `json:"by_severity"`
+	ByProtocol           map[string]int `json:"by_protocol"`
+	HighestSeverity      string         `json:"highest_severity"`
+	AttackChains         int            `json:"attack_chains"`
+	Exploitable          int            `json:"exploitable"`
 }
 
 // Scanner interface for all authentication scanners

@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
 // ChainPattern represents a pattern for attack chains
@@ -31,7 +30,7 @@ func NewAuthChainAnalyzer(logger Logger) *AuthChainAnalyzer {
 // FindBypassChains finds authentication bypass chains
 func (a *AuthChainAnalyzer) FindBypassChains(config AuthConfiguration, vulnerabilities []Vulnerability) []AttackChain {
 	chains := []AttackChain{}
-	
+
 	// Common bypass patterns
 	patterns := []ChainPattern{
 		{
@@ -70,17 +69,17 @@ func (a *AuthChainAnalyzer) FindBypassChains(config AuthConfiguration, vulnerabi
 			Severity:    "CRITICAL",
 		},
 	}
-	
+
 	for _, pattern := range patterns {
 		if chain := a.detectChain(config, vulnerabilities, pattern); chain != nil {
 			chains = append(chains, *chain)
 		}
 	}
-	
+
 	// Look for cross-protocol chains
 	crossChains := a.findCrossProtocolChains(config, vulnerabilities)
 	chains = append(chains, crossChains...)
-	
+
 	return chains
 }
 
@@ -91,17 +90,17 @@ func (a *AuthChainAnalyzer) detectChain(config AuthConfiguration, vulnerabilitie
 	for _, endpoint := range config.Endpoints {
 		protocolMap[endpoint.Protocol] = true
 	}
-	
+
 	// Check if we have relevant vulnerabilities
 	vulnTypes := make(map[string][]Vulnerability)
 	for _, vuln := range vulnerabilities {
 		vulnTypes[vuln.Type] = append(vulnTypes[vuln.Type], vuln)
 	}
-	
+
 	// Build attack steps
 	steps := []AttackStep{}
 	stepSuccess := true
-	
+
 	for i, stepType := range pattern.Steps {
 		step := AttackStep{
 			Order:       i + 1,
@@ -109,12 +108,12 @@ func (a *AuthChainAnalyzer) detectChain(config AuthConfiguration, vulnerabilitie
 			Description: a.getStepDescription(stepType),
 			Success:     false,
 		}
-		
+
 		// Check if we can execute this step
 		if a.canExecuteStep(stepType, protocolMap, vulnTypes) {
 			step.Success = true
 			step.Protocol = a.getStepProtocol(stepType)
-			
+
 			// Add evidence from relevant vulnerabilities
 			if vulns, exists := vulnTypes[a.getVulnTypeForStep(stepType)]; exists {
 				for _, vuln := range vulns {
@@ -124,10 +123,10 @@ func (a *AuthChainAnalyzer) detectChain(config AuthConfiguration, vulnerabilitie
 		} else {
 			stepSuccess = false
 		}
-		
+
 		steps = append(steps, step)
 	}
-	
+
 	// Only return chain if all steps are possible
 	if stepSuccess && len(steps) > 1 {
 		return &AttackChain{
@@ -141,27 +140,27 @@ func (a *AuthChainAnalyzer) detectChain(config AuthConfiguration, vulnerabilitie
 			Mitigations:   a.generateMitigations(pattern),
 		}
 	}
-	
+
 	return nil
 }
 
 // findCrossProtocolChains finds chains across different protocols
 func (a *AuthChainAnalyzer) findCrossProtocolChains(config AuthConfiguration, vulnerabilities []Vulnerability) []AttackChain {
 	chains := []AttackChain{}
-	
+
 	// Group vulnerabilities by protocol
 	protocolVulns := make(map[AuthProtocol][]Vulnerability)
 	for _, vuln := range vulnerabilities {
 		protocolVulns[vuln.Protocol] = append(protocolVulns[vuln.Protocol], vuln)
 	}
-	
+
 	// Find high-impact cross-protocol combinations
 	if len(protocolVulns) >= 2 {
 		protocols := make([]AuthProtocol, 0, len(protocolVulns))
 		for protocol := range protocolVulns {
 			protocols = append(protocols, protocol)
 		}
-		
+
 		// Check for specific high-value combinations
 		combinations := []struct {
 			protocols []AuthProtocol
@@ -184,7 +183,7 @@ func (a *AuthChainAnalyzer) findCrossProtocolChains(config AuthConfiguration, vu
 				impact:    "Token confusion leading to privilege escalation",
 			},
 		}
-		
+
 		for _, combo := range combinations {
 			if a.hasAllProtocols(protocols, combo.protocols) {
 				chain := a.buildCrossProtocolChain(combo, protocolVulns)
@@ -194,7 +193,7 @@ func (a *AuthChainAnalyzer) findCrossProtocolChains(config AuthConfiguration, vu
 			}
 		}
 	}
-	
+
 	return chains
 }
 
@@ -204,10 +203,10 @@ func (a *AuthChainAnalyzer) buildCrossProtocolChain(combo struct {
 	name      string
 	impact    string
 }, protocolVulns map[AuthProtocol][]Vulnerability) *AttackChain {
-	
+
 	steps := []AttackStep{}
 	order := 1
-	
+
 	for _, protocol := range combo.protocols {
 		if vulns, exists := protocolVulns[protocol]; exists {
 			// Use the highest severity vulnerability for this protocol
@@ -217,7 +216,7 @@ func (a *AuthChainAnalyzer) buildCrossProtocolChain(combo struct {
 					highestVuln = &vuln
 				}
 			}
-			
+
 			if highestVuln != nil {
 				step := AttackStep{
 					Order:       order,
@@ -232,7 +231,7 @@ func (a *AuthChainAnalyzer) buildCrossProtocolChain(combo struct {
 			}
 		}
 	}
-	
+
 	if len(steps) >= 2 {
 		return &AttackChain{
 			ID:          fmt.Sprintf("CROSS_PROTOCOL_%s", strings.ToUpper(strings.ReplaceAll(combo.name, " ", "_"))),
@@ -252,7 +251,7 @@ func (a *AuthChainAnalyzer) buildCrossProtocolChain(combo struct {
 			},
 		}
 	}
-	
+
 	return nil
 }
 
@@ -276,7 +275,7 @@ func (a *AuthChainAnalyzer) getStepDescription(stepType string) string {
 		"TRUST_CONFUSION":       "Confuse trust relationships",
 		"IDENTITY_SPOOFING":     "Spoof user identity",
 	}
-	
+
 	if desc, exists := descriptions[stepType]; exists {
 		return desc
 	}
@@ -295,11 +294,11 @@ func (a *AuthChainAnalyzer) canExecuteStep(stepType string, protocols map[AuthPr
 		"SAML_LOGIN":            {ProtocolSAML, "SAML Vulnerability"},
 		"JWT_WEAK_SECRET":       {ProtocolJWT, "JWT Vulnerability"},
 	}
-	
+
 	if req, exists := requirements[stepType]; exists {
 		return protocols[req.protocol] && len(vulns[req.vulnType]) > 0
 	}
-	
+
 	return true // Default to true for generic steps
 }
 
@@ -311,11 +310,11 @@ func (a *AuthChainAnalyzer) getStepProtocol(stepType string) AuthProtocol {
 		"SAML_LOGIN":            ProtocolSAML,
 		"JWT_WEAK_SECRET":       ProtocolJWT,
 	}
-	
+
 	if protocol, exists := protocolMap[stepType]; exists {
 		return protocol
 	}
-	
+
 	return ""
 }
 
@@ -327,11 +326,11 @@ func (a *AuthChainAnalyzer) getVulnTypeForStep(stepType string) string {
 		"SAML_LOGIN":            "SAML Vulnerability",
 		"JWT_WEAK_SECRET":       "JWT Vulnerability",
 	}
-	
+
 	if vulnType, exists := vulnMap[stepType]; exists {
 		return vulnType
 	}
-	
+
 	return ""
 }
 
@@ -343,7 +342,7 @@ func (a *AuthChainAnalyzer) generateMitigations(pattern ChainPattern) []string {
 		"Use secure defaults",
 		"Regular security assessments",
 	}
-	
+
 	// Add pattern-specific mitigations
 	switch pattern.Name {
 	case "WebAuthn to Password Downgrade":
@@ -353,7 +352,7 @@ func (a *AuthChainAnalyzer) generateMitigations(pattern ChainPattern) []string {
 	case "JWT to Session Upgrade":
 		mitigations = append(mitigations, "Use strong JWT secrets and regular rotation")
 	}
-	
+
 	return mitigations
 }
 
@@ -362,13 +361,13 @@ func (a *AuthChainAnalyzer) hasAllProtocols(available []AuthProtocol, required [
 	for _, protocol := range available {
 		availableMap[protocol] = true
 	}
-	
+
 	for _, protocol := range required {
 		if !availableMap[protocol] {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -379,10 +378,10 @@ func (a *AuthChainAnalyzer) getSeverityScore(severity string) int {
 		"MEDIUM":   2,
 		"LOW":      1,
 	}
-	
+
 	if score, exists := scores[severity]; exists {
 		return score
 	}
-	
+
 	return 0
 }

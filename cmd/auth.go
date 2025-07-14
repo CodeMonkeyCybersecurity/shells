@@ -1,0 +1,699 @@
+package cmd
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/federation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
+	"github.com/spf13/cobra"
+)
+
+// authCmd represents the auth command
+var authCmd = &cobra.Command{
+	Use:   "auth",
+	Short: "Test authentication and identity systems",
+	Long: `Comprehensive authentication security testing framework for modern authentication protocols.
+
+This command provides advanced testing capabilities for:
+- SAML (including Golden SAML attacks)
+- OAuth2/OIDC (including JWT analysis)
+- WebAuthn/FIDO2 (including virtual authenticator attacks)
+- Federation confusion testing
+- Cross-protocol attack chain detection
+
+Examples:
+  shells auth discover --target https://example.com
+  shells auth test --target https://example.com --protocol saml
+  shells auth chain --target https://example.com
+  shells auth all --target https://example.com --output json`,
+}
+
+// authDiscoverCmd discovers authentication endpoints and methods
+var authDiscoverCmd = &cobra.Command{
+	Use:   "discover",
+	Short: "Discover authentication endpoints and methods",
+	Long: `Discover all authentication endpoints and methods for a target.
+
+This command will:
+- Scan for SAML endpoints and metadata
+- Discover OAuth2/OIDC configurations
+- Find WebAuthn/FIDO2 endpoints
+- Identify federation providers
+- Map trust relationships
+
+Examples:
+  shells auth discover --target https://example.com
+  shells auth discover --target https://example.com --verbose
+  shells auth discover --target https://example.com --output json`,
+	Run: func(cmd *cobra.Command, args []string) {
+		target, _ := cmd.Flags().GetString("target")
+		output, _ := cmd.Flags().GetString("output")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if target == "" {
+			fmt.Println("Error: --target is required")
+			os.Exit(1)
+		}
+
+		// Create logger
+		logger := NewLogger(verbose)
+
+		// Create analyzers
+		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
+
+		fmt.Printf("🔍 Discovering authentication methods for: %s\n\n", target)
+
+		// Discover authentication configuration
+		config, err := crossAnalyzer.AnalyzeTarget(target)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Discover federation providers
+		domain := extractDomain(target)
+		discoverer := federation.NewFederationDiscoverer(nil, logger)
+		federationResult := discoverer.DiscoverAllProviders(domain)
+
+		// Create discovery result
+		result := struct {
+			Target     string                                `json:"target"`
+			Protocols  []common.AuthProtocol                 `json:"protocols"`
+			Endpoints  []common.AuthEndpoint                 `json:"endpoints"`
+			Federation *federation.FederationDiscoveryResult `json:"federation"`
+			Summary    DiscoverySummary                      `json:"summary"`
+			Timestamp  time.Time                             `json:"timestamp"`
+		}{
+			Target:     target,
+			Protocols:  config.Configuration.Protocols,
+			Endpoints:  config.Configuration.Endpoints,
+			Federation: federationResult,
+			Timestamp:  time.Now(),
+		}
+
+		// Generate summary
+		result.Summary = DiscoverySummary{
+			TotalEndpoints:      len(config.Configuration.Endpoints),
+			ProtocolsFound:      len(config.Configuration.Protocols),
+			FederationProviders: federationResult.TotalFound,
+			HasSAML:             contains(config.Configuration.Protocols, common.ProtocolSAML),
+			HasOAuth2:           contains(config.Configuration.Protocols, common.ProtocolOAuth2),
+			HasOIDC:             contains(config.Configuration.Protocols, common.ProtocolOIDC),
+			HasWebAuthn:         contains(config.Configuration.Protocols, common.ProtocolWebAuthn),
+			HasFederation:       federationResult.TotalFound > 0,
+		}
+
+		// Output results
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			printDiscoveryResults(result)
+		}
+	},
+}
+
+// authTestCmd runs comprehensive authentication tests
+var authTestCmd = &cobra.Command{
+	Use:   "test",
+	Short: "Run comprehensive authentication tests",
+	Long: `Run comprehensive security tests against authentication systems.
+
+This command supports testing:
+- SAML (Golden SAML, XSW, signature bypass)
+- OAuth2/OIDC (JWT attacks, flow vulnerabilities)
+- WebAuthn/FIDO2 (virtual authenticator attacks)
+- Federation (confused deputy, trust issues)
+
+Examples:
+  shells auth test --target https://example.com --protocol saml
+  shells auth test --target https://example.com --protocol oauth2
+  shells auth test --target https://example.com --protocol webauthn
+  shells auth test --target https://example.com --protocol all`,
+	Run: func(cmd *cobra.Command, args []string) {
+		target, _ := cmd.Flags().GetString("target")
+		protocol, _ := cmd.Flags().GetString("protocol")
+		output, _ := cmd.Flags().GetString("output")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if target == "" {
+			fmt.Println("Error: --target is required")
+			os.Exit(1)
+		}
+
+		if protocol == "" {
+			protocol = "all"
+		}
+
+		// Create logger
+		logger := NewLogger(verbose)
+
+		fmt.Printf("🧪 Running authentication tests for: %s\n", target)
+		if protocol != "all" {
+			fmt.Printf("📋 Protocol: %s\n", strings.ToUpper(protocol))
+		}
+		fmt.Println()
+
+		var report *common.AuthReport
+		var err error
+
+		// Run tests based on protocol
+		switch protocol {
+		case "saml":
+			report, err = runSAMLTests(target, logger)
+		case "oauth2":
+			report, err = runOAuth2Tests(target, logger)
+		case "webauthn":
+			report, err = runWebAuthnTests(target, logger)
+		case "all":
+			report, err = runAllTests(target, logger)
+		default:
+			fmt.Printf("Error: Unknown protocol '%s'. Supported: saml, oauth2, webauthn, all\n", protocol)
+			os.Exit(1)
+		}
+
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Output results
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(report, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			printTestResults(report)
+		}
+	},
+}
+
+// authChainCmd finds authentication bypass chains
+var authChainCmd = &cobra.Command{
+	Use:   "chain",
+	Short: "Find authentication bypass chains",
+	Long: `Find authentication bypass chains and attack paths.
+
+This command analyzes multiple authentication methods to find potential
+attack chains that could lead to authentication bypass. It looks for:
+- Cross-protocol vulnerabilities
+- Authentication downgrade paths
+- Federation confusion attacks
+- Multi-step bypass scenarios
+
+Examples:
+  shells auth chain --target https://example.com
+  shells auth chain --target https://example.com --max-depth 5
+  shells auth chain --target https://example.com --output json`,
+	Run: func(cmd *cobra.Command, args []string) {
+		target, _ := cmd.Flags().GetString("target")
+		maxDepth, _ := cmd.Flags().GetInt("max-depth")
+		output, _ := cmd.Flags().GetString("output")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if target == "" {
+			fmt.Println("Error: --target is required")
+			os.Exit(1)
+		}
+
+		if maxDepth <= 0 {
+			maxDepth = 5
+		}
+
+		// Create logger
+		logger := NewLogger(verbose)
+
+		fmt.Printf("🔗 Finding authentication bypass chains for: %s\n", target)
+		fmt.Printf("📊 Maximum chain depth: %d\n\n", maxDepth)
+
+		// Analyze target for vulnerabilities
+		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
+		config, err := crossAnalyzer.AnalyzeTarget(target)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Find attack chains
+		chainAnalyzer := common.NewAuthChainAnalyzer(logger)
+		chains := chainAnalyzer.FindBypassChains(config.Configuration, config.Vulnerabilities)
+
+		// Create result
+		result := struct {
+			Target    string               `json:"target"`
+			Chains    []common.AttackChain `json:"chains"`
+			Summary   ChainSummary         `json:"summary"`
+			Timestamp time.Time            `json:"timestamp"`
+		}{
+			Target:    target,
+			Chains:    chains,
+			Timestamp: time.Now(),
+		}
+
+		// Generate summary
+		result.Summary = ChainSummary{
+			TotalChains:       len(chains),
+			CriticalChains:    countChainsBySeverity(chains, "CRITICAL"),
+			HighChains:        countChainsBySeverity(chains, "HIGH"),
+			MediumChains:      countChainsBySeverity(chains, "MEDIUM"),
+			LowChains:         countChainsBySeverity(chains, "LOW"),
+			LongestChain:      getLongestChain(chains),
+			ProtocolsInvolved: getProtocolsInvolved(chains),
+		}
+
+		// Output results
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			printChainResults(result)
+		}
+	},
+}
+
+// authAllCmd runs all authentication tests
+var authAllCmd = &cobra.Command{
+	Use:   "all",
+	Short: "Run all authentication tests and analysis",
+	Long: `Run comprehensive authentication security analysis including:
+- Discovery of all authentication methods
+- Security testing of each protocol
+- Attack chain analysis
+- Federation vulnerability assessment
+- Comprehensive reporting
+
+This is the most thorough authentication security assessment.
+
+Examples:
+  shells auth all --target https://example.com
+  shells auth all --target https://example.com --output json
+  shells auth all --target https://example.com --save-report report.json`,
+	Run: func(cmd *cobra.Command, args []string) {
+		target, _ := cmd.Flags().GetString("target")
+		output, _ := cmd.Flags().GetString("output")
+		saveReport, _ := cmd.Flags().GetString("save-report")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if target == "" {
+			fmt.Println("Error: --target is required")
+			os.Exit(1)
+		}
+
+		// Create logger
+		logger := NewLogger(verbose)
+
+		fmt.Printf("🚀 Running comprehensive authentication security analysis\n")
+		fmt.Printf("🎯 Target: %s\n\n", target)
+
+		// Run comprehensive analysis
+		report, err := runComprehensiveAnalysis(target, logger)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Save report if requested
+		if saveReport != "" {
+			if err := saveReportToFile(report, saveReport); err != nil {
+				fmt.Printf("Warning: Failed to save report: %v\n", err)
+			} else {
+				fmt.Printf("📄 Report saved to: %s\n", saveReport)
+			}
+		}
+
+		// Output results
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(report, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			printComprehensiveResults(report)
+		}
+	},
+}
+
+// Helper functions and types
+
+type DiscoverySummary struct {
+	TotalEndpoints      int  `json:"total_endpoints"`
+	ProtocolsFound      int  `json:"protocols_found"`
+	FederationProviders int  `json:"federation_providers"`
+	HasSAML             bool `json:"has_saml"`
+	HasOAuth2           bool `json:"has_oauth2"`
+	HasOIDC             bool `json:"has_oidc"`
+	HasWebAuthn         bool `json:"has_webauthn"`
+	HasFederation       bool `json:"has_federation"`
+}
+
+type ChainSummary struct {
+	TotalChains       int                   `json:"total_chains"`
+	CriticalChains    int                   `json:"critical_chains"`
+	HighChains        int                   `json:"high_chains"`
+	MediumChains      int                   `json:"medium_chains"`
+	LowChains         int                   `json:"low_chains"`
+	LongestChain      int                   `json:"longest_chain"`
+	ProtocolsInvolved []common.AuthProtocol `json:"protocols_involved"`
+}
+
+// Test runner functions
+
+func runSAMLTests(target string, logger common.Logger) (*common.AuthReport, error) {
+	scanner := saml.NewSAMLScanner(logger)
+	return scanner.Scan(target, map[string]interface{}{})
+}
+
+func runOAuth2Tests(target string, logger common.Logger) (*common.AuthReport, error) {
+	scanner := oauth2.NewOAuth2Scanner(logger)
+	return scanner.Scan(target, map[string]interface{}{})
+}
+
+func runWebAuthnTests(target string, logger common.Logger) (*common.AuthReport, error) {
+	scanner := webauthn.NewWebAuthnScanner(logger)
+	return scanner.Scan(target, map[string]interface{}{})
+}
+
+func runAllTests(target string, logger common.Logger) (*common.AuthReport, error) {
+	crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
+	return crossAnalyzer.AnalyzeTarget(target)
+}
+
+func runComprehensiveAnalysis(target string, logger common.Logger) (*common.AuthReport, error) {
+	// This would implement comprehensive analysis including all protocols
+	return runAllTests(target, logger)
+}
+
+// Output functions
+
+func printDiscoveryResults(result struct {
+	Target     string                                `json:"target"`
+	Protocols  []common.AuthProtocol                 `json:"protocols"`
+	Endpoints  []common.AuthEndpoint                 `json:"endpoints"`
+	Federation *federation.FederationDiscoveryResult `json:"federation"`
+	Summary    DiscoverySummary                      `json:"summary"`
+	Timestamp  time.Time                             `json:"timestamp"`
+}) {
+	fmt.Printf("📊 Authentication Discovery Results\n")
+	fmt.Printf("═══════════════════════════════════════\n\n")
+
+	fmt.Printf("🎯 Target: %s\n", result.Target)
+	fmt.Printf("🕐 Scanned: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
+
+	fmt.Printf("📋 Summary:\n")
+	fmt.Printf("  • Total endpoints: %d\n", result.Summary.TotalEndpoints)
+	fmt.Printf("  • Protocols found: %d\n", result.Summary.ProtocolsFound)
+	fmt.Printf("  • Federation providers: %d\n", result.Summary.FederationProviders)
+	fmt.Println()
+
+	fmt.Printf("🔐 Protocols Detected:\n")
+	if result.Summary.HasSAML {
+		fmt.Printf("  ✅ SAML\n")
+	}
+	if result.Summary.HasOAuth2 {
+		fmt.Printf("  ✅ OAuth2\n")
+	}
+	if result.Summary.HasOIDC {
+		fmt.Printf("  ✅ OIDC\n")
+	}
+	if result.Summary.HasWebAuthn {
+		fmt.Printf("  ✅ WebAuthn/FIDO2\n")
+	}
+	if result.Summary.HasFederation {
+		fmt.Printf("  ✅ Federation\n")
+	}
+
+	if len(result.Protocols) == 0 {
+		fmt.Printf("  ❌ No authentication protocols detected\n")
+	}
+	fmt.Println()
+
+	if len(result.Endpoints) > 0 {
+		fmt.Printf("🔗 Endpoints Found:\n")
+		for _, endpoint := range result.Endpoints {
+			fmt.Printf("  • %s [%s] - %s\n", endpoint.URL, endpoint.Method, endpoint.Protocol)
+		}
+		fmt.Println()
+	}
+
+	if result.Federation != nil && result.Federation.TotalFound > 0 {
+		fmt.Printf("🤝 Federation Providers:\n")
+		for _, provider := range result.Federation.Providers {
+			fmt.Printf("  • %s [%s] - %s\n", provider.Name, provider.Type, provider.MetadataURL)
+		}
+		fmt.Println()
+	}
+}
+
+func printTestResults(report *common.AuthReport) {
+	fmt.Printf("🧪 Authentication Test Results\n")
+	fmt.Printf("═══════════════════════════════════════\n\n")
+
+	fmt.Printf("🎯 Target: %s\n", report.Target)
+	fmt.Printf("⏱️  Duration: %s\n\n", report.EndTime.Sub(report.StartTime))
+
+	fmt.Printf("📊 Summary:\n")
+	fmt.Printf("  • Total vulnerabilities: %d\n", report.Summary.TotalVulnerabilities)
+	fmt.Printf("  • Critical: %d\n", report.Summary.BySeverity["CRITICAL"])
+	fmt.Printf("  • High: %d\n", report.Summary.BySeverity["HIGH"])
+	fmt.Printf("  • Medium: %d\n", report.Summary.BySeverity["MEDIUM"])
+	fmt.Printf("  • Low: %d\n", report.Summary.BySeverity["LOW"])
+	fmt.Printf("  • Attack chains: %d\n", report.Summary.AttackChains)
+	fmt.Println()
+
+	if len(report.Vulnerabilities) > 0 {
+		fmt.Printf("🚨 Vulnerabilities Found:\n")
+		for _, vuln := range report.Vulnerabilities {
+			severityIcon := getSeverityIcon(vuln.Severity)
+			fmt.Printf("  %s [%s] %s\n", severityIcon, vuln.Severity, vuln.Title)
+			fmt.Printf("    Protocol: %s\n", vuln.Protocol)
+			fmt.Printf("    Impact: %s\n", vuln.Impact)
+			fmt.Println()
+		}
+	} else {
+		fmt.Printf("✅ No vulnerabilities found\n\n")
+	}
+}
+
+func printChainResults(result struct {
+	Target    string               `json:"target"`
+	Chains    []common.AttackChain `json:"chains"`
+	Summary   ChainSummary         `json:"summary"`
+	Timestamp time.Time            `json:"timestamp"`
+}) {
+	fmt.Printf("🔗 Attack Chain Analysis Results\n")
+	fmt.Printf("═══════════════════════════════════════\n\n")
+
+	fmt.Printf("🎯 Target: %s\n", result.Target)
+	fmt.Printf("🕐 Analyzed: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
+
+	fmt.Printf("📊 Summary:\n")
+	fmt.Printf("  • Total chains: %d\n", result.Summary.TotalChains)
+	fmt.Printf("  • Critical: %d\n", result.Summary.CriticalChains)
+	fmt.Printf("  • High: %d\n", result.Summary.HighChains)
+	fmt.Printf("  • Medium: %d\n", result.Summary.MediumChains)
+	fmt.Printf("  • Low: %d\n", result.Summary.LowChains)
+	fmt.Printf("  • Longest chain: %d steps\n", result.Summary.LongestChain)
+	fmt.Println()
+
+	if len(result.Chains) > 0 {
+		fmt.Printf("⛓️  Attack Chains Found:\n")
+		for i, chain := range result.Chains {
+			severityIcon := getSeverityIcon(chain.Severity)
+			fmt.Printf("  %d. %s [%s] %s\n", i+1, severityIcon, chain.Severity, chain.Name)
+			fmt.Printf("     Impact: %s\n", chain.Impact)
+			fmt.Printf("     Steps: %d\n", len(chain.Steps))
+
+			for j, step := range chain.Steps {
+				statusIcon := "✅"
+				if !step.Success {
+					statusIcon = "❌"
+				}
+				fmt.Printf("       %d. %s [%s] %s\n", j+1, statusIcon, step.Protocol, step.Description)
+			}
+			fmt.Println()
+		}
+	} else {
+		fmt.Printf("✅ No attack chains found\n\n")
+	}
+}
+
+func printComprehensiveResults(report *common.AuthReport) {
+	fmt.Printf("🚀 Comprehensive Authentication Analysis\n")
+	fmt.Printf("═══════════════════════════════════════\n\n")
+
+	printTestResults(report)
+
+	if len(report.AttackChains) > 0 {
+		fmt.Printf("⛓️  Attack Chains:\n")
+		for i, chain := range report.AttackChains {
+			severityIcon := getSeverityIcon(chain.Severity)
+			fmt.Printf("  %d. %s [%s] %s\n", i+1, severityIcon, chain.Severity, chain.Name)
+			fmt.Printf("     Impact: %s\n", chain.Impact)
+			fmt.Printf("     Steps: %d\n", len(chain.Steps))
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("🏁 Analysis Complete\n")
+	fmt.Printf("Run 'shells auth --help' for more specific testing options.\n")
+}
+
+// Helper functions
+
+func contains(slice []common.AuthProtocol, item common.AuthProtocol) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+func extractDomain(url string) string {
+	// Simple domain extraction
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+	if idx := strings.Index(url, "/"); idx != -1 {
+		url = url[:idx]
+	}
+	return url
+}
+
+func countChainsBySeverity(chains []common.AttackChain, severity string) int {
+	count := 0
+	for _, chain := range chains {
+		if chain.Severity == severity {
+			count++
+		}
+	}
+	return count
+}
+
+func getLongestChain(chains []common.AttackChain) int {
+	longest := 0
+	for _, chain := range chains {
+		if len(chain.Steps) > longest {
+			longest = len(chain.Steps)
+		}
+	}
+	return longest
+}
+
+func getProtocolsInvolved(chains []common.AttackChain) []common.AuthProtocol {
+	protocolMap := make(map[common.AuthProtocol]bool)
+	for _, chain := range chains {
+		for _, step := range chain.Steps {
+			protocolMap[step.Protocol] = true
+		}
+	}
+
+	protocols := make([]common.AuthProtocol, 0, len(protocolMap))
+	for protocol := range protocolMap {
+		protocols = append(protocols, protocol)
+	}
+	return protocols
+}
+
+func getSeverityIcon(severity string) string {
+	switch severity {
+	case "CRITICAL":
+		return "🔴"
+	case "HIGH":
+		return "🟠"
+	case "MEDIUM":
+		return "🟡"
+	case "LOW":
+		return "🟢"
+	default:
+		return "⚪"
+	}
+}
+
+func saveReportToFile(report *common.AuthReport, filename string) error {
+	jsonData, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filename, jsonData, 0644)
+}
+
+// Logger implementation
+type Logger struct {
+	verbose bool
+}
+
+func NewLogger(verbose bool) *Logger {
+	return &Logger{verbose: verbose}
+}
+
+func (l *Logger) Info(msg string, keysAndValues ...interface{}) {
+	if l.verbose {
+		fmt.Printf("[INFO] %s", msg)
+		if len(keysAndValues) > 0 {
+			fmt.Printf(" %v", keysAndValues)
+		}
+		fmt.Println()
+	}
+}
+
+func (l *Logger) Error(msg string, keysAndValues ...interface{}) {
+	fmt.Printf("[ERROR] %s", msg)
+	if len(keysAndValues) > 0 {
+		fmt.Printf(" %v", keysAndValues)
+	}
+	fmt.Println()
+}
+
+func (l *Logger) Debug(msg string, keysAndValues ...interface{}) {
+	if l.verbose {
+		fmt.Printf("[DEBUG] %s", msg)
+		if len(keysAndValues) > 0 {
+			fmt.Printf(" %v", keysAndValues)
+		}
+		fmt.Println()
+	}
+}
+
+func init() {
+	// Add auth command to root
+	rootCmd.AddCommand(authCmd)
+
+	// Add subcommands
+	authCmd.AddCommand(authDiscoverCmd)
+	authCmd.AddCommand(authTestCmd)
+	authCmd.AddCommand(authChainCmd)
+	authCmd.AddCommand(authAllCmd)
+
+	// Global flags
+	authCmd.PersistentFlags().StringP("target", "t", "", "Target URL to test")
+	authCmd.PersistentFlags().StringP("output", "o", "text", "Output format (text, json)")
+	authCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
+
+	// Discover flags
+	authDiscoverCmd.Flags().StringP("target", "t", "", "Target URL to discover")
+	authDiscoverCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+	authDiscoverCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
+
+	// Test flags
+	authTestCmd.Flags().StringP("target", "t", "", "Target URL to test")
+	authTestCmd.Flags().StringP("protocol", "p", "all", "Protocol to test (saml, oauth2, webauthn, all)")
+	authTestCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+	authTestCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
+
+	// Chain flags
+	authChainCmd.Flags().StringP("target", "t", "", "Target URL to analyze")
+	authChainCmd.Flags().IntP("max-depth", "d", 5, "Maximum chain depth")
+	authChainCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+	authChainCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
+
+	// All flags
+	authAllCmd.Flags().StringP("target", "t", "", "Target URL to analyze")
+	authAllCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+	authAllCmd.Flags().StringP("save-report", "s", "", "Save report to file")
+	authAllCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
+}

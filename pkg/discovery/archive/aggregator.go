@@ -58,8 +58,8 @@ func NewCommonCrawlClient(client *http.Client) *CommonCrawlClient {
 
 func (a *ArchiveAggregator) DeepArchiveSearch(ctx context.Context, domain string) (*DeepArchiveReport, error) {
 	report := &DeepArchiveReport{
-		Domain:  domain,
-		Sources: make(map[string]Statistics),
+		Domain:   domain,
+		Sources:  make(map[string]Statistics),
 		Findings: []ArchiveFinding{},
 	}
 
@@ -81,7 +81,7 @@ func (a *ArchiveAggregator) DeepArchiveSearch(ctx context.Context, domain string
 				FilesFound:     len(waybackResults.SensitiveFiles),
 			}
 			report.TotalSnapshots += len(waybackResults.URLs)
-			
+
 			// Convert to findings
 			for _, secret := range waybackResults.Secrets {
 				report.Findings = append(report.Findings, ArchiveFinding{
@@ -94,7 +94,7 @@ func (a *ArchiveAggregator) DeepArchiveSearch(ctx context.Context, domain string
 					Context:   secret.Context,
 				})
 			}
-			
+
 			for _, endpoint := range waybackResults.Endpoints {
 				report.Findings = append(report.Findings, ArchiveFinding{
 					Type:      "ENDPOINT",
@@ -105,7 +105,7 @@ func (a *ArchiveAggregator) DeepArchiveSearch(ctx context.Context, domain string
 					Severity:  "MEDIUM",
 				})
 			}
-			
+
 			for _, panel := range waybackResults.AdminPanels {
 				report.Findings = append(report.Findings, ArchiveFinding{
 					Type:      "ADMIN_PANEL",
@@ -116,7 +116,7 @@ func (a *ArchiveAggregator) DeepArchiveSearch(ctx context.Context, domain string
 					Severity:  "HIGH",
 				})
 			}
-			
+
 			for _, file := range waybackResults.SensitiveFiles {
 				report.Findings = append(report.Findings, ArchiveFinding{
 					Type:      "SENSITIVE_FILE",
@@ -140,7 +140,7 @@ func (a *ArchiveAggregator) DeepArchiveSearch(ctx context.Context, domain string
 				TotalURLs: len(archiveTodayResults),
 			}
 			report.TotalSnapshots += len(archiveTodayResults)
-			
+
 			// Convert to findings
 			for _, result := range archiveTodayResults {
 				timestamp, _ := time.Parse(time.RFC3339, result.Timestamp)
@@ -166,7 +166,7 @@ func (a *ArchiveAggregator) DeepArchiveSearch(ctx context.Context, domain string
 				TotalURLs: len(commonCrawlResults),
 			}
 			report.TotalSnapshots += len(commonCrawlResults)
-			
+
 			// Convert to findings
 			for _, result := range commonCrawlResults {
 				timestamp, _ := time.Parse(time.RFC3339, result.Timestamp)
@@ -429,15 +429,15 @@ func (a *ArchiveAggregator) generateAnalysis(findings []ArchiveFinding) ArchiveA
 
 	// Technology detection
 	techKeywords := map[string][]string{
-		"php":        {"php", ".php", "phpinfo", "phpmyadmin"},
-		"asp":        {"asp", ".asp", ".aspx", "aspnet"},
-		"jsp":        {"jsp", ".jsp", "java", "tomcat"},
-		"python":     {"python", ".py", "django", "flask"},
-		"ruby":       {"ruby", ".rb", "rails", "gem"},
-		"node":       {"node", ".js", "npm", "express"},
-		"wordpress":  {"wp-", "wordpress", "wp-content", "wp-admin"},
-		"drupal":     {"drupal", "sites/default", "modules"},
-		"joomla":     {"joomla", "administrator", "components"},
+		"php":       {"php", ".php", "phpinfo", "phpmyadmin"},
+		"asp":       {"asp", ".asp", ".aspx", "aspnet"},
+		"jsp":       {"jsp", ".jsp", "java", "tomcat"},
+		"python":    {"python", ".py", "django", "flask"},
+		"ruby":      {"ruby", ".rb", "rails", "gem"},
+		"node":      {"node", ".js", "npm", "express"},
+		"wordpress": {"wp-", "wordpress", "wp-content", "wp-admin"},
+		"drupal":    {"drupal", "sites/default", "modules"},
+		"joomla":    {"joomla", "administrator", "components"},
 	}
 
 	for tech, keywords := range techKeywords {
@@ -454,16 +454,16 @@ func (a *ArchiveAggregator) generateAnalysis(findings []ArchiveFinding) ArchiveA
 
 	// Framework detection
 	frameworkKeywords := map[string][]string{
-		"laravel":    {"laravel", "artisan", "vendor"},
-		"symfony":    {"symfony", "app/config"},
+		"laravel":     {"laravel", "artisan", "vendor"},
+		"symfony":     {"symfony", "app/config"},
 		"codeigniter": {"codeigniter", "system", "application"},
-		"zend":       {"zend", "library/zend"},
-		"cakephp":    {"cakephp", "app/config", "cake"},
-		"django":     {"django", "admin", "static"},
-		"flask":      {"flask", "app.py"},
-		"rails":      {"rails", "app/controllers", "config/routes"},
-		"spring":     {"spring", "WEB-INF", "servlet"},
-		"struts":     {"struts", "action", "struts.xml"},
+		"zend":        {"zend", "library/zend"},
+		"cakephp":     {"cakephp", "app/config", "cake"},
+		"django":      {"django", "admin", "static"},
+		"flask":       {"flask", "app.py"},
+		"rails":       {"rails", "app/controllers", "config/routes"},
+		"spring":      {"spring", "WEB-INF", "servlet"},
+		"struts":      {"struts", "action", "struts.xml"},
 	}
 
 	for framework, keywords := range frameworkKeywords {
@@ -480,13 +480,13 @@ func (a *ArchiveAggregator) generateAnalysis(findings []ArchiveFinding) ArchiveA
 
 	// Database detection
 	dbKeywords := map[string][]string{
-		"mysql":      {"mysql", "phpmyadmin", "mysqldump"},
-		"postgresql": {"postgresql", "postgres", "pgadmin"},
-		"mongodb":    {"mongodb", "mongo", "mongodump"},
-		"redis":      {"redis", "redis-cli"},
+		"mysql":         {"mysql", "phpmyadmin", "mysqldump"},
+		"postgresql":    {"postgresql", "postgres", "pgadmin"},
+		"mongodb":       {"mongodb", "mongo", "mongodump"},
+		"redis":         {"redis", "redis-cli"},
 		"elasticsearch": {"elasticsearch", "elastic", "_search"},
-		"oracle":     {"oracle", "ora_", "sqlplus"},
-		"mssql":      {"mssql", "sqlserver", "master.dbo"},
+		"oracle":        {"oracle", "ora_", "sqlplus"},
+		"mssql":         {"mssql", "sqlserver", "master.dbo"},
 	}
 
 	for db, keywords := range dbKeywords {

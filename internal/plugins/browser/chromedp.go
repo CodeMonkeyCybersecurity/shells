@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type chromedpAnalyzer struct {
@@ -25,26 +25,26 @@ type chromedpAnalyzer struct {
 }
 
 type BrowserConfig struct {
-	Headless        bool
-	Timeout         time.Duration
-	UserAgent       string
-	ViewportWidth   int64
-	ViewportHeight  int64
-	DisableImages   bool
-	DisableCSS      bool
-	WaitForLoad     time.Duration
+	Headless       bool
+	Timeout        time.Duration
+	UserAgent      string
+	ViewportWidth  int64
+	ViewportHeight int64
+	DisableImages  bool
+	DisableCSS     bool
+	WaitForLoad    time.Duration
 }
 
 type JSAnalysisResult struct {
-	APIEndpoints     []APIEndpoint     `json:"api_endpoints"`
-	Secrets          []Secret          `json:"secrets"`
-	DOMSources       []DOMSource       `json:"dom_sources"`
-	EventListeners   []EventListener   `json:"event_listeners"`
-	GlobalVariables  []GlobalVar       `json:"global_variables"`
-	StorageData      []StorageItem     `json:"storage_data"`
-	NetworkRequests  []NetworkReq      `json:"network_requests"`
-	JSFiles          []string          `json:"js_files"`
-	Vulnerabilities  []JSVulnerability `json:"vulnerabilities"`
+	APIEndpoints    []APIEndpoint     `json:"api_endpoints"`
+	Secrets         []Secret          `json:"secrets"`
+	DOMSources      []DOMSource       `json:"dom_sources"`
+	EventListeners  []EventListener   `json:"event_listeners"`
+	GlobalVariables []GlobalVar       `json:"global_variables"`
+	StorageData     []StorageItem     `json:"storage_data"`
+	NetworkRequests []NetworkReq      `json:"network_requests"`
+	JSFiles         []string          `json:"js_files"`
+	Vulnerabilities []JSVulnerability `json:"vulnerabilities"`
 }
 
 type APIEndpoint struct {
@@ -66,24 +66,24 @@ type Secret struct {
 }
 
 type DOMSource struct {
-	Element    string `json:"element"`
-	Property   string `json:"property"`
-	Value      string `json:"value"`
-	Dangerous  bool   `json:"dangerous"`
+	Element   string `json:"element"`
+	Property  string `json:"property"`
+	Value     string `json:"value"`
+	Dangerous bool   `json:"dangerous"`
 }
 
 type EventListener struct {
-	Event    string `json:"event"`
-	Element  string `json:"element"`
-	Handler  string `json:"handler"`
-	Source   string `json:"source"`
+	Event   string `json:"event"`
+	Element string `json:"element"`
+	Handler string `json:"handler"`
+	Source  string `json:"source"`
 }
 
 type GlobalVar struct {
-	Name        string      `json:"name"`
-	Type        string      `json:"type"`
-	Value       interface{} `json:"value"`
-	Sensitive   bool        `json:"sensitive"`
+	Name      string      `json:"name"`
+	Type      string      `json:"type"`
+	Value     interface{} `json:"value"`
+	Sensitive bool        `json:"sensitive"`
 }
 
 type StorageItem struct {
@@ -126,7 +126,7 @@ func NewChromedpAnalyzer(config BrowserConfig, logger interface {
 	if config.WaitForLoad == 0 {
 		config.WaitForLoad = 5 * time.Second
 	}
-	
+
 	return &chromedpAnalyzer{
 		logger: logger,
 		config: config,
@@ -145,17 +145,17 @@ func (a *chromedpAnalyzer) Validate(target string) error {
 	if target == "" {
 		return fmt.Errorf("target cannot be empty")
 	}
-	
+
 	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
 		return fmt.Errorf("target must be a valid HTTP/HTTPS URL")
 	}
-	
+
 	return nil
 }
 
 func (a *chromedpAnalyzer) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
 	a.logger.Info("Starting browser-based JavaScript analysis", "target", target)
-	
+
 	// Setup Chrome options
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", a.config.Headless),
@@ -164,25 +164,25 @@ func (a *chromedpAnalyzer) Scan(ctx context.Context, target string, options map[
 		chromedp.Flag("disable-dev-shm-usage", true),
 		chromedp.WindowSize(int(a.config.ViewportWidth), int(a.config.ViewportHeight)),
 	)
-	
+
 	if a.config.UserAgent != "" {
 		opts = append(opts, chromedp.UserAgent(a.config.UserAgent))
 	}
-	
+
 	if a.config.DisableImages {
 		opts = append(opts, chromedp.Flag("disable-images", true))
 	}
-	
+
 	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
 	defer cancel()
-	
+
 	// Create browser context with timeout
 	browserCtx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
-	
+
 	timeoutCtx, cancel := context.WithTimeout(browserCtx, a.config.Timeout)
 	defer cancel()
-	
+
 	// Track network requests
 	var networkRequests []NetworkReq
 	chromedp.ListenTarget(timeoutCtx, func(ev interface{}) {
@@ -195,46 +195,46 @@ func (a *chromedpAnalyzer) Scan(ctx context.Context, target string, options map[
 			networkRequests = append(networkRequests, req)
 		}
 	})
-	
+
 	// Inject our analysis scripts
 	analysisResult := &JSAnalysisResult{}
-	
+
 	err := chromedp.Run(timeoutCtx,
 		network.Enable(),
 		chromedp.Navigate(target),
 		chromedp.Sleep(a.config.WaitForLoad),
-		
+
 		// Inject comprehensive analysis script
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			return a.injectAnalysisScript(ctx, analysisResult)
 		}),
-		
+
 		// Wait a bit more for async operations
 		chromedp.Sleep(2*time.Second),
-		
+
 		// Extract results
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			return a.extractResults(ctx, analysisResult)
 		}),
 	)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("browser analysis failed: %w", err)
 	}
-	
+
 	analysisResult.NetworkRequests = networkRequests
-	
+
 	// Convert analysis results to findings
 	findings := a.convertToFindings(analysisResult, target)
-	
-	a.logger.Info("Browser analysis completed", 
+
+	a.logger.Info("Browser analysis completed",
 		"target", target,
 		"findings", len(findings),
 		"api_endpoints", len(analysisResult.APIEndpoints),
 		"secrets", len(analysisResult.Secrets),
 		"vulnerabilities", len(analysisResult.Vulnerabilities),
 	)
-	
+
 	return findings, nil
 }
 
@@ -546,29 +546,29 @@ func (a *chromedpAnalyzer) injectAnalysisScript(ctx context.Context, result *JSA
 		return window.webScanResults;
 	})();
 	`
-	
+
 	_, _, err := runtime.Evaluate(script).Do(ctx)
 	return err
 }
 
 func (a *chromedpAnalyzer) extractResults(ctx context.Context, result *JSAnalysisResult) error {
 	var res runtime.RemoteObject
-	
+
 	err := chromedp.Evaluate(`window.webScanResults`, &res).Do(ctx)
 	if err != nil {
 		return err
 	}
-	
+
 	if res.Value != nil {
 		return json.Unmarshal(res.Value, result)
 	}
-	
+
 	return nil
 }
 
 func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target string) []types.Finding {
 	findings := []types.Finding{}
-	
+
 	// Convert secrets to findings
 	for _, secret := range result.Secrets {
 		severity := types.SeverityMedium
@@ -578,7 +578,7 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 		if secret.Type == "aws_access_key" || secret.Type == "github_token" || secret.Type == "client_secret" {
 			severity = types.SeverityCritical
 		}
-		
+
 		finding := types.Finding{
 			Tool:     "browser",
 			Type:     "js_secret_exposure",
@@ -586,7 +586,7 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 			Title:    fmt.Sprintf("JavaScript Secret Exposed: %s", strings.Replace(secret.Type, "_", " ", -1)),
 			Description: fmt.Sprintf("Found %s in JavaScript execution context. This credential could be extracted by attackers.",
 				strings.Replace(secret.Type, "_", " ", -1)),
-			Evidence: fmt.Sprintf("Source: %s\nContext: %s\nValue: %s", 
+			Evidence: fmt.Sprintf("Source: %s\nContext: %s\nValue: %s",
 				secret.Source, secret.Context, a.sanitizeSecret(secret.Value)),
 			Solution: "Remove hardcoded secrets from client-side code:\n" +
 				"1. Move sensitive operations to server-side\n" +
@@ -601,7 +601,7 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	// Convert vulnerabilities to findings
 	for _, vuln := range result.Vulnerabilities {
 		severity := types.SeverityMedium
@@ -613,14 +613,14 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 		case "low":
 			severity = types.SeverityLow
 		}
-		
+
 		finding := types.Finding{
-			Tool:     "browser",
-			Type:     vuln.Type,
-			Severity: severity,
-			Title:    fmt.Sprintf("JavaScript Vulnerability: %s", vuln.Description),
+			Tool:        "browser",
+			Type:        vuln.Type,
+			Severity:    severity,
+			Title:       fmt.Sprintf("JavaScript Vulnerability: %s", vuln.Description),
 			Description: "Potential security vulnerability detected in JavaScript code execution",
-			Evidence: fmt.Sprintf("Line %d in %s: %s", vuln.Line, vuln.Source, vuln.Evidence),
+			Evidence:    fmt.Sprintf("Line %d in %s: %s", vuln.Line, vuln.Source, vuln.Evidence),
 			Solution: "Review and secure JavaScript code:\n" +
 				"1. Sanitize user input before using in dangerous sinks\n" +
 				"2. Use safe alternatives (textContent vs innerHTML)\n" +
@@ -633,21 +633,21 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	// Convert API endpoints to findings
 	if len(result.APIEndpoints) > 0 {
 		var endpoints []string
 		for _, ep := range result.APIEndpoints {
 			endpoints = append(endpoints, fmt.Sprintf("%s %s", ep.Method, ep.URL))
 		}
-		
+
 		finding := types.Finding{
-			Tool:     "browser",
-			Type:     "js_api_discovery",
-			Severity: types.SeverityInfo,
-			Title:    fmt.Sprintf("JavaScript API Endpoints Discovered (%d)", len(result.APIEndpoints)),
+			Tool:        "browser",
+			Type:        "js_api_discovery",
+			Severity:    types.SeverityInfo,
+			Title:       fmt.Sprintf("JavaScript API Endpoints Discovered (%d)", len(result.APIEndpoints)),
 			Description: "API endpoints discovered through JavaScript execution and analysis",
-			Evidence: strings.Join(endpoints, "\n"),
+			Evidence:    strings.Join(endpoints, "\n"),
 			Metadata: map[string]interface{}{
 				"endpoint_count": len(result.APIEndpoints),
 				"endpoints":      result.APIEndpoints,
@@ -655,17 +655,17 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	// Convert sensitive storage data to findings
 	for _, storage := range result.StorageData {
 		if a.isSensitiveStorage(storage.Key, storage.Value) {
 			finding := types.Finding{
-				Tool:     "browser",
-				Type:     "sensitive_storage",
-				Severity: types.SeverityMedium,
-				Title:    fmt.Sprintf("Sensitive Data in %s", storage.Type),
+				Tool:        "browser",
+				Type:        "sensitive_storage",
+				Severity:    types.SeverityMedium,
+				Title:       fmt.Sprintf("Sensitive Data in %s", storage.Type),
 				Description: fmt.Sprintf("Potentially sensitive data found in %s", storage.Type),
-				Evidence: fmt.Sprintf("Key: %s\nValue: %s", storage.Key, a.sanitizeSecret(storage.Value)),
+				Evidence:    fmt.Sprintf("Key: %s\nValue: %s", storage.Key, a.sanitizeSecret(storage.Value)),
 				Solution: "Secure client-side storage:\n" +
 					"1. Use httpOnly cookies for sensitive data\n" +
 					"2. Avoid storing secrets in localStorage/sessionStorage\n" +
@@ -679,17 +679,17 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 			findings = append(findings, finding)
 		}
 	}
-	
+
 	// Convert global variables to findings
 	for _, gvar := range result.GlobalVariables {
 		if gvar.Sensitive {
 			finding := types.Finding{
-				Tool:     "browser",
-				Type:     "sensitive_global_variable",
-				Severity: types.SeverityLow,
-				Title:    fmt.Sprintf("Sensitive Global Variable: %s", gvar.Name),
+				Tool:        "browser",
+				Type:        "sensitive_global_variable",
+				Severity:    types.SeverityLow,
+				Title:       fmt.Sprintf("Sensitive Global Variable: %s", gvar.Name),
 				Description: "Potentially sensitive data exposed in global JavaScript variables",
-				Evidence: fmt.Sprintf("Variable: %s\nType: %s\nValue: %s", 
+				Evidence: fmt.Sprintf("Variable: %s\nType: %s\nValue: %s",
 					gvar.Name, gvar.Type, a.sanitizeSecret(fmt.Sprintf("%v", gvar.Value))),
 				Solution: "Secure global variables:\n" +
 					"1. Avoid exposing sensitive data globally\n" +
@@ -704,7 +704,7 @@ func (a *chromedpAnalyzer) convertToFindings(result *JSAnalysisResult, target st
 			findings = append(findings, finding)
 		}
 	}
-	
+
 	return findings
 }
 
@@ -717,24 +717,24 @@ func (a *chromedpAnalyzer) sanitizeSecret(secret string) string {
 
 func (a *chromedpAnalyzer) isSensitiveStorage(key, value string) bool {
 	sensitivePatterns := []string{
-		"token", "jwt", "auth", "session", "password", "secret", 
+		"token", "jwt", "auth", "session", "password", "secret",
 		"key", "credential", "oauth", "bearer", "api",
 	}
-	
+
 	keyLower := strings.ToLower(key)
 	valueLower := strings.ToLower(value)
-	
+
 	for _, pattern := range sensitivePatterns {
 		if strings.Contains(keyLower, pattern) || strings.Contains(valueLower, pattern) {
 			return true
 		}
 	}
-	
+
 	// Check for JWT pattern
 	jwtPattern := regexp.MustCompile(`eyJ[A-Za-z0-9-_=]+\.eyJ[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]+`)
 	if jwtPattern.MatchString(value) {
 		return true
 	}
-	
+
 	return false
 }

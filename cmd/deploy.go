@@ -12,7 +12,7 @@ var deployCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(deployCmd)
-	
+
 	deployCmd.AddCommand(deployCreateCmd)
 	deployCmd.AddCommand(deployScaleCmd)
 	deployCmd.AddCommand(deployStatusCmd)
@@ -25,9 +25,9 @@ var deployCreateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		workers, _ := cmd.Flags().GetInt("workers")
 		datacenter, _ := cmd.Flags().GetString("datacenter")
-		
+
 		log.Info("Deploying to Nomad", "workers", workers, "datacenter", datacenter)
-		
+
 		return nil
 	},
 }

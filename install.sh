@@ -39,7 +39,7 @@ SHELLS_BUILD_PATH="$SHELLS_SRC_DIR/$SHELLS_BINARY_NAME"
 INSTALL_PATH="/usr/local/bin/$SHELLS_BINARY_NAME"
 
 # Go installation settings
-GO_VERSION="1.21.0"
+GO_VERSION="1.24.5"
 GO_INSTALL_DIR="/usr/local"
 
 # --- Directories ---
@@ -89,12 +89,12 @@ install_go() {
     current_version=$(go version | awk '{print $3}' | sed 's/go//')
     log INFO " Detected Go version: $current_version"
     
-    # Simple version comparison - check if current version is at least the required version
-    if printf '%s\n%s\n' "$GO_VERSION" "$current_version" | sort -V | head -n1 | grep -q "^$GO_VERSION$"; then
-      log INFO " Go is already up-to-date (version $current_version >= $GO_VERSION)"
-    else
+    # Force installation if version is less than 1.24
+    if [[ "$current_version" < "1.24" ]]; then
       log INFO " Go version is older (wanted: $GO_VERSION, found: $current_version)"
       need_go_install=true
+    else
+      log INFO " Go is already up-to-date (version $current_version >= $GO_VERSION)"
     fi
   fi
 

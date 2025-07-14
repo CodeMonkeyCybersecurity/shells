@@ -131,7 +131,7 @@ func (s *interactshScanner) Scan(ctx context.Context, target string, options map
 		// This is a simplified approach - in practice, you'd track interactions
 		// via the callback and store them for later processing
 		_ = uniqueID // Avoid unused variable warning
-		if false { // Placeholder condition
+		if false {   // Placeholder condition
 			finding := types.Finding{
 				Tool:     "interactsh",
 				Type:     payload.VulnType,
@@ -143,9 +143,9 @@ func (s *interactshScanner) Scan(ctx context.Context, target string, options map
 					uniqueID, payload.Target, payload.TestCase),
 				Solution: s.getSolution(payload.VulnType),
 				Metadata: map[string]interface{}{
-					"unique_id":   uniqueID,
-					"target":      payload.Target,
-					"test_case":   payload.TestCase,
+					"unique_id": uniqueID,
+					"target":    payload.Target,
+					"test_case": payload.TestCase,
 				},
 			}
 			findings = append(findings, finding)

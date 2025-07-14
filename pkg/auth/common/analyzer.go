@@ -34,7 +34,7 @@ func NewCrossProtocolAnalyzer(logger Logger) *CrossProtocolAnalyzer {
 // AnalyzeTarget performs comprehensive authentication analysis
 func (c *CrossProtocolAnalyzer) AnalyzeTarget(target string) (*AuthReport, error) {
 	c.logger.Info("Starting cross-protocol authentication analysis", "target", target)
-	
+
 	report := &AuthReport{
 		Target:          target,
 		StartTime:       time.Now(),
@@ -42,27 +42,27 @@ func (c *CrossProtocolAnalyzer) AnalyzeTarget(target string) (*AuthReport, error
 		AttackChains:    []AttackChain{},
 		Protocols:       make(map[string]interface{}),
 	}
-	
+
 	// Discover authentication endpoints
 	config, err := c.discoverAuthEndpoints(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover endpoints: %w", err)
 	}
 	report.Configuration = *config
-	
+
 	// Analyze each protocol
 	for _, endpoint := range config.Endpoints {
 		vulns := c.analyzeEndpoint(endpoint)
 		report.Vulnerabilities = append(report.Vulnerabilities, vulns...)
 	}
-	
+
 	// Find attack chains
 	chains := c.findAttackChains(report.Vulnerabilities)
 	report.AttackChains = chains
-	
+
 	report.EndTime = time.Now()
 	report.Summary = c.generateSummary(report)
-	
+
 	return report, nil
 }
 
@@ -73,7 +73,7 @@ func (c *CrossProtocolAnalyzer) discoverAuthEndpoints(target string) (*AuthConfi
 		Protocols: []AuthProtocol{},
 		Metadata:  make(map[string]string),
 	}
-	
+
 	// Common authentication paths
 	authPaths := []string{
 		"/.well-known/openid_configuration",
@@ -91,21 +91,21 @@ func (c *CrossProtocolAnalyzer) discoverAuthEndpoints(target string) (*AuthConfi
 		"/login",
 		"/sso",
 	}
-	
+
 	baseURL, err := url.Parse(target)
 	if err != nil {
 		return nil, fmt.Errorf("invalid target URL: %w", err)
 	}
-	
+
 	for _, path := range authPaths {
 		endpointURL := baseURL.ResolveReference(&url.URL{Path: path})
-		
+
 		resp, err := c.httpClient.Get(endpointURL.String())
 		if err != nil {
 			continue
 		}
 		resp.Body.Close()
-		
+
 		if resp.StatusCode == 200 {
 			endpoint := c.classifyEndpoint(endpointURL.String(), resp)
 			if endpoint != nil {
@@ -113,41 +113,41 @@ func (c *CrossProtocolAnalyzer) discoverAuthEndpoints(target string) (*AuthConfi
 			}
 		}
 	}
-	
+
 	// Deduplicate protocols
 	protocolMap := make(map[AuthProtocol]bool)
 	for _, endpoint := range config.Endpoints {
 		protocolMap[endpoint.Protocol] = true
 	}
-	
+
 	for protocol := range protocolMap {
 		config.Protocols = append(config.Protocols, protocol)
 	}
-	
+
 	return config, nil
 }
 
 // classifyEndpoint classifies an endpoint by protocol
 func (c *CrossProtocolAnalyzer) classifyEndpoint(url string, resp *http.Response) *AuthEndpoint {
 	endpoint := &AuthEndpoint{
-		URL:     url,
-		Method:  "GET",
-		Headers: make(map[string]string),
+		URL:      url,
+		Method:   "GET",
+		Headers:  make(map[string]string),
 		Metadata: make(map[string]string),
 		Verified: true,
 	}
-	
+
 	// Copy response headers
 	for key, values := range resp.Header {
 		if len(values) > 0 {
 			endpoint.Headers[key] = values[0]
 		}
 	}
-	
+
 	// Classify by URL patterns and headers
 	urlLower := strings.ToLower(url)
 	contentType := resp.Header.Get("Content-Type")
-	
+
 	switch {
 	case strings.Contains(urlLower, "saml") || strings.Contains(contentType, "saml"):
 		endpoint.Protocol = ProtocolSAML
@@ -165,14 +165,14 @@ func (c *CrossProtocolAnalyzer) classifyEndpoint(url string, resp *http.Response
 			return nil // Unknown protocol
 		}
 	}
-	
+
 	return endpoint
 }
 
 // analyzeEndpoint analyzes a single endpoint for vulnerabilities
 func (c *CrossProtocolAnalyzer) analyzeEndpoint(endpoint AuthEndpoint) []Vulnerability {
 	vulnerabilities := []Vulnerability{}
-	
+
 	// Common authentication vulnerabilities
 	commonVulns := []func(AuthEndpoint) *Vulnerability{
 		c.checkInsecureTransport,
@@ -180,13 +180,13 @@ func (c *CrossProtocolAnalyzer) analyzeEndpoint(endpoint AuthEndpoint) []Vulnera
 		c.checkInformationDisclosure,
 		c.checkCSRFProtection,
 	}
-	
+
 	for _, check := range commonVulns {
 		if vuln := check(endpoint); vuln != nil {
 			vulnerabilities = append(vulnerabilities, *vuln)
 		}
 	}
-	
+
 	return vulnerabilities
 }
 
@@ -217,8 +217,8 @@ func (c *CrossProtocolAnalyzer) checkInsecureTransport(endpoint AuthEndpoint) *V
 				},
 				Priority: "HIGH",
 			},
-			CVSS: 7.5,
-			CWE:  "CWE-319",
+			CVSS:      7.5,
+			CWE:       "CWE-319",
 			CreatedAt: time.Now(),
 		}
 	}
@@ -233,14 +233,14 @@ func (c *CrossProtocolAnalyzer) checkWeakHeaders(endpoint AuthEndpoint) *Vulnera
 		"X-Frame-Options",
 		"Content-Security-Policy",
 	}
-	
+
 	missing := []string{}
 	for _, header := range requiredHeaders {
 		if _, exists := endpoint.Headers[header]; !exists {
 			missing = append(missing, header)
 		}
 	}
-	
+
 	if len(missing) > 0 {
 		return &Vulnerability{
 			ID:          "AUTH_WEAK_HEADERS",
@@ -267,8 +267,8 @@ func (c *CrossProtocolAnalyzer) checkWeakHeaders(endpoint AuthEndpoint) *Vulnera
 				},
 				Priority: "MEDIUM",
 			},
-			CVSS: 5.3,
-			CWE:  "CWE-693",
+			CVSS:      5.3,
+			CWE:       "CWE-693",
 			CreatedAt: time.Now(),
 		}
 	}
@@ -283,14 +283,14 @@ func (c *CrossProtocolAnalyzer) checkInformationDisclosure(endpoint AuthEndpoint
 		"X-AspNet-Version",
 		"X-AspNetMvc-Version",
 	}
-	
+
 	disclosed := []string{}
 	for _, header := range disclosureHeaders {
 		if value, exists := endpoint.Headers[header]; exists {
 			disclosed = append(disclosed, fmt.Sprintf("%s: %s", header, value))
 		}
 	}
-	
+
 	if len(disclosed) > 0 {
 		return &Vulnerability{
 			ID:          "AUTH_INFO_DISCLOSURE",
@@ -316,8 +316,8 @@ func (c *CrossProtocolAnalyzer) checkInformationDisclosure(endpoint AuthEndpoint
 				},
 				Priority: "LOW",
 			},
-			CVSS: 3.1,
-			CWE:  "CWE-200",
+			CVSS:      3.1,
+			CWE:       "CWE-200",
 			CreatedAt: time.Now(),
 		}
 	}
@@ -352,8 +352,8 @@ func (c *CrossProtocolAnalyzer) checkCSRFProtection(endpoint AuthEndpoint) *Vuln
 				},
 				Priority: "MEDIUM",
 			},
-			CVSS: 6.5,
-			CWE:  "CWE-352",
+			CVSS:      6.5,
+			CWE:       "CWE-352",
 			CreatedAt: time.Now(),
 		}
 	}
@@ -363,13 +363,13 @@ func (c *CrossProtocolAnalyzer) checkCSRFProtection(endpoint AuthEndpoint) *Vuln
 // findAttackChains finds potential attack chains
 func (c *CrossProtocolAnalyzer) findAttackChains(vulnerabilities []Vulnerability) []AttackChain {
 	chains := []AttackChain{}
-	
+
 	// Group vulnerabilities by protocol
 	protocolVulns := make(map[AuthProtocol][]Vulnerability)
 	for _, vuln := range vulnerabilities {
 		protocolVulns[vuln.Protocol] = append(protocolVulns[vuln.Protocol], vuln)
 	}
-	
+
 	// Look for cross-protocol attack opportunities
 	if len(protocolVulns) > 1 {
 		chain := AttackChain{
@@ -380,7 +380,7 @@ func (c *CrossProtocolAnalyzer) findAttackChains(vulnerabilities []Vulnerability
 			Severity:    "CRITICAL",
 			Steps:       []AttackStep{},
 		}
-		
+
 		// Add steps for each vulnerable protocol
 		order := 1
 		for protocol, vulns := range protocolVulns {
@@ -398,12 +398,12 @@ func (c *CrossProtocolAnalyzer) findAttackChains(vulnerabilities []Vulnerability
 				}
 			}
 		}
-		
+
 		if len(chain.Steps) > 1 {
 			chains = append(chains, chain)
 		}
 	}
-	
+
 	return chains
 }
 
@@ -413,19 +413,19 @@ func (c *CrossProtocolAnalyzer) generateSummary(report *AuthReport) ReportSummar
 		BySeverity: make(map[string]int),
 		ByProtocol: make(map[string]int),
 	}
-	
+
 	summary.TotalVulnerabilities = len(report.Vulnerabilities)
 	summary.AttackChains = len(report.AttackChains)
-	
+
 	for _, vuln := range report.Vulnerabilities {
 		summary.BySeverity[vuln.Severity]++
 		summary.ByProtocol[string(vuln.Protocol)]++
-		
+
 		if vuln.Severity == "CRITICAL" {
 			summary.Exploitable++
 		}
 	}
-	
+
 	// Determine highest severity
 	if summary.BySeverity["CRITICAL"] > 0 {
 		summary.HighestSeverity = "CRITICAL"
@@ -436,6 +436,6 @@ func (c *CrossProtocolAnalyzer) generateSummary(report *AuthReport) ReportSummar
 	} else {
 		summary.HighestSeverity = "LOW"
 	}
-	
+
 	return summary
 }

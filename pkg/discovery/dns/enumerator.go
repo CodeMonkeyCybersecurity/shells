@@ -112,23 +112,23 @@ func (d *DNSEnumerator) DeepEnumeration(ctx context.Context, domain string) (*En
 
 func (d *DNSEnumerator) passiveEnumeration(ctx context.Context, domain string) ([]Subdomain, error) {
 	subdomains := []Subdomain{}
-	
+
 	// Sources for passive enumeration
 	sources := map[string]func(context.Context, string) ([]Subdomain, error){
-		"crt.sh":          d.queryRapidDNS,
-		"threatminer":     d.queryThreatMiner,
-		"virustotal":      d.queryVirusTotal,
-		"securitytrails":  d.querySecurityTrails,
-		"shodan":          d.queryShoDan,
-		"censys":          d.queryCensys,
-		"dnsrepo":         d.queryDNSRepo,
-		"hackertarget":    d.queryHackerTarget,
+		"crt.sh":         d.queryRapidDNS,
+		"threatminer":    d.queryThreatMiner,
+		"virustotal":     d.queryVirusTotal,
+		"securitytrails": d.querySecurityTrails,
+		"shodan":         d.queryShoDan,
+		"censys":         d.queryCensys,
+		"dnsrepo":        d.queryDNSRepo,
+		"hackertarget":   d.queryHackerTarget,
 	}
-	
+
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	results := make(chan []Subdomain, len(sources))
-	
+
 	for source, queryFunc := range sources {
 		wg.Add(1)
 		go func(src string, fn func(context.Context, string) ([]Subdomain, error)) {
@@ -141,49 +141,49 @@ func (d *DNSEnumerator) passiveEnumeration(ctx context.Context, domain string) (
 			}
 		}(source, queryFunc)
 	}
-	
+
 	go func() {
 		wg.Wait()
 		close(results)
 	}()
-	
+
 	for result := range results {
 		mu.Lock()
 		subdomains = append(subdomains, result...)
 		mu.Unlock()
 	}
-	
+
 	return subdomains, nil
 }
 
 func (d *DNSEnumerator) certificateTransparency(ctx context.Context, domain string) ([]Subdomain, error) {
 	subdomains := []Subdomain{}
-	
+
 	// Query crt.sh
 	if subs, err := d.queryCrtSh(ctx, domain); err == nil {
 		subdomains = append(subdomains, subs...)
 	}
-	
+
 	// Query Facebook CT
 	if subs, err := d.queryFacebookCT(ctx, domain); err == nil {
 		subdomains = append(subdomains, subs...)
 	}
-	
+
 	// Query Google CT
 	if subs, err := d.queryGoogleCT(ctx, domain); err == nil {
 		subdomains = append(subdomains, subs...)
 	}
-	
+
 	return subdomains, nil
 }
 
 func (d *DNSEnumerator) smartBruteforce(ctx context.Context, domain string, known []Subdomain) ([]Subdomain, error) {
 	// Analyze patterns in known subdomains
 	patterns := d.detectPatterns(known)
-	
+
 	// Select appropriate wordlists
 	wordlists := []string{}
-	
+
 	if patterns.HasDevPattern {
 		wordlists = append(wordlists, d.wordlists["development"]...)
 	}
@@ -196,24 +196,24 @@ func (d *DNSEnumerator) smartBruteforce(ctx context.Context, domain string, know
 	if patterns.HasStagingPattern {
 		wordlists = append(wordlists, d.wordlists["staging"]...)
 	}
-	
+
 	// Add base wordlist
 	wordlists = append(wordlists, d.wordlists["common"]...)
-	
+
 	// Add custom generated words based on patterns
 	customWords := d.generateCustomWordlist(patterns)
 	wordlists = append(wordlists, customWords...)
-	
+
 	return d.bruteforce(ctx, domain, wordlists)
 }
 
 func (d *DNSEnumerator) bruteforce(ctx context.Context, domain string, wordlist []string) ([]Subdomain, error) {
 	subdomains := []Subdomain{}
-	
+
 	// Create worker pool
 	work := make(chan string, len(wordlist))
 	results := make(chan Subdomain, len(wordlist))
-	
+
 	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < d.workers; i++ {
@@ -234,7 +234,7 @@ func (d *DNSEnumerator) bruteforce(ctx context.Context, domain string, wordlist 
 			}
 		}()
 	}
-	
+
 	// Send work
 	go func() {
 		for _, word := range wordlist {
@@ -246,22 +246,22 @@ func (d *DNSEnumerator) bruteforce(ctx context.Context, domain string, wordlist 
 		}
 		close(work)
 	}()
-	
+
 	// Collect results
 	go func() {
 		wg.Wait()
 		close(results)
 	}()
-	
+
 	for result := range results {
 		subdomains = append(subdomains, result)
 	}
-	
+
 	return subdomains, nil
 }
 
 func (d *DNSEnumerator) generatePermutations(ctx context.Context, domain string, known []Subdomain) ([]Subdomain, error) {
-	
+
 	// Extract base words from known subdomains
 	baseWords := []string{}
 	for _, sub := range known {
@@ -270,48 +270,48 @@ func (d *DNSEnumerator) generatePermutations(ctx context.Context, domain string,
 			baseWords = append(baseWords, parts[0])
 		}
 	}
-	
+
 	// Generate permutations
 	permutations := []string{}
-	
+
 	// Common prefixes and suffixes
 	prefixes := []string{"www", "mail", "ftp", "admin", "api", "dev", "test", "staging"}
 	suffixes := []string{"01", "02", "03", "new", "old", "bak", "backup"}
-	
+
 	for _, base := range baseWords {
 		// Add prefixes
 		for _, prefix := range prefixes {
 			permutations = append(permutations, prefix+"-"+base)
 			permutations = append(permutations, prefix+base)
 		}
-		
+
 		// Add suffixes
 		for _, suffix := range suffixes {
 			permutations = append(permutations, base+"-"+suffix)
 			permutations = append(permutations, base+suffix)
 		}
 	}
-	
+
 	// Test permutations
 	return d.bruteforce(ctx, domain, permutations)
 }
 
 func (d *DNSEnumerator) attemptZoneTransfer(ctx context.Context, domain string) ([]Subdomain, error) {
 	subdomains := []Subdomain{}
-	
+
 	// Get nameservers
 	nameservers, err := net.LookupNS(domain)
 	if err != nil {
 		return subdomains, err
 	}
-	
+
 	// Try zone transfer on each nameserver
 	for _, ns := range nameservers {
 		if zoneData, err := d.tryZoneTransfer(ctx, domain, ns.Host); err == nil {
 			subdomains = append(subdomains, zoneData...)
 		}
 	}
-	
+
 	return subdomains, nil
 }
 
@@ -323,7 +323,7 @@ func (d *DNSEnumerator) tryZoneTransfer(ctx context.Context, domain, nameserver 
 
 func (d *DNSEnumerator) virtualHostScanning(ctx context.Context, subdomains []Subdomain) ([]Subdomain, error) {
 	vhosts := []Subdomain{}
-	
+
 	// Group subdomains by IP
 	ipGroups := make(map[string][]Subdomain)
 	for _, sub := range subdomains {
@@ -331,7 +331,7 @@ func (d *DNSEnumerator) virtualHostScanning(ctx context.Context, subdomains []Su
 			ipGroups[ip] = append(ipGroups[ip], sub)
 		}
 	}
-	
+
 	// For each IP with multiple subdomains, scan for virtual hosts
 	for ip, subs := range ipGroups {
 		if len(subs) > 1 {
@@ -350,26 +350,26 @@ func (d *DNSEnumerator) virtualHostScanning(ctx context.Context, subdomains []Su
 			}
 		}
 	}
-	
+
 	return vhosts, nil
 }
 
 func (d *DNSEnumerator) generateVHostPatterns(subdomains []Subdomain) []string {
 	patterns := []string{}
-	
+
 	// Extract base domain
 	if len(subdomains) == 0 {
 		return patterns
 	}
-	
+
 	baseDomain := d.extractBaseDomain(subdomains[0].Name)
-	
+
 	// Generate patterns based on existing subdomains
 	for _, sub := range subdomains {
 		parts := strings.Split(sub.Name, ".")
 		if len(parts) > 0 {
 			base := parts[0]
-			
+
 			// Generate variations
 			variations := []string{
 				base + "-backup",
@@ -383,13 +383,13 @@ func (d *DNSEnumerator) generateVHostPatterns(subdomains []Subdomain) []string {
 				"new-" + base,
 				"backup-" + base,
 			}
-			
+
 			for _, variation := range variations {
 				patterns = append(patterns, variation+"."+baseDomain)
 			}
 		}
 	}
-	
+
 	return patterns
 }
 
@@ -411,12 +411,12 @@ func (d *DNSEnumerator) resolve(ctx context.Context, domain string) ([]string, e
 			return net.Dial(network, address)
 		},
 	}
-	
+
 	ips, err := resolver.LookupHost(ctx, domain)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return ips, nil
 }
 
@@ -424,12 +424,12 @@ func (d *DNSEnumerator) detectPatterns(subdomains []Subdomain) *PatternAnalysis 
 	analysis := &PatternAnalysis{
 		CustomPatterns: []string{},
 	}
-	
+
 	devPattern := regexp.MustCompile(`(?i)(dev|develop|development)`)
 	regionalPattern := regexp.MustCompile(`(?i)(us|eu|asia|west|east|north|south|\d{2})`)
 	apiPattern := regexp.MustCompile(`(?i)(api|rest|graphql|v\d+)`)
 	stagingPattern := regexp.MustCompile(`(?i)(staging|stage|test|qa|uat|beta)`)
-	
+
 	for _, subdomain := range subdomains {
 		if devPattern.MatchString(subdomain.Name) {
 			analysis.HasDevPattern = true
@@ -444,13 +444,13 @@ func (d *DNSEnumerator) detectPatterns(subdomains []Subdomain) *PatternAnalysis 
 			analysis.HasStagingPattern = true
 		}
 	}
-	
+
 	return analysis
 }
 
 func (d *DNSEnumerator) generateCustomWordlist(patterns *PatternAnalysis) []string {
 	custom := []string{}
-	
+
 	if patterns.HasDevPattern {
 		custom = append(custom, "dev01", "dev02", "dev03", "developer", "development")
 	}
@@ -463,16 +463,16 @@ func (d *DNSEnumerator) generateCustomWordlist(patterns *PatternAnalysis) []stri
 	if patterns.HasStagingPattern {
 		custom = append(custom, "staging01", "staging02", "pre-prod", "uat")
 	}
-	
+
 	return custom
 }
 
 func (d *DNSEnumerator) analyzePatterns(subdomains []Subdomain) []Pattern {
 	patterns := []Pattern{}
-	
+
 	// Group by pattern
 	patternGroups := make(map[string][]string)
-	
+
 	for _, sub := range subdomains {
 		parts := strings.Split(sub.Name, ".")
 		if len(parts) > 0 {
@@ -481,7 +481,7 @@ func (d *DNSEnumerator) analyzePatterns(subdomains []Subdomain) []Pattern {
 			patternGroups[pattern] = append(patternGroups[pattern], sub.Name)
 		}
 	}
-	
+
 	// Convert to Pattern objects
 	for pattern, examples := range patternGroups {
 		if len(examples) > 1 { // Only include patterns with multiple examples
@@ -493,7 +493,7 @@ func (d *DNSEnumerator) analyzePatterns(subdomains []Subdomain) []Pattern {
 			})
 		}
 	}
-	
+
 	return patterns
 }
 
@@ -514,14 +514,14 @@ func (d *DNSEnumerator) extractBaseDomain(fullDomain string) string {
 func (d *DNSEnumerator) deduplicateSubdomains(subdomains []Subdomain) []Subdomain {
 	seen := make(map[string]bool)
 	result := []Subdomain{}
-	
+
 	for _, sub := range subdomains {
 		if !seen[sub.Name] {
 			seen[sub.Name] = true
 			result = append(result, sub)
 		}
 	}
-	
+
 	return result
 }
 

@@ -57,12 +57,12 @@ func NewDNSHistoryClient(securityTrailsKey, dnsDBKey, viewDNSKey string) *DNSHis
 
 func (d *DNSHistoryClient) GetCompleteHistory(ctx context.Context, domain string) (*DNSHistory, error) {
 	history := &DNSHistory{
-		Domain:        domain,
-		Subdomains:    make(map[string][]HistoricalRecord),
-		IPHistory:     make(map[string][]IPRecord),
-		NSHistory:     []NameserverRecord{},
-		MXHistory:     []MXRecord{},
-		LastUpdated:   time.Now(),
+		Domain:      domain,
+		Subdomains:  make(map[string][]HistoricalRecord),
+		IPHistory:   make(map[string][]IPRecord),
+		NSHistory:   []NameserverRecord{},
+		MXHistory:   []MXRecord{},
+		LastUpdated: time.Now(),
 	}
 
 	var wg sync.WaitGroup
@@ -234,30 +234,30 @@ func (d *DNSHistoryClient) isInterestingSubdomain(subdomain string) bool {
 // SecurityTrails API implementation
 func (st *SecurityTrailsClient) GetHistory(ctx context.Context, domain string) (*DNSHistory, error) {
 	url := fmt.Sprintf("https://api.securitytrails.com/v1/history/%s/dns/a", domain)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req.Header.Set("APIKEY", st.APIKey)
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := st.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("SecurityTrails API returned status %d", resp.StatusCode)
 	}
-	
+
 	var response SecurityTrailsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
-	
+
 	return st.convertToHistory(domain, response), nil
 }
 
@@ -267,7 +267,7 @@ func (st *SecurityTrailsClient) convertToHistory(domain string, response Securit
 		Subdomains: make(map[string][]HistoricalRecord),
 		IPHistory:  make(map[string][]IPRecord),
 	}
-	
+
 	for _, record := range response.Records {
 		for _, value := range record.Values {
 			histRecord := HistoricalRecord{
@@ -277,9 +277,9 @@ func (st *SecurityTrailsClient) convertToHistory(domain string, response Securit
 				LastSeen:  record.Last,
 				Source:    "SecurityTrails",
 			}
-			
+
 			history.Subdomains[domain] = append(history.Subdomains[domain], histRecord)
-			
+
 			// If it's an A record, also add to IP history
 			if record.Type == "A" {
 				ipRecord := IPRecord{
@@ -292,37 +292,37 @@ func (st *SecurityTrailsClient) convertToHistory(domain string, response Securit
 			}
 		}
 	}
-	
+
 	return history
 }
 
 // DNSDB API implementation
 func (dnsdb *DNSDBClient) QueryDomain(ctx context.Context, domain string) (*DNSHistory, error) {
 	url := fmt.Sprintf("https://api.dnsdb.info/lookup/rrset/name/%s", domain)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	req.Header.Set("X-API-Key", dnsdb.APIKey)
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := dnsdb.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("DNSDB API returned status %d", resp.StatusCode)
 	}
-	
+
 	var response DNSDBResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
-	
+
 	return dnsdb.convertToHistory(domain, response), nil
 }
 
@@ -332,7 +332,7 @@ func (dnsdb *DNSDBClient) convertToHistory(domain string, response DNSDBResponse
 		Subdomains: make(map[string][]HistoricalRecord),
 		IPHistory:  make(map[string][]IPRecord),
 	}
-	
+
 	for _, record := range response.Data {
 		histRecord := HistoricalRecord{
 			Type:      record.RRType,
@@ -341,9 +341,9 @@ func (dnsdb *DNSDBClient) convertToHistory(domain string, response DNSDBResponse
 			LastSeen:  record.TimeLast,
 			Source:    "DNSDB",
 		}
-		
+
 		history.Subdomains[record.RRName] = append(history.Subdomains[record.RRName], histRecord)
-		
+
 		if record.RRType == "A" {
 			ipRecord := IPRecord{
 				IP:        record.RData,
@@ -354,34 +354,34 @@ func (dnsdb *DNSDBClient) convertToHistory(domain string, response DNSDBResponse
 			history.IPHistory[record.RRName] = append(history.IPHistory[record.RRName], ipRecord)
 		}
 	}
-	
+
 	return history
 }
 
 // ViewDNS API implementation
 func (vdns *ViewDNSClient) GetIPHistory(ctx context.Context, domain string) (*DNSHistory, error) {
 	url := fmt.Sprintf("https://api.viewdns.info/iphistory/?domain=%s&apikey=%s&output=json", domain, vdns.APIKey)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	resp, err := vdns.HTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("ViewDNS API returned status %d", resp.StatusCode)
 	}
-	
+
 	var response ViewDNSResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, err
 	}
-	
+
 	return vdns.convertToHistory(domain, response), nil
 }
 
@@ -391,14 +391,14 @@ func (vdns *ViewDNSClient) convertToHistory(domain string, response ViewDNSRespo
 		Subdomains: make(map[string][]HistoricalRecord),
 		IPHistory:  make(map[string][]IPRecord),
 	}
-	
+
 	for _, record := range response.Response.Records {
 		// Parse date
 		date, err := time.Parse("2006-01-02", record.Date)
 		if err != nil {
 			continue
 		}
-		
+
 		histRecord := HistoricalRecord{
 			Type:      "A",
 			Value:     record.IP,
@@ -406,9 +406,9 @@ func (vdns *ViewDNSClient) convertToHistory(domain string, response ViewDNSRespo
 			LastSeen:  date,
 			Source:    "ViewDNS",
 		}
-		
+
 		history.Subdomains[domain] = append(history.Subdomains[domain], histRecord)
-		
+
 		ipRecord := IPRecord{
 			IP:        record.IP,
 			FirstSeen: date,
@@ -417,7 +417,7 @@ func (vdns *ViewDNSClient) convertToHistory(domain string, response ViewDNSRespo
 		}
 		history.IPHistory[domain] = append(history.IPHistory[domain], ipRecord)
 	}
-	
+
 	return history
 }
 
@@ -426,23 +426,23 @@ func (h *DNSHistory) Merge(other *DNSHistory) {
 	if other == nil {
 		return
 	}
-	
+
 	// Merge subdomains
 	for domain, records := range other.Subdomains {
 		h.Subdomains[domain] = append(h.Subdomains[domain], records...)
 	}
-	
+
 	// Merge IP history
 	for domain, records := range other.IPHistory {
 		h.IPHistory[domain] = append(h.IPHistory[domain], records...)
 	}
-	
+
 	// Merge NS history
 	h.NSHistory = append(h.NSHistory, other.NSHistory...)
-	
+
 	// Merge MX history
 	h.MXHistory = append(h.MXHistory, other.MXHistory...)
-	
+
 	// Merge findings
 	h.Findings = append(h.Findings, other.Findings...)
 }
@@ -462,7 +462,7 @@ func (d *DNSHistoryClient) CheckSubdomainTakeover(subdomain string) *Finding {
 		"cloudflare.com":    "Cloudflare",
 		"azurewebsites.net": "Azure",
 	}
-	
+
 	// This would be implemented with actual DNS resolution
 	// Check if subdomain matches any takeover patterns
 	for pattern, service := range takeoverPatterns {
@@ -475,7 +475,7 @@ func (d *DNSHistoryClient) CheckSubdomainTakeover(subdomain string) *Finding {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -484,12 +484,12 @@ func (d *DNSHistoryClient) DetectPatterns(subdomains []string) *PatternAnalysis 
 	analysis := &PatternAnalysis{
 		CustomPatterns: []string{},
 	}
-	
+
 	devPattern := regexp.MustCompile(`(?i)(dev|develop|development)`)
 	regionalPattern := regexp.MustCompile(`(?i)(us|eu|asia|west|east|north|south)`)
 	apiPattern := regexp.MustCompile(`(?i)(api|rest|graphql|v1|v2|v3)`)
 	stagingPattern := regexp.MustCompile(`(?i)(staging|stage|test|qa|uat)`)
-	
+
 	for _, subdomain := range subdomains {
 		if devPattern.MatchString(subdomain) {
 			analysis.HasDevPattern = true
@@ -504,6 +504,6 @@ func (d *DNSHistoryClient) DetectPatterns(subdomains []string) *PatternAnalysis 
 			analysis.HasStagingPattern = true
 		}
 	}
-	
+
 	return analysis
 }
