@@ -32,20 +32,20 @@ detect_platform() {
 }
 
 # --- Globals ---
-SHELLS_USER="shells"
-SHELLS_BINARY_NAME="shells"
-SHELLS_SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
-SHELLS_BUILD_PATH="$SHELLS_SRC_DIR/$SHELLS_BINARY_NAME"
-INSTALL_PATH="/usr/local/bin/$SHELLS_BINARY_NAME"
+Shells_USER="shells"
+Shells_BINARY_NAME="shells"
+Shells_SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
+Shells_BUILD_PATH="$Shells_SRC_DIR/$Shells_BINARY_NAME"
+INSTALL_PATH="/usr/local/bin/$Shells_BINARY_NAME"
 
 # Go installation settings
-GO_VERSION="1.23.4"
+GO_VERSION="1.24.0"
 GO_INSTALL_DIR="/usr/local"
 
 # --- Directories ---
 # These are the *default* system-wide paths.
-# If Shell CLI supports user-specific configs, the Go application
-# should handle XDG Base Directory specification (e.g., ~/.config/shell)
+# If Shells CLI supports user-specific configs, the Go application
+# should handle XDG Base Directory specification (e.g., ~/.config/shells)
 # when run as a non-root user.
 if $IS_MAC; then
   SECRETS_DIR="$HOME/Library/Application Support/shells/secrets"
@@ -89,12 +89,12 @@ install_go() {
     current_version=$(go version | awk '{print $3}' | sed 's/go//')
     log INFO " Detected Go version: $current_version"
     
-    # Force installation if version is less than 1.23
-    if [[ "$current_version" < "1.23" ]]; then
+    # Simple version comparison - check if current version is at least the required version
+    if printf '%s\n%s\n' "$GO_VERSION" "$current_version" | sort -V | head -n1 | grep -q "^$GO_VERSION$"; then
+      log INFO " Go is already up-to-date (version $current_version >= $GO_VERSION)"
+    else
       log INFO " Go version is older (wanted: $GO_VERSION, found: $current_version)"
       need_go_install=true
-    else
-      log INFO " Go is already up-to-date (version $current_version >= 1.23)"
     fi
   fi
 
@@ -157,8 +157,7 @@ EOF
   
   # Verify Go installation
   if command -v go >/dev/null 2>&1; then
-    local installed_version=$(go version | awk '{print $3}' | sed 's/go//')
-    log INFO " Go installation verified: version $installed_version at $(command -v go)"
+    log INFO "Go version: $(go version)"
   else
     log ERR " Go installation verification failed"
     exit 1
@@ -185,9 +184,9 @@ install_github_cli() {
       dnf install -y dnf-plugins-core
       
       # Remove any stale local repo
-      if [ -f "/etc/yum.repos.d/opt_shell.repo" ]; then
-        log INFO "Removing stale local repo: /etc/yum.repos.d/opt_shell.repo"
-        rm -f /etc/yum.repos.d/opt_shell.repo
+      if [ -f "/etc/yum.repos.d/opt_shells.repo" ]; then
+        log INFO "Removing stale local repo: /etc/yum.repos.d/opt_shells.repo"
+        rm -f /etc/yum.repos.d/opt_shells.repo
       fi
       
       # Add GitHub CLI repo if not already added
@@ -254,12 +253,7 @@ check_prerequisites() {
   install_github_cli
 
   # Verify Go is now available
-  if command -v go >/dev/null 2>&1; then
-    log INFO " Go detected and ready. Version: $(go version | awk '{print $3}')"
-  else
-    log ERR " Go verification failed after installation"
-    exit 1
-  fi
+  log INFO "Go detected and ready. Version details: $(go version)"
 
   if $IS_LINUX; then
     for cmd in useradd usermod visudo stat; do
@@ -270,10 +264,10 @@ check_prerequisites() {
 
 build_shells_binary() {
   log INFO " Building Shells..."
-  cd "$SHELLS_SRC_DIR"
-  rm -rf "$SHELLS_BINARY_NAME"
+  cd "$Shells_SRC_DIR"
+  rm -rf "$Shells_BINARY_NAME"
   # Use the 'go' command which should now be in PATH due to check_prerequisites
-  go build -o "$SHELLS_BINARY_NAME" .
+  go build -o "$Shells_BINARY_NAME" .
 }
 
 show_existing_checksum() {
@@ -291,7 +285,7 @@ install_binary() {
   if $IS_MAC; then
     # On macOS, sudo is typically implied for /usr/local/bin
     sudo rm -rf "$INSTALL_PATH" || log ERR "Failed to remove existing binary at $INSTALL_PATH. Permissions issue?"
-    sudo cp "$SHELLS_BUILD_PATH" "$INSTALL_PATH" || log ERR "Failed to copy binary to $INSTALL_PATH. Permissions issue?"
+    sudo cp "$Shells_BUILD_PATH" "$INSTALL_PATH" || log ERR "Failed to copy binary to $INSTALL_PATH. Permissions issue?"
     sudo chmod 755 "$INSTALL_PATH" || log ERR "Failed to set permissions on $INSTALL_PATH."
   else
     # Linux handling: re-run with sudo if not already root
@@ -301,7 +295,7 @@ install_binary() {
       exec sudo bash -c "export PATH=\"$PATH\"; \"$0\" \"$@\""
     fi
     rm -rf "$INSTALL_PATH" || log ERR "Failed to remove existing binary at $INSTALL_PATH. Permissions issue?"
-    cp "$SHELLS_BUILD_PATH" "$INSTALL_PATH" || log ERR "Failed to copy binary to $INSTALL_PATH. Permissions issue?"
+    cp "$Shells_BUILD_PATH" "$INSTALL_PATH" || log ERR "Failed to copy binary to $INSTALL_PATH. Permissions issue?"
     chown root:root "$INSTALL_PATH" || log ERR "Failed to change ownership of $INSTALL_PATH."
     chmod 755 "$INSTALL_PATH" || log ERR "Failed to set permissions on $INSTALL_PATH."
   fi
@@ -320,12 +314,12 @@ create_directories() {
   chmod 755 "$LOG_DIR" || log ERR "Failed to set permissions on $LOG_DIR."
 
   # This is where the core logic for user-runnable commands comes in.
-  # If Eos can run certain commands as a regular user, it needs to access
+  # If Shells can run certain commands as a regular user, it needs to access
   # config/log/secret files *owned by that user*.
   # The recommended approach is for the Go application itself to determine
   # paths based on the current user and XDG Base Directory spec.
   # For the shell script, we can at least ensure base permissions are not overly restrictive for other users
-  # while maintaining security for the 'eos' system user.
+  # while maintaining security for the 'shells' system user.
 
   # Example: Make config directory readable by others (if configs aren't secrets)
   # You might want to copy example configs here and make them user-readable
@@ -335,31 +329,7 @@ create_directories() {
   # This part is installing for the system service user.
 }
 
-show_warning() {
-  echo "⚠️  IMPORTANT WARNING ⚠️"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "This installs the 'shells' security testing tool."
-  echo "This is NOT a system shell (bash/zsh/sh)!"
-  echo ""
-  echo "Command will be: shells (not shell)"
-  echo "Purpose: Security scanning and penetration testing"
-  echo "Use only on systems you have permission to test!"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo ""
-  read -p "Do you understand and wish to continue? (yes/no): " response
-  case "$response" in
-    [yY]|[yY][eE][sS])
-      log INFO "Proceeding with installation..."
-      ;;
-    *)
-      log INFO "Installation cancelled by user"
-      exit 0
-      ;;
-  esac
-}
-
 main() {
-  show_warning
   detect_platform
   
   # Update system packages first (Linux only, requires root)
@@ -383,13 +353,9 @@ main() {
   log INFO "This path is typically included in your user's PATH."
   log INFO "You should now be able to run 'shells --help' directly."
   echo
-  log INFO "🔍 SHELLS - Security Testing CLI Tool"
-  log INFO "   Command: shells --help"
-  log INFO "   Config: ~/.shells.yaml"
-  echo
-  log INFO "⚠️  WARNING: This is a security testing tool for bug bounty hunting."
-  log INFO "           Use responsibly and only on systems you have permission to test."
-  log INFO "           Configuration files are located in '$CONFIG_DIR'."
+  log INFO "NOTE: Commands requiring elevated privileges (e.g., system configuration, user management, service control)"
+  log INFO "      will still require 'sudo shells [command]'. For example: 'sudo shells create user'."
+  log INFO "      Log files are located in '$LOG_DIR' and configuration in '$CONFIG_DIR'."
 }
 
 main "$@"
