@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/workflow"
 	"github.com/spf13/cobra"
-	"github.com/yourusername/shells/internal/workflow"
 )
 
 var workflowCmd = &cobra.Command{
@@ -91,7 +91,7 @@ var workflowListCmd = &cobra.Command{
 					fmt.Printf("     Parallel: true\n")
 				}
 			}
-			fmt.Printf("\n" + strings.Repeat("=", 50) + "\n\n")
+			fmt.Printf("\n%s\n\n", strings.Repeat("=", 50))
 		}
 
 		return nil

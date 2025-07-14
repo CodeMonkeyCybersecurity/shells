@@ -8,9 +8,9 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/yourusername/shells/internal/config"
-	"github.com/yourusername/shells/internal/core"
-	"github.com/yourusername/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type nmapScanner struct {

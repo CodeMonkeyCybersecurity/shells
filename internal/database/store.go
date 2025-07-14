@@ -10,9 +10,9 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/yourusername/shells/internal/config"
-	"github.com/yourusername/shells/internal/core"
-	"github.com/yourusername/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type sqlStore struct {

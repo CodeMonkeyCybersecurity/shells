@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/yourusername/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type Scanner interface {
@@ -30,11 +30,11 @@ type ResultStore interface {
 	UpdateScan(ctx context.Context, scan *types.ScanRequest) error
 	GetScan(ctx context.Context, scanID string) (*types.ScanRequest, error)
 	ListScans(ctx context.Context, filter ScanFilter) ([]*types.ScanRequest, error)
-	
+
 	SaveFindings(ctx context.Context, findings []types.Finding) error
 	GetFindings(ctx context.Context, scanID string) ([]types.Finding, error)
 	GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error)
-	
+
 	GetSummary(ctx context.Context, scanID string) (*types.Summary, error)
 	Close() error
 }

@@ -1,11 +1,10 @@
-module github.com/yourusername/shells
+module github.com/CodeMonkeyCybersecurity/shells
 
-go 1.21
+go 1.24
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20231011050154-1d073bb38998
 	github.com/chromedp/chromedp v0.9.3
-	github.com/google/gofuzz v1.2.0
 	github.com/google/uuid v1.5.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9

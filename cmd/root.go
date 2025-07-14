@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/yourusername/shells/internal/config"
-	"github.com/yourusername/shells/internal/logger"
 )
 
 var (
@@ -27,13 +27,13 @@ a unified interface for distributed scanning with result aggregation.`,
 		if err := initConfig(); err != nil {
 			return fmt.Errorf("failed to initialize config: %w", err)
 		}
-		
+
 		var err error
 		log, err = logger.New(cfg.Logger)
 		if err != nil {
 			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
-		
+
 		return nil
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
@@ -58,7 +58,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.shells.yaml)")
 	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("log-format", "json", "log format (json, console)")
-	
+
 	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag("log.format", rootCmd.PersistentFlags().Lookup("log-format"))
 }

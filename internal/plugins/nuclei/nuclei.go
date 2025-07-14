@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
@@ -26,37 +25,37 @@ type nucleiScanner struct {
 }
 
 type NucleiConfig struct {
-	BinaryPath    string
-	TemplatesPath string
+	BinaryPath      string
+	TemplatesPath   string
 	CustomTemplates string
-	Timeout       time.Duration
-	RateLimit     int
-	BulkSize      int
-	Concurrency   int
-	Retries       int
+	Timeout         time.Duration
+	RateLimit       int
+	BulkSize        int
+	Concurrency     int
+	Retries         int
 }
 
 type NucleiOutput struct {
-	TemplateID   string      `json:"template-id"`
-	TemplatePath string      `json:"template-path"`
-	Info         NucleiInfo  `json:"info"`
-	Type         string      `json:"type"`
-	Host         string      `json:"host"`
-	Matched      string      `json:"matched-at"`
-	ExtractedResults []string `json:"extracted-results,omitempty"`
-	Meta         interface{} `json:"meta,omitempty"`
-	Timestamp    string      `json:"timestamp"`
-	MatcherStatus bool       `json:"matcher-status"`
-	CurlCommand  string      `json:"curl-command,omitempty"`
+	TemplateID       string      `json:"template-id"`
+	TemplatePath     string      `json:"template-path"`
+	Info             NucleiInfo  `json:"info"`
+	Type             string      `json:"type"`
+	Host             string      `json:"host"`
+	Matched          string      `json:"matched-at"`
+	ExtractedResults []string    `json:"extracted-results,omitempty"`
+	Meta             interface{} `json:"meta,omitempty"`
+	Timestamp        string      `json:"timestamp"`
+	MatcherStatus    bool        `json:"matcher-status"`
+	CurlCommand      string      `json:"curl-command,omitempty"`
 }
 
 type NucleiInfo struct {
-	Name        string   `json:"name"`
-	Author      []string `json:"author"`
-	Tags        []string `json:"tags"`
-	Description string   `json:"description"`
-	Reference   []string `json:"reference,omitempty"`
-	Severity    string   `json:"severity"`
+	Name        string                 `json:"name"`
+	Author      []string               `json:"author"`
+	Tags        []string               `json:"tags"`
+	Description string                 `json:"description"`
+	Reference   []string               `json:"reference,omitempty"`
+	Severity    string                 `json:"severity"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -80,7 +79,7 @@ func NewScanner(cfg NucleiConfig, logger interface {
 	if cfg.Concurrency == 0 {
 		cfg.Concurrency = 25
 	}
-	
+
 	return &nucleiScanner{
 		cfg:    cfg,
 		logger: logger,
@@ -99,34 +98,34 @@ func (s *nucleiScanner) Validate(target string) error {
 	if target == "" {
 		return fmt.Errorf("target cannot be empty")
 	}
-	
+
 	if _, err := exec.LookPath(s.cfg.BinaryPath); err != nil {
 		return fmt.Errorf("nuclei binary not found: %w", err)
 	}
-	
+
 	return nil
 }
 
 func (s *nucleiScanner) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
 	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("nuclei_%d.json", time.Now().Unix()))
 	defer os.Remove(tempFile)
-	
+
 	args := s.buildNucleiArgs(target, tempFile, options)
-	
+
 	s.logger.Info("Running nuclei scan", "target", target, "args", args)
-	
+
 	cmd := exec.CommandContext(ctx, s.cfg.BinaryPath, args...)
-	
+
 	// Capture stderr for debugging
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
-	
+
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start nuclei: %w", err)
 	}
-	
+
 	// Log stderr output
 	go func() {
 		scanner := bufio.NewScanner(stderr)
@@ -134,7 +133,7 @@ func (s *nucleiScanner) Scan(ctx context.Context, target string, options map[str
 			s.logger.Debug("nuclei stderr", "output", scanner.Text())
 		}
 	}()
-	
+
 	if err := cmd.Wait(); err != nil {
 		// Nuclei returns non-zero exit code when vulnerabilities are found
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
@@ -143,7 +142,7 @@ func (s *nucleiScanner) Scan(ctx context.Context, target string, options map[str
 			return nil, fmt.Errorf("nuclei scan failed: %w", err)
 		}
 	}
-	
+
 	return s.parseNucleiOutput(tempFile, target)
 }
 
@@ -160,19 +159,19 @@ func (s *nucleiScanner) buildNucleiArgs(target, outputFile string, options map[s
 		"-stats",
 		"-silent",
 	}
-	
+
 	// Add severity filter
 	if severity := options["severity"]; severity != "" {
 		args = append(args, "-severity", severity)
 	} else {
 		args = append(args, "-severity", "critical,high,medium,low,info")
 	}
-	
+
 	// Add template filters
 	if tags := options["tags"]; tags != "" {
 		args = append(args, "-tags", tags)
 	}
-	
+
 	// Add specific templates
 	if templates := options["templates"]; templates != "" {
 		for _, template := range strings.Split(templates, ",") {
@@ -181,12 +180,12 @@ func (s *nucleiScanner) buildNucleiArgs(target, outputFile string, options map[s
 	} else if s.cfg.TemplatesPath != "" {
 		args = append(args, "-t", s.cfg.TemplatesPath)
 	}
-	
+
 	// Add custom templates
 	if s.cfg.CustomTemplates != "" {
 		args = append(args, "-t", s.cfg.CustomTemplates)
 	}
-	
+
 	// Add OAuth2 specific templates
 	if scanType := options["scan_type"]; scanType == "oauth2" {
 		args = append(args, "-tags", "oauth,jwt,oidc,auth")
@@ -194,30 +193,30 @@ func (s *nucleiScanner) buildNucleiArgs(target, outputFile string, options map[s
 		args = append(args, "-t", "vulnerabilities/generic/jwt-none-alg.yaml")
 		args = append(args, "-t", "misconfiguration/oauth-public-clients.yaml")
 	}
-	
+
 	// Add API specific templates
 	if scanType := options["scan_type"]; scanType == "api" {
 		args = append(args, "-tags", "api,graphql,rest,swagger")
 	}
-	
+
 	// Advanced options
 	if options["follow_redirects"] == "true" {
 		args = append(args, "-follow-redirects")
 	}
-	
+
 	if options["headless"] == "true" {
 		args = append(args, "-headless")
 	}
-	
+
 	if proxy := options["proxy"]; proxy != "" {
 		args = append(args, "-proxy", proxy)
 	}
-	
+
 	// Add authentication headers
 	if authHeader := options["auth_header"]; authHeader != "" {
 		args = append(args, "-H", authHeader)
 	}
-	
+
 	return args
 }
 
@@ -227,31 +226,31 @@ func (s *nucleiScanner) parseNucleiOutput(outputFile, target string) ([]types.Fi
 		return nil, fmt.Errorf("failed to open nuclei output: %w", err)
 	}
 	defer file.Close()
-	
+
 	findings := []types.Finding{}
 	scanner := bufio.NewScanner(file)
-	
+
 	for scanner.Scan() {
 		var output NucleiOutput
 		if err := json.Unmarshal(scanner.Bytes(), &output); err != nil {
 			s.logger.Error("Failed to parse nuclei output line", "error", err)
 			continue
 		}
-		
+
 		finding := s.convertToFinding(output, target)
 		findings = append(findings, finding)
 	}
-	
+
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading nuclei output: %w", err)
 	}
-	
+
 	return findings, nil
 }
 
 func (s *nucleiScanner) convertToFinding(output NucleiOutput, target string) types.Finding {
 	severity := s.mapNucleiSeverity(output.Info.Severity)
-	
+
 	finding := types.Finding{
 		Tool:        "nuclei",
 		Type:        s.determineVulnType(output),
@@ -270,23 +269,23 @@ func (s *nucleiScanner) convertToFinding(output NucleiOutput, target string) typ
 			"metadata":      output.Info.Metadata,
 		},
 	}
-	
+
 	// Add extracted results if any
 	if len(output.ExtractedResults) > 0 {
 		finding.Metadata["extracted_results"] = output.ExtractedResults
 	}
-	
+
 	// Add curl command for reproduction
 	if output.CurlCommand != "" {
 		finding.Metadata["curl_command"] = output.CurlCommand
 	}
-	
+
 	// Special handling for OAuth2/JWT vulnerabilities
 	if s.isOAuth2Vuln(output) {
 		finding.Metadata["oauth2_specific"] = true
 		finding.Solution = s.getOAuth2Solution(output.TemplateID)
 	}
-	
+
 	return finding
 }
 
@@ -308,7 +307,7 @@ func (s *nucleiScanner) mapNucleiSeverity(severity string) types.Severity {
 func (s *nucleiScanner) determineVulnType(output NucleiOutput) string {
 	// Check tags for specific vulnerability types
 	tags := output.Info.Tags
-	
+
 	for _, tag := range tags {
 		switch strings.ToLower(tag) {
 		case "sqli", "sql":
@@ -337,28 +336,28 @@ func (s *nucleiScanner) determineVulnType(output NucleiOutput) string {
 			return "information_disclosure"
 		}
 	}
-	
+
 	// Fallback to template type
 	return output.Type
 }
 
 func (s *nucleiScanner) buildDescription(output NucleiOutput) string {
 	desc := output.Info.Description
-	
+
 	if desc == "" {
 		desc = fmt.Sprintf("Vulnerability detected using Nuclei template: %s", output.TemplateID)
 	}
-	
+
 	// Add context about where it was found
 	desc += fmt.Sprintf("\n\nDetected at: %s", output.Matched)
-	
+
 	// Add metadata if relevant
 	if output.Info.Metadata != nil {
 		if impact, ok := output.Info.Metadata["impact"]; ok {
 			desc += fmt.Sprintf("\n\nImpact: %v", impact)
 		}
 	}
-	
+
 	return desc
 }
 
@@ -366,18 +365,18 @@ func (s *nucleiScanner) buildEvidence(output NucleiOutput) string {
 	evidence := fmt.Sprintf("Template: %s\n", output.TemplateID)
 	evidence += fmt.Sprintf("Matched at: %s\n", output.Matched)
 	evidence += fmt.Sprintf("Timestamp: %s\n", output.Timestamp)
-	
+
 	if len(output.ExtractedResults) > 0 {
 		evidence += "\nExtracted Results:\n"
 		for i, result := range output.ExtractedResults {
 			evidence += fmt.Sprintf("  [%d] %s\n", i+1, result)
 		}
 	}
-	
+
 	if output.CurlCommand != "" {
 		evidence += fmt.Sprintf("\nReproduction:\n%s", output.CurlCommand)
 	}
-	
+
 	return evidence
 }
 
@@ -388,7 +387,7 @@ func (s *nucleiScanner) buildSolution(output NucleiOutput) string {
 			return fmt.Sprintf("%v", remediation)
 		}
 	}
-	
+
 	// Provide generic solutions based on vulnerability type
 	for _, tag := range output.Info.Tags {
 		switch strings.ToLower(tag) {
@@ -408,7 +407,7 @@ func (s *nucleiScanner) buildSolution(output NucleiOutput) string {
 			return "Follow OAuth 2.0 Security Best Practices (RFC 8252), implement PKCE, validate redirect URIs"
 		}
 	}
-	
+
 	return "Review and fix the identified vulnerability according to security best practices"
 }
 
@@ -417,14 +416,14 @@ func (s *nucleiScanner) isOAuth2Vuln(output NucleiOutput) bool {
 		"oauth", "oidc", "jwt", "auth", "authentication", "authorization",
 		"client-secret", "redirect-uri", "state-parameter", "pkce",
 	}
-	
+
 	templateID := strings.ToLower(output.TemplateID)
 	for _, keyword := range oauth2Templates {
 		if strings.Contains(templateID, keyword) {
 			return true
 		}
 	}
-	
+
 	for _, tag := range output.Info.Tags {
 		for _, keyword := range oauth2Templates {
 			if strings.Contains(strings.ToLower(tag), keyword) {
@@ -432,24 +431,24 @@ func (s *nucleiScanner) isOAuth2Vuln(output NucleiOutput) bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
 func (s *nucleiScanner) getOAuth2Solution(templateID string) string {
 	solutions := map[string]string{
-		"jwt-none-alg": "Explicitly verify JWT algorithm and reject 'none' algorithm. Use a whitelist of allowed algorithms.",
+		"jwt-none-alg":         "Explicitly verify JWT algorithm and reject 'none' algorithm. Use a whitelist of allowed algorithms.",
 		"oauth-public-clients": "Implement PKCE for public clients, use client authentication for confidential clients.",
-		"oauth-secret": "Remove client secrets from public repositories and rotate compromised credentials immediately.",
-		"redirect-uri": "Implement strict redirect URI validation using exact string matching.",
-		"state-parameter": "Always use cryptographically random state parameters and validate them on callback.",
+		"oauth-secret":         "Remove client secrets from public repositories and rotate compromised credentials immediately.",
+		"redirect-uri":         "Implement strict redirect URI validation using exact string matching.",
+		"state-parameter":      "Always use cryptographically random state parameters and validate them on callback.",
 	}
-	
+
 	for key, solution := range solutions {
 		if strings.Contains(strings.ToLower(templateID), key) {
 			return solution
 		}
 	}
-	
+
 	return "Follow OAuth 2.0 Security Best Current Practice (RFC 8252) and implement all recommended security measures."
 }

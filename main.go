@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/yourusername/shells/cmd"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd"
 )
 
 func main() {

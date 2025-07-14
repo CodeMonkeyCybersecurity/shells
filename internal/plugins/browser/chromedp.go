@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -12,8 +11,8 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/yourusername/shells/internal/core"
-	"github.com/yourusername/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type chromedpAnalyzer struct {
@@ -297,13 +296,13 @@ func (a *chromedpAnalyzer) injectAnalysisScript(ctx context.Context, result *JSA
 				
 				const content = script.textContent || script.innerHTML;
 				const apiPatterns = [
-					/fetch\s*\(\s*['"`]([^'"`]+)['"`]/g,
-					/\.get\s*\(\s*['"`]([^'"`]+)['"`]/g,
-					/\.post\s*\(\s*['"`]([^'"`]+)['"`]/g,
-					/ajax\s*\(\s*{[^}]*url\s*:\s*['"`]([^'"`]+)['"`]/g,
-					/['"`](\/api\/[^'"`]+)['"`]/g,
-					/['"`](\/graphql[^'"`]*)['"`]/g,
-					/['"`](\/rest\/[^'"`]+)['"`]/g
+					/fetch\s*\(\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]/g,
+					/\.get\s*\(\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]/g,
+					/\.post\s*\(\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]/g,
+					/ajax\s*\(\s*{[^}]*url\s*:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]/g,
+					/['"` + "`" + `](\/api\/[^'"` + "`" + `]+)['"` + "`" + `]/g,
+					/['"` + "`" + `](\/graphql[^'"` + "`" + `]*)['"` + "`" + `]/g,
+					/['"` + "`" + `](\/rest\/[^'"` + "`" + `]+)['"` + "`" + `]/g
 				];
 				
 				apiPatterns.forEach(pattern => {
@@ -548,7 +547,7 @@ func (a *chromedpAnalyzer) injectAnalysisScript(ctx context.Context, result *JSA
 	})();
 	`
 	
-	_, err := runtime.Evaluate(script).Do(ctx)
+	_, _, err := runtime.Evaluate(script).Do(ctx)
 	return err
 }
 

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/shells/internal/config"
-	"github.com/yourusername/shells/internal/core"
-	"github.com/yourusername/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type sslScanner struct {
@@ -47,22 +47,22 @@ func (s *sslScanner) Validate(target string) error {
 	if target == "" {
 		return fmt.Errorf("target cannot be empty")
 	}
-	
+
 	if !strings.Contains(target, ":") {
 		target = target + ":443"
 	}
-	
+
 	host, _, err := net.SplitHostPort(target)
 	if err != nil {
 		return fmt.Errorf("invalid target format: %w", err)
 	}
-	
+
 	if net.ParseIP(host) == nil {
 		if _, err := net.LookupHost(host); err != nil {
 			return fmt.Errorf("cannot resolve host: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -74,34 +74,34 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 		}
 		target = target + ":" + port
 	}
-	
+
 	s.logger.Info("Starting SSL/TLS scan", "target", target)
-	
+
 	findings := []types.Finding{}
-	
+
 	host, port, _ := net.SplitHostPort(target)
-	
+
 	tlsConfigs := s.getTLSConfigs()
 	supportedVersions := []string{}
 	var conn *tls.Conn
 	var state tls.ConnectionState
-	
+
 	for version, config := range tlsConfigs {
 		dialer := &net.Dialer{
 			Timeout: s.cfg.Timeout,
 		}
-		
+
 		tcpConn, err := dialer.DialContext(ctx, "tcp", target)
 		if err != nil {
 			continue
 		}
-		
+
 		tlsConn := tls.Client(tcpConn, config)
 		tlsConn.SetDeadline(time.Now().Add(s.cfg.Timeout))
-		
+
 		err = tlsConn.HandshakeContext(ctx)
 		tcpConn.Close()
-		
+
 		if err == nil {
 			supportedVersions = append(supportedVersions, version)
 			if conn == nil {
@@ -110,22 +110,22 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 			}
 		}
 	}
-	
+
 	if conn == nil {
 		return findings, fmt.Errorf("failed to establish TLS connection to %s", target)
 	}
 	defer conn.Close()
-	
+
 	findings = append(findings, s.checkProtocolVersions(host, port, supportedVersions)...)
-	
+
 	findings = append(findings, s.checkCertificates(host, port, state.PeerCertificates)...)
-	
+
 	findings = append(findings, s.checkCipherSuites(host, port, state)...)
-	
+
 	if s.cfg.CheckRevocation {
 		findings = append(findings, s.checkRevocation(host, port, state.PeerCertificates)...)
 	}
-	
+
 	return findings, nil
 }
 
@@ -161,13 +161,13 @@ func (s *sslScanner) getTLSConfigs() map[string]*tls.Config {
 
 func (s *sslScanner) checkProtocolVersions(host, port string, supported []string) []types.Finding {
 	findings := []types.Finding{}
-	
+
 	weakProtocols := map[string]types.Severity{
 		"SSLv3":   types.SeverityCritical,
 		"TLS 1.0": types.SeverityHigh,
 		"TLS 1.1": types.SeverityMedium,
 	}
-	
+
 	for _, version := range supported {
 		if severity, isWeak := weakProtocols[version]; isWeak {
 			finding := types.Finding{
@@ -190,7 +190,7 @@ func (s *sslScanner) checkProtocolVersions(host, port string, supported []string
 			findings = append(findings, finding)
 		}
 	}
-	
+
 	bestProtocol := ""
 	for _, v := range supported {
 		if v == "TLS 1.3" || v == "TLS 1.2" {
@@ -198,7 +198,7 @@ func (s *sslScanner) checkProtocolVersions(host, port string, supported []string
 			break
 		}
 	}
-	
+
 	if bestProtocol != "" {
 		finding := types.Finding{
 			Tool:     "ssl",
@@ -210,28 +210,28 @@ func (s *sslScanner) checkProtocolVersions(host, port string, supported []string
 				strings.Join(supported, ", "), bestProtocol,
 			),
 			Metadata: map[string]interface{}{
-				"host":              host,
-				"port":              port,
+				"host":               host,
+				"port":               port,
 				"supported_versions": supported,
-				"best_version":      bestProtocol,
+				"best_version":       bestProtocol,
 			},
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	return findings
 }
 
 func (s *sslScanner) checkCertificates(host, port string, certs []*x509.Certificate) []types.Finding {
 	findings := []types.Finding{}
-	
+
 	if len(certs) == 0 {
 		return findings
 	}
-	
+
 	cert := certs[0]
 	now := time.Now()
-	
+
 	if now.After(cert.NotAfter) {
 		finding := types.Finding{
 			Tool:     "ssl",
@@ -245,16 +245,16 @@ func (s *sslScanner) checkCertificates(host, port string, certs []*x509.Certific
 			Evidence: fmt.Sprintf("Certificate expired %v ago", now.Sub(cert.NotAfter)),
 			Solution: "Replace the expired certificate immediately.",
 			Metadata: map[string]interface{}{
-				"host":        host,
-				"port":        port,
-				"not_after":   cert.NotAfter,
-				"days_ago":    int(now.Sub(cert.NotAfter).Hours() / 24),
-				"subject":     cert.Subject.String(),
-				"issuer":      cert.Issuer.String(),
+				"host":      host,
+				"port":      port,
+				"not_after": cert.NotAfter,
+				"days_ago":  int(now.Sub(cert.NotAfter).Hours() / 24),
+				"subject":   cert.Subject.String(),
+				"issuer":    cert.Issuer.String(),
 			},
 		}
 		findings = append(findings, finding)
-	} else if now.Add(30*24*time.Hour).After(cert.NotAfter) {
+	} else if now.Add(30 * 24 * time.Hour).After(cert.NotAfter) {
 		finding := types.Finding{
 			Tool:     "ssl",
 			Type:     "certificate_expiring_soon",
@@ -267,17 +267,17 @@ func (s *sslScanner) checkCertificates(host, port string, certs []*x509.Certific
 			Evidence: fmt.Sprintf("Certificate expires in %v", cert.NotAfter.Sub(now)),
 			Solution: "Plan to renew the certificate before expiration.",
 			Metadata: map[string]interface{}{
-				"host":          host,
-				"port":          port,
-				"not_after":     cert.NotAfter,
+				"host":           host,
+				"port":           port,
+				"not_after":      cert.NotAfter,
 				"days_remaining": int(cert.NotAfter.Sub(now).Hours() / 24),
-				"subject":       cert.Subject.String(),
-				"issuer":        cert.Issuer.String(),
+				"subject":        cert.Subject.String(),
+				"issuer":         cert.Issuer.String(),
 			},
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	if now.Before(cert.NotBefore) {
 		finding := types.Finding{
 			Tool:     "ssl",
@@ -300,7 +300,7 @@ func (s *sslScanner) checkCertificates(host, port string, certs []*x509.Certific
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	if !s.verifyHostname(cert, host) {
 		finding := types.Finding{
 			Tool:     "ssl",
@@ -322,7 +322,7 @@ func (s *sslScanner) checkCertificates(host, port string, certs []*x509.Certific
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	if cert.PublicKeyAlgorithm == x509.RSA {
 		if keySize := cert.PublicKey.(*rsa.PublicKey).N.BitLen(); keySize < 2048 {
 			finding := types.Finding{
@@ -346,7 +346,7 @@ func (s *sslScanner) checkCertificates(host, port string, certs []*x509.Certific
 			findings = append(findings, finding)
 		}
 	}
-	
+
 	if cert.SignatureAlgorithm == x509.SHA1WithRSA || cert.SignatureAlgorithm == x509.DSAWithSHA1 || cert.SignatureAlgorithm == x509.ECDSAWithSHA1 {
 		finding := types.Finding{
 			Tool:     "ssl",
@@ -367,29 +367,29 @@ func (s *sslScanner) checkCertificates(host, port string, certs []*x509.Certific
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	return findings
 }
 
 func (s *sslScanner) checkCipherSuites(host, port string, state tls.ConnectionState) []types.Finding {
 	findings := []types.Finding{}
-	
+
 	weakCiphers := map[uint16]string{
-		tls.TLS_RSA_WITH_RC4_128_SHA:                "RC4 cipher (weak)",
-		tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA:          "3DES cipher (weak)",
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA:           "No forward secrecy",
-		tls.TLS_RSA_WITH_AES_256_CBC_SHA:           "No forward secrecy",
-		tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:       "RC4 cipher (weak)",
-		tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA:         "RC4 cipher (weak)",
-		tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:    "3DES cipher (weak)",
-		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:   "CBC mode (vulnerable to BEAST)",
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:   "CBC mode (vulnerable to BEAST)",
-		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:     "CBC mode (vulnerable to BEAST)",
-		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:     "CBC mode (vulnerable to BEAST)",
+		tls.TLS_RSA_WITH_RC4_128_SHA:             "RC4 cipher (weak)",
+		tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA:        "3DES cipher (weak)",
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA:         "No forward secrecy",
+		tls.TLS_RSA_WITH_AES_256_CBC_SHA:         "No forward secrecy",
+		tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:     "RC4 cipher (weak)",
+		tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA:       "RC4 cipher (weak)",
+		tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:  "3DES cipher (weak)",
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA: "CBC mode (vulnerable to BEAST)",
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA: "CBC mode (vulnerable to BEAST)",
+		tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:   "CBC mode (vulnerable to BEAST)",
+		tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:   "CBC mode (vulnerable to BEAST)",
 	}
-	
+
 	cipherName := tls.CipherSuiteName(state.CipherSuite)
-	
+
 	if weakness, isWeak := weakCiphers[state.CipherSuite]; isWeak {
 		finding := types.Finding{
 			Tool:     "ssl",
@@ -412,13 +412,13 @@ func (s *sslScanner) checkCipherSuites(host, port string, state tls.ConnectionSt
 		}
 		findings = append(findings, finding)
 	}
-	
+
 	return findings
 }
 
 func (s *sslScanner) checkRevocation(host, port string, certs []*x509.Certificate) []types.Finding {
 	findings := []types.Finding{}
-	
+
 	for i, cert := range certs {
 		if len(cert.CRLDistributionPoints) == 0 && len(cert.OCSPServer) == 0 {
 			finding := types.Finding{
@@ -433,16 +433,16 @@ func (s *sslScanner) checkRevocation(host, port string, certs []*x509.Certificat
 				Evidence: "No CRLDistributionPoints or OCSPServer fields found",
 				Solution: "Configure certificates with proper revocation mechanisms.",
 				Metadata: map[string]interface{}{
-					"host":            host,
-					"port":            port,
+					"host":              host,
+					"port":              port,
 					"certificate_index": i,
-					"subject":         cert.Subject.String(),
+					"subject":           cert.Subject.String(),
 				},
 			}
 			findings = append(findings, finding)
 		}
 	}
-	
+
 	return findings
 }
 
@@ -457,10 +457,10 @@ func (s *sslScanner) getProtocolRecommendation(protocol string) string {
 		"TLS 1.0": "TLS 1.0 has known weaknesses. Migrate to TLS 1.2 or TLS 1.3.",
 		"TLS 1.1": "TLS 1.1 is deprecated. Upgrade to TLS 1.2 or TLS 1.3.",
 	}
-	
+
 	if rec, ok := recommendations[protocol]; ok {
 		return rec
 	}
-	
+
 	return "Use TLS 1.2 or TLS 1.3 for optimal security."
 }

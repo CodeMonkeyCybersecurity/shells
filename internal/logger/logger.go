@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/yourusername/shells/internal/config"
 )
 
 type Logger struct {
@@ -17,24 +17,24 @@ type Logger struct {
 
 func New(cfg config.LoggerConfig) (*Logger, error) {
 	var zapConfig zap.Config
-	
+
 	if cfg.Format == "console" {
 		zapConfig = zap.NewDevelopmentConfig()
 		zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	} else {
 		zapConfig = zap.NewProductionConfig()
 	}
-	
+
 	level, err := zapcore.ParseLevel(cfg.Level)
 	if err != nil {
 		return nil, fmt.Errorf("invalid log level: %w", err)
 	}
 	zapConfig.Level = zap.NewAtomicLevelAt(level)
-	
+
 	if len(cfg.OutputPaths) > 0 {
 		zapConfig.OutputPaths = cfg.OutputPaths
 	}
-	
+
 	baseLogger, err := zapConfig.Build(
 		zap.AddCallerSkip(1),
 		zap.AddStacktrace(zapcore.ErrorLevel),
@@ -42,7 +42,7 @@ func New(cfg config.LoggerConfig) (*Logger, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build logger: %w", err)
 	}
-	
+
 	return &Logger{
 		SugaredLogger: baseLogger.Sugar(),
 	}, nil
