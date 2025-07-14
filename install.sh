@@ -39,7 +39,7 @@ SHELLS_BUILD_PATH="$SHELLS_SRC_DIR/$SHELLS_BINARY_NAME"
 INSTALL_PATH="/usr/local/bin/$SHELLS_BINARY_NAME"
 
 # Go installation settings
-GO_VERSION="1.24.5"
+GO_VERSION="1.23.4"
 GO_INSTALL_DIR="/usr/local"
 
 # --- Directories ---
@@ -89,12 +89,12 @@ install_go() {
     current_version=$(go version | awk '{print $3}' | sed 's/go//')
     log INFO " Detected Go version: $current_version"
     
-    # Force installation if version is less than 1.24
-    if [[ "$current_version" < "1.24" ]]; then
+    # Force installation if version is less than 1.23
+    if [[ "$current_version" < "1.23" ]]; then
       log INFO " Go version is older (wanted: $GO_VERSION, found: $current_version)"
       need_go_install=true
     else
-      log INFO " Go is already up-to-date (version $current_version >= $GO_VERSION)"
+      log INFO " Go is already up-to-date (version $current_version >= 1.23)"
     fi
   fi
 
@@ -157,7 +157,8 @@ EOF
   
   # Verify Go installation
   if command -v go >/dev/null 2>&1; then
-    log INFO "Go version: $(go version)"
+    local installed_version=$(go version | awk '{print $3}' | sed 's/go//')
+    log INFO " Go installation verified: version $installed_version at $(command -v go)"
   else
     log ERR " Go installation verification failed"
     exit 1
@@ -253,7 +254,12 @@ check_prerequisites() {
   install_github_cli
 
   # Verify Go is now available
-  log INFO "Go detected and ready. Version details: $(go version)"
+  if command -v go >/dev/null 2>&1; then
+    log INFO " Go detected and ready. Version: $(go version | awk '{print $3}')"
+  else
+    log ERR " Go verification failed after installation"
+    exit 1
+  fi
 
   if $IS_LINUX; then
     for cmd in useradd usermod visudo stat; do

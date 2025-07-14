@@ -1,6 +1,6 @@
 module github.com/CodeMonkeyCybersecurity/shells
 
-go 1.24
+go 1.23
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20231011050154-1d073bb38998
@@ -21,6 +21,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.21.0
 	go.uber.org/zap v1.26.0
 	golang.org/x/sync v0.5.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -159,5 +160,4 @@ require (
 	gopkg.in/corvus-ch/zbase32.v1 v1.0.0 // indirect
 	gopkg.in/djherbis/times.v1 v1.3.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
