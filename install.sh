@@ -39,7 +39,7 @@ Shells_BUILD_PATH="$Shells_SRC_DIR/$Shells_BINARY_NAME"
 INSTALL_PATH="/usr/local/bin/$Shells_BINARY_NAME"
 
 # Go installation settings
-GO_VERSION="1.24.0"
+GO_VERSION="1.23.4"
 GO_INSTALL_DIR="/usr/local"
 
 # --- Directories ---
@@ -115,10 +115,19 @@ install_go() {
       
       log INFO " Downloading Go ${GO_VERSION} from ${download_url}..."
       cd /tmp
-      curl -LO "$download_url"
+      
+      # Remove any existing tarball
+      rm -f "$go_tarball"
+      
+      # Download with better error handling
+      if ! curl -LO "$download_url"; then
+        log ERR " Failed to download Go archive from ${download_url}"
+        log ERR " Please check if the URL is correct and you have internet connection"
+        exit 1
+      fi
       
       if [ ! -f "$go_tarball" ]; then
-        log ERR " Failed to download Go archive"
+        log ERR " Failed to download Go archive - file not found after download"
         exit 1
       fi
       
@@ -158,6 +167,12 @@ EOF
   # Verify Go installation
   if command -v go >/dev/null 2>&1; then
     log INFO "Go version: $(go version)"
+    
+    # Test if we can actually use Go (not just find the binary)
+    if ! go version >/dev/null 2>&1; then
+      log ERR " Go binary found but not functional"
+      exit 1
+    fi
   else
     log ERR " Go installation verification failed"
     exit 1
@@ -266,8 +281,19 @@ build_shells_binary() {
   log INFO " Building Shells..."
   cd "$Shells_SRC_DIR"
   rm -rf "$Shells_BINARY_NAME"
+  
+  # Set environment variables to help with toolchain issues
+  export GOTOOLCHAIN=local
+  export GOPROXY=direct
+  
   # Use the 'go' command which should now be in PATH due to check_prerequisites
-  go build -o "$Shells_BINARY_NAME" .
+  if ! go build -o "$Shells_BINARY_NAME" .; then
+    log ERR " Failed to build Shells binary"
+    log ERR " This might be due to Go version mismatch or missing dependencies"
+    log ERR " Current Go version: $(go version)"
+    log ERR " Required Go version from go.mod: $(grep '^go ' go.mod | cut -d' ' -f2)"
+    exit 1
+  fi
 }
 
 show_existing_checksum() {

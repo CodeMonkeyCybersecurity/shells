@@ -192,7 +192,8 @@ var DefaultSafetyRules = []SafetyRule{
 		Name:        "Time Limited",
 		Description: "Enforce maximum execution time",
 		Enforce: func(ctx context.Context) context.Context {
-			return context.WithTimeout(ctx, 30*time.Second)
+			ctx, _ = context.WithTimeout(ctx, 30*time.Second)
+			return ctx
 		},
 	},
 	{

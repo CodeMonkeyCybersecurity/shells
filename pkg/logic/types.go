@@ -265,6 +265,8 @@ const (
 	VulnWeakSecurityQuestion       = "WEAK_SECURITY_QUESTION"
 	VulnRecoveryFlowBypass         = "RECOVERY_FLOW_BYPASS"
 	VulnBackupCodeWeakness         = "WEAK_BACKUP_CODES"
+	VulnMissingRateLimit           = "MISSING_RATE_LIMIT"
+	VulnPasswordChangeNoToken      = "PASSWORD_CHANGE_NO_TOKEN"
 	
 	// Payment & Financial
 	VulnCurrencyConfusion          = "CURRENCY_CONFUSION"

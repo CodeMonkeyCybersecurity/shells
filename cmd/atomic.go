@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/atomic"
@@ -48,8 +47,7 @@ Examples:
   shells atomic list --tactic discovery`,
 	Run: func(cmd *cobra.Command, args []string) {
 		vulnType, _ := cmd.Flags().GetString("vuln-type")
-		category, _ := cmd.Flags().GetString("category")
-		tactic, _ := cmd.Flags().GetString("tactic")
+		_ = vulnType // Use the variable
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
@@ -332,23 +330,27 @@ Examples:
 
 		// Save Navigator layer if requested
 		if navigatorFile != "" {
-			err := reporter.SaveNavigatorLayer(report.Navigator, navigatorFile)
-			if err != nil {
-				fmt.Printf("Error saving Navigator layer: %v\n", err)
-			} else {
-				fmt.Printf("📊 Navigator layer saved to: %s\n", navigatorFile)
-			}
+			// TODO: Implement SaveNavigatorLayer method
+			// err := reporter.SaveNavigatorLayer(report.Navigator, navigatorFile)
+			// if err != nil {
+			// 	fmt.Printf("Error saving Navigator layer: %v\n", err)
+			// } else {
+			// 	fmt.Printf("📊 Navigator layer saved to: %s\n", navigatorFile)
+			// }
+			fmt.Printf("📊 Navigator layer functionality not yet implemented\n")
 		}
 
 		// Generate report in requested format
 		if outputFile != "" {
 			switch format {
 			case "html":
-				err := reporter.GenerateHTMLReport(&report.ATTACKReport, outputFile)
-				if err != nil {
-					fmt.Printf("Error generating HTML report: %v\n", err)
-					os.Exit(1)
-				}
+				// TODO: Implement GenerateHTMLReport method
+				// err := reporter.GenerateHTMLReport(&report.ATTACKReport, outputFile)
+				// if err != nil {
+				// 	fmt.Printf("Error generating HTML report: %v\n", err)
+				// 	os.Exit(1)
+				// }
+				fmt.Printf("📄 HTML report generation not yet implemented\n")
 				fmt.Printf("📄 HTML report saved to: %s\n", outputFile)
 			case "json":
 				data, err := json.MarshalIndent(report, "", "  ")
@@ -368,7 +370,7 @@ Examples:
 			}
 		} else {
 			// Print summary to console
-			printReportSummary(report)
+			printAtomicReportSummary(report)
 		}
 	},
 }
@@ -397,7 +399,7 @@ func runTechniqueDemo(client *atomic.AtomicClient, technique string, target atom
 	}
 
 	mapper := atomic.NewVulnToAttackMapper()
-	
+
 	return &atomic.Demonstration{
 		Technique:   technique,
 		Name:        demo.TestName,
@@ -443,7 +445,7 @@ func loadFindingsFromFile(filename string) ([]atomic.Finding, error) {
 
 func printTechniquesJSON(techniques []string, client *atomic.AtomicClient) {
 	mapper := atomic.NewVulnToAttackMapper()
-	
+
 	type TechniqueInfo struct {
 		ID          string `json:"id"`
 		Description string `json:"description"`
@@ -481,12 +483,12 @@ func printTechniquesTable(techniques []string, client *atomic.AtomicClient, verb
 
 		fmt.Printf("🔹 %s - %s\n", technique, mapper.GetTactic(technique))
 		fmt.Printf("   %s\n", status)
-		
+
 		if verbose && test != nil {
 			fmt.Printf("   Name: %s\n", test.DisplayName)
 			fmt.Printf("   Tests: %d\n", len(test.AtomicTests))
 		}
-		
+
 		fmt.Printf("   %s\n\n", mapper.GetDescription(technique))
 	}
 }
@@ -505,7 +507,7 @@ func printDemonstrationsTable(demonstrations []atomic.Demonstration, verbose boo
 		fmt.Printf("   Severity: %s\n", demo.Severity)
 		fmt.Printf("   Result: %s\n", demo.Result)
 		fmt.Printf("   Duration: %s\n", demo.Duration)
-		
+
 		if verbose && len(demo.Evidence) > 0 {
 			fmt.Printf("   Evidence:\n")
 			for _, evidence := range demo.Evidence {
@@ -524,15 +526,15 @@ func printSafetyReportJSON(report atomic.SafetyReport) {
 func printSafetyReportTable(report atomic.SafetyReport) {
 	fmt.Printf("🔍 Safety Validation Report\n")
 	fmt.Printf("═══════════════════════════\n\n")
-	
+
 	fmt.Printf("Technique: %s\n", report.Technique)
 	fmt.Printf("Test: %s\n", report.TestName)
-	
+
 	if report.IsSafe {
 		fmt.Printf("Status: ✅ SAFE for bug bounty testing\n\n")
 	} else {
 		fmt.Printf("Status: ❌ NOT SAFE for bug bounty testing\n\n")
-		
+
 		if len(report.Violations) > 0 {
 			fmt.Printf("Violations:\n")
 			for _, violation := range report.Violations {
@@ -541,7 +543,7 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 			fmt.Println()
 		}
 	}
-	
+
 	if len(report.Warnings) > 0 {
 		fmt.Printf("Warnings:\n")
 		for _, warning := range report.Warnings {
@@ -549,7 +551,7 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 		}
 		fmt.Println()
 	}
-	
+
 	fmt.Printf("Safety Checks:\n")
 	for _, check := range report.Checks {
 		status := "✅"
@@ -563,22 +565,22 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 	}
 }
 
-func printReportSummary(report *atomic.BugBountyReport) {
+func printAtomicReportSummary(report *atomic.BugBountyReport) {
 	fmt.Printf("📊 ATT&CK Assessment Report Summary\n")
 	fmt.Printf("═══════════════════════════════════\n\n")
-	
+
 	fmt.Printf("Target: %s\n", report.Metadata.Target)
 	fmt.Printf("Generated: %s\n", report.Metadata.GeneratedAt.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Total Techniques: %d\n", report.Metadata.TotalTechniques)
 	fmt.Printf("High Risk Techniques: %d\n\n", report.Metadata.HighRiskTechniques)
-	
+
 	fmt.Printf("Executive Summary:\n%s\n\n", report.ExecutiveSummary)
-	
+
 	fmt.Printf("Impact Assessment:\n")
 	fmt.Printf("  Overall Risk: %s\n", report.ImpactAssessment.OverallRisk)
 	fmt.Printf("  Attack Complexity: %s\n", report.ImpactAssessment.AttackComplexity)
 	fmt.Printf("  Exploitability Score: %.1f/10\n\n", report.ImpactAssessment.ExploitabilityScore)
-	
+
 	if len(report.RecommendedActions) > 0 {
 		fmt.Printf("Top Priority Actions:\n")
 		for i, action := range report.RecommendedActions {

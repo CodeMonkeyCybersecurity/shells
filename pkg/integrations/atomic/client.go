@@ -231,7 +231,8 @@ func (a *AtomicClient) ValidateTestSafety(technique string) (*SafetyReport, erro
 		return nil, err
 	}
 	
-	return &a.safetyFilter.GetSafetyReport(*test), nil
+	report := a.safetyFilter.GetSafetyReport(*test)
+	return &report, nil
 }
 
 // assessImpact determines the potential impact of a technique
