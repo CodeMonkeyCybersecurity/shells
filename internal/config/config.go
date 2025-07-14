@@ -75,6 +75,8 @@ type ToolsConfig struct {
 	HTTPX      HTTPXConfig      `mapstructure:"httpx"`
 	JavaScript JSConfig         `mapstructure:"javascript"`
 	OAuth2     OAuth2ToolConfig `mapstructure:"oauth2"`
+	SCIM       SCIMConfig       `mapstructure:"scim"`
+	Smuggling  SmugglingConfig  `mapstructure:"smuggling"`
 }
 
 type NmapConfig struct {
@@ -138,6 +140,33 @@ type JSConfig struct {
 type OAuth2ToolConfig struct {
 	DefaultClientID string        `mapstructure:"default_client_id"`
 	Timeout         time.Duration `mapstructure:"timeout"`
+}
+
+type SCIMConfig struct {
+	DiscoveryTimeout   time.Duration `mapstructure:"discovery_timeout"`
+	MaxBulkOperations  int           `mapstructure:"max_bulk_operations"`
+	TestAuthentication bool          `mapstructure:"test_authentication"`
+	TestFilters        bool          `mapstructure:"test_filters"`
+	TestBulkOps        bool          `mapstructure:"test_bulk_ops"`
+	TestProvisions     bool          `mapstructure:"test_provisions"`
+	Timeout            time.Duration `mapstructure:"timeout"`
+	MaxRetries         int           `mapstructure:"max_retries"`
+	UserAgent          string        `mapstructure:"user_agent"`
+	FollowRedirects    bool          `mapstructure:"follow_redirects"`
+	VerifySSL          bool          `mapstructure:"verify_ssl"`
+}
+
+type SmugglingConfig struct {
+	Techniques                 []string      `mapstructure:"techniques"`
+	DifferentialDelay          time.Duration `mapstructure:"differential_delay"`
+	MaxPayloadSize             int           `mapstructure:"max_payload_size"`
+	Timeout                    time.Duration `mapstructure:"timeout"`
+	MaxRetries                 int           `mapstructure:"max_retries"`
+	UserAgent                  string        `mapstructure:"user_agent"`
+	FollowRedirects            bool          `mapstructure:"follow_redirects"`
+	VerifySSL                  bool          `mapstructure:"verify_ssl"`
+	EnableTimingAnalysis       bool          `mapstructure:"enable_timing_analysis"`
+	EnableDifferentialAnalysis bool          `mapstructure:"enable_differential_analysis"`
 }
 
 func (c *Config) Validate() error {
@@ -260,6 +289,31 @@ func DefaultConfig() *Config {
 			OAuth2: OAuth2ToolConfig{
 				DefaultClientID: "",
 				Timeout:         15 * time.Minute,
+			},
+			SCIM: SCIMConfig{
+				DiscoveryTimeout:   5 * time.Minute,
+				MaxBulkOperations:  10,
+				TestAuthentication: true,
+				TestFilters:        true,
+				TestBulkOps:        true,
+				TestProvisions:     true,
+				Timeout:            30 * time.Second,
+				MaxRetries:         3,
+				UserAgent:          "shells-scim-scanner/1.0",
+				FollowRedirects:    true,
+				VerifySSL:          true,
+			},
+			Smuggling: SmugglingConfig{
+				Techniques:                 []string{"cl.te", "te.cl", "te.te", "http2"},
+				DifferentialDelay:          5 * time.Second,
+				MaxPayloadSize:             1048576, // 1MB
+				Timeout:                    30 * time.Second,
+				MaxRetries:                 3,
+				UserAgent:                  "shells-smuggling-scanner/1.0",
+				FollowRedirects:            false,
+				VerifySSL:                  true,
+				EnableTimingAnalysis:       true,
+				EnableDifferentialAnalysis: true,
 			},
 		},
 	}

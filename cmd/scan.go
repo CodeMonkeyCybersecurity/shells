@@ -27,6 +27,8 @@ func init() {
 	scanCmd.AddCommand(httpxScanCmd)
 	scanCmd.AddCommand(jsScanCmd)
 	scanCmd.AddCommand(graphqlScanCmd)
+	scanCmd.AddCommand(scimScanCmd)
+	scanCmd.AddCommand(smugglingScanCmd)
 	scanCmd.AddCommand(fullScanCmd)
 }
 
@@ -227,6 +229,51 @@ var graphqlScanCmd = &cobra.Command{
 	},
 }
 
+var scimScanCmd = &cobra.Command{
+	Use:   "scim [target]",
+	Short: "Perform SCIM vulnerability scanning",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		target := args[0]
+		authToken, _ := cmd.Flags().GetString("auth-token")
+		authType, _ := cmd.Flags().GetString("auth-type")
+		testAll, _ := cmd.Flags().GetBool("test-all")
+
+		log.Info("Starting SCIM scan", "target", target)
+
+		options := map[string]string{
+			"auth-token": authToken,
+			"auth-type":  authType,
+		}
+
+		if testAll {
+			options["test-all"] = "true"
+		}
+
+		return executeScan(target, types.ScanTypeSCIM, options)
+	},
+}
+
+var smugglingScanCmd = &cobra.Command{
+	Use:   "smuggling [target]",
+	Short: "Perform HTTP Request Smuggling detection",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		target := args[0]
+		technique, _ := cmd.Flags().GetString("technique")
+		differential, _ := cmd.Flags().GetBool("differential")
+
+		log.Info("Starting smuggling scan", "target", target)
+
+		options := map[string]string{
+			"technique":    technique,
+			"differential": fmt.Sprintf("%t", differential),
+		}
+
+		return executeScan(target, types.ScanTypeSmuggling, options)
+	},
+}
+
 var fullScanCmd = &cobra.Command{
 	Use:   "full [target]",
 	Short: "Perform comprehensive scan using all available tools",
@@ -243,6 +290,8 @@ var fullScanCmd = &cobra.Command{
 			types.ScanTypeVuln,
 			types.ScanTypeDNS,
 			types.ScanTypeDirectory,
+			types.ScanTypeSCIM,
+			types.ScanTypeSmuggling,
 			types.ScanType("oauth2"),
 			types.ScanType("http_probe"),
 			types.ScanType("javascript"),
@@ -282,6 +331,13 @@ func init() {
 	httpxScanCmd.Flags().String("ports", "", "Ports to probe")
 
 	graphqlScanCmd.Flags().String("auth-header", "", "Authorization header for GraphQL requests")
+	
+	scimScanCmd.Flags().String("auth-token", "", "Bearer token for SCIM authentication")
+	scimScanCmd.Flags().String("auth-type", "bearer", "Authentication type (bearer, basic)")
+	scimScanCmd.Flags().Bool("test-all", false, "Run all SCIM tests")
+	
+	smugglingScanCmd.Flags().String("technique", "all", "Smuggling technique (cl.te, te.cl, te.te, http2, all)")
+	smugglingScanCmd.Flags().Bool("differential", true, "Use differential analysis")
 }
 
 func executeScan(target string, scanType types.ScanType, options map[string]string) error {

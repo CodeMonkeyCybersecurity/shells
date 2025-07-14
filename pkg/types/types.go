@@ -23,6 +23,8 @@ const (
 	ScanTypeVuln      ScanType = "vulnerability"
 	ScanTypeDNS       ScanType = "dns"
 	ScanTypeDirectory ScanType = "directory"
+	ScanTypeSCIM      ScanType = "scim"
+	ScanTypeSmuggling ScanType = "smuggling"
 )
 
 type ScanStatus string
