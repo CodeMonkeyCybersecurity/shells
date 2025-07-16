@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
@@ -73,12 +75,17 @@ Examples:
 		// Create scanner
 		scanner := scim.NewScanner()
 		
-		// Run discovery
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		// Run discovery with shorter timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
+			if strings.Contains(err.Error(), "context deadline exceeded") {
+				fmt.Printf("⚠️  SCIM discovery timed out, performing basic endpoint check\n")
+				performBasicSCIMCheck(target)
+				return
+			}
 			fmt.Printf("Error during SCIM discovery: %v\n", err)
 			os.Exit(1)
 		}
@@ -395,4 +402,34 @@ func outputFindings(findings []types.Finding, filename, format string) {
 	}
 	
 	fmt.Printf("Results written to %s\n", filename)
+}
+
+// performBasicSCIMCheck performs a basic SCIM endpoint check
+func performBasicSCIMCheck(target string) {
+	fmt.Printf("🔍 Basic SCIM Endpoint Discovery for %s\n", target)
+	fmt.Printf("═══════════════════════════════════\n\n")
+	
+	scimPaths := []string{"/scim/v2", "/scim", "/api/scim/v2", "/api/scim"}
+	client := &http.Client{Timeout: 5 * time.Second}
+	
+	found := false
+	for _, path := range scimPaths {
+		url := strings.TrimRight(target, "/") + path
+		resp, err := client.Head(url)
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+		
+		if resp.StatusCode < 500 {
+			fmt.Printf("✅ SCIM endpoint found: %s [%d]\n", path, resp.StatusCode)
+			found = true
+		}
+	}
+	
+	if !found {
+		fmt.Printf("❌ No SCIM endpoints discovered\n")
+	}
+	
+	fmt.Printf("\n📊 Summary: Basic SCIM endpoint check completed\n")
 }

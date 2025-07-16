@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -79,7 +80,12 @@ Examples:
 
 		// Discover federation providers
 		domain := extractDomain(target)
-		discoverer := federation.NewFederationDiscoverer(nil, logger)
+		
+		// Create HTTP client with timeout
+		httpClient := &http.Client{
+			Timeout: 30 * time.Second,
+		}
+		discoverer := federation.NewFederationDiscoverer(httpClient, logger)
 		federationResult := discoverer.DiscoverAllProviders(domain)
 
 		// Create discovery result

@@ -50,14 +50,19 @@ func (d *Discoverer) DiscoverEndpoints(ctx context.Context, baseURL string) ([]*
 		"/sso/scim",
 	}
 
-	// Check each potential SCIM path
+	// Check each potential SCIM path with timeout handling
 	for _, path := range scimPaths {
-		endpoint, err := d.testSCIMEndpoint(ctx, baseURL, path)
-		if err != nil {
-			continue // Skip failed endpoints
-		}
-		if endpoint != nil {
-			endpoints = append(endpoints, endpoint)
+		select {
+		case <-ctx.Done():
+			return endpoints, ctx.Err()
+		default:
+			endpoint, err := d.testSCIMEndpoint(ctx, baseURL, path)
+			if err != nil {
+				continue // Skip failed endpoints
+			}
+			if endpoint != nil {
+				endpoints = append(endpoints, endpoint)
+			}
 		}
 	}
 
