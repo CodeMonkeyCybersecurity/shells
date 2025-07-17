@@ -13,6 +13,8 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -190,6 +192,25 @@ Examples:
 			os.Exit(1)
 		}
 
+		// Save results to database
+		var dbScanType types.ScanType
+		switch protocol {
+		case "saml":
+			dbScanType = types.ScanTypeSAML
+		case "oauth2":
+			dbScanType = types.ScanTypeOAuth2
+		case "webauthn":
+			dbScanType = types.ScanTypeWebAuthn
+		default:
+			dbScanType = types.ScanTypeAuth
+		}
+
+		if err := saveAuthResultsToDatabase(target, report, dbScanType); err != nil {
+			fmt.Printf("Warning: Failed to save results to database: %v\n", err)
+		} else {
+			fmt.Printf("✅ Results saved to database\n")
+		}
+
 		// Output results
 		if output == "json" {
 			jsonData, _ := json.MarshalIndent(report, "", "  ")
@@ -322,6 +343,13 @@ Examples:
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
+		}
+
+		// Save results to database
+		if err := saveAuthResultsToDatabase(target, report, types.ScanTypeAuth); err != nil {
+			fmt.Printf("Warning: Failed to save results to database: %v\n", err)
+		} else {
+			fmt.Printf("✅ Results saved to database\n")
 		}
 
 		// Save report if requested
@@ -549,6 +577,77 @@ func printComprehensiveResults(report *common.AuthReport) {
 }
 
 // Helper functions
+
+func saveAuthResultsToDatabase(target string, report *common.AuthReport, scanType types.ScanType) error {
+	store := GetStore()
+	if store == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	// Create scan request
+	scanRequest := &types.ScanRequest{
+		ID:        uuid.New().String(),
+		Target:    target,
+		Type:      scanType,
+		Status:    types.ScanStatusCompleted,
+		CreatedAt: report.StartTime,
+		StartedAt: &report.StartTime,
+		CompletedAt: &report.EndTime,
+	}
+
+	// Save scan to database
+	if err := store.SaveScan(GetContext(), scanRequest); err != nil {
+		return fmt.Errorf("failed to save scan: %w", err)
+	}
+
+	// Convert vulnerabilities to findings
+	var findings []types.Finding
+	for _, vuln := range report.Vulnerabilities {
+		// Map severity
+		severity := types.SeverityInfo
+		switch vuln.Severity {
+		case "CRITICAL":
+			severity = types.SeverityCritical
+		case "HIGH":
+			severity = types.SeverityHigh
+		case "MEDIUM":
+			severity = types.SeverityMedium
+		case "LOW":
+			severity = types.SeverityLow
+		}
+
+		// Convert evidence to string
+		evidenceStr := ""
+		if len(vuln.Evidence) > 0 {
+			evidenceData, _ := json.Marshal(vuln.Evidence)
+			evidenceStr = string(evidenceData)
+		}
+
+		finding := types.Finding{
+			ID:          uuid.New().String(),
+			ScanID:      scanRequest.ID,
+			Tool:        string(vuln.Protocol),
+			Type:        "authentication_vulnerability",
+			Severity:    severity,
+			Title:       vuln.Title,
+			Description: vuln.Description,
+			Evidence:    evidenceStr,
+			Solution:    vuln.Remediation.Description,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+		findings = append(findings, finding)
+	}
+
+	// Save findings to database
+	if len(findings) > 0 {
+		if err := store.SaveFindings(GetContext(), findings); err != nil {
+			return fmt.Errorf("failed to save findings: %w", err)
+		}
+	}
+
+	return nil
+}
 
 func contains(slice []common.AuthProtocol, item common.AuthProtocol) bool {
 	for _, s := range slice {

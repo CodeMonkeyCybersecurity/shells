@@ -25,6 +25,10 @@ const (
 	ScanTypeDirectory ScanType = "directory"
 	ScanTypeSCIM      ScanType = "scim"
 	ScanTypeSmuggling ScanType = "smuggling"
+	ScanTypeAuth      ScanType = "auth"
+	ScanTypeSAML      ScanType = "saml"
+	ScanTypeOAuth2    ScanType = "oauth2"
+	ScanTypeWebAuthn  ScanType = "webauthn"
 )
 
 type ScanStatus string

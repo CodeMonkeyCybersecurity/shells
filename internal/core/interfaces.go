@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
@@ -34,6 +35,12 @@ type ResultStore interface {
 	SaveFindings(ctx context.Context, findings []types.Finding) error
 	GetFindings(ctx context.Context, scanID string) ([]types.Finding, error)
 	GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error)
+	
+	// Enhanced query methods
+	QueryFindings(ctx context.Context, query FindingQuery) ([]types.Finding, error)
+	GetFindingStats(ctx context.Context) (*FindingStats, error)
+	GetRecentCriticalFindings(ctx context.Context, limit int) ([]types.Finding, error)
+	SearchFindings(ctx context.Context, searchTerm string, limit int) ([]types.Finding, error)
 
 	GetSummary(ctx context.Context, scanID string) (*types.Summary, error)
 	Close() error
@@ -47,6 +54,28 @@ type ScanFilter struct {
 	ToDate   *string
 	Limit    int
 	Offset   int
+}
+
+type FindingQuery struct {
+	ScanID     string
+	Tool       string
+	Type       string
+	Severity   string
+	Target     string
+	SearchTerm string
+	FromDate   *time.Time
+	ToDate     *time.Time
+	OrderBy    string
+	Limit      int
+	Offset     int
+}
+
+type FindingStats struct {
+	Total      int
+	BySeverity map[types.Severity]int
+	ByTool     map[string]int
+	ByType     map[string]int
+	ByTarget   map[string]int
 }
 
 type Worker interface {

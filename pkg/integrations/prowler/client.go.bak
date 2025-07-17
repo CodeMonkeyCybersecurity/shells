@@ -1,0 +1,491 @@
+package prowler
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	nomadapi "github.com/hashicorp/nomad/api"
+)
+
+// ProwlerClient provides interface for running Prowler AWS security scans
+type ProwlerClient struct {
+	nomadClient *nomadapi.Client
+	config      Config
+}
+
+// Config represents Prowler configuration
+type Config struct {
+	NomadAddr    string        `yaml:"nomad_addr"`
+	DockerImage  string        `yaml:"docker_image"`
+	OutputFormat string        `yaml:"output_format"`
+	ParallelJobs int           `yaml:"parallel_jobs"`
+	Timeout      time.Duration `yaml:"timeout"`
+	AWSProfile   string        `yaml:"aws_profile"`
+	CacheDir     string        `yaml:"cache_dir"`
+}
+
+// NewClient creates a new Prowler client
+func NewClient(config Config) (*ProwlerClient, error) {
+	// Initialize Nomad client
+	nomadConfig := nomadapi.DefaultConfig()
+	if config.NomadAddr != "" {
+		nomadConfig.Address = config.NomadAddr
+	}
+
+	nomadClient, err := nomadapi.NewClient(nomadConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Nomad client: %v", err)
+	}
+
+	// Set defaults
+	if config.DockerImage == "" {
+		config.DockerImage = "toniblyx/prowler:latest"
+	}
+	if config.OutputFormat == "" {
+		config.OutputFormat = "json"
+	}
+	if config.ParallelJobs == 0 {
+		config.ParallelJobs = 5
+	}
+	if config.Timeout == 0 {
+		config.Timeout = 30 * time.Minute
+	}
+
+	return &ProwlerClient{
+		nomadClient: nomadClient,
+		config:      config,
+	}, nil
+}
+
+// RunAllChecks executes all Prowler checks
+func (p *ProwlerClient) RunAllChecks(ctx context.Context, awsProfile string) ([]types.Finding, error) {
+	return p.runProwlerScan(ctx, awsProfile, []string{}, []string{})
+}
+
+// RunChecksByGroup executes Prowler checks by group
+func (p *ProwlerClient) RunChecksByGroup(ctx context.Context, awsProfile string, groups []string) ([]types.Finding, error) {
+	return p.runProwlerScan(ctx, awsProfile, groups, []string{})
+}
+
+// RunSpecificChecks executes specific Prowler checks
+func (p *ProwlerClient) RunSpecificChecks(ctx context.Context, awsProfile string, checkIDs []string) ([]types.Finding, error) {
+	return p.runProwlerScan(ctx, awsProfile, []string{}, checkIDs)
+}
+
+// GetAvailableChecks returns list of available Prowler checks
+func (p *ProwlerClient) GetAvailableChecks(ctx context.Context) ([]Check, error) {
+	jobID := fmt.Sprintf("prowler-list-%d", time.Now().Unix())
+
+	// Build command to list checks
+	cmd := []string{
+		"python3", "prowler.py",
+		"-l", // List checks
+		"-q", // Quiet mode
+	}
+
+	jobSpec := p.createNomadJobSpec(jobID, cmd, map[string]string{})
+
+	// Submit job
+	_, _, err := p.nomadClient.Jobs().Register(jobSpec, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to submit Prowler list job: %v", err)
+	}
+
+	// Wait for completion and get results
+	output, err := p.waitForJobCompletion(ctx, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get job output: %v", err)
+	}
+
+	// Parse checks list
+	return p.parseChecksList(output)
+}
+
+// runProwlerScan executes a Prowler scan with specified parameters
+func (p *ProwlerClient) runProwlerScan(ctx context.Context, awsProfile string, groups []string, checkIDs []string) ([]types.Finding, error) {
+	jobID := fmt.Sprintf("prowler-scan-%d", time.Now().Unix())
+
+	// Build Prowler command
+	cmd := p.buildProwlerCommand(groups, checkIDs)
+
+	// Set environment variables
+	env := map[string]string{}
+	if awsProfile != "" {
+		env["AWS_PROFILE"] = awsProfile
+	}
+
+	// Create job specification
+	jobSpec := p.createNomadJobSpec(jobID, cmd, env)
+
+	// Submit job to Nomad
+	_, _, err := p.nomadClient.Jobs().Register(jobSpec, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to submit Prowler job: %v", err)
+	}
+
+	// Wait for completion and get results
+	output, err := p.waitForJobCompletion(ctx, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get scan output: %v", err)
+	}
+
+	// Parse findings
+	return p.parseFindings(output)
+}
+
+// buildProwlerCommand constructs the Prowler command
+func (p *ProwlerClient) buildProwlerCommand(groups []string, checkIDs []string) []string {
+	cmd := []string{
+		"python3", "prowler.py",
+		"-M", p.config.OutputFormat, // Output format
+		"-q", // Quiet mode
+	}
+
+	// Add group filters
+	if len(groups) > 0 {
+		cmd = append(cmd, "-g", strings.Join(groups, ","))
+	}
+
+	// Add specific checks
+	if len(checkIDs) > 0 {
+		cmd = append(cmd, "-c", strings.Join(checkIDs, ","))
+	}
+
+	// Add AWS specific flags
+	cmd = append(cmd,
+		"-b", // Include region in findings
+		"-S", // Skip checks that require privileged access
+	)
+
+	return cmd
+}
+
+// createNomadJobSpec creates a Nomad job specification for Prowler
+func (p *ProwlerClient) createNomadJobSpec(jobID string, command []string, env map[string]string) *nomadapi.Job {
+	job := &nomadapi.Job{
+		ID:          &jobID,
+		Name:        &jobID,
+		Type:        nomadStringPointer("batch"),
+		Datacenters: []string{"dc1"},
+		TaskGroups: []*nomadapi.TaskGroup{
+			{
+				Name:  nomadStringPointer("prowler"),
+				Count: nomadIntPointer(1),
+				Tasks: []*nomadapi.Task{
+					{
+						Name:   "prowler-scan",
+						Driver: "docker",
+						Config: map[string]interface{}{
+							"image":   p.config.DockerImage,
+							"command": command[0],
+							"args":    command[1:],
+							"volumes": []string{
+								// Mount AWS credentials if available
+								"${HOME}/.aws:/root/.aws:ro",
+							},
+							"network_mode": "host",
+						},
+						Env: env,
+						Resources: &nomadapi.Resources{
+							CPU:      nomadIntPointer(1000),
+							MemoryMB: nomadIntPointer(1024),
+						},
+						RestartPolicy: &nomadapi.RestartPolicy{
+							Attempts: nomadIntPointer(3),
+							Interval: nomadDurationPointer(5 * time.Minute),
+							Delay:    nomadDurationPointer(15 * time.Second),
+							Mode:     nomadStringPointer("fail"),
+						},
+					},
+				},
+				RestartPolicy: &nomadapi.RestartPolicy{
+					Attempts: nomadIntPointer(3),
+					Interval: nomadDurationPointer(5 * time.Minute),
+					Delay:    nomadDurationPointer(15 * time.Second),
+					Mode:     nomadStringPointer("fail"),
+				},
+			},
+		},
+		Meta: map[string]string{
+			"prowler-scan": "true",
+			"created-by":   "shells-cli",
+		},
+	}
+
+	return job
+}
+
+// waitForJobCompletion waits for job completion and returns output
+func (p *ProwlerClient) waitForJobCompletion(ctx context.Context, jobID string) (string, error) {
+	timeout := time.NewTimer(p.config.Timeout)
+	defer timeout.Stop()
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-timeout.C:
+			return "", fmt.Errorf("prowler job timed out after %v", p.config.Timeout)
+		case <-ticker.C:
+			// Check job status
+			job, _, err := p.nomadClient.Jobs().Info(jobID, nil)
+			if err != nil {
+				continue
+			}
+
+			if job.Status != nil && *job.Status == "dead" {
+				// Job completed, get logs
+				return p.getJobLogs(jobID)
+			}
+		}
+	}
+}
+
+// getJobLogs retrieves logs from completed job
+func (p *ProwlerClient) getJobLogs(jobID string) (string, error) {
+	// Get allocations for the job
+	allocs, _, err := p.nomadClient.Jobs().Allocations(jobID, false, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get job allocations: %v", err)
+	}
+
+	if len(allocs) == 0 {
+		return "", fmt.Errorf("no allocations found for job %s", jobID)
+	}
+
+	// Get logs from the first allocation
+	alloc := allocs[0]
+	logs, err := p.nomadClient.AllocFS().Logs(alloc, false, "prowler-scan", "stdout", "start", 0, nil, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get job logs: %v", err)
+	}
+
+	// Read all log data
+	var output strings.Builder
+	for {
+		select {
+		case log := <-logs:
+			if log.Data != nil {
+				output.Write(log.Data)
+			}
+		case <-time.After(5 * time.Second):
+			// Timeout reading logs
+			goto done
+		}
+	}
+
+done:
+	return output.String(), nil
+}
+
+// parseFindings parses Prowler JSON output into findings
+func (p *ProwlerClient) parseFindings(output string) ([]types.Finding, error) {
+	var findings []types.Finding
+
+	// Split output into lines for JSON parsing
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || !strings.HasPrefix(line, "{") {
+			continue
+		}
+
+		var prowlerFinding ProwlerFinding
+		if err := json.Unmarshal([]byte(line), &prowlerFinding); err != nil {
+			continue // Skip invalid JSON lines
+		}
+
+		// Convert to our standard Finding type
+		finding := p.convertToFinding(prowlerFinding)
+		findings = append(findings, finding)
+	}
+
+	return findings, nil
+}
+
+// parseChecksList parses Prowler checks list output
+func (p *ProwlerClient) parseChecksList(output string) ([]Check, error) {
+	var checks []Check
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Parse check format: checkID: description [service] [severity]
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		check := Check{
+			ID:          strings.TrimSpace(parts[0]),
+			Description: strings.TrimSpace(parts[1]),
+			Service:     extractService(line),
+			Severity:    extractSeverity(line),
+		}
+
+		checks = append(checks, check)
+	}
+
+	return checks, nil
+}
+
+// convertToFinding converts ProwlerFinding to standard Finding
+func (p *ProwlerClient) convertToFinding(pf ProwlerFinding) types.Finding {
+	finding := types.Finding{
+		ID:          fmt.Sprintf("prowler-%s", pf.CheckID),
+		Type:        "aws-security",
+		Severity:    p.mapSeverity(pf.Severity),
+		Title:       pf.CheckTitle,
+		Description: fmt.Sprintf("Prowler check %s failed: %s", pf.CheckID, pf.CheckTitle),
+		Target:      pf.ResourceArn,
+		Impact:      p.assessImpact(pf.Severity, pf.ServiceName),
+		References:  []string{fmt.Sprintf("https://github.com/prowler-cloud/prowler/blob/master/checks/check_%s", pf.CheckID)},
+		Metadata: map[string]interface{}{
+			"provider":     pf.Provider,
+			"service":      pf.ServiceName,
+			"region":       pf.Region,
+			"resource_arn": pf.ResourceArn,
+			"check_id":     pf.CheckID,
+			"status":       pf.Status,
+		},
+	}
+
+	// Add tags
+	finding.Tags = []string{
+		"aws",
+		"prowler",
+		pf.ServiceName,
+		pf.Severity,
+		pf.Region,
+	}
+
+	return finding
+}
+
+// mapSeverity maps Prowler severity to our standard severity levels
+func (p *ProwlerClient) mapSeverity(prowlerSeverity string) string {
+	switch strings.ToLower(prowlerSeverity) {
+	case "critical":
+		return "CRITICAL"
+	case "high":
+		return "HIGH"
+	case "medium":
+		return "MEDIUM"
+	case "low":
+		return "LOW"
+	case "informational", "info":
+		return "INFO"
+	default:
+		return "MEDIUM"
+	}
+}
+
+// assessImpact provides impact assessment based on severity and service
+func (p *ProwlerClient) assessImpact(severity, service string) string {
+	baseImpact := map[string]string{
+		"critical": "Critical security vulnerability requiring immediate attention",
+		"high":     "High-risk security issue that should be addressed promptly",
+		"medium":   "Medium-risk security concern that should be reviewed",
+		"low":      "Low-risk security finding for improved security posture",
+	}
+
+	impact := baseImpact[strings.ToLower(severity)]
+	if impact == "" {
+		impact = "Security finding identified by Prowler scan"
+	}
+
+	return fmt.Sprintf("%s in %s service", impact, service)
+}
+
+// Helper functions
+
+func nomadIntPointer(v int) *int {
+	return &v
+}
+
+func nomadStringPointer(v string) *string {
+	return &v
+}
+
+func nomadDurationPointer(v time.Duration) *time.Duration {
+	return &v
+}
+
+func extractService(line string) string {
+	// Extract service from check line format
+	if strings.Contains(line, "[") && strings.Contains(line, "]") {
+		start := strings.Index(line, "[")
+		end := strings.Index(line, "]")
+		if start < end {
+			return strings.TrimSpace(line[start+1 : end])
+		}
+	}
+	return "unknown"
+}
+
+func extractSeverity(line string) string {
+	severities := []string{"critical", "high", "medium", "low", "info"}
+	lowerLine := strings.ToLower(line)
+
+	for _, sev := range severities {
+		if strings.Contains(lowerLine, sev) {
+			return sev
+		}
+	}
+	return "medium"
+}
+
+// Cleanup stops and removes the Prowler job
+func (p *ProwlerClient) Cleanup(jobID string) error {
+	_, _, err := p.nomadClient.Jobs().Deregister(jobID, true, nil)
+	if err != nil {
+		return fmt.Errorf("failed to cleanup job %s: %v", jobID, err)
+	}
+	return nil
+}
+
+// Health checks if the Prowler client is ready
+func (p *ProwlerClient) Health(ctx context.Context) error {
+	// Check Nomad connectivity
+	_, err := p.nomadClient.Status().Leader()
+	if err != nil {
+		return fmt.Errorf("nomad connection failed: %v", err)
+	}
+
+	// Check if Prowler image is available
+	return p.checkProwlerImage(ctx)
+}
+
+// checkProwlerImage verifies Prowler Docker image availability
+func (p *ProwlerClient) checkProwlerImage(ctx context.Context) error {
+	jobID := fmt.Sprintf("prowler-health-%d", time.Now().Unix())
+
+	cmd := []string{"python3", "--version"}
+	jobSpec := p.createNomadJobSpec(jobID, cmd, map[string]string{})
+
+	// Submit health check job
+	_, _, err := p.nomadClient.Jobs().Register(jobSpec, nil)
+	if err != nil {
+		return fmt.Errorf("prowler image health check failed: %v", err)
+	}
+
+	// Clean up health check job
+	defer p.Cleanup(jobID)
+
+	// Wait briefly for job to complete
+	time.Sleep(10 * time.Second)
+
+	return nil
+}

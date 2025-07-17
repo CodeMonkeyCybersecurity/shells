@@ -43,6 +43,14 @@ func NewStore(cfg config.DatabaseConfig) (core.ResultStore, error) {
 }
 
 func (s *sqlStore) migrate() error {
+	// Enable foreign keys for SQLite
+	if s.cfg.Driver == "sqlite3" {
+		_, err := s.db.Exec("PRAGMA foreign_keys = ON;")
+		if err != nil {
+			return fmt.Errorf("failed to enable foreign keys: %w", err)
+		}
+	}
+
 	schema := `
 	CREATE TABLE IF NOT EXISTS scans (
 		id TEXT PRIMARY KEY,
@@ -69,11 +77,10 @@ func (s *sqlStore) migrate() error {
 		description TEXT,
 		evidence TEXT,
 		solution TEXT,
-		references TEXT,
+		refs TEXT,
 		metadata TEXT,
 		created_at TIMESTAMP NOT NULL,
-		updated_at TIMESTAMP NOT NULL,
-		FOREIGN KEY (scan_id) REFERENCES scans(id)
+		updated_at TIMESTAMP NOT NULL
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_findings_scan_id ON findings(scan_id);
@@ -279,10 +286,10 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	query := `
 		INSERT INTO findings (
 			id, scan_id, tool, type, severity, title, description,
-			evidence, solution, references, metadata, created_at, updated_at
+			evidence, solution, refs, metadata, created_at, updated_at
 		) VALUES (
 			:id, :scan_id, :tool, :type, :severity, :title, :description,
-			:evidence, :solution, :references, :metadata, :created_at, :updated_at
+			:evidence, :solution, :refs, :metadata, :created_at, :updated_at
 		)
 	`
 
@@ -300,7 +307,7 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 			"description": finding.Description,
 			"evidence":    finding.Evidence,
 			"solution":    finding.Solution,
-			"references":  string(refsJSON),
+			"refs":        string(refsJSON),
 			"metadata":    string(metaJSON),
 			"created_at":  finding.CreatedAt,
 			"updated_at":  finding.UpdatedAt,
@@ -317,7 +324,7 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Finding, error) {
 	query := `
 		SELECT id, scan_id, tool, type, severity, title, description,
-			   evidence, solution, references, metadata, created_at, updated_at
+			   evidence, solution, refs, metadata, created_at, updated_at
 		FROM findings
 		WHERE scan_id = $1
 		ORDER BY severity DESC, created_at DESC
@@ -360,7 +367,7 @@ func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Find
 func (s *sqlStore) GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error) {
 	query := `
 		SELECT id, scan_id, tool, type, severity, title, description,
-			   evidence, solution, references, metadata, created_at, updated_at
+			   evidence, solution, refs, metadata, created_at, updated_at
 		FROM findings
 		WHERE severity = $1
 		ORDER BY created_at DESC
@@ -460,4 +467,232 @@ func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summar
 
 func (s *sqlStore) Close() error {
 	return s.db.Close()
+}
+
+// Enhanced query methods for findings
+
+func (s *sqlStore) QueryFindings(ctx context.Context, query core.FindingQuery) ([]types.Finding, error) {
+	sqlQuery := `
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata, created_at, updated_at
+		FROM findings
+		WHERE 1=1
+	`
+	args := map[string]interface{}{}
+
+	if query.ScanID != "" {
+		sqlQuery += " AND scan_id = :scan_id"
+		args["scan_id"] = query.ScanID
+	}
+
+	if query.Tool != "" {
+		sqlQuery += " AND tool = :tool"
+		args["tool"] = query.Tool
+	}
+
+	if query.Type != "" {
+		sqlQuery += " AND type = :type"
+		args["type"] = query.Type
+	}
+
+	if query.Severity != "" {
+		sqlQuery += " AND severity = :severity"
+		args["severity"] = query.Severity
+	}
+
+	if query.Target != "" {
+		sqlQuery += " AND scan_id IN (SELECT id FROM scans WHERE target LIKE :target)"
+		args["target"] = "%" + query.Target + "%"
+	}
+
+	if query.SearchTerm != "" {
+		sqlQuery += " AND (title LIKE :search OR description LIKE :search OR evidence LIKE :search)"
+		args["search"] = "%" + query.SearchTerm + "%"
+	}
+
+	if query.FromDate != nil {
+		sqlQuery += " AND created_at >= :from_date"
+		args["from_date"] = *query.FromDate
+	}
+
+	if query.ToDate != nil {
+		sqlQuery += " AND created_at <= :to_date"
+		args["to_date"] = *query.ToDate
+	}
+
+	// Ordering
+	if query.OrderBy != "" {
+		switch query.OrderBy {
+		case "severity":
+			sqlQuery += " ORDER BY CASE severity WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 3 WHEN 'LOW' THEN 4 ELSE 5 END"
+		case "created_at":
+			sqlQuery += " ORDER BY created_at DESC"
+		default:
+			sqlQuery += " ORDER BY created_at DESC"
+		}
+	} else {
+		sqlQuery += " ORDER BY created_at DESC"
+	}
+
+	if query.Limit > 0 {
+		sqlQuery += fmt.Sprintf(" LIMIT %d", query.Limit)
+	}
+
+	if query.Offset > 0 {
+		sqlQuery += fmt.Sprintf(" OFFSET %d", query.Offset)
+	}
+
+	rows, err := s.db.NamedQueryContext(ctx, sqlQuery, args)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	findings := []types.Finding{}
+	for rows.Next() {
+		var finding types.Finding
+		var refsJSON, metaJSON string
+
+		err := rows.Scan(
+			&finding.ID, &finding.ScanID, &finding.Tool, &finding.Type,
+			&finding.Severity, &finding.Title, &finding.Description,
+			&finding.Evidence, &finding.Solution, &refsJSON, &metaJSON,
+			&finding.CreatedAt, &finding.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if refsJSON != "" {
+			json.Unmarshal([]byte(refsJSON), &finding.References)
+		}
+		if metaJSON != "" {
+			json.Unmarshal([]byte(metaJSON), &finding.Metadata)
+		}
+
+		findings = append(findings, finding)
+	}
+
+	return findings, nil
+}
+
+func (s *sqlStore) GetFindingStats(ctx context.Context) (*core.FindingStats, error) {
+	stats := &core.FindingStats{
+		BySeverity: make(map[types.Severity]int),
+		ByTool:     make(map[string]int),
+		ByType:     make(map[string]int),
+		ByTarget:   make(map[string]int),
+	}
+
+	// Count by severity
+	severityQuery := `
+		SELECT severity, COUNT(*) as count
+		FROM findings
+		GROUP BY severity
+	`
+	rows, err := s.db.QueryContext(ctx, severityQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var severity types.Severity
+		var count int
+		if err := rows.Scan(&severity, &count); err != nil {
+			return nil, err
+		}
+		stats.BySeverity[severity] = count
+		stats.Total += count
+	}
+
+	// Count by tool
+	toolQuery := `
+		SELECT tool, COUNT(*) as count
+		FROM findings
+		GROUP BY tool
+		ORDER BY count DESC
+		LIMIT 10
+	`
+	rows2, err := s.db.QueryContext(ctx, toolQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows2.Close()
+
+	for rows2.Next() {
+		var tool string
+		var count int
+		if err := rows2.Scan(&tool, &count); err != nil {
+			return nil, err
+		}
+		stats.ByTool[tool] = count
+	}
+
+	// Count by type
+	typeQuery := `
+		SELECT type, COUNT(*) as count
+		FROM findings
+		GROUP BY type
+		ORDER BY count DESC
+		LIMIT 20
+	`
+	rows3, err := s.db.QueryContext(ctx, typeQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows3.Close()
+
+	for rows3.Next() {
+		var findingType string
+		var count int
+		if err := rows3.Scan(&findingType, &count); err != nil {
+			return nil, err
+		}
+		stats.ByType[findingType] = count
+	}
+
+	// Count by target
+	targetQuery := `
+		SELECT s.target, COUNT(f.id) as count
+		FROM findings f
+		JOIN scans s ON f.scan_id = s.id
+		GROUP BY s.target
+		ORDER BY count DESC
+		LIMIT 10
+	`
+	rows4, err := s.db.QueryContext(ctx, targetQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows4.Close()
+
+	for rows4.Next() {
+		var target string
+		var count int
+		if err := rows4.Scan(&target, &count); err != nil {
+			return nil, err
+		}
+		stats.ByTarget[target] = count
+	}
+
+	return stats, nil
+}
+
+func (s *sqlStore) GetRecentCriticalFindings(ctx context.Context, limit int) ([]types.Finding, error) {
+	query := core.FindingQuery{
+		Severity: string(types.SeverityCritical),
+		OrderBy:  "created_at",
+		Limit:    limit,
+	}
+	return s.QueryFindings(ctx, query)
+}
+
+func (s *sqlStore) SearchFindings(ctx context.Context, searchTerm string, limit int) ([]types.Finding, error) {
+	query := core.FindingQuery{
+		SearchTerm: searchTerm,
+		OrderBy:    "created_at",
+		Limit:      limit,
+	}
+	return s.QueryFindings(ctx, query)
 }

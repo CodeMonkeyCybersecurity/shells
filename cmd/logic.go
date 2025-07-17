@@ -9,6 +9,7 @@ import (
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic/payments"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic/recovery"
 	"github.com/spf13/cobra"
 )
@@ -441,6 +442,352 @@ Examples:
 	},
 }
 
+// logicPaymentCmd tests e-commerce payment logic vulnerabilities
+var logicPaymentCmd = &cobra.Command{
+	Use:   "payment",
+	Short: "Test e-commerce payment logic vulnerabilities",
+	Long: `Comprehensive e-commerce payment logic testing including:
+
+Shopping Cart Vulnerabilities:
+- Negative quantity manipulation
+- Integer overflow in calculations
+- Cart parameter manipulation
+- Race conditions in cart operations
+- Cart session hijacking
+
+Payment Processing Flaws:
+- Payment bypass vulnerabilities
+- Double charging via race conditions
+- Currency confusion attacks
+- Payment flow manipulation
+- Refund logic exploitation
+
+Pricing Logic Issues:
+- Price manipulation vulnerabilities
+- Floating point precision errors
+- Discount calculation flaws
+- Tax calculation bypass
+- Currency conversion issues
+
+Coupon & Discount Abuse:
+- Coupon stacking vulnerabilities
+- Coupon reuse attacks
+- Discount code brute forcing
+- Promotional code manipulation
+- Referral system abuse
+
+Examples:
+  shells logic payment --target https://shop.example.com --test-all
+  shells logic payment --target https://shop.example.com --test-cart
+  shells logic payment --target https://shop.example.com --test-pricing`,
+	Run: func(cmd *cobra.Command, args []string) {
+		target, _ := cmd.Flags().GetString("target")
+		output, _ := cmd.Flags().GetString("output")
+		testAll, _ := cmd.Flags().GetBool("test-all")
+		testCart, _ := cmd.Flags().GetBool("test-cart")
+		testPricing, _ := cmd.Flags().GetBool("test-pricing")
+		testCoupons, _ := cmd.Flags().GetBool("test-coupons")
+		testRace, _ := cmd.Flags().GetBool("test-race")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if target == "" {
+			fmt.Println("Error: --target is required")
+			os.Exit(1)
+		}
+
+		config := &logic.TestConfig{
+			Target:        target,
+			MaxWorkers:    10,
+			Timeout:       30 * time.Second,
+			VerboseOutput: verbose,
+		}
+
+		fmt.Printf("💳 Testing e-commerce payment logic for: %s\n", target)
+		if testAll || testCart {
+			fmt.Printf("🛒 Shopping cart testing enabled\n")
+		}
+		if testAll || testPricing {
+			fmt.Printf("💰 Pricing logic testing enabled\n")
+		}
+		if testAll || testCoupons {
+			fmt.Printf("🎫 Coupon logic testing enabled\n")
+		}
+		if testAll || testRace {
+			fmt.Printf("⚡ Race condition testing enabled\n")
+		}
+		fmt.Println()
+
+		// Initialize e-commerce tester
+		tester := payments.NewEcommerceLogicTester(config)
+		
+		// Perform testing
+		startTime := time.Now()
+		results := tester.TestAllEcommerceLogic(target)
+		duration := time.Since(startTime)
+
+		fmt.Printf("✅ E-commerce testing completed in %v\n\n", duration)
+
+		// Output results
+		if output == "json" {
+			printPaymentResultsJSON(results)
+		} else {
+			printPaymentResultsTable(results, verbose)
+		}
+
+		// Security assessment
+		criticalCount := 0
+		highCount := 0
+		
+		for _, vuln := range results {
+			switch vuln.Severity {
+			case logic.SeverityCritical:
+				criticalCount++
+			case logic.SeverityHigh:
+				highCount++
+			}
+		}
+
+		fmt.Printf("\n💳 E-commerce Security Assessment:\n")
+		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
+		fmt.Printf("   Critical issues: %d\n", criticalCount)
+		fmt.Printf("   High-risk issues: %d\n", highCount)
+		
+		if criticalCount > 0 {
+			fmt.Printf("🚨 CRITICAL: Financial exploitation possible!\n")
+		} else if highCount > 0 {
+			fmt.Printf("⚠️  WARNING: Payment logic vulnerabilities detected\n")
+		} else if len(results) > 0 {
+			fmt.Printf("ℹ️  INFO: Minor payment logic issues found\n")
+		} else {
+			fmt.Printf("✅ Payment logic appears secure\n")
+		}
+	},
+}
+
+// logicRecoveryCmd tests account recovery vulnerabilities
+var logicRecoveryCmd = &cobra.Command{
+	Use:   "recovery",
+	Short: "Test account recovery vulnerabilities",
+	Long: `Comprehensive account recovery testing including:
+
+Recovery Method Testing:
+- Password reset flow analysis
+- Security question vulnerabilities
+- SMS recovery method flaws
+- Email recovery weaknesses
+- Backup code vulnerabilities
+
+Recovery Flow Analysis:
+- Recovery method chaining
+- Cross-recovery method attacks
+- Recovery session hijacking
+- Recovery token manipulation
+- Recovery flow bypasses
+
+Advanced Recovery Attacks:
+- Social recovery exploitation
+- Biometric recovery bypasses
+- Admin recovery vulnerabilities
+- Device recovery flaws
+- Knowledge-based auth bypass
+
+Security Assessments:
+- Recovery token entropy analysis
+- Recovery method enumeration
+- Recovery flow race conditions
+- Recovery session validation
+- Recovery rate limiting
+
+Examples:
+  shells logic recovery --target https://example.com --test-all
+  shells logic recovery --target https://example.com --test-password-reset
+  shells logic recovery --target https://example.com --test-security-questions`,
+	Run: func(cmd *cobra.Command, args []string) {
+		target, _ := cmd.Flags().GetString("target")
+		output, _ := cmd.Flags().GetString("output")
+		testAll, _ := cmd.Flags().GetBool("test-all")
+		testPasswordReset, _ := cmd.Flags().GetBool("test-password-reset")
+		testSecQuestions, _ := cmd.Flags().GetBool("test-security-questions")
+		testSMS, _ := cmd.Flags().GetBool("test-sms")
+		testEmail, _ := cmd.Flags().GetBool("test-email")
+		testBackupCodes, _ := cmd.Flags().GetBool("test-backup-codes")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if target == "" {
+			fmt.Println("Error: --target is required")
+			os.Exit(1)
+		}
+
+		config := &logic.TestConfig{
+			Target:           target,
+			TestTokenEntropy: true,
+			TestHostHeader:   true,
+			TokenSamples:     50,
+			MaxWorkers:       10,
+			Timeout:          30 * time.Second,
+			VerboseOutput:    verbose,
+		}
+
+		fmt.Printf("🔐 Testing account recovery for: %s\n", target)
+		if testAll || testPasswordReset {
+			fmt.Printf("🔑 Password reset testing enabled\n")
+		}
+		if testAll || testSecQuestions {
+			fmt.Printf("❓ Security questions testing enabled\n")
+		}
+		if testAll || testSMS {
+			fmt.Printf("📱 SMS recovery testing enabled\n")
+		}
+		if testAll || testEmail {
+			fmt.Printf("📧 Email recovery testing enabled\n")
+		}
+		if testAll || testBackupCodes {
+			fmt.Printf("🎫 Backup codes testing enabled\n")
+		}
+		fmt.Println()
+
+		// Initialize recovery tester
+		tester := recovery.NewAccountRecoveryTester(config)
+		
+		// Perform testing
+		startTime := time.Now()
+		results := tester.TestAllMethods(target)
+		duration := time.Since(startTime)
+
+		fmt.Printf("✅ Account recovery testing completed in %v\n\n", duration)
+
+		// Output results
+		if output == "json" {
+			printRecoveryResultsJSON(results)
+		} else {
+			printRecoveryResultsTable(results, verbose)
+		}
+
+		// Security assessment
+		criticalCount := 0
+		highCount := 0
+		
+		for _, vuln := range results {
+			switch vuln.Severity {
+			case logic.SeverityCritical:
+				criticalCount++
+			case logic.SeverityHigh:
+				highCount++
+			}
+		}
+
+		fmt.Printf("\n🔐 Recovery Security Assessment:\n")
+		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
+		fmt.Printf("   Critical bypasses: %d\n", criticalCount)
+		fmt.Printf("   High-risk bypasses: %d\n", highCount)
+		
+		if criticalCount > 0 {
+			fmt.Printf("🚨 CRITICAL: Account recovery can be fully bypassed!\n")
+		} else if highCount > 0 {
+			fmt.Printf("⚠️  WARNING: Recovery bypass vulnerabilities detected\n")
+		} else if len(results) > 0 {
+			fmt.Printf("ℹ️  INFO: Minor recovery implementation issues found\n")
+		} else {
+			fmt.Printf("✅ Account recovery appears secure\n")
+		}
+	},
+}
+
+// logicAllCmd runs all comprehensive business logic tests
+var logicAllCmd = &cobra.Command{
+	Use:   "all",
+	Short: "Run all comprehensive business logic tests",
+	Long: `Comprehensive business logic testing suite that runs all available tests:
+
+Test Categories:
+- Password reset flow vulnerabilities
+- Multi-step workflow bypasses
+- Race condition exploitation
+- MFA bypass techniques
+- Account recovery flaws
+- E-commerce payment logic
+- Time-based logic manipulation
+- Session management issues
+
+High-Value Targets:
+- Account takeover vulnerabilities
+- Financial exploitation flaws
+- Privilege escalation paths
+- Business process bypasses
+- Payment manipulation attacks
+- Data exposure risks
+
+Report Generation:
+- Detailed vulnerability analysis
+- Business impact assessment
+- Remediation recommendations
+- Executive summary
+- Technical details with PoCs
+
+Examples:
+  shells logic all --target https://example.com
+  shells logic all --target https://example.com --output json
+  shells logic all --target https://example.com --include-business-impact`,
+	Run: func(cmd *cobra.Command, args []string) {
+		target, _ := cmd.Flags().GetString("target")
+		output, _ := cmd.Flags().GetString("output")
+		includeBusiness, _ := cmd.Flags().GetBool("include-business-impact")
+		reportFile, _ := cmd.Flags().GetString("report-file")
+		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		if target == "" {
+			fmt.Println("Error: --target is required")
+			os.Exit(1)
+		}
+
+		fmt.Printf("🔍 Running comprehensive business logic tests for: %s\n", target)
+		fmt.Printf("📋 Test suite includes: password reset, workflow, race conditions, MFA, recovery, and e-commerce\n")
+		fmt.Println()
+
+		// Run comprehensive tests
+		startTime := time.Now()
+		vulnerabilities := runComprehensiveTests(target)
+		duration := time.Since(startTime)
+
+		fmt.Printf("✅ Comprehensive testing completed in %v\n\n", duration)
+
+		// Generate report
+		report := generateBusinessLogicReport(vulnerabilities, includeBusiness)
+
+		// Output results
+		if output == "json" {
+			data, _ := json.MarshalIndent(report, "", "  ")
+			fmt.Println(string(data))
+		} else {
+			printReportSummary(report, verbose)
+		}
+
+		// Save report if requested
+		if reportFile != "" {
+			err := saveReport(report, reportFile, "html")
+			if err != nil {
+				fmt.Printf("Error saving report: %v\n", err)
+			} else {
+				fmt.Printf("📄 Detailed report saved to: %s\n", reportFile)
+			}
+		}
+
+		// Final security assessment
+		fmt.Printf("\n🛡️  Overall Security Assessment:\n")
+		if report.Metadata.CriticalCount > 0 {
+			fmt.Printf("🚨 CRITICAL: Immediate action required - %d critical vulnerabilities\n", report.Metadata.CriticalCount)
+		} else if report.Metadata.HighCount > 2 {
+			fmt.Printf("⚠️  HIGH RISK: Significant vulnerabilities detected - %d high-risk issues\n", report.Metadata.HighCount)
+		} else if report.Metadata.HighCount > 0 {
+			fmt.Printf("⚠️  WARNING: Some high-risk vulnerabilities - %d issues\n", report.Metadata.HighCount)
+		} else if report.Metadata.VulnsFound > 0 {
+			fmt.Printf("ℹ️  INFO: Minor security issues found - %d total\n", report.Metadata.VulnsFound)
+		} else {
+			fmt.Printf("✅ SECURE: No significant business logic vulnerabilities found\n")
+		}
+	},
+}
+
 // logicReportCmd generates comprehensive business logic reports
 var logicReportCmd = &cobra.Command{
 	Use:   "report",
@@ -691,6 +1038,66 @@ func printReportSummary(report *logic.BusinessLogicReport, verbose bool) {
 	}
 }
 
+func printPaymentResultsJSON(results []logic.Vulnerability) {
+	data, _ := json.MarshalIndent(results, "", "  ")
+	fmt.Println(string(data))
+}
+
+func printPaymentResultsTable(results []logic.Vulnerability, verbose bool) {
+	fmt.Printf("💳 E-commerce Payment Logic Test Results\n")
+	fmt.Printf("════════════════════════════════════════\n\n")
+	
+	if len(results) == 0 {
+		fmt.Printf("✅ No e-commerce payment logic vulnerabilities found\n")
+		return
+	}
+	
+	for i, vuln := range results {
+		severity := getSeverityEmoji(vuln.Severity)
+		fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
+		fmt.Printf("   %s\n", vuln.Description)
+		fmt.Printf("   Impact: %s\n", vuln.Impact)
+		
+		if verbose && vuln.Details != "" {
+			fmt.Printf("   Details: %s\n", vuln.Details)
+		}
+		if verbose && vuln.Remediation != "" {
+			fmt.Printf("   Remediation: %s\n", vuln.Remediation)
+		}
+		fmt.Println()
+	}
+}
+
+func printRecoveryResultsJSON(results []logic.Vulnerability) {
+	data, _ := json.MarshalIndent(results, "", "  ")
+	fmt.Println(string(data))
+}
+
+func printRecoveryResultsTable(results []logic.Vulnerability, verbose bool) {
+	fmt.Printf("🔐 Account Recovery Test Results\n")
+	fmt.Printf("═══════════════════════════════\n\n")
+	
+	if len(results) == 0 {
+		fmt.Printf("✅ No account recovery vulnerabilities found\n")
+		return
+	}
+	
+	for i, vuln := range results {
+		severity := getSeverityEmoji(vuln.Severity)
+		fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
+		fmt.Printf("   %s\n", vuln.Description)
+		fmt.Printf("   Impact: %s\n", vuln.Impact)
+		
+		if verbose && vuln.Details != "" {
+			fmt.Printf("   Details: %s\n", vuln.Details)
+		}
+		if verbose && vuln.Remediation != "" {
+			fmt.Printf("   Remediation: %s\n", vuln.Remediation)
+		}
+		fmt.Println()
+	}
+}
+
 // Helper functions
 
 func getSeverityEmoji(severity string) string {
@@ -763,6 +1170,16 @@ func runComprehensiveTests(target string) []logic.Vulnerability {
 	mfaTester := recovery.NewMFABypassTester(config)
 	mfaResults := mfaTester.TestAllMethods(target)
 	vulnerabilities = append(vulnerabilities, mfaResults...)
+	
+	// Run e-commerce tests
+	ecommerceTester := payments.NewEcommerceLogicTester(config)
+	ecommerceResults := ecommerceTester.TestAllEcommerceLogic(target)
+	vulnerabilities = append(vulnerabilities, ecommerceResults...)
+	
+	// Run account recovery tests
+	recoveryTester := recovery.NewAccountRecoveryTester(config)
+	recoveryResults := recoveryTester.TestAllMethods(target)
+	vulnerabilities = append(vulnerabilities, recoveryResults...)
 	
 	return vulnerabilities
 }
@@ -983,6 +1400,9 @@ func init() {
 	logicCmd.AddCommand(logicWorkflowCmd)
 	logicCmd.AddCommand(logicRaceCmd)
 	logicCmd.AddCommand(logicMfaCmd)
+	logicCmd.AddCommand(logicPaymentCmd)
+	logicCmd.AddCommand(logicRecoveryCmd)
+	logicCmd.AddCommand(logicAllCmd)
 	logicCmd.AddCommand(logicReportCmd)
 
 	// Global flags
@@ -1013,6 +1433,25 @@ func init() {
 	logicMfaCmd.Flags().Bool("test-bypasses", false, "Test all bypass methods")
 	logicMfaCmd.Flags().Bool("test-tokens", false, "Test token-based bypasses")
 	logicMfaCmd.Flags().Bool("test-recovery", false, "Test recovery flow bypasses")
+
+	// Payment command flags
+	logicPaymentCmd.Flags().Bool("test-all", false, "Test all e-commerce payment logic")
+	logicPaymentCmd.Flags().Bool("test-cart", false, "Test shopping cart logic")
+	logicPaymentCmd.Flags().Bool("test-pricing", false, "Test pricing logic")
+	logicPaymentCmd.Flags().Bool("test-coupons", false, "Test coupon logic")
+	logicPaymentCmd.Flags().Bool("test-race", false, "Test race conditions")
+
+	// Recovery command flags
+	logicRecoveryCmd.Flags().Bool("test-all", false, "Test all recovery methods")
+	logicRecoveryCmd.Flags().Bool("test-password-reset", false, "Test password reset recovery")
+	logicRecoveryCmd.Flags().Bool("test-security-questions", false, "Test security questions")
+	logicRecoveryCmd.Flags().Bool("test-sms", false, "Test SMS recovery")
+	logicRecoveryCmd.Flags().Bool("test-email", false, "Test email recovery")
+	logicRecoveryCmd.Flags().Bool("test-backup-codes", false, "Test backup codes")
+
+	// All command flags
+	logicAllCmd.Flags().Bool("include-business-impact", false, "Include business impact analysis")
+	logicAllCmd.Flags().String("report-file", "", "Save detailed report to file")
 
 	// Report command flags
 	logicReportCmd.Flags().String("findings", "", "Load findings from JSON file")

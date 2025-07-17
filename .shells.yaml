@@ -1,0 +1,95 @@
+logger:
+  level: "info"
+  format: "json"
+  output_paths: ["stdout"]
+
+database:
+  driver: "sqlite3"
+  dsn: "/tmp/shells.db"
+  max_connections: 10
+  max_idle_conns: 5
+  conn_max_lifetime: "1h"
+
+redis:
+  addr: "localhost:6379"
+  db: 0
+  max_retries: 3
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+
+worker:
+  count: 3
+  queue_poll_interval: "5s"
+  max_retries: 3
+  retry_delay: "10s"
+
+telemetry:
+  enabled: true
+  service_name: "shells"
+  exporter_type: "otlp"
+  endpoint: "localhost:4317"
+  sample_rate: 1.0
+
+security:
+  rate_limit:
+    requests_per_second: 10
+    burst_size: 20
+  enable_auth: false
+
+tools:
+  nmap:
+    binary_path: "nmap"
+    timeout: "30m"
+    profiles:
+      default: "-sS -sV -O"
+      fast: "-T4 -F"
+      thorough: "-sS -sV -sC -O -A"
+  
+  ssl:
+    timeout: "10s"
+    follow_redirects: true
+    check_revocation: true
+  
+  nuclei:
+    binary_path: "nuclei"
+    templates_path: ""
+    timeout: "30m"
+    rate_limit: 150
+    bulk_size: 25
+    concurrency: 25
+    retries: 2
+  
+  httpx:
+    binary_path: "httpx"
+    timeout: "10s"
+    threads: 50
+    rate_limit: 150
+    retries: 2
+    follow_redirects: true
+    probe_all_ips: false
+  
+  scim:
+    discovery_timeout: "5m"
+    max_bulk_operations: 10
+    test_authentication: true
+    test_filters: true
+    test_bulk_ops: true
+    test_provisions: true
+    timeout: "30s"
+    max_retries: 3
+    user_agent: "shells-scim-scanner/1.0"
+    follow_redirects: true
+    verify_ssl: true
+  
+  smuggling:
+    techniques: ["cl.te", "te.cl", "te.te", "http2"]
+    differential_delay: "5s"
+    max_payload_size: 1048576
+    timeout: "30s"
+    max_retries: 3
+    user_agent: "shells-smuggling-scanner/1.0"
+    follow_redirects: false
+    verify_ssl: true
+    enable_timing_analysis: true
+    enable_differential_analysis: true

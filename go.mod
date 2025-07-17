@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.4
 
 require (
+	github.com/beevik/etree v1.5.1
 	github.com/chromedp/cdproto v0.0.0-20250713235838-3ec7dc2cfcb5
 	github.com/chromedp/chromedp v0.13.7
 	github.com/google/uuid v1.6.0
@@ -80,8 +81,15 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
+	github.com/hashicorp/cronexpr v1.1.2 // indirect
+	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/hashicorp/nomad/api v0.0.0-20250716184016-918e1eb1238b // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
@@ -103,6 +111,8 @@ require (
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/minio/minlz v1.0.1 // indirect
 	github.com/minio/selfupdate v0.6.1-0.20230907112617-f11e74f84ca7 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
@@ -149,6 +159,7 @@ require (
 	github.com/tidwall/tinyqueue v0.1.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
+	github.com/twmb/murmur3 v1.1.8 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/weppos/publicsuffix-go v0.40.3-0.20250708083804-25ff8f86d8b3 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect

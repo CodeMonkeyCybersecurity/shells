@@ -8,12 +8,15 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
 )
 
 // AtomicExecutor handles safe execution of atomic tests
 type AtomicExecutor struct {
 	config      ExecutorConfig
 	safetyCheck bool
+	nomadClient *nomad.Client
 }
 
 // NewAtomicExecutor creates a new atomic executor with safety constraints
@@ -34,10 +37,20 @@ func NewAtomicExecutor(config ExecutorConfig) (*AtomicExecutor, error) {
 	if config.CPULimit == "" {
 		config.CPULimit = "0.5"
 	}
+
+	// Initialize Nomad client for sandboxed execution
+	var nomadClient *nomad.Client
+	if config.SandboxMode {
+		nomadClient = nomad.NewClient(config.NomadAddr)
+		if !nomadClient.IsAvailable() {
+			return nil, fmt.Errorf("Nomad cluster is not available at %s", config.NomadAddr)
+		}
+	}
 	
 	return &AtomicExecutor{
 		config:      config,
 		safetyCheck: true,
+		nomadClient: nomadClient,
 	}, nil
 }
 
@@ -74,7 +87,7 @@ func (e *AtomicExecutor) ExecuteWithConstraints(test Test, target Target) (*Exec
 	if e.config.DryRun {
 		return e.executeDryRun(ctx, test, command, result)
 	} else if e.config.SandboxMode {
-		return e.executeInSandbox(ctx, test, command, target, result)
+		return e.executeInNomadSandbox(ctx, test, command, target, result)
 	} else {
 		return e.executeLocal(ctx, test, command, result)
 	}
@@ -167,49 +180,71 @@ func (e *AtomicExecutor) executeDryRun(ctx context.Context, test Test, command s
 	return result, nil
 }
 
-// executeInSandbox executes command in Docker sandbox for safety
-func (e *AtomicExecutor) executeInSandbox(ctx context.Context, test Test, command string, target Target, result *ExecutionResult) (*ExecutionResult, error) {
-	// Check if Docker is available
-	if !e.isDockerAvailable() {
+// executeInNomadSandbox executes command in Nomad sandbox for safety
+func (e *AtomicExecutor) executeInNomadSandbox(ctx context.Context, test Test, command string, target Target, result *ExecutionResult) (*ExecutionResult, error) {
+	// Check if Nomad is available
+	if e.nomadClient == nil || !e.nomadClient.IsAvailable() {
 		return e.executeLocal(ctx, test, command, result)
 	}
 	
-	// Build Docker command with resource limits
-	dockerCmd := []string{
-		"docker", "run",
-		"--rm",
-		"--network", "host", // Allow network access for bug bounty testing
-		"--memory", e.config.MemoryLimit,
-		"--cpus", e.config.CPULimit,
-		"--read-only", // Read-only filesystem for safety
-		"--tmpfs", "/tmp:noexec,nosuid,size=100m",
-		"--security-opt", "no-new-privileges",
-		"--user", "nobody", // Run as non-root user
-		e.config.DockerImage,
-		"sh", "-c", command,
+	// Generate job ID
+	jobID := fmt.Sprintf("atomic-test-%d", time.Now().UnixNano())
+	
+	// Create Nomad job specification
+	jobSpec := e.createAtomicJobSpec(jobID, command, test, target)
+	
+	// Register the job
+	if err := e.nomadClient.RegisterJob(ctx, jobID, jobSpec); err != nil {
+		result.Error = fmt.Sprintf("Failed to register Nomad job: %v", err)
+		result.Success = false
+		result.EndTime = time.Now()
+		return result, err
 	}
 	
-	// Execute Docker command
-	cmd := exec.CommandContext(ctx, dockerCmd[0], dockerCmd[1:]...)
-	
-	output, err := cmd.CombinedOutput()
-	result.Output = string(output)
-	result.EndTime = time.Now()
-	
+	// Submit the job
+	dispatchedJobID, err := e.nomadClient.SubmitScan(ctx, "atomic-test", target.URL, jobID, map[string]string{
+		"command": command,
+		"test_name": test.Name,
+		"technique": test.Name, // Assuming test name contains technique info
+	})
 	if err != nil {
-		result.Error = err.Error()
+		result.Error = fmt.Sprintf("Failed to submit Nomad job: %v", err)
 		result.Success = false
-	} else {
-		result.Success = true
+		result.EndTime = time.Now()
+		return result, err
+	}
+	
+	// Wait for completion
+	status, err := e.nomadClient.WaitForCompletion(ctx, dispatchedJobID, e.config.Timeout)
+	if err != nil {
+		result.Error = fmt.Sprintf("Job execution failed: %v", err)
+		result.Success = false
+		result.EndTime = time.Now()
+		return result, err
+	}
+	
+	// Get job logs
+	logs, err := e.nomadClient.GetJobLogs(ctx, dispatchedJobID)
+	if err != nil {
+		logs = fmt.Sprintf("Failed to retrieve logs: %v", err)
+	}
+	
+	result.Output = logs
+	result.EndTime = time.Now()
+	result.Success = (status.Status == "complete")
+	
+	if !result.Success {
+		result.Error = fmt.Sprintf("Job completed with status: %s", status.Status)
 	}
 	
 	// Add execution evidence
 	result.Evidence = append(result.Evidence, Evidence{
-		Type:        "SANDBOXED_EXECUTION",
-		Description: "Executed in Docker sandbox with resource constraints",
+		Type:        "NOMAD_SANDBOXED_EXECUTION",
+		Description: "Executed in Nomad sandbox with resource constraints",
 		Command:     command,
 		Output:      result.Output,
 		Timestamp:   time.Now(),
+		JobID:       dispatchedJobID,
 	})
 	
 	return result, nil
@@ -357,6 +392,114 @@ func (e *AtomicExecutor) sanitizeValue(value string) string {
 func (e *AtomicExecutor) isDockerAvailable() bool {
 	cmd := exec.Command("docker", "--version")
 	return cmd.Run() == nil
+}
+
+// createAtomicJobSpec creates a Nomad job specification for atomic test execution
+func (e *AtomicExecutor) createAtomicJobSpec(jobID, command string, test Test, target Target) string {
+	// Create a secure Nomad job specification for atomic test execution
+	jobSpec := fmt.Sprintf(`
+job "%s" {
+  type = "batch"
+  datacenters = ["dc1"]
+  
+  group "atomic-test" {
+    count = 1
+    
+    restart {
+      attempts = 0
+      mode = "fail"
+    }
+    
+    task "execute" {
+      driver = "exec"
+      
+      config {
+        command = "/bin/sh"
+        args = ["-c", "%s"]
+      }
+      
+      env {
+        ATOMIC_TEST_MODE = "safe"
+        ATOMIC_TEST_TARGET = "%s"
+        ATOMIC_TEST_NAME = "%s"
+      }
+      
+      resources {
+        cpu = %s
+        memory = %s
+      }
+      
+      # Security constraints
+      constraint {
+        attribute = "${node.class}"
+        operator = "="
+        value = "atomic-test"
+      }
+      
+      # Timeout
+      kill_timeout = "%s"
+      
+      # Logging
+      logs {
+        max_files = 1
+        max_file_size = 1
+      }
+    }
+  }
+}`, 
+		jobID, 
+		e.escapeCommand(command), 
+		target.URL, 
+		test.Name,
+		e.parseCPULimit(e.config.CPULimit),
+		e.parseMemoryLimit(e.config.MemoryLimit),
+		e.config.Timeout.String(),
+	)
+	
+	return jobSpec
+}
+
+// escapeCommand escapes shell command for safe execution in Nomad
+func (e *AtomicExecutor) escapeCommand(command string) string {
+	// Escape quotes and special characters
+	escaped := strings.ReplaceAll(command, `"`, `\"`)
+	escaped = strings.ReplaceAll(escaped, `$`, `\$`)
+	escaped = strings.ReplaceAll(escaped, "`", "\\`")
+	return escaped
+}
+
+// parseCPULimit converts CPU limit to Nomad format (MHz)
+func (e *AtomicExecutor) parseCPULimit(limit string) string {
+	// Convert from Docker format (e.g., "0.5") to Nomad MHz
+	// Default to 500 MHz for 0.5 CPU
+	if limit == "0.5" {
+		return "500"
+	}
+	if limit == "1.0" || limit == "1" {
+		return "1000"
+	}
+	// Default fallback
+	return "500"
+}
+
+// parseMemoryLimit converts memory limit to Nomad format (MB)
+func (e *AtomicExecutor) parseMemoryLimit(limit string) string {
+	// Convert from Docker format (e.g., "512m") to Nomad MB
+	if strings.HasSuffix(limit, "m") || strings.HasSuffix(limit, "M") {
+		return strings.TrimSuffix(strings.TrimSuffix(limit, "m"), "M")
+	}
+	if strings.HasSuffix(limit, "g") || strings.HasSuffix(limit, "G") {
+		// Convert GB to MB
+		gbStr := strings.TrimSuffix(strings.TrimSuffix(limit, "g"), "G")
+		if gbStr == "1" {
+			return "1024"
+		}
+		if gbStr == "2" {
+			return "2048"
+		}
+	}
+	// Default fallback
+	return "512"
 }
 
 func (e *AtomicExecutor) getRestrictedEnvironment() []string {

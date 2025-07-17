@@ -35,6 +35,7 @@ func NewAtomicClient(config Config) (*AtomicClient, error) {
 		DockerImage: config.DockerImage,
 		MemoryLimit: config.MemoryLimit,
 		CPULimit:    config.CPULimit,
+		NomadAddr:   config.NomadAddr,
 	}
 	
 	var err error
@@ -359,4 +360,5 @@ type ExecutorConfig struct {
 	DockerImage string        `json:"docker_image"`
 	MemoryLimit string        `json:"memory_limit"`
 	CPULimit    string        `json:"cpu_limit"`
+	NomadAddr   string        `json:"nomad_addr"`
 }

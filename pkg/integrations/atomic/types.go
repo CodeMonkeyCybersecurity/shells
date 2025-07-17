@@ -66,6 +66,7 @@ type Evidence struct {
 	Data        string `json:"data"`
 	Command     string `json:"command,omitempty"`
 	Output      string `json:"output,omitempty"`
+	JobID       string `json:"job_id,omitempty"`
 	Timestamp   time.Time `json:"timestamp"`
 }
 
@@ -190,6 +191,7 @@ type Config struct {
 	DockerImage       string        `yaml:"docker_image"`
 	MemoryLimit       string        `yaml:"memory_limit"`
 	CPULimit          string        `yaml:"cpu_limit"`
+	NomadAddr         string        `yaml:"nomad_addr"`
 	AllowedTechniques []string      `yaml:"allowed_techniques"`
 }
 

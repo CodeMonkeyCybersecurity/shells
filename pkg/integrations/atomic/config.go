@@ -19,6 +19,7 @@ var DefaultConfig = Config{
 	DockerImage:       "atomicredteam/atomic-red-team-execution:latest",
 	MemoryLimit:       "512m",
 	CPULimit:          "0.5",
+	NomadAddr:         "http://localhost:4646",
 	AllowedTechniques: BugBountySafeTechniques,
 }
 
@@ -113,6 +114,10 @@ func mergeConfigs(defaultConfig, userConfig Config) Config {
 	
 	if userConfig.CPULimit != "" {
 		merged.CPULimit = userConfig.CPULimit
+	}
+	
+	if userConfig.NomadAddr != "" {
+		merged.NomadAddr = userConfig.NomadAddr
 	}
 	
 	// Merge allowed techniques (intersection with safe techniques)

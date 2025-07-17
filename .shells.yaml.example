@@ -1,0 +1,263 @@
+# Shells Security Scanner Configuration
+# Copy this file to ~/.shells.yaml or use --config flag
+
+# Logger configuration
+logger:
+  level: "info"            # debug, info, warn, error
+  format: "json"           # json, console
+  output_paths: ["stdout"] # stdout, stderr, or file paths
+
+# Database configuration
+database:
+  driver: "postgres"
+  dsn: "postgres://shells:shells@localhost:5432/shells?sslmode=disable"
+  max_connections: 25
+  max_idle_conns: 10
+  conn_max_lifetime: "2h"
+
+# Redis configuration (for caching and queues)
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+  max_retries: 3
+  dial_timeout: "5s"
+  read_timeout: "3s"
+  write_timeout: "3s"
+
+# Worker configuration
+worker:
+  count: 3
+  queue_poll_interval: "5s"
+  max_retries: 3
+  retry_delay: "10s"
+
+# Telemetry configuration
+telemetry:
+  enabled: true
+  service_name: "shells"
+  exporter_type: "otlp"
+  endpoint: "localhost:4317"
+  sample_rate: 1.0
+
+# Security configuration
+security:
+  rate_limit:
+    requests_per_second: 10
+    burst_size: 20
+  scope_file: "scope.txt"
+  api_key: ""
+  enable_auth: false
+
+# Tools configuration
+tools:
+  # Nmap configuration
+  nmap:
+    binary_path: "nmap"
+    timeout: "30m"
+    profiles:
+      default: "-sS -sV -O"
+      fast: "-T4 -F"
+      thorough: "-sS -sV -sC -O -A"
+
+  # SSL/TLS configuration
+  ssl:
+    timeout: "10s"
+    follow_redirects: true
+    check_revocation: true
+
+  # Nuclei configuration
+  nuclei:
+    binary_path: "nuclei"
+    templates_path: ""
+    timeout: "30m"
+    rate_limit: 150
+    bulk_size: 25
+    concurrency: 25
+    retries: 2
+
+  # HTTPX configuration
+  httpx:
+    binary_path: "httpx"
+    timeout: "10s"
+    threads: 50
+    rate_limit: 150
+    retries: 2
+    follow_redirects: true
+    probe_all_ips: false
+
+  # JavaScript scanning
+  javascript:
+    linkfinder_path: "linkfinder"
+    secretfinder_path: "secretfinder"
+    retirejs_path: "retire"
+    timeout: "10m"
+
+  # OAuth2 testing
+  oauth2:
+    default_client_id: ""
+    timeout: "15m"
+
+  # SCIM testing
+  scim:
+    discovery_timeout: "5m"
+    max_bulk_operations: 10
+    test_authentication: true
+    test_filters: true
+    test_bulk_ops: true
+    test_provisions: true
+    timeout: "30s"
+    max_retries: 3
+    user_agent: "shells-scim-scanner/1.0"
+    follow_redirects: true
+    verify_ssl: true
+
+  # HTTP Request Smuggling
+  smuggling:
+    techniques: ["cl.te", "te.cl", "te.te", "http2"]
+    differential_delay: "5s"
+    max_payload_size: 1048576  # 1MB
+    timeout: "30s"
+    max_retries: 3
+    user_agent: "shells-smuggling-scanner/1.0"
+    follow_redirects: false
+    verify_ssl: true
+    enable_timing_analysis: true
+    enable_differential_analysis: true
+
+  # Business Logic Testing
+  business_logic:
+    timeout: "30s"
+    max_retries: 3
+    user_agent: "shells-business-logic-scanner/1.0"
+    follow_redirects: true
+    verify_ssl: true
+    verbose_output: false
+    maintain_session: true
+
+    # Password reset testing
+    password_reset:
+      test_token_entropy: true
+      test_host_header: true
+      test_user_enum: true
+      test_race_condition: true
+      token_samples: 100
+      brute_force_threads: 50
+      request_delay: "100ms"
+      max_token_length: 256
+      min_token_entropy: 32.0
+
+    # Workflow testing
+    workflow:
+      max_depth: 10
+      max_states: 100
+      test_privileges: true
+      test_state_skipping: true
+      test_step_reordering: true
+      test_parallel_exec: true
+      test_value_manip: true
+      test_auth_flaws: true
+      test_time_vulns: true
+      analysis_timeout: "5m"
+      state_timeout: "30s"
+
+    # Race condition testing
+    race_condition:
+      max_workers: 20
+      test_payments: true
+      test_inventory: true
+      test_auth: true
+      test_business_logic: true
+      test_resource_alloc: true
+      request_delay: "0s"
+      concurrent_attempts: 10
+      detection_threshold: 0.8
+
+    # MFA bypass testing
+    mfa_bypass:
+      test_remember_me: true
+      test_backup_codes: true
+      test_recovery_flow: true
+      test_session_upgrade: true
+      test_race_condition: true
+      test_response_manip: true
+      test_token_reuse: true
+      test_cookie_manip: true
+      test_api_endpoints: true
+      test_flow_manip: true
+      session_timeout: "15m"
+      max_attempts: 5
+
+    # Account recovery testing
+    account_recovery:
+      test_all_methods: true
+      test_sec_questions: true
+      test_sms_recovery: true
+      test_email_recovery: true
+      test_backup_codes: true
+      test_social_recovery: false
+      test_biometric: false
+      test_admin_recovery: false
+      test_device_recovery: false
+      test_method_chaining: true
+      test_cross_method: true
+      recovery_timeout: "2m"
+      max_recovery_attempts: 3
+
+    # E-commerce testing
+    ecommerce:
+      test_shopping_cart: true
+      test_payment_logic: true
+      test_pricing_logic: true
+      test_coupon_logic: true
+      test_negative_values: true
+      test_integer_overflow: true
+      test_cart_manip: true
+      test_price_manip: true
+      test_currency_conf: true
+      test_race_conditions: true
+      max_cart_items: 1000
+      price_test_values: [-1.0, 0.0, 0.01, 999999.99, 2147483647.0]
+      currency_test_list: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
+
+    # Reporting configuration
+    reporting:
+      generate_html: true
+      generate_json: true
+      generate_pdf: false
+      generate_csv: false
+      include_business_impact: true
+      include_poc_details: true
+      include_charts: true
+      include_timeline: true
+      report_timeout: "10m"
+      output_directory: "reports"
+      report_template: "default"
+      max_report_size: 104857600  # 100MB
+
+  # Prowler AWS Security Scanner
+  prowler:
+    nomad_addr: "http://localhost:4646"           # Nomad cluster address
+    docker_image: "toniblyx/prowler:latest"       # Prowler Docker image
+    output_format: "json"                         # Output format (json, text)
+    parallel_jobs: 5                              # Number of parallel Nomad jobs
+    timeout: "30m"                                # Scan timeout
+    aws_profile: ""                               # Default AWS profile
+    cache_dir: ""                                 # Cache directory for results
+
+  # Favicon Technology Scanner
+  favicon:
+    timeout: "10s"                                # Request timeout per favicon
+    user_agent: "Mozilla/5.0 (compatible; FaviconScanner/1.0; Bug Bounty Research)"
+    cache_dir: ""                                 # Cache directory (empty = disabled)
+    shodan_api_key: ""                            # Shodan API key for enhanced search
+    max_concurrency: 10                           # Maximum concurrent requests
+    enable_shodan: false                          # Enable Shodan integration
+    enable_cache: true                            # Enable favicon caching
+    custom_database: ""                           # Path to custom favicon database
+
+# Example environment variables you can set:
+# SHELLS_PROWLER_AWS_PROFILE=production
+# SHELLS_FAVICON_SHODAN_API_KEY=your_shodan_key
+# SHELLS_SECURITY_API_KEY=your_api_key
+# SHELLS_DATABASE_DSN=postgres://user:pass@host:port/db

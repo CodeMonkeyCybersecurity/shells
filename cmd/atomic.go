@@ -308,20 +308,38 @@ Examples:
 			DryRun:     true,
 		}
 
-		bugBountyExecutor, err := atomic.NewBugBountyExecutor(config)
+		client, err := atomic.NewAtomicClient(config)
 		if err != nil {
-			fmt.Printf("Error initializing executor: %v\n", err)
+			fmt.Printf("Error initializing client: %v\n", err)
 			os.Exit(1)
 		}
 
 		for _, finding := range findings {
 			targetObj := atomic.Target{URL: finding.Target, Type: "web"}
-			report, err := bugBountyExecutor.DemonstrateVulnerabilityImpact(finding, targetObj)
-			if err != nil {
-				fmt.Printf("Warning: Could not demonstrate impact for %s: %v\n", finding.Type, err)
-				continue
+			
+			// Get techniques for this vulnerability type
+			mapper := atomic.NewVulnToAttackMapper()
+			techniques := mapper.GetTechniques(finding.Type)
+			
+			for _, technique := range techniques {
+				demo, err := client.DemonstrateImpact(technique, targetObj)
+				if err != nil {
+					fmt.Printf("Warning: Could not demonstrate %s for %s: %v\n", technique, finding.Type, err)
+					continue
+				}
+				
+				demonstration := atomic.Demonstration{
+					Technique:   technique,
+					Name:        demo.TestName,
+					Description: mapper.GetDescription(technique),
+					Result:      demo.Impact,
+					Finding:     finding.Description,
+					Severity:    demo.Severity,
+					Evidence:    demo.Evidence,
+					Duration:    demo.Duration,
+				}
+				demonstrations = append(demonstrations, demonstration)
 			}
-			demonstrations = append(demonstrations, report.Demonstrations...)
 		}
 
 		// Generate report
@@ -330,27 +348,25 @@ Examples:
 
 		// Save Navigator layer if requested
 		if navigatorFile != "" {
-			// TODO: Implement SaveNavigatorLayer method
-			// err := reporter.SaveNavigatorLayer(report.Navigator, navigatorFile)
-			// if err != nil {
-			// 	fmt.Printf("Error saving Navigator layer: %v\n", err)
-			// } else {
-			// 	fmt.Printf("📊 Navigator layer saved to: %s\n", navigatorFile)
-			// }
-			fmt.Printf("📊 Navigator layer functionality not yet implemented\n")
+			atomicReporter := atomic.NewAtomicReporter()
+			err := atomicReporter.SaveNavigatorLayer(report.Navigator, navigatorFile)
+			if err != nil {
+				fmt.Printf("Error saving Navigator layer: %v\n", err)
+			} else {
+				fmt.Printf("📊 Navigator layer saved to: %s\n", navigatorFile)
+			}
 		}
 
 		// Generate report in requested format
 		if outputFile != "" {
 			switch format {
 			case "html":
-				// TODO: Implement GenerateHTMLReport method
-				// err := reporter.GenerateHTMLReport(&report.ATTACKReport, outputFile)
-				// if err != nil {
-				// 	fmt.Printf("Error generating HTML report: %v\n", err)
-				// 	os.Exit(1)
-				// }
-				fmt.Printf("📄 HTML report generation not yet implemented\n")
+				atomicReporter := atomic.NewAtomicReporter()
+				err := atomicReporter.GenerateHTMLReport(&report.ATTACKReport, outputFile)
+				if err != nil {
+					fmt.Printf("Error generating HTML report: %v\n", err)
+					os.Exit(1)
+				}
 				fmt.Printf("📄 HTML report saved to: %s\n", outputFile)
 			case "json":
 				data, err := json.MarshalIndent(report, "", "  ")
