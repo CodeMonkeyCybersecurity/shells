@@ -43,5 +43,11 @@ __debug_bin
 # Temporary files
 *.tmp
 *.temp
+*.txt
 
 *this-session-is-being-continued-from-a-previous-co.txt
+
+# Database files
+*.db
+shells.db
+*.example
