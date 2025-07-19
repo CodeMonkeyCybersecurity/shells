@@ -8,23 +8,23 @@ import (
 type TargetType string
 
 const (
-	TargetTypeCompany   TargetType = "company"
-	TargetTypeEmail     TargetType = "email"
-	TargetTypeDomain    TargetType = "domain"
-	TargetTypeIP        TargetType = "ip"
-	TargetTypeIPRange   TargetType = "ip_range"
-	TargetTypeURL       TargetType = "url"
-	TargetTypeUnknown   TargetType = "unknown"
+	TargetTypeCompany TargetType = "company"
+	TargetTypeEmail   TargetType = "email"
+	TargetTypeDomain  TargetType = "domain"
+	TargetTypeIP      TargetType = "ip"
+	TargetTypeIPRange TargetType = "ip_range"
+	TargetTypeURL     TargetType = "url"
+	TargetTypeUnknown TargetType = "unknown"
 )
 
 // Target represents a parsed input target
 type Target struct {
-	Raw         string            `json:"raw"`
-	Type        TargetType        `json:"type"`
-	Value       string            `json:"value"`
-	Metadata    map[string]string `json:"metadata"`
-	Confidence  float64           `json:"confidence"`
-	CreatedAt   time.Time         `json:"created_at"`
+	Raw        string            `json:"raw"`
+	Type       TargetType        `json:"type"`
+	Value      string            `json:"value"`
+	Metadata   map[string]string `json:"metadata"`
+	Confidence float64           `json:"confidence"`
+	CreatedAt  time.Time         `json:"created_at"`
 }
 
 // Asset represents a discovered asset
@@ -70,45 +70,45 @@ const (
 
 // Relationship represents a relationship between assets
 type Relationship struct {
-	ID       string            `json:"id"`
-	Source   string            `json:"source"`   // Source asset ID
-	Target   string            `json:"target"`   // Target asset ID
-	Type     RelationType      `json:"type"`
-	Weight   float64           `json:"weight"`
-	Metadata map[string]string `json:"metadata"`
-	CreatedAt time.Time        `json:"created_at"`
+	ID        string            `json:"id"`
+	Source    string            `json:"source"` // Source asset ID
+	Target    string            `json:"target"` // Target asset ID
+	Type      RelationType      `json:"type"`
+	Weight    float64           `json:"weight"`
+	Metadata  map[string]string `json:"metadata"`
+	CreatedAt time.Time         `json:"created_at"`
 }
 
 // RelationType represents the type of relationship between assets
 type RelationType string
 
 const (
-	RelationTypeSubdomain    RelationType = "subdomain"
-	RelationTypeRedirect     RelationType = "redirect"
-	RelationTypeCNAME        RelationType = "cname"
-	RelationTypeLink         RelationType = "link"
-	RelationTypeCertificate  RelationType = "certificate"
-	RelationTypeService      RelationType = "service"
-	RelationTypeOwnership    RelationType = "ownership"
-	RelationTypeHosting      RelationType = "hosting"
-	RelationTypeTechnology   RelationType = "technology"
-	RelationTypeNetwork      RelationType = "network"
+	RelationTypeSubdomain   RelationType = "subdomain"
+	RelationTypeRedirect    RelationType = "redirect"
+	RelationTypeCNAME       RelationType = "cname"
+	RelationTypeLink        RelationType = "link"
+	RelationTypeCertificate RelationType = "certificate"
+	RelationTypeService     RelationType = "service"
+	RelationTypeOwnership   RelationType = "ownership"
+	RelationTypeHosting     RelationType = "hosting"
+	RelationTypeTechnology  RelationType = "technology"
+	RelationTypeNetwork     RelationType = "network"
 )
 
 // DiscoverySession represents a discovery session
 type DiscoverySession struct {
-	ID              string                 `json:"id"`
-	Target          Target                 `json:"target"`
-	Assets          map[string]*Asset      `json:"assets"`
+	ID              string                   `json:"id"`
+	Target          Target                   `json:"target"`
+	Assets          map[string]*Asset        `json:"assets"`
 	Relationships   map[string]*Relationship `json:"relationships"`
-	Status          SessionStatus          `json:"status"`
-	StartedAt       time.Time              `json:"started_at"`
-	CompletedAt     *time.Time             `json:"completed_at,omitempty"`
-	Progress        float64                `json:"progress"`
-	TotalDiscovered int                    `json:"total_discovered"`
-	HighValueAssets int                    `json:"high_value_assets"`
-	Errors          []string               `json:"errors,omitempty"`
-	Config          *DiscoveryConfig       `json:"config"`
+	Status          SessionStatus            `json:"status"`
+	StartedAt       time.Time                `json:"started_at"`
+	CompletedAt     *time.Time               `json:"completed_at,omitempty"`
+	Progress        float64                  `json:"progress"`
+	TotalDiscovered int                      `json:"total_discovered"`
+	HighValueAssets int                      `json:"high_value_assets"`
+	Errors          []string                 `json:"errors,omitempty"`
+	Config          *DiscoveryConfig         `json:"config"`
 }
 
 // SessionStatus represents the status of a discovery session
@@ -124,23 +124,23 @@ const (
 
 // DiscoveryConfig represents configuration for asset discovery
 type DiscoveryConfig struct {
-	MaxDepth         int           `json:"max_depth"`
-	MaxAssets        int           `json:"max_assets"`
-	Timeout          time.Duration `json:"timeout"`
-	EnableDNS        bool          `json:"enable_dns"`
-	EnableCertLog    bool          `json:"enable_cert_log"`
-	EnableSearch     bool          `json:"enable_search"`
-	EnablePortScan   bool          `json:"enable_port_scan"`
-	EnableWebCrawl   bool          `json:"enable_web_crawl"`
-	EnableTechStack  bool          `json:"enable_tech_stack"`
-	MaxWorkers       int           `json:"max_workers"`
-	RateLimit        int           `json:"rate_limit"`
-	UserAgent        string        `json:"user_agent"`
-	Recursive        bool          `json:"recursive"`
-	HighValueOnly    bool          `json:"high_value_only"`
-	ExcludeDomains   []string      `json:"exclude_domains"`
-	IncludePatterns  []string      `json:"include_patterns"`
-	ExcludePatterns  []string      `json:"exclude_patterns"`
+	MaxDepth        int           `json:"max_depth"`
+	MaxAssets       int           `json:"max_assets"`
+	Timeout         time.Duration `json:"timeout"`
+	EnableDNS       bool          `json:"enable_dns"`
+	EnableCertLog   bool          `json:"enable_cert_log"`
+	EnableSearch    bool          `json:"enable_search"`
+	EnablePortScan  bool          `json:"enable_port_scan"`
+	EnableWebCrawl  bool          `json:"enable_web_crawl"`
+	EnableTechStack bool          `json:"enable_tech_stack"`
+	MaxWorkers      int           `json:"max_workers"`
+	RateLimit       int           `json:"rate_limit"`
+	UserAgent       string        `json:"user_agent"`
+	Recursive       bool          `json:"recursive"`
+	HighValueOnly   bool          `json:"high_value_only"`
+	ExcludeDomains  []string      `json:"exclude_domains"`
+	IncludePatterns []string      `json:"include_patterns"`
+	ExcludePatterns []string      `json:"exclude_patterns"`
 }
 
 // DefaultDiscoveryConfig returns default discovery configuration
@@ -184,15 +184,15 @@ type DiscoveryResult struct {
 
 // ScanJob represents a scan job for discovered assets
 type ScanJob struct {
-	ID         string            `json:"id"`
-	AssetID    string            `json:"asset_id"`
-	ScanType   string            `json:"scan_type"`
-	Status     string            `json:"status"`
-	CreatedAt  time.Time         `json:"created_at"`
-	StartedAt  *time.Time        `json:"started_at,omitempty"`
-	CompletedAt *time.Time       `json:"completed_at,omitempty"`
-	Results    map[string]interface{} `json:"results,omitempty"`
-	Errors     []string          `json:"errors,omitempty"`
+	ID          string                 `json:"id"`
+	AssetID     string                 `json:"asset_id"`
+	ScanType    string                 `json:"scan_type"`
+	Status      string                 `json:"status"`
+	CreatedAt   time.Time              `json:"created_at"`
+	StartedAt   *time.Time             `json:"started_at,omitempty"`
+	CompletedAt *time.Time             `json:"completed_at,omitempty"`
+	Results     map[string]interface{} `json:"results,omitempty"`
+	Errors      []string               `json:"errors,omitempty"`
 }
 
 // HighValueIndicators defines what makes an asset high-value

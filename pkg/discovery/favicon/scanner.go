@@ -23,27 +23,27 @@ type Scanner struct {
 
 // Config represents favicon scanner configuration
 type Config struct {
-	Timeout         time.Duration `yaml:"timeout"`
-	UserAgent       string        `yaml:"user_agent"`
-	CacheDir        string        `yaml:"cache_dir"`
-	ShodanAPIKey    string        `yaml:"shodan_api_key"`
-	MaxConcurrency  int           `yaml:"max_concurrency"`
-	EnableShodan    bool          `yaml:"enable_shodan"`
-	EnableCache     bool          `yaml:"enable_cache"`
-	CustomDatabase  string        `yaml:"custom_database"`
+	Timeout        time.Duration `yaml:"timeout"`
+	UserAgent      string        `yaml:"user_agent"`
+	CacheDir       string        `yaml:"cache_dir"`
+	ShodanAPIKey   string        `yaml:"shodan_api_key"`
+	MaxConcurrency int           `yaml:"max_concurrency"`
+	EnableShodan   bool          `yaml:"enable_shodan"`
+	EnableCache    bool          `yaml:"enable_cache"`
+	CustomDatabase string        `yaml:"custom_database"`
 }
 
 // FaviconResult represents the complete result of a favicon scan
 type FaviconResult struct {
-	Host         string               `json:"host"`
-	Favicons     []*HashResult        `json:"favicons"`
-	Technologies []TechnologyMatch    `json:"technologies"`
-	ShodanHosts  []ShodanHost         `json:"shodan_hosts,omitempty"`
-	Related      []string             `json:"related,omitempty"`
-	Confidence   float64              `json:"confidence"`
-	ScanTime     time.Time            `json:"scan_time"`
-	Duration     time.Duration        `json:"duration"`
-	Error        string               `json:"error,omitempty"`
+	Host         string            `json:"host"`
+	Favicons     []*HashResult     `json:"favicons"`
+	Technologies []TechnologyMatch `json:"technologies"`
+	ShodanHosts  []ShodanHost      `json:"shodan_hosts,omitempty"`
+	Related      []string          `json:"related,omitempty"`
+	Confidence   float64           `json:"confidence"`
+	ScanTime     time.Time         `json:"scan_time"`
+	Duration     time.Duration     `json:"duration"`
+	Error        string            `json:"error,omitempty"`
 }
 
 // TechnologyMatch represents a matched technology
@@ -115,7 +115,7 @@ func NewScanner(config Config) (*Scanner, error) {
 // ScanHost scans a single host for favicon and technology identification
 func (s *Scanner) ScanHost(ctx context.Context, host string) (*FaviconResult, error) {
 	start := time.Now()
-	
+
 	result := &FaviconResult{
 		Host:         host,
 		Favicons:     []*HashResult{},
@@ -175,24 +175,24 @@ func (s *Scanner) ScanHost(ctx context.Context, host string) (*FaviconResult, er
 // ScanHosts scans multiple hosts concurrently
 func (s *Scanner) ScanHosts(ctx context.Context, hosts []string) ([]*FaviconResult, error) {
 	results := make([]*FaviconResult, len(hosts))
-	
+
 	// Use semaphore to limit concurrency
 	sem := make(chan struct{}, s.config.MaxConcurrency)
 	var wg sync.WaitGroup
-	
+
 	for i, host := range hosts {
 		wg.Add(1)
 		go func(index int, hostname string) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			
+
 			// Create host-specific context with timeout
 			hostCtx, cancel := context.WithTimeout(ctx, s.config.Timeout*2)
 			defer cancel()
-			
+
 			result, err := s.ScanHost(hostCtx, hostname)
 			if err != nil {
 				result = &FaviconResult{
@@ -204,7 +204,7 @@ func (s *Scanner) ScanHosts(ctx context.Context, hosts []string) ([]*FaviconResu
 			results[index] = result
 		}(i, host)
 	}
-	
+
 	wg.Wait()
 	return results, nil
 }
@@ -321,12 +321,12 @@ func (s *Scanner) AddCustomHash(hash, technology, category string, confidence fl
 // GetStatistics returns scanner statistics
 func (s *Scanner) GetStatistics() ScannerStatistics {
 	return ScannerStatistics{
-		TotalScans:          s.database.GetTotalScans(),
-		TechnologiesFound:   s.database.GetTotalTechnologies(),
-		UniqueHashes:        s.database.GetUniqueHashes(),
-		DatabaseEntries:     s.database.GetEntryCount(),
-		CacheHits:           s.getCacheHits(),
-		AverageConfidence:   s.getAverageConfidence(),
+		TotalScans:        s.database.GetTotalScans(),
+		TechnologiesFound: s.database.GetTotalTechnologies(),
+		UniqueHashes:      s.database.GetUniqueHashes(),
+		DatabaseEntries:   s.database.GetEntryCount(),
+		CacheHits:         s.getCacheHits(),
+		AverageConfidence: s.getAverageConfidence(),
 	}
 }
 
@@ -356,16 +356,16 @@ func (s *Scanner) ConvertToFinding(result *FaviconResult) []types.Finding {
 			Title:       fmt.Sprintf("%s Technology Detected via Favicon", tech.Technology),
 			Description: fmt.Sprintf("Detected %s technology on %s via favicon hash analysis", tech.Technology, result.Host),
 			Metadata: map[string]interface{}{
-				"target":      result.Host,
-				"impact":      fmt.Sprintf("Technology fingerprinting reveals %s usage", tech.Technology),
-				"technology":  tech.Technology,
-				"category":    tech.Category,
-				"confidence":  tech.Confidence,
-				"hash":        tech.Hash,
-				"hash_type":   tech.HashType,
-				"source":      tech.Source,
-				"scan_time":   result.ScanTime,
-				"duration":    result.Duration.String(),
+				"target":     result.Host,
+				"impact":     fmt.Sprintf("Technology fingerprinting reveals %s usage", tech.Technology),
+				"technology": tech.Technology,
+				"category":   tech.Category,
+				"confidence": tech.Confidence,
+				"hash":       tech.Hash,
+				"hash_type":  tech.HashType,
+				"source":     tech.Source,
+				"scan_time":  result.ScanTime,
+				"duration":   result.Duration.String(),
 				"tags": []string{
 					"favicon",
 					"technology-discovery",
@@ -395,7 +395,7 @@ func (s *Scanner) loadFromCache(host string) *FaviconResult {
 	}
 
 	cacheFile := filepath.Join(s.config.CacheDir, fmt.Sprintf("%s.json", sanitizeFilename(host)))
-	
+
 	data, err := os.ReadFile(cacheFile)
 	if err != nil {
 		return nil
@@ -420,7 +420,7 @@ func (s *Scanner) saveToCache(host string, result *FaviconResult) {
 	}
 
 	cacheFile := filepath.Join(s.config.CacheDir, fmt.Sprintf("%s.json", sanitizeFilename(host)))
-	
+
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return
@@ -471,10 +471,10 @@ func (s *Scanner) ExportResults(results []*FaviconResult, format string) ([]byte
 
 func (s *Scanner) exportCSV(results []*FaviconResult) ([]byte, error) {
 	var lines []string
-	
+
 	// Header
 	lines = append(lines, "Host,Technology,Category,Confidence,Hash,HashType,Source,ScanTime")
-	
+
 	// Data rows
 	for _, result := range results {
 		for _, tech := range result.Technologies {
@@ -484,6 +484,6 @@ func (s *Scanner) exportCSV(results []*FaviconResult) ([]byte, error) {
 			lines = append(lines, line)
 		}
 	}
-	
+
 	return []byte(strings.Join(lines, "\n")), nil
 }

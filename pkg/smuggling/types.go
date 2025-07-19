@@ -17,32 +17,32 @@ type SmuggleTechnique interface {
 
 // SmugglingVulnerability represents a request smuggling vulnerability
 type SmugglingVulnerability struct {
-	ID          string            `json:"id"`
-	Type        string            `json:"type"`
-	Technique   string            `json:"technique"`
-	Severity    types.Severity    `json:"severity"`
-	Target      string            `json:"target"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Details     string            `json:"details"`
-	Impact      string            `json:"impact"`
-	PoC         string            `json:"poc"`
-	Evidence    []Evidence        `json:"evidence"`
-	Remediation Remediation       `json:"remediation"`
-	CVSS        float64           `json:"cvss"`
-	CWE         string            `json:"cwe"`
-	References  []string          `json:"references"`
-	CreatedAt   time.Time         `json:"created_at"`
+	ID          string         `json:"id"`
+	Type        string         `json:"type"`
+	Technique   string         `json:"technique"`
+	Severity    types.Severity `json:"severity"`
+	Target      string         `json:"target"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Details     string         `json:"details"`
+	Impact      string         `json:"impact"`
+	PoC         string         `json:"poc"`
+	Evidence    []Evidence     `json:"evidence"`
+	Remediation Remediation    `json:"remediation"`
+	CVSS        float64        `json:"cvss"`
+	CWE         string         `json:"cwe"`
+	References  []string       `json:"references"`
+	CreatedAt   time.Time      `json:"created_at"`
 }
 
 // Evidence represents evidence for a smuggling vulnerability
 type Evidence struct {
-	Type         string               `json:"type"`
-	Description  string               `json:"description"`
-	RequestPair  *RequestPair         `json:"request_pair,omitempty"`
-	ResponsePair *ResponsePair        `json:"response_pair,omitempty"`
-	Timing       *TimingEvidence      `json:"timing,omitempty"`
-	Differential *DifferentialEvidence `json:"differential,omitempty"`
+	Type         string                 `json:"type"`
+	Description  string                 `json:"description"`
+	RequestPair  *RequestPair           `json:"request_pair,omitempty"`
+	ResponsePair *ResponsePair          `json:"response_pair,omitempty"`
+	Timing       *TimingEvidence        `json:"timing,omitempty"`
+	Differential *DifferentialEvidence  `json:"differential,omitempty"`
 	Data         map[string]interface{} `json:"data,omitempty"`
 }
 
@@ -85,12 +85,12 @@ type HTTPRequest struct {
 
 // HTTPResponse represents an HTTP response
 type HTTPResponse struct {
-	StatusCode   int               `json:"status_code"`
-	Headers      map[string]string `json:"headers"`
-	Body         string            `json:"body"`
-	RawResponse  string            `json:"raw_response"`
-	Time         time.Duration     `json:"time"`
-	ContentLength int64            `json:"content_length"`
+	StatusCode    int               `json:"status_code"`
+	Headers       map[string]string `json:"headers"`
+	Body          string            `json:"body"`
+	RawResponse   string            `json:"raw_response"`
+	Time          time.Duration     `json:"time"`
+	ContentLength int64             `json:"content_length"`
 }
 
 // Remediation represents remediation steps
@@ -115,27 +115,27 @@ type SmugglingPayload struct {
 
 // SmugglingConfig represents scanner configuration
 type SmugglingConfig struct {
-	Timeout            time.Duration `json:"timeout"`
-	MaxRetries         int           `json:"max_retries"`
-	UserAgent          string        `json:"user_agent"`
-	FollowRedirects    bool          `json:"follow_redirects"`
-	VerifySSL          bool          `json:"verify_ssl"`
-	DifferentialDelay  time.Duration `json:"differential_delay"`
-	MaxPayloadSize     int           `json:"max_payload_size"`
-	Techniques         []string      `json:"techniques"`
-	EnableTimingAnalysis bool        `json:"enable_timing_analysis"`
-	EnableDifferentialAnalysis bool  `json:"enable_differential_analysis"`
-	CustomHeaders      map[string]string `json:"custom_headers"`
+	Timeout                    time.Duration     `json:"timeout"`
+	MaxRetries                 int               `json:"max_retries"`
+	UserAgent                  string            `json:"user_agent"`
+	FollowRedirects            bool              `json:"follow_redirects"`
+	VerifySSL                  bool              `json:"verify_ssl"`
+	DifferentialDelay          time.Duration     `json:"differential_delay"`
+	MaxPayloadSize             int               `json:"max_payload_size"`
+	Techniques                 []string          `json:"techniques"`
+	EnableTimingAnalysis       bool              `json:"enable_timing_analysis"`
+	EnableDifferentialAnalysis bool              `json:"enable_differential_analysis"`
+	CustomHeaders              map[string]string `json:"custom_headers"`
 }
 
 // SmugglingResult represents a smuggling test result
 type SmugglingResult struct {
-	Technique     string        `json:"technique"`
-	Vulnerable    bool          `json:"vulnerable"`
-	Confidence    float64       `json:"confidence"`
-	Evidence      []Evidence    `json:"evidence"`
-	Duration      time.Duration `json:"duration"`
-	ErrorMessage  string        `json:"error_message,omitempty"`
+	Technique    string        `json:"technique"`
+	Vulnerable   bool          `json:"vulnerable"`
+	Confidence   float64       `json:"confidence"`
+	Evidence     []Evidence    `json:"evidence"`
+	Duration     time.Duration `json:"duration"`
+	ErrorMessage string        `json:"error_message,omitempty"`
 }
 
 // DetectionMethod represents a detection method
@@ -305,8 +305,8 @@ var SmugglingIndicators = []string{
 
 // Timing thresholds for detection
 const (
-	TimingThresholdMs        = 1000 // 1 second
-	DifferentialThresholdMs  = 500  // 500ms
+	TimingThresholdMs        = 1000    // 1 second
+	DifferentialThresholdMs  = 500     // 500ms
 	MaxResponseSize          = 1048576 // 1MB
 	DefaultTimeout           = 30 * time.Second
 	DefaultDifferentialDelay = 5 * time.Second

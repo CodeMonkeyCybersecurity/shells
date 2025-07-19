@@ -15,7 +15,6 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type sslScanner struct {
@@ -29,7 +28,7 @@ func NewScanner(cfg config.SSLConfig, log interface {
 	Debug(msg string, keysAndValues ...interface{})
 }) core.Scanner {
 	start := time.Now()
-	
+
 	// Initialize enhanced logger for SSL scanner
 	enhancedLogger, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
 	if err != nil {
@@ -136,7 +135,7 @@ func (s *sslScanner) Validate(target string) error {
 		resolveStart := time.Now()
 		addrs, err := net.LookupHost(host)
 		resolveDuration := time.Since(resolveStart)
-		
+
 		if err != nil {
 			s.logger.LogError(ctx, err, "ssl.Validate.resolve",
 				"host", host,
@@ -146,7 +145,7 @@ func (s *sslScanner) Validate(target string) error {
 			err = fmt.Errorf("cannot resolve host: %w", err)
 			return err
 		}
-		
+
 		s.logger.WithContext(ctx).Debugw("Hostname resolution successful",
 			"host", host,
 			"resolved_addresses", addrs,
@@ -173,7 +172,7 @@ func (s *sslScanner) Validate(target string) error {
 func (s *sslScanner) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
 	start := time.Now()
 	scanID := uuid.New().String()
-	
+
 	ctx, span := s.logger.StartOperation(ctx, "ssl.Scan",
 		"target", target,
 		"scan_id", scanID,
@@ -237,7 +236,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 
 	for version, config := range tlsConfigs {
 		versionTestStart := time.Now()
-		
+
 		s.logger.WithContext(ctx).Debugw("Testing TLS version",
 			"scan_id", scanID,
 			"version", version,
@@ -251,11 +250,11 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 		tcpConn, err := dialer.DialContext(ctx, "tcp", target)
 		if err != nil {
 			protocolTestResults[version] = map[string]interface{}{
-				"supported": false,
-				"error": err.Error(),
+				"supported":        false,
+				"error":            err.Error(),
 				"test_duration_ms": time.Since(versionTestStart).Milliseconds(),
 			}
-			
+
 			s.logger.WithContext(ctx).Debugw("TLS version connection failed",
 				"scan_id", scanID,
 				"version", version,
@@ -274,20 +273,20 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 		if err == nil {
 			supportedVersions = append(supportedVersions, version)
 			protocolTestResults[version] = map[string]interface{}{
-				"supported": true,
+				"supported":        true,
 				"test_duration_ms": time.Since(versionTestStart).Milliseconds(),
 			}
-			
+
 			s.logger.WithContext(ctx).Infow("TLS version supported",
 				"scan_id", scanID,
 				"version", version,
 				"test_duration_ms", time.Since(versionTestStart).Milliseconds(),
 			)
-			
+
 			if conn == nil {
 				conn = tlsConn
 				state = tlsConn.ConnectionState()
-				
+
 				s.logger.WithContext(ctx).Debugw("Using connection for detailed analysis",
 					"scan_id", scanID,
 					"version", version,
@@ -296,11 +295,11 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 			}
 		} else {
 			protocolTestResults[version] = map[string]interface{}{
-				"supported": false,
-				"error": err.Error(),
+				"supported":        false,
+				"error":            err.Error(),
 				"test_duration_ms": time.Since(versionTestStart).Milliseconds(),
 			}
-			
+
 			s.logger.WithContext(ctx).Debugw("TLS version handshake failed",
 				"scan_id", scanID,
 				"version", version,
@@ -342,7 +341,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 	protocolStart := time.Now()
 	protocolFindings := s.checkProtocolVersions(ctx, scanID, host, port, supportedVersions)
 	findings = append(findings, protocolFindings...)
-	
+
 	s.logger.WithContext(ctx).Debugw("Protocol version checks completed",
 		"scan_id", scanID,
 		"check_duration_ms", time.Since(protocolStart).Milliseconds(),
@@ -353,7 +352,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 	certStart := time.Now()
 	certFindings := s.checkCertificates(ctx, scanID, host, port, state.PeerCertificates)
 	findings = append(findings, certFindings...)
-	
+
 	s.logger.WithContext(ctx).Debugw("Certificate checks completed",
 		"scan_id", scanID,
 		"check_duration_ms", time.Since(certStart).Milliseconds(),
@@ -365,7 +364,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 	cipherStart := time.Now()
 	cipherFindings := s.checkCipherSuites(ctx, scanID, host, port, state)
 	findings = append(findings, cipherFindings...)
-	
+
 	s.logger.WithContext(ctx).Debugw("Cipher suite checks completed",
 		"scan_id", scanID,
 		"check_duration_ms", time.Since(cipherStart).Milliseconds(),
@@ -378,7 +377,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 		revocationStart := time.Now()
 		revocationFindings := s.checkRevocation(ctx, scanID, host, port, state.PeerCertificates)
 		findings = append(findings, revocationFindings...)
-		
+
 		s.logger.WithContext(ctx).Debugw("Revocation checks completed",
 			"scan_id", scanID,
 			"check_duration_ms", time.Since(revocationStart).Milliseconds(),

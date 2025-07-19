@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
 )
 
@@ -37,26 +37,26 @@ func NewEmailChecker() *EmailChecker {
 func (e *EmailChecker) GetLastEmail(email string) *EmailMessage {
 	e.mutex.RLock()
 	defer e.mutex.RUnlock()
-	
+
 	// In a real implementation, this would check an email service
 	// For testing purposes, we simulate email reception
 	if msg, exists := e.emails[email]; exists {
 		return msg
 	}
-	
+
 	// Simulate receiving an email with a token
 	if strings.Contains(email, "@example.com") {
 		token, _ := generateRandomToken(32)
 		msg := &EmailMessage{
-			To:      email,
-			Subject: "Password Reset Request",
-			Body:    "Please click the following link to reset your password: https://example.com/reset?token=" + token,
+			To:        email,
+			Subject:   "Password Reset Request",
+			Body:      "Please click the following link to reset your password: https://example.com/reset?token=" + token,
 			Timestamp: time.Now(),
 		}
 		e.emails[email] = msg
 		return msg
 	}
-	
+
 	return nil
 }
 
@@ -64,7 +64,7 @@ func (e *EmailChecker) GetLastEmail(email string) *EmailMessage {
 func (e *EmailChecker) AddEmail(email string, subject, body string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	
+
 	e.emails[email] = &EmailMessage{
 		To:        email,
 		Subject:   subject,
@@ -136,7 +136,7 @@ func (t *TokenAnalyzer) calculateEntropy(tokens []string) float64 {
 			avgLength += len(token)
 		}
 		avgLength /= len(tokens)
-		
+
 		// Entropy per character × average length
 		totalEntropy := entropy * float64(avgLength)
 		return totalEntropy
@@ -199,10 +199,10 @@ func (t *TokenAnalyzer) isSequential(tokens []string) bool {
 func (t *TokenAnalyzer) isTimeBased(tokens []string) bool {
 	// Look for timestamp patterns
 	timePatterns := []string{
-		`\d{10}`,      // Unix timestamp
-		`\d{13}`,      // Unix timestamp (milliseconds)
-		`\d{8}`,       // YYYYMMDD
-		`\d{14}`,      // YYYYMMDDHHMMSS
+		`\d{10}`, // Unix timestamp
+		`\d{13}`, // Unix timestamp (milliseconds)
+		`\d{8}`,  // YYYYMMDD
+		`\d{14}`, // YYYYMMDDHHMMSS
 	}
 
 	matches := 0

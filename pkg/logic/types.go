@@ -56,30 +56,30 @@ type WorkflowState struct {
 
 // Workflow represents a complete business workflow
 type Workflow struct {
-	ID          string                    `json:"id"`
-	Name        string                    `json:"name"`
-	StartURL    string                    `json:"start_url"`
-	States      map[string]*WorkflowState `json:"states"`
-	Transitions map[string][]string       `json:"transitions"`
-	CurrentState string                   `json:"current_state"`
-	Session     *http.Client              `json:"-"`
-	Depth       int                       `json:"depth"`
-	MaxDepth    int                       `json:"max_depth"`
+	ID           string                    `json:"id"`
+	Name         string                    `json:"name"`
+	StartURL     string                    `json:"start_url"`
+	States       map[string]*WorkflowState `json:"states"`
+	Transitions  map[string][]string       `json:"transitions"`
+	CurrentState string                    `json:"current_state"`
+	Session      *http.Client              `json:"-"`
+	Depth        int                       `json:"depth"`
+	MaxDepth     int                       `json:"max_depth"`
 }
 
 // RaceConditionTest represents a race condition test
 type RaceConditionTest struct {
-	Name        string        `json:"name"`
-	Endpoint    string        `json:"endpoint"`
-	Method      string        `json:"method"`
-	Payload     string        `json:"payload"`
-	Workers     int           `json:"workers"`
-	Duration    time.Duration `json:"duration"`
-	Successful  int           `json:"successful"`
-	Failed      int           `json:"failed"`
-	Vulnerable  bool          `json:"vulnerable"`
-	Impact      string        `json:"impact"`
-	Evidence    []string      `json:"evidence"`
+	Name       string        `json:"name"`
+	Endpoint   string        `json:"endpoint"`
+	Method     string        `json:"method"`
+	Payload    string        `json:"payload"`
+	Workers    int           `json:"workers"`
+	Duration   time.Duration `json:"duration"`
+	Successful int           `json:"successful"`
+	Failed     int           `json:"failed"`
+	Vulnerable bool          `json:"vulnerable"`
+	Impact     string        `json:"impact"`
+	Evidence   []string      `json:"evidence"`
 }
 
 // TokenAnalysis represents analysis of security tokens
@@ -119,20 +119,20 @@ type BusinessLogicPattern interface {
 
 // TestConfig holds configuration for business logic tests
 type TestConfig struct {
-	Target           string            `json:"target"`
-	MaxWorkers       int               `json:"max_workers"`
-	Timeout          time.Duration     `json:"timeout"`
-	FollowRedirects  bool              `json:"follow_redirects"`
-	MaintainSession  bool              `json:"maintain_session"`
-	TestHostHeader   bool              `json:"test_host_header"`
-	TestTokenEntropy bool              `json:"test_token_entropy"`
-	TokenSamples     int               `json:"token_samples"`
-	BruteForceThreads int              `json:"brute_force_threads"`
-	RequestDelay     time.Duration     `json:"request_delay"`
-	UserAgent        string            `json:"user_agent"`
-	Headers          map[string]string `json:"headers"`
-	Proxies          []string          `json:"proxies"`
-	VerboseOutput    bool              `json:"verbose_output"`
+	Target            string            `json:"target"`
+	MaxWorkers        int               `json:"max_workers"`
+	Timeout           time.Duration     `json:"timeout"`
+	FollowRedirects   bool              `json:"follow_redirects"`
+	MaintainSession   bool              `json:"maintain_session"`
+	TestHostHeader    bool              `json:"test_host_header"`
+	TestTokenEntropy  bool              `json:"test_token_entropy"`
+	TokenSamples      int               `json:"token_samples"`
+	BruteForceThreads int               `json:"brute_force_threads"`
+	RequestDelay      time.Duration     `json:"request_delay"`
+	UserAgent         string            `json:"user_agent"`
+	Headers           map[string]string `json:"headers"`
+	Proxies           []string          `json:"proxies"`
+	VerboseOutput     bool              `json:"verbose_output"`
 }
 
 // BusinessLogicReport represents the complete business logic testing report
@@ -151,25 +151,25 @@ type BusinessLogicReport struct {
 
 // ReportMetadata contains report generation metadata
 type ReportMetadata struct {
-	Target           string    `json:"target"`
-	GeneratedAt      time.Time `json:"generated_at"`
-	TestDuration     time.Duration `json:"test_duration"`
-	TotalTests       int       `json:"total_tests"`
-	VulnsFound       int       `json:"vulns_found"`
-	CriticalCount    int       `json:"critical_count"`
-	HighCount        int       `json:"high_count"`
-	MediumCount      int       `json:"medium_count"`
-	LowCount         int       `json:"low_count"`
-	TestsPerformed   []string  `json:"tests_performed"`
+	Target         string        `json:"target"`
+	GeneratedAt    time.Time     `json:"generated_at"`
+	TestDuration   time.Duration `json:"test_duration"`
+	TotalTests     int           `json:"total_tests"`
+	VulnsFound     int           `json:"vulns_found"`
+	CriticalCount  int           `json:"critical_count"`
+	HighCount      int           `json:"high_count"`
+	MediumCount    int           `json:"medium_count"`
+	LowCount       int           `json:"low_count"`
+	TestsPerformed []string      `json:"tests_performed"`
 }
 
 // ExecutiveSummary provides high-level findings summary
 type ExecutiveSummary struct {
-	Overview        string   `json:"overview"`
-	KeyFindings     []string `json:"key_findings"`
-	BusinessRisk    string   `json:"business_risk"`
+	Overview         string   `json:"overview"`
+	KeyFindings      []string `json:"key_findings"`
+	BusinessRisk     string   `json:"business_risk"`
 	ImmediateActions []string `json:"immediate_actions"`
-	EstimatedImpact string   `json:"estimated_impact"`
+	EstimatedImpact  string   `json:"estimated_impact"`
 }
 
 // WorkflowAnalysis represents analysis of a business workflow
@@ -239,40 +239,40 @@ type Recommendation struct {
 // Common vulnerability types for business logic
 const (
 	// Authentication & Authorization
-	VulnPasswordResetHijack        = "PASSWORD_RESET_HIJACK"
-	VulnHostHeaderInjection        = "HOST_HEADER_INJECTION"
-	VulnMFABypass                  = "MFA_BYPASS"
-	VulnAccountTakeover            = "ACCOUNT_TAKEOVER"
-	VulnPrivilegeEscalation        = "PRIVILEGE_ESCALATION"
-	VulnIDOR                       = "INSECURE_DIRECT_OBJECT_REFERENCE"
-	
+	VulnPasswordResetHijack = "PASSWORD_RESET_HIJACK"
+	VulnHostHeaderInjection = "HOST_HEADER_INJECTION"
+	VulnMFABypass           = "MFA_BYPASS"
+	VulnAccountTakeover     = "ACCOUNT_TAKEOVER"
+	VulnPrivilegeEscalation = "PRIVILEGE_ESCALATION"
+	VulnIDOR                = "INSECURE_DIRECT_OBJECT_REFERENCE"
+
 	// Business Logic Flaws
-	VulnRaceCondition              = "RACE_CONDITION"
-	VulnWorkflowBypass             = "WORKFLOW_BYPASS"
-	VulnPriceManipulation          = "PRICE_MANIPULATION"
-	VulnNegativeValue              = "NEGATIVE_VALUE_LOGIC_FLAW"
-	VulnStateMachineManipulation   = "STATE_MACHINE_MANIPULATION"
-	VulnTimeOfCheckTimeOfUse       = "TOCTOU_RACE_CONDITION"
-	
+	VulnRaceCondition            = "RACE_CONDITION"
+	VulnWorkflowBypass           = "WORKFLOW_BYPASS"
+	VulnPriceManipulation        = "PRICE_MANIPULATION"
+	VulnNegativeValue            = "NEGATIVE_VALUE_LOGIC_FLAW"
+	VulnStateMachineManipulation = "STATE_MACHINE_MANIPULATION"
+	VulnTimeOfCheckTimeOfUse     = "TOCTOU_RACE_CONDITION"
+
 	// Token & Session Issues
-	VulnWeakToken                  = "WEAK_TOKEN_GENERATION"
-	VulnPredictableToken           = "PREDICTABLE_TOKEN"
-	VulnTokenReuse                 = "TOKEN_REUSE_VULNERABILITY"
-	VulnSessionFixation            = "SESSION_FIXATION"
-	
+	VulnWeakToken        = "WEAK_TOKEN_GENERATION"
+	VulnPredictableToken = "PREDICTABLE_TOKEN"
+	VulnTokenReuse       = "TOKEN_REUSE_VULNERABILITY"
+	VulnSessionFixation  = "SESSION_FIXATION"
+
 	// Recovery & Reset Issues
-	VulnUserEnumeration            = "USER_ENUMERATION"
-	VulnWeakSecurityQuestion       = "WEAK_SECURITY_QUESTION"
-	VulnRecoveryFlowBypass         = "RECOVERY_FLOW_BYPASS"
-	VulnBackupCodeWeakness         = "WEAK_BACKUP_CODES"
-	VulnMissingRateLimit           = "MISSING_RATE_LIMIT"
-	VulnPasswordChangeNoToken      = "PASSWORD_CHANGE_NO_TOKEN"
-	
+	VulnUserEnumeration       = "USER_ENUMERATION"
+	VulnWeakSecurityQuestion  = "WEAK_SECURITY_QUESTION"
+	VulnRecoveryFlowBypass    = "RECOVERY_FLOW_BYPASS"
+	VulnBackupCodeWeakness    = "WEAK_BACKUP_CODES"
+	VulnMissingRateLimit      = "MISSING_RATE_LIMIT"
+	VulnPasswordChangeNoToken = "PASSWORD_CHANGE_NO_TOKEN"
+
 	// Payment & Financial
-	VulnCurrencyConfusion          = "CURRENCY_CONFUSION"
-	VulnCouponStacking             = "COUPON_STACKING"
-	VulnPaymentBypass              = "PAYMENT_BYPASS"
-	VulnRefundManipulation         = "REFUND_MANIPULATION"
+	VulnCurrencyConfusion  = "CURRENCY_CONFUSION"
+	VulnCouponStacking     = "COUPON_STACKING"
+	VulnPaymentBypass      = "PAYMENT_BYPASS"
+	VulnRefundManipulation = "REFUND_MANIPULATION"
 )
 
 // Severity levels

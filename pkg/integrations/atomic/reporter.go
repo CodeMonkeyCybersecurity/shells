@@ -12,14 +12,14 @@ import (
 // AtomicReporter generates comprehensive ATT&CK reports
 type AtomicReporter struct {
 	navigatorVersion string
-	domain          string
+	domain           string
 }
 
 // NewAtomicReporter creates a new atomic reporter
 func NewAtomicReporter() *AtomicReporter {
 	return &AtomicReporter{
 		navigatorVersion: "4.9.1",
-		domain:          "enterprise-attack",
+		domain:           "enterprise-attack",
 	}
 }
 
@@ -38,12 +38,12 @@ func (r *AtomicReporter) GenerateATTACKReport(findings []Finding, demonstrations
 		Mitigations:      r.generateMitigations(demonstrations),
 		Findings:         findings,
 	}
-	
+
 	// Set target if available
 	if len(findings) > 0 {
 		report.Metadata.Target = findings[0].Target
 	}
-	
+
 	return report
 }
 
@@ -52,10 +52,10 @@ func (r *AtomicReporter) generateExecutiveSummary(findings []Finding, demonstrat
 	if len(findings) == 0 {
 		return "No security findings were analyzed in this assessment."
 	}
-	
+
 	findingCount := len(findings)
 	techniqueCount := len(demonstrations)
-	
+
 	// Count findings by severity
 	severityCounts := map[string]int{
 		"CRITICAL": 0,
@@ -63,28 +63,28 @@ func (r *AtomicReporter) generateExecutiveSummary(findings []Finding, demonstrat
 		"MEDIUM":   0,
 		"LOW":      0,
 	}
-	
+
 	for _, finding := range findings {
 		severityCounts[finding.Severity]++
 	}
-	
+
 	// Count techniques by tactic
 	tacticCounts := make(map[string]int)
 	mapper := NewVulnToAttackMapper()
-	
+
 	for _, demo := range demonstrations {
 		tactic := mapper.GetTactic(demo.Technique)
 		tacticCounts[tactic]++
 	}
-	
+
 	summary := fmt.Sprintf(
 		"This assessment identified %d security findings that map to %d distinct MITRE ATT&CK techniques. "+
-		"The findings include %d critical, %d high, %d medium, and %d low severity vulnerabilities. ",
+			"The findings include %d critical, %d high, %d medium, and %d low severity vulnerabilities. ",
 		findingCount, techniqueCount,
 		severityCounts["CRITICAL"], severityCounts["HIGH"],
 		severityCounts["MEDIUM"], severityCounts["LOW"],
 	)
-	
+
 	if len(tacticCounts) > 0 {
 		topTactic := r.getTopTactic(tacticCounts)
 		summary += fmt.Sprintf(
@@ -92,9 +92,9 @@ func (r *AtomicReporter) generateExecutiveSummary(findings []Finding, demonstrat
 			topTactic, strings.ToLower(topTactic),
 		)
 	}
-	
+
 	summary += "Immediate remediation is recommended for critical and high severity findings to reduce attack surface and prevent potential compromise."
-	
+
 	return summary
 }
 
@@ -102,21 +102,21 @@ func (r *AtomicReporter) generateExecutiveSummary(findings []Finding, demonstrat
 func (r *AtomicReporter) buildAttackChain(demonstrations []Demonstration) []AttackStep {
 	chain := []AttackStep{}
 	mapper := NewVulnToAttackMapper()
-	
+
 	// Group techniques by tactic order
 	tacticOrder := []string{
 		"Initial Access", "Execution", "Persistence", "Privilege Escalation",
 		"Defense Evasion", "Credential Access", "Discovery", "Lateral Movement",
 		"Collection", "Command and Control", "Exfiltration", "Impact",
 	}
-	
+
 	// Map demonstrations to tactics
 	tacticDemos := make(map[string][]Demonstration)
 	for _, demo := range demonstrations {
 		tactic := mapper.GetTactic(demo.Technique)
 		tacticDemos[tactic] = append(tacticDemos[tactic], demo)
 	}
-	
+
 	// Build ordered chain
 	order := 1
 	for _, tactic := range tacticOrder {
@@ -135,7 +135,7 @@ func (r *AtomicReporter) buildAttackChain(demonstrations []Demonstration) []Atta
 			}
 		}
 	}
-	
+
 	return chain
 }
 
@@ -148,7 +148,7 @@ func (r *AtomicReporter) generateNavigatorLayer(demonstrations []Demonstration) 
 		Domain:      r.domain,
 		Techniques:  []TechniqueLayer{},
 	}
-	
+
 	// Create technique layer for each demonstration
 	for _, demo := range demonstrations {
 		technique := TechniqueLayer{
@@ -160,14 +160,14 @@ func (r *AtomicReporter) generateNavigatorLayer(demonstrations []Demonstration) 
 		}
 		layer.Techniques = append(layer.Techniques, technique)
 	}
-	
+
 	return layer
 }
 
 // generateMitigations creates defensive recommendations
 func (r *AtomicReporter) generateMitigations(demonstrations []Demonstration) []Mitigation {
 	mitigations := []Mitigation{}
-	
+
 	// MITRE D3FEND mitigations mapped to ATT&CK techniques
 	mitigationMap := map[string]Mitigation{
 		"T1552": {
@@ -211,7 +211,7 @@ func (r *AtomicReporter) generateMitigations(demonstrations []Demonstration) []M
 			References:  []string{"https://attack.mitre.org/mitigations/M1027/"},
 		},
 	}
-	
+
 	// Collect unique mitigations
 	seen := make(map[string]bool)
 	for _, demo := range demonstrations {
@@ -220,7 +220,7 @@ func (r *AtomicReporter) generateMitigations(demonstrations []Demonstration) []M
 			seen[mitigation.ID] = true
 		}
 	}
-	
+
 	// Add general security mitigations
 	generalMitigations := []Mitigation{
 		{
@@ -239,19 +239,19 @@ func (r *AtomicReporter) generateMitigations(demonstrations []Demonstration) []M
 		},
 		{
 			ID:          "M1030",
-			Name:        "Network Segmentation", 
+			Name:        "Network Segmentation",
 			Description: "Implement network segmentation to limit lateral movement",
 			Priority:    "HIGH",
 			References:  []string{"https://attack.mitre.org/mitigations/M1030/"},
 		},
 	}
-	
+
 	for _, mitigation := range generalMitigations {
 		if !seen[mitigation.ID] {
 			mitigations = append(mitigations, mitigation)
 		}
 	}
-	
+
 	return mitigations
 }
 
@@ -261,14 +261,14 @@ func (r *AtomicReporter) SaveNavigatorLayer(layer NavigatorLayer, filename strin
 	if err != nil {
 		return fmt.Errorf("failed to marshal navigator layer: %w", err)
 	}
-	
+
 	return os.WriteFile(filename, data, 0644)
 }
 
 // GenerateHTMLReport creates HTML report with ATT&CK visualization
 func (r *AtomicReporter) GenerateHTMLReport(report *ATTACKReport, filename string) error {
 	tmpl := template.Must(template.New("report").Parse(htmlReportTemplate))
-	
+
 	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create HTML file: %w", err)
@@ -279,7 +279,7 @@ func (r *AtomicReporter) GenerateHTMLReport(report *ATTACKReport, filename strin
 			fmt.Fprintf(os.Stderr, "Failed to close HTML file: %v\n", err)
 		}
 	}()
-	
+
 	return tmpl.Execute(file, report)
 }
 
@@ -298,14 +298,14 @@ func (r *AtomicReporter) countHighRiskTechniques(demonstrations []Demonstration)
 func (r *AtomicReporter) getTopTactic(tacticCounts map[string]int) string {
 	maxCount := 0
 	topTactic := ""
-	
+
 	for tactic, count := range tacticCounts {
 		if count > maxCount {
 			maxCount = count
 			topTactic = tactic
 		}
 	}
-	
+
 	return topTactic
 }
 
@@ -316,7 +316,7 @@ func (r *AtomicReporter) getSeverityColor(severity string) string {
 		"MEDIUM":   "#ffcc00", // Yellow
 		"LOW":      "#00cc00", // Green
 	}
-	
+
 	if color, exists := colors[severity]; exists {
 		return color
 	}
@@ -330,7 +330,7 @@ func (r *AtomicReporter) getSeverityScore(severity string) int {
 		"MEDIUM":   50,
 		"LOW":      25,
 	}
-	
+
 	if score, exists := scores[severity]; exists {
 		return score
 	}
@@ -475,12 +475,12 @@ func (b *BugBountyReporter) GenerateBugBountyReport(findings []Finding, demonstr
 	return &BugBountyReport{
 		ATTACKReport: *b.reporter.GenerateATTACKReport(findings, demonstrations),
 		BugBountyContext: BugBountyContext{
-			ProgramScope:     "Authorized bug bounty testing scope",
-			TestingApproach:  "Non-destructive security assessment",
-			ComplianceNotes:  "All tests performed within authorized scope and bug bounty guidelines",
-			SafetyMeasures:   "Atomic tests filtered for bug bounty safety compliance",
+			ProgramScope:    "Authorized bug bounty testing scope",
+			TestingApproach: "Non-destructive security assessment",
+			ComplianceNotes: "All tests performed within authorized scope and bug bounty guidelines",
+			SafetyMeasures:  "Atomic tests filtered for bug bounty safety compliance",
 		},
-		ImpactAssessment: b.generateImpactAssessment(findings, demonstrations),
+		ImpactAssessment:   b.generateImpactAssessment(findings, demonstrations),
 		RecommendedActions: b.generateRecommendedActions(findings),
 	}
 }
@@ -488,16 +488,16 @@ func (b *BugBountyReporter) GenerateBugBountyReport(findings []Finding, demonstr
 // generateImpactAssessment creates impact assessment for bug bounty context
 func (b *BugBountyReporter) generateImpactAssessment(findings []Finding, demonstrations []Demonstration) ImpactAssessment {
 	assessment := ImpactAssessment{
-		OverallRisk:     "MEDIUM",
-		BusinessImpact:  "Potential unauthorized access and data exposure",
-		AttackComplexity: "MEDIUM",
+		OverallRisk:         "MEDIUM",
+		BusinessImpact:      "Potential unauthorized access and data exposure",
+		AttackComplexity:    "MEDIUM",
 		ExploitabilityScore: 0.0,
 	}
-	
+
 	// Calculate overall risk based on findings
 	criticalCount := 0
 	highCount := 0
-	
+
 	for _, finding := range findings {
 		switch finding.Severity {
 		case "CRITICAL":
@@ -506,7 +506,7 @@ func (b *BugBountyReporter) generateImpactAssessment(findings []Finding, demonst
 			highCount++
 		}
 	}
-	
+
 	if criticalCount > 0 {
 		assessment.OverallRisk = "CRITICAL"
 		assessment.ExploitabilityScore = 9.0
@@ -520,7 +520,7 @@ func (b *BugBountyReporter) generateImpactAssessment(findings []Finding, demonst
 		assessment.OverallRisk = "LOW"
 		assessment.ExploitabilityScore = 3.0
 	}
-	
+
 	// Assess attack complexity based on demonstrated techniques
 	if len(demonstrations) > 5 {
 		assessment.AttackComplexity = "LOW"
@@ -529,14 +529,14 @@ func (b *BugBountyReporter) generateImpactAssessment(findings []Finding, demonst
 	} else {
 		assessment.AttackComplexity = "HIGH"
 	}
-	
+
 	return assessment
 }
 
 // generateRecommendedActions creates recommended actions for bug bounty report
 func (b *BugBountyReporter) generateRecommendedActions(findings []Finding) []RecommendedAction {
 	actions := []RecommendedAction{}
-	
+
 	// Immediate actions for critical/high findings
 	for _, finding := range findings {
 		if finding.Severity == "CRITICAL" || finding.Severity == "HIGH" {
@@ -549,7 +549,7 @@ func (b *BugBountyReporter) generateRecommendedActions(findings []Finding) []Rec
 			actions = append(actions, action)
 		}
 	}
-	
+
 	// General security improvements
 	generalActions := []RecommendedAction{
 		{
@@ -571,17 +571,17 @@ func (b *BugBountyReporter) generateRecommendedActions(findings []Finding) []Rec
 			Description: "Implement regular security assessments using atomic testing and ATT&CK mapping",
 		},
 	}
-	
+
 	actions = append(actions, generalActions...)
-	
+
 	return actions
 }
 
 // BugBountyReport extends ATT&CK report with bug bounty context
 type BugBountyReport struct {
 	ATTACKReport       `json:"attack_report"`
-	BugBountyContext   BugBountyContext   `json:"bug_bounty_context"`
-	ImpactAssessment   ImpactAssessment   `json:"impact_assessment"`
+	BugBountyContext   BugBountyContext    `json:"bug_bounty_context"`
+	ImpactAssessment   ImpactAssessment    `json:"impact_assessment"`
 	RecommendedActions []RecommendedAction `json:"recommended_actions"`
 }
 

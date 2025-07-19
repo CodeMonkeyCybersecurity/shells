@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	discoverOutput   string
-	discoverVerbose  bool
-	discoverMaxDepth int
+	discoverOutput    string
+	discoverVerbose   bool
+	discoverMaxDepth  int
 	discoverMaxAssets int
 )
 
@@ -55,41 +55,41 @@ func init() {
 // runDiscoveryOnly runs discovery without testing
 func runDiscoveryOnly(target string) error {
 	fmt.Printf("🔍 Starting asset discovery for: %s\n", target)
-	
+
 	// Create discovery configuration
 	config := discovery.DefaultDiscoveryConfig()
 	config.MaxDepth = discoverMaxDepth
 	config.MaxAssets = discoverMaxAssets
-	
+
 	// Create discovery engine
 	engine := discovery.NewEngine(config, &DiscoveryLogger{log: log})
-	
+
 	// Start discovery
 	session, err := engine.StartDiscovery(target)
 	if err != nil {
 		return fmt.Errorf("failed to start discovery: %w", err)
 	}
-	
+
 	if discoverVerbose {
 		fmt.Printf("📋 Discovery session: %s\n", session.ID)
 		fmt.Printf("🎯 Target type: %s\n", session.Target.Type)
 		fmt.Printf("🎲 Confidence: %.0f%%\n", session.Target.Confidence*100)
 	}
-	
+
 	// Monitor discovery progress
 	fmt.Println("⏳ Discovery in progress...")
-	
+
 	for {
 		session, err := engine.GetSession(session.ID)
 		if err != nil {
 			return fmt.Errorf("failed to get session: %w", err)
 		}
-		
+
 		if discoverVerbose {
-			fmt.Printf("\r🔄 Progress: %.0f%% | Assets: %d | High-Value: %d", 
+			fmt.Printf("\r🔄 Progress: %.0f%% | Assets: %d | High-Value: %d",
 				session.Progress, session.TotalDiscovered, session.HighValueAssets)
 		}
-		
+
 		if session.Status == discovery.StatusCompleted {
 			if discoverVerbose {
 				fmt.Println("\n✅ Discovery completed!")
@@ -102,16 +102,16 @@ func runDiscoveryOnly(target string) error {
 			}
 			return fmt.Errorf("discovery failed")
 		}
-		
+
 		time.Sleep(1 * time.Second)
 	}
-	
+
 	// Get final results
 	session, err = engine.GetSession(session.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get final session: %w", err)
 	}
-	
+
 	// Output results based on format
 	switch discoverOutput {
 	case "json":
@@ -125,7 +125,7 @@ func runDiscoveryOnly(target string) error {
 func outputDiscoveryText(session *discovery.DiscoverySession) error {
 	fmt.Printf("\n📊 Discovery Results for: %s\n", session.Target.Value)
 	fmt.Printf("%s\n\n", strings.Repeat("=", len(session.Target.Value)+25))
-	
+
 	fmt.Printf("🎯 Target Information:\n")
 	fmt.Printf("   Type: %s\n", session.Target.Type)
 	fmt.Printf("   Confidence: %.0f%%\n", session.Target.Confidence*100)
@@ -135,23 +135,23 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 			fmt.Printf("     %s: %s\n", key, value)
 		}
 	}
-	
+
 	fmt.Printf("\n📈 Summary:\n")
 	fmt.Printf("   Total Assets: %d\n", session.TotalDiscovered)
 	fmt.Printf("   High-Value Assets: %d\n", session.HighValueAssets)
 	fmt.Printf("   Relationships: %d\n", len(session.Relationships))
 	fmt.Printf("   Duration: %v\n", time.Since(session.StartedAt).Round(time.Second))
-	
+
 	// Group assets by type
 	assetsByType := make(map[discovery.AssetType][]*discovery.Asset)
 	for _, asset := range session.Assets {
 		assetsByType[asset.Type] = append(assetsByType[asset.Type], asset)
 	}
-	
+
 	// Display assets by type
 	if len(session.Assets) > 0 {
 		fmt.Printf("\n🔍 Discovered Assets:\n")
-		
+
 		// Order of asset types to display
 		typeOrder := []discovery.AssetType{
 			discovery.AssetTypeDomain,
@@ -164,27 +164,27 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 			discovery.AssetTypePayment,
 			discovery.AssetTypeAPI,
 		}
-		
+
 		for _, assetType := range typeOrder {
 			assets := assetsByType[assetType]
 			if len(assets) == 0 {
 				continue
 			}
-			
+
 			fmt.Printf("\n   %s (%d):\n", assetType, len(assets))
 			for _, asset := range assets {
 				priority := ""
 				if discovery.IsHighValueAsset(asset) {
 					priority = " 🔥"
 				}
-				
+
 				confidence := ""
 				if asset.Confidence < 0.8 {
 					confidence = fmt.Sprintf(" (%.0f%%)", asset.Confidence*100)
 				}
-				
+
 				fmt.Printf("     • %s%s%s\n", asset.Value, confidence, priority)
-				
+
 				if discoverVerbose {
 					if asset.Title != "" {
 						fmt.Printf("       Title: %s\n", asset.Title)
@@ -201,7 +201,7 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 				}
 			}
 		}
-		
+
 		// Display remaining asset types
 		for assetType, assets := range assetsByType {
 			found := false
@@ -223,7 +223,7 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 			}
 		}
 	}
-	
+
 	// Display high-value assets summary
 	if session.HighValueAssets > 0 {
 		fmt.Printf("\n🎯 High-Value Assets:\n")
@@ -236,7 +236,7 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 			}
 		}
 	}
-	
+
 	// Display relationships if verbose
 	if discoverVerbose && len(session.Relationships) > 0 {
 		fmt.Printf("\n🔗 Asset Relationships:\n")
@@ -244,19 +244,19 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 			sourceAsset := session.Assets[rel.Source]
 			targetAsset := session.Assets[rel.Target]
 			if sourceAsset != nil && targetAsset != nil {
-				fmt.Printf("   %s → %s (%s)\n", 
+				fmt.Printf("   %s → %s (%s)\n",
 					sourceAsset.Value, targetAsset.Value, rel.Type)
 			}
 		}
 	}
-	
+
 	fmt.Printf("\n💡 Next Steps:\n")
 	fmt.Printf("   • Run security tests: shells %s\n", session.Target.Value)
 	fmt.Printf("   • View specific assets: shells discover %s --verbose\n", session.Target.Value)
 	if session.HighValueAssets > 0 {
 		fmt.Printf("   • Focus on high-value assets for manual testing\n")
 	}
-	
+
 	return nil
 }
 
@@ -282,12 +282,12 @@ func outputDiscoveryJSON(session *discovery.DiscoverySession) error {
 		"started_at":    session.StartedAt,
 		"completed_at":  session.CompletedAt,
 	}
-	
+
 	jsonData, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	
+
 	fmt.Println(string(jsonData))
 	return nil
 }

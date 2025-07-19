@@ -43,7 +43,7 @@ func NewWorker(
 ) core.Worker {
 	start := time.Now()
 	workerID := uuid.New().String()
-	
+
 	ctx := context.Background()
 	ctx, span := logger.StartOperation(ctx, "worker.NewWorker",
 		"worker_id", workerID,
@@ -121,7 +121,7 @@ func (w *worker) Start(ctx context.Context) error {
 	w.ctx, w.cancel = context.WithCancel(ctx)
 
 	w.updateStatus("active", "")
-	w.logger.WithContext(ctx).Infow("Worker started successfully", 
+	w.logger.WithContext(ctx).Infow("Worker started successfully",
 		"worker_id", w.id,
 		"hostname", w.hostname,
 		"startup_duration_ms", time.Since(start).Milliseconds(),
@@ -154,7 +154,7 @@ func (w *worker) Stop() error {
 		w.logger.FinishOperation(ctx, span, "worker.Stop", start, nil)
 	}()
 
-	w.logger.WithContext(ctx).Infow("Stopping worker", 
+	w.logger.WithContext(ctx).Infow("Stopping worker",
 		"worker_id", w.id,
 		"hostname", w.hostname,
 		"current_status", w.status.Status,
@@ -169,11 +169,11 @@ func (w *worker) Stop() error {
 	// Wait for graceful shutdown with timeout
 	stopTimeout := 30 * time.Second
 	shutdownStart := time.Now()
-	
+
 	select {
 	case <-w.done:
 		shutdownDuration := time.Since(shutdownStart)
-		w.logger.WithContext(ctx).Infow("Worker stopped gracefully", 
+		w.logger.WithContext(ctx).Infow("Worker stopped gracefully",
 			"worker_id", w.id,
 			"hostname", w.hostname,
 			"shutdown_duration_ms", shutdownDuration.Milliseconds(),
@@ -181,14 +181,14 @@ func (w *worker) Stop() error {
 		)
 	case <-time.After(stopTimeout):
 		shutdownDuration := time.Since(shutdownStart)
-		w.logger.WithContext(ctx).Warnw("Worker stop timeout - forcing shutdown", 
+		w.logger.WithContext(ctx).Warnw("Worker stop timeout - forcing shutdown",
 			"worker_id", w.id,
 			"hostname", w.hostname,
 			"timeout_ms", stopTimeout.Milliseconds(),
 			"shutdown_duration_ms", shutdownDuration.Milliseconds(),
 			"jobs_completed", w.status.JobsComplete,
 		)
-		
+
 		if span := trace.SpanFromContext(ctx); span.IsRecording() {
 			span.AddEvent("worker_stop_timeout", trace.WithAttributes(
 				attribute.String("worker_id", w.id),
@@ -198,13 +198,13 @@ func (w *worker) Stop() error {
 	}
 
 	w.updateStatus("stopped", "")
-	
+
 	w.logger.WithContext(ctx).Infow("Worker stop completed",
 		"worker_id", w.id,
 		"total_stop_duration_ms", time.Since(start).Milliseconds(),
 		"final_status", "stopped",
 	)
-	
+
 	return nil
 }
 
@@ -257,17 +257,17 @@ func (w *worker) run() {
 				"shutdown_reason", "context_cancelled",
 			)
 			return
-			
+
 		case <-ticker.C:
 			// Record periodic metrics and log worker health
 			metricsStart := time.Now()
 			status := w.Status()
 			w.telemetry.RecordWorkerMetrics(status)
-			
+
 			// Calculate throughput since last metrics update
 			timeSinceLastMetrics := time.Since(lastMetricsTime)
 			jobThroughput := float64(jobsProcessed) / timeSinceLastMetrics.Minutes()
-			
+
 			w.logger.WithContext(ctx).Debugw("Worker metrics update",
 				"worker_id", w.id,
 				"status", status.Status,
@@ -278,18 +278,18 @@ func (w *worker) run() {
 				"uptime_ms", time.Since(start).Milliseconds(),
 				"metrics_duration_ms", time.Since(metricsStart).Milliseconds(),
 			)
-			
+
 			// Reset counters for next interval
 			jobsProcessed = 0
 			errorCount = 0
 			lastMetricsTime = time.Now()
-			
+
 		default:
 			// Process next job from queue
 			jobStart := time.Now()
 			err := w.processJob()
 			jobDuration := time.Since(jobStart)
-			
+
 			if err != nil {
 				errorCount++
 				w.logger.LogError(ctx, err, "worker.processJob",
@@ -297,7 +297,7 @@ func (w *worker) run() {
 					"job_duration_ms", jobDuration.Milliseconds(),
 					"total_errors", errorCount,
 				)
-				
+
 				// Backoff on errors to prevent resource exhaustion
 				errorBackoff := 5 * time.Second
 				w.logger.WithContext(ctx).Debugw("Error backoff initiated",
@@ -308,7 +308,7 @@ func (w *worker) run() {
 				time.Sleep(errorBackoff)
 			} else {
 				jobsProcessed++
-				
+
 				// Log slow job processing
 				slowJobThreshold := 30 * time.Second
 				w.logger.LogSlowOperation(ctx, "worker.processJob", jobDuration, slowJobThreshold,
@@ -334,7 +334,7 @@ func (w *worker) processJob() error {
 	popStart := time.Now()
 	job, err := w.queue.Pop(w.ctx, w.id)
 	popDuration := time.Since(popStart)
-	
+
 	if err != nil {
 		w.logger.LogError(ctx, err, "worker.processJob.pop",
 			"worker_id", w.id,
@@ -360,8 +360,8 @@ func (w *worker) processJob() error {
 
 	// Job acquired - start processing
 	w.updateStatus("processing", job.ID)
-	
-	jobCtx, jobSpan := w.logger.StartSpanWithAttributes(ctx, 
+
+	jobCtx, jobSpan := w.logger.StartSpanWithAttributes(ctx,
 		fmt.Sprintf("worker.processJob.%s", job.Type),
 		[]attribute.KeyValue{
 			attribute.String("job_id", job.ID),
@@ -372,8 +372,8 @@ func (w *worker) processJob() error {
 	)
 	defer jobSpan.End()
 
-	w.logger.WithContext(jobCtx).Infow("Processing job", 
-		"job_id", job.ID, 
+	w.logger.WithContext(jobCtx).Infow("Processing job",
+		"job_id", job.ID,
 		"job_type", job.Type,
 		"worker_id", w.id,
 		"job_retries", job.Retries,
@@ -406,7 +406,7 @@ func (w *worker) processJob() error {
 			"execution_duration_ms", executionDuration.Milliseconds(),
 			"retry_count", job.Retries,
 		)
-		
+
 		jobSpan.RecordError(executionErr)
 		jobSpan.SetStatus(codes.Error, executionErr.Error())
 
@@ -416,13 +416,13 @@ func (w *worker) processJob() error {
 			if retryErr := w.queue.Retry(w.ctx, job.ID); retryErr != nil {
 				w.logger.LogError(jobCtx, retryErr, "worker.queue.retry",
 					"job_id", job.ID,
-					"retry_attempt", job.Retries + 1,
+					"retry_attempt", job.Retries+1,
 					"retry_duration_ms", time.Since(retryStart).Milliseconds(),
 				)
 			} else {
 				w.logger.WithContext(jobCtx).Infow("Job scheduled for retry",
 					"job_id", job.ID,
-					"retry_attempt", job.Retries + 1,
+					"retry_attempt", job.Retries+1,
 					"max_retries", 3,
 					"retry_duration_ms", time.Since(retryStart).Milliseconds(),
 				)
@@ -600,7 +600,7 @@ func (w *worker) executeJob(job *types.Job) error {
 	scanStart := time.Now()
 	findings, err := scanner.Scan(scanCtx, target, options)
 	scanDuration := time.Since(scanStart)
-	
+
 	if err != nil {
 		w.logger.LogError(ctx, err, "worker.executeJob.scan",
 			"job_id", job.ID,
@@ -644,20 +644,20 @@ func (w *worker) executeJob(job *types.Job) error {
 
 		// Count findings by severity
 		severityCounts[findings[i].Severity]++
-		
+
 		// Record finding in telemetry
 		w.telemetry.RecordFinding(findings[i].Severity)
-		
+
 		// Log high-severity findings
 		if findings[i].Severity == types.SeverityCritical || findings[i].Severity == types.SeverityHigh {
 			w.logger.LogVulnerability(ctx, map[string]interface{}{
 				"finding_id": findings[i].ID,
-				"scan_id": scanID,
-				"job_id": job.ID,
-				"severity": string(findings[i].Severity),
-				"title": findings[i].Title,
-				"tool": findings[i].Tool,
-				"target": target,
+				"scan_id":    scanID,
+				"job_id":     job.ID,
+				"severity":   string(findings[i].Severity),
+				"title":      findings[i].Title,
+				"tool":       findings[i].Tool,
+				"target":     target,
 			})
 		}
 	}

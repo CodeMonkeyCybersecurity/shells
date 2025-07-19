@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"encoding/json"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -405,12 +405,12 @@ func exportHTML(findings []types.Finding) ([]byte, error) {
 }
 
 type ScanSummary struct {
-	TotalScans    int                        `json:"total_scans"`
-	ByStatus      map[types.ScanStatus]int   `json:"by_status"`
-	ByType        map[types.ScanType]int     `json:"by_type"`
-	TotalFindings int                        `json:"total_findings"`
-	BySeverity    map[types.Severity]int     `json:"by_severity"`
-	RecentScans   []*types.ScanRequest       `json:"recent_scans,omitempty"`
+	TotalScans    int                      `json:"total_scans"`
+	ByStatus      map[types.ScanStatus]int `json:"by_status"`
+	ByType        map[types.ScanType]int   `json:"by_type"`
+	TotalFindings int                      `json:"total_findings"`
+	BySeverity    map[types.Severity]int   `json:"by_severity"`
+	RecentScans   []*types.ScanRequest     `json:"recent_scans,omitempty"`
 }
 
 func generateSummary(scans []*types.ScanRequest) *ScanSummary {
@@ -735,4 +735,3 @@ func printStats(stats *core.FindingStats, criticalFindings []types.Finding) {
 		}
 	}
 }
-

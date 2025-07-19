@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	shellsconfig "github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
@@ -115,10 +116,12 @@ func NewChromedpAnalyzer(config BrowserConfig, log interface {
 	start := time.Now()
 
 	// Initialize enhanced logger for browser analyzer
-	enhancedLogger, err := logger.New(logger.Config{Level: "debug", Format: "json"})
+	loggerCfg := shellsconfig.LoggerConfig{Level: "debug", Format: "json"}
+	enhancedLogger, err := logger.New(loggerCfg)
 	if err != nil {
 		// Fallback to basic logger if initialization fails
-		enhancedLogger, _ = logger.New(logger.Config{Level: "info", Format: "json"})
+		loggerCfg = shellsconfig.LoggerConfig{Level: "info", Format: "json"}
+		enhancedLogger, _ = logger.New(loggerCfg)
 	}
 	enhancedLogger = enhancedLogger.WithComponent("browser-analyzer")
 
@@ -283,7 +286,7 @@ func (a *chromedpAnalyzer) Scan(ctx context.Context, target string, options map[
 	// Inject our analysis scripts
 	analysisResult := &JSAnalysisResult{}
 
-	err := chromedp.Run(timeoutCtx,
+	err = chromedp.Run(timeoutCtx,
 		network.Enable(),
 		chromedp.Navigate(target),
 		chromedp.Sleep(a.config.WaitForLoad),

@@ -12,10 +12,10 @@ import (
 // DefaultConfig provides safe defaults for bug bounty testing
 var DefaultConfig = Config{
 	AtomicsPath:       getDefaultAtomicsPath(),
-	SafetyMode:        true,  // Always enabled for bug bounties
+	SafetyMode:        true, // Always enabled for bug bounties
 	DryRun:            false,
 	Timeout:           30 * time.Second,
-	SandboxMode:       true,  // Recommended for safety
+	SandboxMode:       true, // Recommended for safety
 	DockerImage:       "atomicredteam/atomic-red-team-execution:latest",
 	MemoryLimit:       "512m",
 	CPULimit:          "0.5",
@@ -51,7 +51,7 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	// Merge with defaults
 	mergedConfig := mergeConfigs(config, configData.Atomic)
-	
+
 	// Validate safety constraints
 	if err := validateConfig(&mergedConfig); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
@@ -90,36 +90,36 @@ func mergeConfigs(defaultConfig, userConfig Config) Config {
 	if userConfig.AtomicsPath != "" {
 		merged.AtomicsPath = userConfig.AtomicsPath
 	}
-	
+
 	// Safety mode cannot be disabled for bug bounties
 	merged.SafetyMode = true
-	
+
 	if userConfig.Timeout > 0 {
 		merged.Timeout = userConfig.Timeout
 	}
-	
+
 	// Allow dry run to be configured
 	merged.DryRun = userConfig.DryRun
-	
+
 	// Sandbox mode can be configured but recommended
 	merged.SandboxMode = userConfig.SandboxMode
-	
+
 	if userConfig.DockerImage != "" {
 		merged.DockerImage = userConfig.DockerImage
 	}
-	
+
 	if userConfig.MemoryLimit != "" {
 		merged.MemoryLimit = userConfig.MemoryLimit
 	}
-	
+
 	if userConfig.CPULimit != "" {
 		merged.CPULimit = userConfig.CPULimit
 	}
-	
+
 	if userConfig.NomadAddr != "" {
 		merged.NomadAddr = userConfig.NomadAddr
 	}
-	
+
 	// Merge allowed techniques (intersection with safe techniques)
 	if len(userConfig.AllowedTechniques) > 0 {
 		merged.AllowedTechniques = intersectTechniques(userConfig.AllowedTechniques, BugBountySafeTechniques)
@@ -238,7 +238,7 @@ func isValidMemoryLimit(limit string) bool {
 	if len(limit) < 2 {
 		return false
 	}
-	
+
 	unit := limit[len(limit)-1:]
 	return unit == "m" || unit == "g" || unit == "k"
 }
@@ -248,7 +248,7 @@ func isValidCPULimit(limit string) bool {
 	if limit == "" {
 		return false
 	}
-	
+
 	// Should be a valid float
 	_, err := fmt.Sscanf(limit, "%f", new(float64))
 	return err == nil

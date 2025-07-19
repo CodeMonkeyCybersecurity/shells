@@ -53,7 +53,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		target := args[0]
-		
+
 		// Get flags
 		authToken, _ := cmd.Flags().GetString("auth-token")
 		authType, _ := cmd.Flags().GetString("auth-type")
@@ -74,7 +74,7 @@ Examples:
 
 		// Create scanner
 		scanner := scim.NewScanner()
-		
+
 		// Run discovery with shorter timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -120,7 +120,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		target := args[0]
-		
+
 		// Get flags
 		authToken, _ := cmd.Flags().GetString("auth-token")
 		authType, _ := cmd.Flags().GetString("auth-type")
@@ -167,7 +167,7 @@ Examples:
 
 		// Create scanner
 		scanner := scim.NewScanner()
-		
+
 		// Run tests
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
@@ -205,7 +205,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		target := args[0]
-		
+
 		// Get flags
 		authToken, _ := cmd.Flags().GetString("auth-token")
 		authType, _ := cmd.Flags().GetString("auth-type")
@@ -234,7 +234,7 @@ Examples:
 
 		// Create scanner
 		scanner := scim.NewScanner()
-		
+
 		// Run provisioning tests
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
@@ -256,12 +256,12 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(scimCmd)
-	
+
 	// Add subcommands
 	scimCmd.AddCommand(scimDiscoverCmd)
 	scimCmd.AddCommand(scimTestCmd)
 	scimCmd.AddCommand(scimProvisionCmd)
-	
+
 	// Global flags
 	scimCmd.PersistentFlags().String("auth-token", "", "Bearer token for authentication")
 	scimCmd.PersistentFlags().String("auth-type", "bearer", "Authentication type (bearer, basic, oauth)")
@@ -270,14 +270,14 @@ func init() {
 	scimCmd.PersistentFlags().String("timeout", "30s", "Request timeout")
 	scimCmd.PersistentFlags().String("output", "", "Output file for results")
 	scimCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose output")
-	
+
 	// Test command flags
 	scimTestCmd.Flags().Bool("test-all", false, "Run all tests")
 	scimTestCmd.Flags().Bool("test-auth", false, "Test authentication vulnerabilities")
 	scimTestCmd.Flags().Bool("test-filters", false, "Test filter injection")
 	scimTestCmd.Flags().Bool("test-bulk", false, "Test bulk operations")
 	scimTestCmd.Flags().Bool("test-provision", false, "Test provisioning abuse")
-	
+
 	// Provision command flags
 	scimProvisionCmd.Flags().Bool("dry-run", false, "Perform dry run without actual provisioning")
 	scimProvisionCmd.Flags().Bool("test-privesc", false, "Test privilege escalation")
@@ -287,21 +287,21 @@ func init() {
 func printSCIMDiscoveryResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("📊 SCIM Discovery Results\n")
 	fmt.Printf("═══════════════════════════════════\n\n")
-	
+
 	if len(findings) == 0 {
 		fmt.Printf("No SCIM endpoints discovered\n")
 		return
 	}
-	
+
 	for _, finding := range findings {
 		fmt.Printf("🔍 %s\n", finding.Title)
 		fmt.Printf("   Severity: %s\n", finding.Severity)
 		fmt.Printf("   Description: %s\n", finding.Description)
-		
+
 		if verbose {
 			fmt.Printf("   Evidence: %s\n", finding.Evidence)
 		}
-		
+
 		fmt.Printf("\n")
 	}
 }
@@ -310,18 +310,18 @@ func printSCIMDiscoveryResults(findings []types.Finding, verbose bool) {
 func printSCIMTestResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("🔒 SCIM Security Test Results\n")
 	fmt.Printf("═══════════════════════════════════\n\n")
-	
+
 	if len(findings) == 0 {
 		fmt.Printf("✅ No SCIM vulnerabilities found\n")
 		return
 	}
-	
+
 	// Group findings by severity
 	severityGroups := make(map[types.Severity][]types.Finding)
 	for _, finding := range findings {
 		severityGroups[finding.Severity] = append(severityGroups[finding.Severity], finding)
 	}
-	
+
 	// Print results by severity
 	severityOrder := []types.Severity{
 		types.SeverityCritical,
@@ -330,27 +330,27 @@ func printSCIMTestResults(findings []types.Finding, verbose bool) {
 		types.SeverityLow,
 		types.SeverityInfo,
 	}
-	
+
 	for _, severity := range severityOrder {
 		if findings, exists := severityGroups[severity]; exists {
 			fmt.Printf("🚨 %s Severity (%d findings)\n", severity, len(findings))
 			fmt.Printf("─────────────────────────────────\n")
-			
+
 			for _, finding := range findings {
 				fmt.Printf("• %s\n", finding.Title)
 				fmt.Printf("  Type: %s\n", finding.Type)
 				fmt.Printf("  Description: %s\n", finding.Description)
-				
+
 				if verbose {
 					fmt.Printf("  Evidence: %s\n", finding.Evidence)
 					fmt.Printf("  Solution: %s\n", finding.Solution)
 				}
-				
+
 				fmt.Printf("\n")
 			}
 		}
 	}
-	
+
 	fmt.Printf("📊 Summary: %d vulnerabilities found\n", len(findings))
 }
 
@@ -358,23 +358,23 @@ func printSCIMTestResults(findings []types.Finding, verbose bool) {
 func printSCIMProvisionResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("👤 SCIM Provisioning Test Results\n")
 	fmt.Printf("═══════════════════════════════════\n\n")
-	
+
 	if len(findings) == 0 {
 		fmt.Printf("✅ No provisioning vulnerabilities found\n")
 		return
 	}
-	
+
 	for _, finding := range findings {
 		fmt.Printf("⚠️  %s\n", finding.Title)
 		fmt.Printf("   Severity: %s\n", finding.Severity)
 		fmt.Printf("   Type: %s\n", finding.Type)
 		fmt.Printf("   Description: %s\n", finding.Description)
-		
+
 		if verbose {
 			fmt.Printf("   Evidence: %s\n", finding.Evidence)
 			fmt.Printf("   Solution: %s\n", finding.Solution)
 		}
-		
+
 		fmt.Printf("\n")
 	}
 }
@@ -383,24 +383,24 @@ func printSCIMProvisionResults(findings []types.Finding, verbose bool) {
 func outputFindings(findings []types.Finding, filename, format string) {
 	var data []byte
 	var err error
-	
+
 	switch format {
 	case "json":
 		data, err = json.MarshalIndent(findings, "", "  ")
 	default:
 		data, err = json.MarshalIndent(findings, "", "  ")
 	}
-	
+
 	if err != nil {
 		fmt.Printf("Error marshaling findings: %v\n", err)
 		return
 	}
-	
+
 	if err := os.WriteFile(filename, data, 0644); err != nil {
 		fmt.Printf("Error writing to file: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("Results written to %s\n", filename)
 }
 
@@ -408,10 +408,10 @@ func outputFindings(findings []types.Finding, filename, format string) {
 func performBasicSCIMCheck(target string) {
 	fmt.Printf("🔍 Basic SCIM Endpoint Discovery for %s\n", target)
 	fmt.Printf("═══════════════════════════════════\n\n")
-	
+
 	scimPaths := []string{"/scim/v2", "/scim", "/api/scim/v2", "/api/scim"}
 	client := &http.Client{Timeout: 5 * time.Second}
-	
+
 	found := false
 	for _, path := range scimPaths {
 		url := strings.TrimRight(target, "/") + path
@@ -420,16 +420,16 @@ func performBasicSCIMCheck(target string) {
 			continue
 		}
 		resp.Body.Close()
-		
+
 		if resp.StatusCode < 500 {
 			fmt.Printf("✅ SCIM endpoint found: %s [%d]\n", path, resp.StatusCode)
 			found = true
 		}
 	}
-	
+
 	if !found {
 		fmt.Printf("❌ No SCIM endpoints discovered\n")
 	}
-	
+
 	fmt.Printf("\n📊 Summary: Basic SCIM endpoint check completed\n")
 }

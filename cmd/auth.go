@@ -82,7 +82,7 @@ Examples:
 
 		// Discover federation providers
 		domain := extractDomain(target)
-		
+
 		// Create HTTP client with timeout
 		httpClient := &http.Client{
 			Timeout: 30 * time.Second,
@@ -586,12 +586,12 @@ func saveAuthResultsToDatabase(target string, report *common.AuthReport, scanTyp
 
 	// Create scan request
 	scanRequest := &types.ScanRequest{
-		ID:        uuid.New().String(),
-		Target:    target,
-		Type:      scanType,
-		Status:    types.ScanStatusCompleted,
-		CreatedAt: report.StartTime,
-		StartedAt: &report.StartTime,
+		ID:          uuid.New().String(),
+		Target:      target,
+		Type:        scanType,
+		Status:      types.ScanStatusCompleted,
+		CreatedAt:   report.StartTime,
+		StartedAt:   &report.StartTime,
 		CompletedAt: &report.EndTime,
 	}
 

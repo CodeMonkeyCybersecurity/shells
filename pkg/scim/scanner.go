@@ -29,7 +29,7 @@ type Scanner struct {
 // NewScanner creates a new SCIM scanner
 func NewScanner() core.Scanner {
 	start := time.Now()
-	
+
 	// Initialize logger for SCIM scanner
 	log, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
 	if err != nil {
@@ -264,7 +264,7 @@ func (s *Scanner) Scan(ctx context.Context, target string, options map[string]st
 	discoveryStart := time.Now()
 	endpoints, err := s.discoverer.DiscoverEndpoints(ctx, target)
 	discoveryDuration := time.Since(discoveryStart)
-	
+
 	if err != nil {
 		s.logger.LogError(ctx, err, "scim.Scan.discovery",
 			"target", target,
@@ -326,7 +326,7 @@ func (s *Scanner) Scan(ctx context.Context, target string, options map[string]st
 
 		endpointFindings, err := s.testEndpoint(ctx, endpoint)
 		endpointDuration := time.Since(endpointStart)
-		
+
 		if err != nil {
 			errorCount++
 			s.logger.LogError(ctx, err, "scim.Scan.testEndpoint",
@@ -353,13 +353,13 @@ func (s *Scanner) Scan(ctx context.Context, target string, options map[string]st
 		for _, finding := range endpointFindings {
 			if finding.Severity == types.SeverityCritical || finding.Severity == types.SeverityHigh {
 				s.logger.LogVulnerability(ctx, map[string]interface{}{
-					"finding_id": finding.ID,
+					"finding_id":   finding.ID,
 					"endpoint_url": endpoint.URL,
-					"severity": string(finding.Severity),
-					"title": finding.Title,
-					"type": finding.Type,
-					"tool": finding.Tool,
-					"target": target,
+					"severity":     string(finding.Severity),
+					"title":        finding.Title,
+					"type":         finding.Type,
+					"tool":         finding.Tool,
+					"target":       target,
 				})
 			}
 		}
@@ -386,7 +386,7 @@ func (s *Scanner) Scan(ctx context.Context, target string, options map[string]st
 		"total_findings", len(findings),
 		"severity_breakdown", severityCounts,
 		"endpoints_discovered", len(endpoints),
-		"endpoints_tested", len(endpoints) - errorCount,
+		"endpoints_tested", len(endpoints)-errorCount,
 		"error_count", errorCount,
 		"total_duration_ms", time.Since(start).Milliseconds(),
 		"discovery_duration_ms", discoveryDuration.Milliseconds(),
@@ -749,7 +749,7 @@ func (s *Scanner) testUnauthorizedAccess(ctx context.Context, endpoint *SCIMEndp
 		"method", "GET",
 		"user_agent", s.config.UserAgent,
 		"headers", map[string]string{
-			"Accept": "application/scim+json",
+			"Accept":     "application/scim+json",
 			"User-Agent": s.config.UserAgent,
 		},
 	)
@@ -786,23 +786,23 @@ func (s *Scanner) testUnauthorizedAccess(ctx context.Context, endpoint *SCIMEndp
 			Solution:    "Implement proper authentication for SCIM endpoints",
 			References:  []string{"https://tools.ietf.org/html/rfc7644#section-2"},
 			Metadata: map[string]interface{}{
-				"endpoint":    endpoint.URL,
-				"method":      "GET",
-				"status_code": resp.StatusCode,
-				"resource":    "Users",
-				"test_url":    testURL,
+				"endpoint":         endpoint.URL,
+				"method":           "GET",
+				"status_code":      resp.StatusCode,
+				"resource":         "Users",
+				"test_url":         testURL,
 				"response_headers": resp.Header,
 			},
 			CreatedAt: time.Now(),
 		}
 
 		s.logger.LogVulnerability(ctx, map[string]interface{}{
-			"finding_id": finding.ID,
+			"finding_id":         finding.ID,
 			"vulnerability_type": "unauthorized_access",
-			"endpoint_url": endpoint.URL,
-			"severity": string(finding.Severity),
-			"status_code": resp.StatusCode,
-			"test_url": testURL,
+			"endpoint_url":       endpoint.URL,
+			"severity":           string(finding.Severity),
+			"status_code":        resp.StatusCode,
+			"test_url":           testURL,
 		})
 
 		s.logger.WithContext(ctx).Warnw("SCIM unauthorized access vulnerability found",
@@ -948,7 +948,6 @@ func (s *Scanner) testSchemaDisclosure(ctx context.Context, endpoint *SCIMEndpoi
 	return findings
 }
 
-
 // Helper function for getting string map keys
 func getStringMapKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
@@ -957,4 +956,3 @@ func getStringMapKeys(m map[string]string) []string {
 	}
 	return keys
 }
-

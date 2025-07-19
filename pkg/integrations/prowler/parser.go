@@ -26,17 +26,17 @@ func (p *Parser) ParseScanOutput(output string) (*ScanResult, error) {
 	result := &ScanResult{
 		StartTime: time.Now(),
 		Findings:  []ProwlerFinding{},
-		Summary:   ScanSummary{
+		Summary: ScanSummary{
 			ServiceBreakdown: make(map[string]int),
 			RegionBreakdown:  make(map[string]int),
 		},
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(output))
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		// Skip empty lines and non-JSON output
 		if line == "" || !strings.HasPrefix(line, "{") {
 			continue
@@ -51,7 +51,7 @@ func (p *Parser) ParseScanOutput(output string) (*ScanResult, error) {
 
 		// Add to results
 		result.Findings = append(result.Findings, finding)
-		
+
 		// Update summary statistics
 		p.updateSummary(&result.Summary, finding)
 	}
@@ -69,12 +69,12 @@ func (p *Parser) ParseScanOutput(output string) (*ScanResult, error) {
 // ParseChecksList parses the output of prowler -l command
 func (p *Parser) ParseChecksList(output string) ([]Check, error) {
 	var checks []Check
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
-	
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		
+
 		// Skip comments and empty lines
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "INFO") {
 			continue
@@ -98,7 +98,7 @@ func (p *Parser) ParseChecksList(output string) ([]Check, error) {
 func (p *Parser) parseCheckLine(line string) Check {
 	// Expected format: checkID: description [service] [severity]
 	// Example: iam_password_policy_minimum_length_14: IAM password policy minimum length 14 [iam] [medium]
-	
+
 	parts := strings.SplitN(line, ":", 2)
 	if len(parts) != 2 {
 		return Check{}
@@ -110,7 +110,7 @@ func (p *Parser) parseCheckLine(line string) Check {
 	// Extract service and severity from brackets
 	service := extractBracketedValue(remainder, 0)
 	severity := extractBracketedValue(remainder, 1)
-	
+
 	// Description is everything except the bracketed parts
 	description := removeBracketedValues(remainder)
 
@@ -166,8 +166,8 @@ func (p *Parser) updateSummary(summary *ScanSummary, finding ProwlerFinding) {
 func (p *Parser) finalizeSummary(summary *ScanSummary) {
 	// Calculate total failed checks
 	if summary.FailedChecks == 0 {
-		summary.FailedChecks = summary.CriticalFindings + summary.HighFindings + 
-		                      summary.MediumFindings + summary.LowFindings
+		summary.FailedChecks = summary.CriticalFindings + summary.HighFindings +
+			summary.MediumFindings + summary.LowFindings
 	}
 
 	// Calculate passed checks if not already set
@@ -186,11 +186,11 @@ func (p *Parser) GenerateReport(scanResult *ScanResult, profile string) *Prowler
 			TotalResources: scanResult.TotalChecks,
 			Regions:        p.extractRegions(scanResult.Findings),
 		},
-		Summary:  scanResult.Summary,
-		Findings: scanResult.Findings,
-		Services: p.generateServiceSummaries(scanResult.Findings),
-		Regions:  p.generateRegionSummaries(scanResult.Findings),
-		Compliance: p.generateComplianceSummaries(scanResult.Findings),
+		Summary:         scanResult.Summary,
+		Findings:        scanResult.Findings,
+		Services:        p.generateServiceSummaries(scanResult.Findings),
+		Regions:         p.generateRegionSummaries(scanResult.Findings),
+		Compliance:      p.generateComplianceSummaries(scanResult.Findings),
 		Recommendations: p.generateRecommendations(scanResult.Findings),
 	}
 
@@ -376,7 +376,7 @@ func (p *Parser) generateRecommendations(findings []ProwlerFinding) []Recommenda
 
 	// Group findings by service and severity
 	serviceIssues := make(map[string][]ProwlerFinding)
-	
+
 	for _, finding := range findings {
 		if strings.ToLower(finding.Status) != "fail" && strings.ToLower(finding.Status) != "failed" {
 			continue
@@ -427,11 +427,11 @@ func (p *Parser) generateRecommendations(findings []ProwlerFinding) []Recommenda
 
 		// Create recommendation
 		rec := Recommendation{
-			Priority:    priority,
-			Service:     service,
-			Category:    "Security Configuration",
-			Title:       fmt.Sprintf("Address %s Security Issues", strings.ToUpper(service)),
-			Description: fmt.Sprintf("Found %d security issues in %s service (%d critical, %d high, %d medium, %d low)", 
+			Priority: priority,
+			Service:  service,
+			Category: "Security Configuration",
+			Title:    fmt.Sprintf("Address %s Security Issues", strings.ToUpper(service)),
+			Description: fmt.Sprintf("Found %d security issues in %s service (%d critical, %d high, %d medium, %d low)",
 				len(issues), service, critical, high, medium, low),
 			Remediation: p.getServiceRemediation(service),
 			Impact:      p.getServiceImpact(service, critical, high),
@@ -461,7 +461,7 @@ func (p *Parser) generateRecommendations(findings []ProwlerFinding) []Recommenda
 func extractBracketedValue(text string, index int) string {
 	brackets := 0
 	values := []string{}
-	
+
 	start := -1
 	for i, char := range text {
 		if char == '[' {
@@ -501,7 +501,7 @@ func removeBracketedValues(text string) string {
 
 func (p *Parser) inferCategories(checkID string) []string {
 	categories := []string{}
-	
+
 	if strings.Contains(checkID, "password") || strings.Contains(checkID, "mfa") {
 		categories = append(categories, "authentication")
 	}
@@ -523,7 +523,7 @@ func (p *Parser) inferCategories(checkID string) []string {
 
 func (p *Parser) extractRegions(findings []ProwlerFinding) []string {
 	regionSet := make(map[string]bool)
-	
+
 	for _, finding := range findings {
 		if finding.Region != "" {
 			regionSet[finding.Region] = true
@@ -541,11 +541,11 @@ func (p *Parser) extractRegions(findings []ProwlerFinding) []string {
 
 func (p *Parser) getServiceRemediation(service string) string {
 	remediation := map[string]string{
-		"iam": "Review IAM policies, enable MFA, implement least privilege access, rotate access keys regularly",
-		"s3": "Enable bucket encryption, configure public access blocks, implement secure transport policies",
-		"ec2": "Review security groups, enable instance encryption, implement proper network segmentation",
+		"iam":        "Review IAM policies, enable MFA, implement least privilege access, rotate access keys regularly",
+		"s3":         "Enable bucket encryption, configure public access blocks, implement secure transport policies",
+		"ec2":        "Review security groups, enable instance encryption, implement proper network segmentation",
 		"cloudtrail": "Enable multi-region logging, configure log file validation, set up CloudWatch integration",
-		"vpc": "Enable VPC Flow Logs, review network ACLs, implement proper subnet segmentation",
+		"vpc":        "Enable VPC Flow Logs, review network ACLs, implement proper subnet segmentation",
 	}
 
 	if rem, exists := remediation[service]; exists {

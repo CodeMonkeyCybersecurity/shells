@@ -7,22 +7,22 @@ import (
 
 // AtomicTest represents an Atomic Red Team test definition
 type AtomicTest struct {
-	AttackTechnique     string `yaml:"attack_technique"`
-	DisplayName         string `yaml:"display_name"`
-	AtomicTests         []Test `yaml:"atomic_tests"`
-	AttackLink          string `yaml:"attack_link"`
-	SupportedPlatforms  []string `yaml:"supported_platforms"`
+	AttackTechnique    string   `yaml:"attack_technique"`
+	DisplayName        string   `yaml:"display_name"`
+	AtomicTests        []Test   `yaml:"atomic_tests"`
+	AttackLink         string   `yaml:"attack_link"`
+	SupportedPlatforms []string `yaml:"supported_platforms"`
 }
 
 // Test represents a single atomic test
 type Test struct {
-	Name                string                 `yaml:"name"`
-	Description         string                 `yaml:"description"`
-	SupportedPlatforms  []string               `yaml:"supported_platforms"`
-	InputArguments      map[string]InputArg    `yaml:"input_arguments"`
-	Executor            Executor               `yaml:"executor"`
-	Dependencies        []Dependency           `yaml:"dependencies"`
-	DependencyExecutor  string                 `yaml:"dependency_executor_name"`
+	Name               string              `yaml:"name"`
+	Description        string              `yaml:"description"`
+	SupportedPlatforms []string            `yaml:"supported_platforms"`
+	InputArguments     map[string]InputArg `yaml:"input_arguments"`
+	Executor           Executor            `yaml:"executor"`
+	Dependencies       []Dependency        `yaml:"dependencies"`
+	DependencyExecutor string              `yaml:"dependency_executor_name"`
 }
 
 // InputArg represents test input arguments
@@ -34,16 +34,16 @@ type InputArg struct {
 
 // Executor represents test execution configuration
 type Executor struct {
-	Name           string `yaml:"name"`
-	ElevationRequired bool `yaml:"elevation_required"`
-	Command        string `yaml:"command"`
-	CleanupCommand string `yaml:"cleanup_command"`
+	Name              string `yaml:"name"`
+	ElevationRequired bool   `yaml:"elevation_required"`
+	Command           string `yaml:"command"`
+	CleanupCommand    string `yaml:"cleanup_command"`
 }
 
 // Dependency represents test dependencies
 type Dependency struct {
-	Description string `yaml:"description"`
-	PrereqCommand string `yaml:"prereq_command"`
+	Description      string `yaml:"description"`
+	PrereqCommand    string `yaml:"prereq_command"`
 	GetPrereqCommand string `yaml:"get_prereq_command"`
 }
 
@@ -61,67 +61,67 @@ type TestResult struct {
 
 // Evidence represents proof of technique execution
 type Evidence struct {
-	Type        string `json:"type"`
-	Description string `json:"description"`
-	Data        string `json:"data"`
-	Command     string `json:"command,omitempty"`
-	Output      string `json:"output,omitempty"`
-	JobID       string `json:"job_id,omitempty"`
+	Type        string    `json:"type"`
+	Description string    `json:"description"`
+	Data        string    `json:"data"`
+	Command     string    `json:"command,omitempty"`
+	Output      string    `json:"output,omitempty"`
+	JobID       string    `json:"job_id,omitempty"`
 	Timestamp   time.Time `json:"timestamp"`
 }
 
 // DemoResult represents demonstration execution results
 type DemoResult struct {
-	Technique   string     `json:"technique"`
-	TestName    string     `json:"test_name"`
-	Target      string     `json:"target"`
-	Success     bool       `json:"success"`
-	Evidence    []Evidence `json:"evidence"`
-	MITRELink   string     `json:"mitre_link"`
-	Impact      string     `json:"impact"`
-	Severity    string     `json:"severity"`
-	Duration    time.Duration `json:"duration"`
+	Technique string        `json:"technique"`
+	TestName  string        `json:"test_name"`
+	Target    string        `json:"target"`
+	Success   bool          `json:"success"`
+	Evidence  []Evidence    `json:"evidence"`
+	MITRELink string        `json:"mitre_link"`
+	Impact    string        `json:"impact"`
+	Severity  string        `json:"severity"`
+	Duration  time.Duration `json:"duration"`
 }
 
 // ImpactReport represents comprehensive impact analysis
 type ImpactReport struct {
-	Vulnerability   string         `json:"vulnerability"`
-	ATTACKChain     []string       `json:"attack_chain"`
-	Demonstrations  []Demonstration `json:"demonstrations"`
-	ExecutiveSummary string         `json:"executive_summary"`
-	Mitigations     []string       `json:"mitigations"`
-	GeneratedAt     time.Time      `json:"generated_at"`
+	Vulnerability    string          `json:"vulnerability"`
+	ATTACKChain      []string        `json:"attack_chain"`
+	Demonstrations   []Demonstration `json:"demonstrations"`
+	ExecutiveSummary string          `json:"executive_summary"`
+	Mitigations      []string        `json:"mitigations"`
+	GeneratedAt      time.Time       `json:"generated_at"`
 }
 
 // Demonstration represents a single technique demonstration
 type Demonstration struct {
-	Technique   string    `json:"technique"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Result      string    `json:"result"`
-	Finding     string    `json:"finding"`
-	Severity    string    `json:"severity"`
-	Evidence    []Evidence `json:"evidence"`
+	Technique   string        `json:"technique"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Result      string        `json:"result"`
+	Finding     string        `json:"finding"`
+	Severity    string        `json:"severity"`
+	Evidence    []Evidence    `json:"evidence"`
 	Duration    time.Duration `json:"duration"`
 }
 
 // ATTACKReport represents MITRE ATT&CK mapped report
 type ATTACKReport struct {
-	Metadata         ReportMetadata   `json:"metadata"`
-	ExecutiveSummary string           `json:"executive_summary"`
-	AttackChain      []AttackStep     `json:"attack_chain"`
-	Navigator        NavigatorLayer   `json:"navigator"`
-	Mitigations      []Mitigation     `json:"mitigations"`
-	Findings         []Finding        `json:"findings"`
+	Metadata         ReportMetadata `json:"metadata"`
+	ExecutiveSummary string         `json:"executive_summary"`
+	AttackChain      []AttackStep   `json:"attack_chain"`
+	Navigator        NavigatorLayer `json:"navigator"`
+	Mitigations      []Mitigation   `json:"mitigations"`
+	Findings         []Finding      `json:"findings"`
 }
 
 // ReportMetadata contains report generation information
 type ReportMetadata struct {
-	GeneratedAt   time.Time `json:"generated_at"`
-	Scope         string    `json:"scope"`
-	Target        string    `json:"target"`
-	TotalTechniques int     `json:"total_techniques"`
-	HighRiskTechniques int  `json:"high_risk_techniques"`
+	GeneratedAt        time.Time `json:"generated_at"`
+	Scope              string    `json:"scope"`
+	Target             string    `json:"target"`
+	TotalTechniques    int       `json:"total_techniques"`
+	HighRiskTechniques int       `json:"high_risk_techniques"`
 }
 
 // AttackStep represents a step in the attack chain
@@ -175,9 +175,9 @@ type Finding struct {
 
 // SafetyRule represents a safety constraint
 type SafetyRule struct {
-	Name        string                           `json:"name"`
-	Description string                           `json:"description"`
-	Check       func(cmd string) bool            `json:"-"`
+	Name        string                                    `json:"name"`
+	Description string                                    `json:"description"`
+	Check       func(cmd string) bool                     `json:"-"`
 	Enforce     func(ctx context.Context) context.Context `json:"-"`
 }
 

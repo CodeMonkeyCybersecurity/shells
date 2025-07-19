@@ -42,14 +42,14 @@ func (ce *CommandExecutor) ExecuteCommand(ctx context.Context, command string, a
 
 	// Sanitize arguments
 	sanitizedArgs := SanitizeCommand(args)
-	
+
 	// Create context with timeout
 	cmdCtx, cancel := context.WithTimeout(ctx, ce.Timeout)
 	defer cancel()
 
 	// Execute command
 	cmd := exec.CommandContext(cmdCtx, command, sanitizedArgs...)
-	
+
 	// Set environment variables to prevent shell injection
 	cmd.Env = []string{
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -186,7 +186,7 @@ func ValidateAndSanitizePath(path string) (string, error) {
 
 	// Clean the path
 	cleanPath := filepath.Clean(path)
-	
+
 	// Check for path traversal attempts
 	if strings.Contains(cleanPath, "..") {
 		return "", fmt.Errorf("path traversal detected")

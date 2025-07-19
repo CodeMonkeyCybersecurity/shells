@@ -7,20 +7,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	structlogger "github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 // Engine is the main discovery engine
 type Engine struct {
-	parser      *TargetParser
-	modules     map[string]DiscoveryModule
-	config      *DiscoveryConfig
-	sessions    map[string]*DiscoverySession
-	mutex       sync.RWMutex
-	logger      Logger
+	parser       *TargetParser
+	modules      map[string]DiscoveryModule
+	config       *DiscoveryConfig
+	sessions     map[string]*DiscoverySession
+	mutex        sync.RWMutex
+	logger       Logger
 	structLogger *structlogger.Logger // Enhanced structured logger
 }
 
@@ -87,16 +87,16 @@ func NewEngine(discoveryConfig *DiscoveryConfig, logger Logger) *Engine {
 func (e *Engine) RegisterModule(module DiscoveryModule) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	
+
 	start := time.Now()
 	moduleName := module.Name()
 	priority := module.Priority()
-	
+
 	e.modules[moduleName] = module
-	
+
 	// Use both loggers for backward compatibility and enhanced logging
 	e.logger.Info("Registered discovery module", "module", moduleName)
-	
+
 	e.structLogger.WithFields(
 		"module", moduleName,
 		"priority", priority,
@@ -111,12 +111,12 @@ func (e *Engine) RegisterModule(module DiscoveryModule) {
 // StartDiscovery starts a new discovery session
 func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 	start := time.Now()
-	
+
 	e.structLogger.WithFields(
 		"raw_target", rawTarget,
 		"operation", "StartDiscovery",
 	).Infow("Starting discovery session")
-	
+
 	// Parse target
 	parseStart := time.Now()
 	target := e.parser.ParseTarget(rawTarget)
@@ -158,7 +158,7 @@ func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 
 	// Log with both loggers for compatibility
 	e.logger.Info("Started discovery session", "session_id", session.ID, "target", target.Value, "type", target.Type)
-	
+
 	e.structLogger.WithFields(
 		"session_id", sessionID,
 		"target_value", target.Value,
@@ -183,12 +183,12 @@ func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 func (e *Engine) GetSession(sessionID string) (*DiscoverySession, error) {
 	e.mutex.RLock()
 	defer e.mutex.RUnlock()
-	
+
 	session, exists := e.sessions[sessionID]
 	if !exists {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
-	
+
 	return session, nil
 }
 
@@ -196,12 +196,12 @@ func (e *Engine) GetSession(sessionID string) (*DiscoverySession, error) {
 func (e *Engine) ListSessions() []*DiscoverySession {
 	e.mutex.RLock()
 	defer e.mutex.RUnlock()
-	
+
 	sessions := make([]*DiscoverySession, 0, len(e.sessions))
 	for _, session := range e.sessions {
 		sessions = append(sessions, session)
 	}
-	
+
 	return sessions
 }
 
@@ -217,7 +217,7 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 		"target_value", session.Target.Value,
 		"target_type", string(session.Target.Type),
 	)
-	
+
 	var finalErr error
 	defer func() {
 		e.structLogger.FinishOperation(ctx, span, "discovery.runDiscovery", start, finalErr)
@@ -231,7 +231,7 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 		now := time.Now()
 		session.CompletedAt = &now
 		session.Progress = 100.0
-		
+
 		// Log session completion
 		totalDuration := time.Since(start)
 		e.structLogger.WithContext(ctx).Infow("Discovery session completed",
@@ -246,7 +246,7 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 
 	// Log with both loggers for compatibility
 	e.logger.Info("Running discovery", "session_id", session.ID)
-	
+
 	e.structLogger.WithContext(ctx).Infow("Starting discovery execution",
 		"session_id", session.ID,
 		"target_value", session.Target.Value,
@@ -260,13 +260,13 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 	moduleStart := time.Now()
 	modules := e.getApplicableModules(&session.Target)
 	totalModules := len(modules)
-	
+
 	e.structLogger.LogDuration(ctx, "discovery.get_applicable_modules", moduleStart,
 		"session_id", session.ID,
 		"total_modules", totalModules,
 		"target_type", string(session.Target.Type),
 	)
-	
+
 	if totalModules == 0 {
 		finalErr = fmt.Errorf("no applicable modules found for target type: %s", session.Target.Type)
 		e.logger.Warn("No applicable modules found", "target_type", session.Target.Type)
@@ -284,7 +284,7 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 	for i, mod := range modules {
 		moduleNames[i] = mod.Name()
 	}
-	
+
 	e.structLogger.WithContext(ctx).Infow("Starting parallel module execution",
 		"session_id", session.ID,
 		"module_count", totalModules,
@@ -295,19 +295,19 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 	// Run modules in parallel
 	var wg sync.WaitGroup
 	resultsChan := make(chan *DiscoveryResult, totalModules)
-	
+
 	for i, module := range modules {
 		wg.Add(1)
 		go func(mod DiscoveryModule, index int) {
 			defer wg.Done()
-			
+
 			modStart := time.Now()
 			modName := mod.Name()
-			
+
 			// Log with both loggers
 			e.logger.Debug("Running module", "module", modName, "session_id", session.ID)
-			
-			modCtx, modSpan := e.structLogger.StartSpanWithAttributes(ctx, 
+
+			modCtx, modSpan := e.structLogger.StartSpanWithAttributes(ctx,
 				fmt.Sprintf("discovery.module.%s", modName),
 				[]attribute.KeyValue{
 					attribute.String("module_name", modName),
@@ -317,17 +317,17 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 				},
 			)
 			defer modSpan.End()
-			
+
 			e.structLogger.WithContext(modCtx).Debugw("Starting module execution",
 				"module", modName,
 				"session_id", session.ID,
 				"module_index", index,
 				"module_priority", mod.Priority(),
 			)
-			
+
 			result, err := mod.Discover(modCtx, &session.Target, session)
 			modDuration := time.Since(modStart)
-			
+
 			if err != nil {
 				e.logger.Error("Module discovery failed", "module", modName, "error", err)
 				e.structLogger.LogError(modCtx, err, "discovery.module.failed",
@@ -338,11 +338,11 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 				session.Errors = append(session.Errors, fmt.Sprintf("%s: %v", modName, err))
 				return
 			}
-			
+
 			if result != nil {
 				result.Source = modName
 				resultsChan <- result
-				
+
 				e.structLogger.WithContext(modCtx).Debugw("Module execution completed",
 					"module", modName,
 					"session_id", session.ID,
@@ -356,17 +356,17 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 					"duration_ms", modDuration.Milliseconds(),
 				)
 			}
-			
+
 			// Update progress
 			progress := float64(index+1) / float64(totalModules) * 100.0
 			session.Progress = progress
-			
+
 			e.structLogger.LogScanProgress(modCtx, session.ID, progress, "running", map[string]interface{}{
 				"completed_modules": index + 1,
-				"total_modules": totalModules,
-				"current_module": modName,
+				"total_modules":     totalModules,
+				"current_module":    modName,
 			})
-			
+
 		}(module, i)
 	}
 
@@ -384,22 +384,22 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 	// Post-process assets
 	e.postProcessAssets(session)
 
-	e.logger.Info("Discovery completed", 
-		"session_id", session.ID, 
-		"total_assets", session.TotalDiscovered, 
+	e.logger.Info("Discovery completed",
+		"session_id", session.ID,
+		"total_assets", session.TotalDiscovered,
 		"high_value_assets", session.HighValueAssets)
 }
 
 // getApplicableModules returns modules that can handle the target
 func (e *Engine) getApplicableModules(target *Target) []DiscoveryModule {
 	var modules []DiscoveryModule
-	
+
 	for _, module := range e.modules {
 		if module.CanHandle(target) {
 			modules = append(modules, module)
 		}
 	}
-	
+
 	// Sort by priority
 	for i := 0; i < len(modules)-1; i++ {
 		for j := i + 1; j < len(modules); j++ {
@@ -408,7 +408,7 @@ func (e *Engine) getApplicableModules(target *Target) []DiscoveryModule {
 			}
 		}
 	}
-	
+
 	return modules
 }
 
@@ -450,8 +450,8 @@ func (e *Engine) processDiscoveryResult(session *DiscoverySession, result *Disco
 
 		if IsHighValueAsset(asset) {
 			session.HighValueAssets++
-			e.logger.Info("High-value asset discovered", 
-				"asset", asset.Value, 
+			e.logger.Info("High-value asset discovered",
+				"asset", asset.Value,
 				"type", asset.Type,
 				"session_id", session.ID)
 		}
@@ -467,8 +467,8 @@ func (e *Engine) processDiscoveryResult(session *DiscoverySession, result *Disco
 // findExistingAsset finds if an asset already exists
 func (e *Engine) findExistingAsset(session *DiscoverySession, newAsset *Asset) *Asset {
 	for _, existingAsset := range session.Assets {
-		if existingAsset.Type == newAsset.Type && 
-		   existingAsset.Value == newAsset.Value {
+		if existingAsset.Type == newAsset.Type &&
+			existingAsset.Value == newAsset.Value {
 			return existingAsset
 		}
 	}
@@ -478,23 +478,23 @@ func (e *Engine) findExistingAsset(session *DiscoverySession, newAsset *Asset) *
 // mergeTechnologies merges two technology arrays
 func mergeTechnologies(existing, new []string) []string {
 	techMap := make(map[string]bool)
-	
+
 	// Add existing technologies
 	for _, tech := range existing {
 		techMap[tech] = true
 	}
-	
+
 	// Add new technologies
 	for _, tech := range new {
 		techMap[tech] = true
 	}
-	
+
 	// Convert back to slice
 	result := make([]string, 0, len(techMap))
 	for tech := range techMap {
 		result = append(result, tech)
 	}
-	
+
 	return result
 }
 
@@ -502,10 +502,10 @@ func mergeTechnologies(existing, new []string) []string {
 func (e *Engine) postProcessAssets(session *DiscoverySession) {
 	// Create relationships between assets
 	e.createAssetRelationships(session)
-	
+
 	// Tag assets
 	e.tagAssets(session)
-	
+
 	// Calculate final priorities
 	e.calculateFinalPriorities(session)
 }
@@ -545,9 +545,9 @@ func (e *Engine) createAssetRelationships(session *DiscoverySession) {
 
 // isSubdomainOf checks if subdomain is a subdomain of domain
 func isSubdomainOf(subdomain, domain string) bool {
-	return subdomain != domain && (subdomain == domain || 
-		(len(subdomain) > len(domain) && 
-		 subdomain[len(subdomain)-len(domain)-1:] == "."+domain))
+	return subdomain != domain && (subdomain == domain ||
+		(len(subdomain) > len(domain) &&
+			subdomain[len(subdomain)-len(domain)-1:] == "."+domain))
 }
 
 // tagAssets adds tags to assets based on their characteristics
@@ -588,7 +588,7 @@ func (e *Engine) tagAssets(session *DiscoverySession) {
 func (e *Engine) calculateFinalPriorities(session *DiscoverySession) {
 	// Boost priority of assets with many relationships
 	relationshipCounts := make(map[string]int)
-	
+
 	for _, relationship := range session.Relationships {
 		relationshipCounts[relationship.Source]++
 		relationshipCounts[relationship.Target]++
@@ -596,7 +596,7 @@ func (e *Engine) calculateFinalPriorities(session *DiscoverySession) {
 
 	for assetID, asset := range session.Assets {
 		relationshipCount := relationshipCounts[assetID]
-		
+
 		// Boost priority based on relationship count
 		if relationshipCount >= 5 {
 			if asset.Priority < int(PriorityCritical) {

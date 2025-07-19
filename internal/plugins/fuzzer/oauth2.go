@@ -24,6 +24,12 @@ type oauth2Fuzzer struct {
 	}
 }
 
+type OAuth2Config struct {
+	MaxPermutations  int
+	ParallelRequests int
+	Timeout          int
+}
+
 type FuzzerConfig struct {
 	Threads      int
 	RequestDelay time.Duration
@@ -54,7 +60,23 @@ type FuzzResult struct {
 	Evidence     string
 }
 
-func NewOAuth2Fuzzer(config FuzzerConfig, logger interface {
+// NewOAuth2Fuzzer creates a new OAuth2 fuzzer from OAuth2Config
+func NewOAuth2Fuzzer(config OAuth2Config, logger interface {
+	Info(msg string, keysAndValues ...interface{})
+	Error(msg string, keysAndValues ...interface{})
+	Debug(msg string, keysAndValues ...interface{})
+}) core.Scanner {
+	fuzzerConfig := FuzzerConfig{
+		Threads:      config.ParallelRequests,
+		Timeout:      time.Duration(config.Timeout) * time.Second,
+		RequestDelay: 100 * time.Millisecond,
+		MaxRedirects: 5,
+	}
+	return NewOAuth2FuzzerWithConfig(fuzzerConfig, logger)
+}
+
+// NewOAuth2FuzzerWithConfig creates a new OAuth2 fuzzer with full config
+func NewOAuth2FuzzerWithConfig(config FuzzerConfig, logger interface {
 	Info(msg string, keysAndValues ...interface{})
 	Error(msg string, keysAndValues ...interface{})
 	Debug(msg string, keysAndValues ...interface{})

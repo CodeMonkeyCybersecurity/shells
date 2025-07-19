@@ -52,7 +52,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		target := args[0]
-		
+
 		// Get flags
 		technique, _ := cmd.Flags().GetString("technique")
 		differential, _ := cmd.Flags().GetBool("differential")
@@ -75,7 +75,7 @@ Examples:
 
 		// Create scanner
 		scanner := smuggling.NewScanner()
-		
+
 		// Run detection
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
@@ -113,7 +113,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		target := args[0]
-		
+
 		// Get flags
 		technique, _ := cmd.Flags().GetString("technique")
 		targetPath, _ := cmd.Flags().GetString("target-path")
@@ -132,7 +132,7 @@ Examples:
 
 		// Create scanner first to validate
 		scanner := smuggling.NewScanner()
-		
+
 		// Run exploitation
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
@@ -170,7 +170,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		target := args[0]
-		
+
 		// Get flags
 		technique, _ := cmd.Flags().GetString("technique")
 		targetPath, _ := cmd.Flags().GetString("target-path")
@@ -178,7 +178,7 @@ Examples:
 
 		// Generate PoCs
 		pocs := generatePoCs(target, technique, targetPath)
-		
+
 		// Output results
 		if output != "" {
 			if err := os.WriteFile(output, []byte(strings.Join(pocs, "\n\n")), 0644); err != nil {
@@ -198,12 +198,12 @@ Examples:
 
 func init() {
 	rootCmd.AddCommand(smuggleCmd)
-	
+
 	// Add subcommands
 	smuggleCmd.AddCommand(smuggleDetectCmd)
 	smuggleCmd.AddCommand(smuggleExploitCmd)
 	smuggleCmd.AddCommand(smugglePocCmd)
-	
+
 	// Global flags
 	smuggleCmd.PersistentFlags().String("technique", "all", "Smuggling technique (cl.te, te.cl, te.te, http2, all)")
 	smuggleCmd.PersistentFlags().String("timeout", "30s", "Request timeout")
@@ -211,15 +211,15 @@ func init() {
 	smuggleCmd.PersistentFlags().Bool("verify-ssl", true, "Verify SSL certificates")
 	smuggleCmd.PersistentFlags().String("output", "", "Output file for results")
 	smuggleCmd.PersistentFlags().BoolP("verbose", "v", false, "Verbose output")
-	
+
 	// Detect command flags
 	smuggleDetectCmd.Flags().Bool("differential", true, "Use differential response analysis")
 	smuggleDetectCmd.Flags().Bool("timing", true, "Use timing-based detection")
-	
+
 	// Exploit command flags
 	smuggleExploitCmd.Flags().String("target-path", "/admin", "Target path for exploitation")
 	smuggleExploitCmd.Flags().Bool("generate-poc", false, "Generate proof-of-concept")
-	
+
 	// PoC command flags
 	smugglePocCmd.Flags().String("target-path", "/admin", "Target path for PoC")
 }
@@ -228,12 +228,12 @@ func init() {
 func printSmugglingDetectionResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("🔍 HTTP Request Smuggling Detection Results\n")
 	fmt.Printf("══════════════════════════════════════════\n\n")
-	
+
 	if len(findings) == 0 {
 		fmt.Printf("✅ No request smuggling vulnerabilities detected\n")
 		return
 	}
-	
+
 	// Group findings by technique
 	techniqueGroups := make(map[string][]types.Finding)
 	for _, finding := range findings {
@@ -242,34 +242,34 @@ func printSmugglingDetectionResults(findings []types.Finding, verbose bool) {
 			techniqueGroups[techniqueStr] = append(techniqueGroups[techniqueStr], finding)
 		}
 	}
-	
+
 	// Print results by technique
 	techniques := []string{"CL.TE", "TE.CL", "TE.TE", "HTTP2"}
-	
+
 	for _, technique := range techniques {
 		if findings, exists := techniqueGroups[technique]; exists {
 			fmt.Printf("🚨 %s Technique (%d findings)\n", technique, len(findings))
 			fmt.Printf("─────────────────────────────────\n")
-			
+
 			for _, finding := range findings {
 				fmt.Printf("• %s\n", finding.Title)
 				fmt.Printf("  Severity: %s\n", finding.Severity)
 				fmt.Printf("  Description: %s\n", finding.Description)
-				
+
 				if confidence, exists := finding.Metadata["confidence"]; exists {
 					fmt.Printf("  Confidence: %.2f\n", confidence)
 				}
-				
+
 				if verbose {
 					fmt.Printf("  Evidence: %s\n", finding.Evidence)
 					fmt.Printf("  Solution: %s\n", finding.Solution)
 				}
-				
+
 				fmt.Printf("\n")
 			}
 		}
 	}
-	
+
 	fmt.Printf("📊 Summary: %d vulnerabilities found across %d techniques\n", len(findings), len(techniqueGroups))
 }
 
@@ -277,36 +277,36 @@ func printSmugglingDetectionResults(findings []types.Finding, verbose bool) {
 func printSmugglingExploitResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("💥 HTTP Request Smuggling Exploitation Results\n")
 	fmt.Printf("═══════════════════════════════════════════\n\n")
-	
+
 	if len(findings) == 0 {
 		fmt.Printf("❌ No exploitable vulnerabilities found\n")
 		return
 	}
-	
+
 	for _, finding := range findings {
 		fmt.Printf("⚠️  %s\n", finding.Title)
 		fmt.Printf("   Severity: %s\n", finding.Severity)
 		fmt.Printf("   Type: %s\n", finding.Type)
-		
+
 		if technique, exists := finding.Metadata["technique"]; exists {
 			fmt.Printf("   Technique: %s\n", technique)
 		}
-		
+
 		if impact, exists := finding.Metadata["impact"]; exists {
 			fmt.Printf("   Impact: %s\n", impact)
 		}
-		
+
 		fmt.Printf("   Description: %s\n", finding.Description)
-		
+
 		if verbose {
 			fmt.Printf("   Evidence: %s\n", finding.Evidence)
 			fmt.Printf("   Solution: %s\n", finding.Solution)
-			
+
 			if payload, exists := finding.Metadata["payload_used"]; exists {
 				fmt.Printf("   Payload Used:\n%s\n", payload)
 			}
 		}
-		
+
 		fmt.Printf("\n")
 	}
 }
@@ -315,31 +315,31 @@ func printSmugglingExploitResults(findings []types.Finding, verbose bool) {
 func outputSmugglingResults(findings []types.Finding, filename, format string) {
 	var data []byte
 	var err error
-	
+
 	switch format {
 	case "json":
 		data, err = json.MarshalIndent(findings, "", "  ")
 	default:
 		data, err = json.MarshalIndent(findings, "", "  ")
 	}
-	
+
 	if err != nil {
 		fmt.Printf("Error marshaling findings: %v\n", err)
 		return
 	}
-	
+
 	if err := os.WriteFile(filename, data, 0644); err != nil {
 		fmt.Printf("Error writing to file: %v\n", err)
 		return
 	}
-	
+
 	fmt.Printf("Results written to %s\n", filename)
 }
 
 // generatePoCs generates proof-of-concept payloads
 func generatePoCs(target, technique, targetPath string) []string {
 	pocs := []string{}
-	
+
 	// Extract host from target
 	host := target
 	if strings.HasPrefix(target, "http://") {
@@ -347,14 +347,14 @@ func generatePoCs(target, technique, targetPath string) []string {
 	} else if strings.HasPrefix(target, "https://") {
 		host = strings.TrimPrefix(target, "https://")
 	}
-	
+
 	techniques := []string{}
 	if technique == "all" {
 		techniques = []string{"cl.te", "te.cl", "te.te", "http2"}
 	} else {
 		techniques = []string{technique}
 	}
-	
+
 	for _, tech := range techniques {
 		switch tech {
 		case "cl.te":
@@ -378,7 +378,7 @@ Content-Length: 0
 
 # Expected: The 'G' interferes with the second request`, target, targetPath, host, targetPath, host)
 			pocs = append(pocs, poc)
-			
+
 		case "te.cl":
 			poc := fmt.Sprintf(`# TE.CL Request Smuggling PoC
 # Target: %s
@@ -396,7 +396,7 @@ Host: %s
 
 # Expected: Frontend processes as chunked, backend uses Content-Length`, target, targetPath, host, targetPath, host)
 			pocs = append(pocs, poc)
-			
+
 		case "te.te":
 			poc := fmt.Sprintf(`# TE.TE Request Smuggling PoC
 # Target: %s
@@ -418,7 +418,7 @@ x=1
 
 # Expected: Different handling of duplicate Transfer-Encoding headers`, target, targetPath, host, targetPath, host)
 			pocs = append(pocs, poc)
-			
+
 		case "http2":
 			poc := fmt.Sprintf(`# HTTP/2 Request Smuggling PoC
 # Target: %s
@@ -438,6 +438,6 @@ x=1
 			pocs = append(pocs, poc)
 		}
 	}
-	
+
 	return pocs
 }

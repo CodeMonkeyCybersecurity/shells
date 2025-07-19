@@ -160,7 +160,7 @@ func (d *Detector) sendRawRequest(ctx context.Context, target, rawRequest string
 
 	method := parts[0]
 	path := parts[1]
-	
+
 	// Build full URL
 	fullURL := target
 	if !strings.HasSuffix(target, "/") && !strings.HasPrefix(path, "/") {
@@ -173,14 +173,14 @@ func (d *Detector) sendRawRequest(ctx context.Context, target, rawRequest string
 	// Parse headers and body
 	headers := make(map[string]string)
 	bodyStart := -1
-	
+
 	for i := 1; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
 		if line == "" {
 			bodyStart = i + 1
 			break
 		}
-		
+
 		if strings.Contains(line, ":") {
 			parts := strings.SplitN(line, ":", 2)
 			if len(parts) == 2 {
@@ -220,7 +220,7 @@ func (d *Detector) sendRawRequest(ctx context.Context, target, rawRequest string
 	start := time.Now()
 	resp, err := d.client.Do(req)
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -296,7 +296,7 @@ func (d *Detector) analyzeCLTEResponses(resp1, resp2 *HTTPResponse, payload Smug
 	errorFound := false
 	for _, indicator := range SmugglingIndicators {
 		if strings.Contains(strings.ToLower(resp1.Body), strings.ToLower(indicator)) ||
-		   strings.Contains(strings.ToLower(resp2.Body), strings.ToLower(indicator)) {
+			strings.Contains(strings.ToLower(resp2.Body), strings.ToLower(indicator)) {
 			errorFound = true
 			break
 		}
@@ -332,7 +332,7 @@ func (d *Detector) analyzeTECLResponse(resp *HTTPResponse, payload SmugglingPayl
 
 	// Check for chunked encoding issues
 	if strings.Contains(strings.ToLower(resp.Body), "chunk") ||
-	   strings.Contains(strings.ToLower(resp.Body), "invalid chunk") {
+		strings.Contains(strings.ToLower(resp.Body), "invalid chunk") {
 		vulnerable = true
 		confidence += 0.6
 		evidence = append(evidence, Evidence{
@@ -420,7 +420,7 @@ func (d *Detector) analyzeHTTP2Support(target string, payload SmugglingPayload) 
 
 	// This is a simplified check - real HTTP/2 smuggling detection would require
 	// more sophisticated protocol handling
-	
+
 	// Check if target supports HTTP/2
 	if strings.HasPrefix(target, "https://") {
 		vulnerable = true

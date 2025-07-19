@@ -35,7 +35,7 @@ type ResultStore interface {
 	SaveFindings(ctx context.Context, findings []types.Finding) error
 	GetFindings(ctx context.Context, scanID string) ([]types.Finding, error)
 	GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error)
-	
+
 	// Enhanced query methods
 	QueryFindings(ctx context.Context, query FindingQuery) ([]types.Finding, error)
 	GetFindingStats(ctx context.Context) (*FindingStats, error)

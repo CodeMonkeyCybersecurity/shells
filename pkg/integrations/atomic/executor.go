@@ -26,15 +26,15 @@ func NewAtomicExecutor(config ExecutorConfig) (*AtomicExecutor, error) {
 	if config.Timeout <= 0 {
 		config.Timeout = 30 * time.Second
 	}
-	
+
 	if config.DockerImage == "" {
 		config.DockerImage = "atomicredteam/atomic-red-team-execution:latest"
 	}
-	
+
 	if config.MemoryLimit == "" {
 		config.MemoryLimit = "512m"
 	}
-	
+
 	if config.CPULimit == "" {
 		config.CPULimit = "0.5"
 	}
@@ -47,7 +47,7 @@ func NewAtomicExecutor(config ExecutorConfig) (*AtomicExecutor, error) {
 			return nil, fmt.Errorf("Nomad cluster is not available at %s", config.NomadAddr)
 		}
 	}
-	
+
 	return &AtomicExecutor{
 		config:      config,
 		safetyCheck: true,
@@ -64,14 +64,14 @@ func (e *AtomicExecutor) ExecuteWithConstraints(test Test, target Target) (*Exec
 		Evidence:  []Evidence{},
 		Success:   false,
 	}
-	
+
 	// Pre-execution safety check
 	if err := e.validateExecution(test, target); err != nil {
 		result.Error = err.Error()
 		result.EndTime = time.Now()
 		return result, err
 	}
-	
+
 	// Prepare command with parameter substitution
 	command, err := e.prepareCommand(test, target)
 	if err != nil {
@@ -79,11 +79,11 @@ func (e *AtomicExecutor) ExecuteWithConstraints(test Test, target Target) (*Exec
 		result.EndTime = time.Now()
 		return result, err
 	}
-	
+
 	// Create execution context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), e.config.Timeout)
 	defer cancel()
-	
+
 	// Execute based on mode
 	if e.config.DryRun {
 		return e.executeDryRun(ctx, test, command, result)
@@ -100,58 +100,58 @@ func (e *AtomicExecutor) validateExecution(test Test, target Target) error {
 	if !e.isPlatformSupported(test.SupportedPlatforms) {
 		return fmt.Errorf("test not supported on platform %s", runtime.GOOS)
 	}
-	
+
 	// Validate command safety
 	if e.containsUnsafeOperations(test.Executor.Command) {
 		return fmt.Errorf("command contains unsafe operations")
 	}
-	
+
 	// Check elevation requirements (should always be false for bug bounties)
 	if test.Executor.ElevationRequired {
 		return fmt.Errorf("test requires elevation - not allowed in bug bounty context")
 	}
-	
+
 	// Validate dependencies
 	for _, dep := range test.Dependencies {
 		if err := e.validateDependency(dep); err != nil {
 			return fmt.Errorf("dependency validation failed: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
 // prepareCommand substitutes parameters and prepares command for execution
 func (e *AtomicExecutor) prepareCommand(test Test, target Target) (string, error) {
 	command := test.Executor.Command
-	
+
 	// Substitute input arguments with safe defaults or target parameters
 	for argName, argDef := range test.InputArguments {
 		placeholder := fmt.Sprintf("{{%s}}", argName)
-		
+
 		var value string
 		if targetValue, exists := target.Params[argName]; exists {
 			value = targetValue
 		} else {
 			value = e.getSafeDefault(argName, argDef)
 		}
-		
+
 		// Sanitize value to prevent injection
 		value = e.sanitizeValue(value)
 		command = strings.ReplaceAll(command, placeholder, value)
 	}
-	
+
 	// Replace common target placeholders
 	if target.URL != "" {
 		command = strings.ReplaceAll(command, "{{target_url}}", target.URL)
 		command = strings.ReplaceAll(command, "{{target}}", target.URL)
 	}
-	
+
 	// Final safety check on prepared command
 	if e.containsUnsafeOperations(command) {
 		return "", fmt.Errorf("prepared command contains unsafe operations: %s", command)
 	}
-	
+
 	return command, nil
 }
 
@@ -160,7 +160,7 @@ func (e *AtomicExecutor) executeDryRun(ctx context.Context, test Test, command s
 	result.Success = true
 	result.Output = fmt.Sprintf("[DRY RUN] Would execute: %s", command)
 	result.EndTime = time.Now()
-	
+
 	// Add demonstration evidence
 	result.Evidence = append(result.Evidence, Evidence{
 		Type:        "DRY_RUN_SIMULATION",
@@ -169,7 +169,7 @@ func (e *AtomicExecutor) executeDryRun(ctx context.Context, test Test, command s
 		Command:     command,
 		Timestamp:   time.Now(),
 	})
-	
+
 	// Simulate potential impact
 	result.Evidence = append(result.Evidence, Evidence{
 		Type:        "POTENTIAL_IMPACT",
@@ -177,7 +177,7 @@ func (e *AtomicExecutor) executeDryRun(ctx context.Context, test Test, command s
 		Data:        test.Name,
 		Timestamp:   time.Now(),
 	})
-	
+
 	return result, nil
 }
 
@@ -187,13 +187,13 @@ func (e *AtomicExecutor) executeInNomadSandbox(ctx context.Context, test Test, c
 	if e.nomadClient == nil || !e.nomadClient.IsAvailable() {
 		return e.executeLocal(ctx, test, command, result)
 	}
-	
+
 	// Generate job ID
 	jobID := fmt.Sprintf("atomic-test-%d", time.Now().UnixNano())
-	
+
 	// Create Nomad job specification
 	jobSpec := e.createAtomicJobSpec(jobID, command, test, target)
-	
+
 	// Register the job
 	if err := e.nomadClient.RegisterJob(ctx, jobID, jobSpec); err != nil {
 		result.Error = fmt.Sprintf("Failed to register Nomad job: %v", err)
@@ -201,10 +201,10 @@ func (e *AtomicExecutor) executeInNomadSandbox(ctx context.Context, test Test, c
 		result.EndTime = time.Now()
 		return result, err
 	}
-	
+
 	// Submit the job
 	dispatchedJobID, err := e.nomadClient.SubmitScan(ctx, "atomic-test", target.URL, jobID, map[string]string{
-		"command": command,
+		"command":   command,
 		"test_name": test.Name,
 		"technique": test.Name, // Assuming test name contains technique info
 	})
@@ -214,7 +214,7 @@ func (e *AtomicExecutor) executeInNomadSandbox(ctx context.Context, test Test, c
 		result.EndTime = time.Now()
 		return result, err
 	}
-	
+
 	// Wait for completion
 	status, err := e.nomadClient.WaitForCompletion(ctx, dispatchedJobID, e.config.Timeout)
 	if err != nil {
@@ -223,21 +223,21 @@ func (e *AtomicExecutor) executeInNomadSandbox(ctx context.Context, test Test, c
 		result.EndTime = time.Now()
 		return result, err
 	}
-	
+
 	// Get job logs
 	logs, err := e.nomadClient.GetJobLogs(ctx, dispatchedJobID)
 	if err != nil {
 		logs = fmt.Sprintf("Failed to retrieve logs: %v", err)
 	}
-	
+
 	result.Output = logs
 	result.EndTime = time.Now()
 	result.Success = (status.Status == "complete")
-	
+
 	if !result.Success {
 		result.Error = fmt.Sprintf("Job completed with status: %s", status.Status)
 	}
-	
+
 	// Add execution evidence
 	result.Evidence = append(result.Evidence, Evidence{
 		Type:        "NOMAD_SANDBOXED_EXECUTION",
@@ -247,7 +247,7 @@ func (e *AtomicExecutor) executeInNomadSandbox(ctx context.Context, test Test, c
 		Timestamp:   time.Now(),
 		JobID:       dispatchedJobID,
 	})
-	
+
 	return result, nil
 }
 
@@ -257,7 +257,7 @@ func (e *AtomicExecutor) executeLocal(ctx context.Context, test Test, command st
 	if e.config.UseSecureExecutor {
 		return e.executeSecurely(ctx, test, command, result)
 	}
-	
+
 	// Fallback to restricted shell execution
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
@@ -266,22 +266,22 @@ func (e *AtomicExecutor) executeLocal(ctx context.Context, test Test, command st
 	default:
 		cmd = exec.CommandContext(ctx, "sh", "-c", command)
 	}
-	
+
 	// Set environment restrictions
 	cmd.Env = e.getRestrictedEnvironment()
-	
+
 	// Execute with timeout
 	output, err := cmd.CombinedOutput()
 	result.Output = string(output)
 	result.EndTime = time.Now()
-	
+
 	if err != nil {
 		result.Error = err.Error()
 		result.Success = false
 	} else {
 		result.Success = true
 	}
-	
+
 	// Add execution evidence
 	result.Evidence = append(result.Evidence, Evidence{
 		Type:        "LOCAL_EXECUTION",
@@ -290,7 +290,7 @@ func (e *AtomicExecutor) executeLocal(ctx context.Context, test Test, command st
 		Output:      result.Output,
 		Timestamp:   time.Now(),
 	})
-	
+
 	return result, nil
 }
 
@@ -301,32 +301,32 @@ func (e *AtomicExecutor) executeSecurely(ctx context.Context, test Test, command
 	if len(parts) == 0 {
 		return result, fmt.Errorf("empty command")
 	}
-	
+
 	binary := parts[0]
 	args := parts[1:]
-	
+
 	// Create secure command executor
 	cmdExec := security.NewCommandExecutor()
 	cmdExec.Timeout = e.config.Timeout
-	
+
 	// Add atomic test commands to allowed list
 	cmdExec.AllowedCommands["powershell"] = true
 	cmdExec.AllowedCommands["python"] = true
 	cmdExec.AllowedCommands["bash"] = true
 	cmdExec.AllowedCommands["sh"] = true
-	
+
 	// Execute command securely
 	output, err := cmdExec.ExecuteCommand(ctx, binary, args...)
 	result.Output = string(output)
 	result.EndTime = time.Now()
-	
+
 	if err != nil {
 		result.Error = err.Error()
 		result.Success = false
 	} else {
 		result.Success = true
 	}
-	
+
 	// Add execution evidence
 	result.Evidence = append(result.Evidence, Evidence{
 		Type:        "SECURE_EXECUTION",
@@ -335,7 +335,7 @@ func (e *AtomicExecutor) executeSecurely(ctx context.Context, test Test, command
 		Output:      result.Output,
 		Timestamp:   time.Now(),
 	})
-	
+
 	return result, nil
 }
 
@@ -345,18 +345,18 @@ func (e *AtomicExecutor) isPlatformSupported(platforms []string) bool {
 	if len(platforms) == 0 {
 		return true // No platform restriction
 	}
-	
+
 	currentPlatform := runtime.GOOS
 	for _, platform := range platforms {
 		switch strings.ToLower(platform) {
 		case "linux", "macos", "windows":
-			if strings.ToLower(platform) == currentPlatform || 
-			   (platform == "macos" && currentPlatform == "darwin") {
+			if strings.ToLower(platform) == currentPlatform ||
+				(platform == "macos" && currentPlatform == "darwin") {
 				return true
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -369,14 +369,14 @@ func (e *AtomicExecutor) containsUnsafeOperations(command string) bool {
 		"reg add", "reg delete", "schtasks /create",
 		"sudo", "su -", "runas", "elevation",
 	}
-	
+
 	cmdLower := strings.ToLower(command)
 	for _, pattern := range unsafePatterns {
 		if strings.Contains(cmdLower, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -385,12 +385,12 @@ func (e *AtomicExecutor) validateDependency(dep Dependency) error {
 	if dep.PrereqCommand != "" && e.containsUnsafeOperations(dep.PrereqCommand) {
 		return fmt.Errorf("prerequisite command contains unsafe operations")
 	}
-	
+
 	// Check if dependency installation command is safe
 	if dep.GetPrereqCommand != "" && e.containsUnsafeOperations(dep.GetPrereqCommand) {
 		return fmt.Errorf("dependency installation command contains unsafe operations")
 	}
-	
+
 	return nil
 }
 
@@ -407,17 +407,17 @@ func (e *AtomicExecutor) getSafeDefault(argName string, argDef InputArg) string 
 		"username":     "testuser",
 		"output_file":  "/tmp/output.txt",
 	}
-	
+
 	// Check for safe default by argument name
 	if defaultValue, exists := safeDefaults[strings.ToLower(argName)]; exists {
 		return defaultValue
 	}
-	
+
 	// Use provided default if it exists and is safe
 	if argDef.DefaultValue != "" && !e.containsUnsafeOperations(argDef.DefaultValue) {
 		return argDef.DefaultValue
 	}
-	
+
 	// Return safe fallback
 	return "safe-test-value"
 }
@@ -431,12 +431,12 @@ func (e *AtomicExecutor) sanitizeValue(value string) string {
 	value = strings.ReplaceAll(value, "$", "")
 	value = strings.ReplaceAll(value, "$(", "")
 	value = strings.ReplaceAll(value, ")", "")
-	
+
 	// Limit length to prevent buffer overflow attempts
 	if len(value) > 256 {
 		value = value[:256]
 	}
-	
+
 	return value
 }
 
@@ -497,16 +497,16 @@ job "%s" {
       }
     }
   }
-}`, 
-		jobID, 
-		e.escapeCommand(command), 
-		target.URL, 
+}`,
+		jobID,
+		e.escapeCommand(command),
+		target.URL,
 		test.Name,
 		e.parseCPULimit(e.config.CPULimit),
 		e.parseMemoryLimit(e.config.MemoryLimit),
 		e.config.Timeout.String(),
 	)
-	
+
 	return jobSpec
 }
 
@@ -561,14 +561,14 @@ func (e *AtomicExecutor) getRestrictedEnvironment() []string {
 		"USER=atomic-test",
 		"SHELL=/bin/sh",
 	}
-	
+
 	// Add current OS environment for compatibility if safe
 	for _, env := range os.Environ() {
 		if strings.HasPrefix(env, "LANG=") || strings.HasPrefix(env, "LC_") {
 			safeEnv = append(safeEnv, env)
 		}
 	}
-	
+
 	return safeEnv
 }
 
@@ -598,7 +598,7 @@ func NewBugBountyExecutor(config Config) (*BugBountyExecutor, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &BugBountyExecutor{
 		client:   client,
 		mapper:   NewVulnToAttackMapper(),
@@ -609,28 +609,28 @@ func NewBugBountyExecutor(config Config) (*BugBountyExecutor, error) {
 // DemonstrateVulnerabilityImpact demonstrates the impact of a vulnerability using ATT&CK techniques
 func (b *BugBountyExecutor) DemonstrateVulnerabilityImpact(finding Finding, target Target) (*ImpactReport, error) {
 	report := &ImpactReport{
-		Vulnerability:   finding.Type,
-		ATTACKChain:     []string{},
-		Demonstrations:  []Demonstration{},
-		GeneratedAt:     time.Now(),
+		Vulnerability:  finding.Type,
+		ATTACKChain:    []string{},
+		Demonstrations: []Demonstration{},
+		GeneratedAt:    time.Now(),
 	}
-	
+
 	// Get relevant ATT&CK techniques
 	techniques := b.mapper.GetTechniques(finding.Type)
-	
+
 	for _, technique := range techniques {
 		// Get atomic test for technique
 		test, err := b.client.GetSafeTest(technique)
 		if err != nil {
 			continue // Skip if test not available
 		}
-		
+
 		// Demonstrate technique
 		demo, err := b.client.DemonstrateImpact(technique, target)
 		if err != nil {
 			continue // Skip on error
 		}
-		
+
 		demonstration := Demonstration{
 			Technique:   technique,
 			Name:        test.DisplayName,
@@ -641,31 +641,31 @@ func (b *BugBountyExecutor) DemonstrateVulnerabilityImpact(finding Finding, targ
 			Evidence:    demo.Evidence,
 			Duration:    demo.Duration,
 		}
-		
+
 		report.Demonstrations = append(report.Demonstrations, demonstration)
 		report.ATTACKChain = append(report.ATTACKChain, technique)
 	}
-	
+
 	// Generate executive summary
 	report.ExecutiveSummary = b.generateExecutiveSummary(finding, report)
-	
+
 	// Get defensive mitigations
 	report.Mitigations = b.getMitigations(techniques)
-	
+
 	return report, nil
 }
 
 // generateExecutiveSummary creates executive summary for impact report
 func (b *BugBountyExecutor) generateExecutiveSummary(finding Finding, report *ImpactReport) string {
 	techniqueCount := len(report.Demonstrations)
-	
+
 	if techniqueCount == 0 {
 		return fmt.Sprintf("The %s vulnerability was identified but no atomic demonstrations were available.", finding.Type)
 	}
-	
+
 	return fmt.Sprintf(
 		"The %s vulnerability enables %d distinct ATT&CK techniques, demonstrating significant attack potential. "+
-		"Successful exploitation could lead to %s and enable adversaries to %s.",
+			"Successful exploitation could lead to %s and enable adversaries to %s.",
 		strings.ReplaceAll(finding.Type, "_", " "),
 		techniqueCount,
 		finding.Impact,
@@ -684,17 +684,17 @@ func (b *BugBountyExecutor) getMitigations(techniques []string) []string {
 		"T1087": "Implement network segmentation and access logging",
 		"T1083": "Deploy file integrity monitoring and access controls",
 	}
-	
+
 	mitigations := []string{}
 	seen := make(map[string]bool)
-	
+
 	for _, technique := range techniques {
 		if mitigation, exists := mitigationMap[technique]; exists && !seen[mitigation] {
 			mitigations = append(mitigations, mitigation)
 			seen[mitigation] = true
 		}
 	}
-	
+
 	// Add general recommendations
 	generalMitigations := []string{
 		"Implement comprehensive logging and monitoring",
@@ -702,12 +702,12 @@ func (b *BugBountyExecutor) getMitigations(techniques []string) []string {
 		"Conduct regular security assessments and penetration testing",
 		"Maintain an incident response plan and practice procedures",
 	}
-	
+
 	for _, mitigation := range generalMitigations {
 		if !seen[mitigation] {
 			mitigations = append(mitigations, mitigation)
 		}
 	}
-	
+
 	return mitigations
 }

@@ -106,7 +106,7 @@ Examples:
 
 		// Initialize analyzer
 		analyzer := recovery.NewPasswordResetAnalyzer(config)
-		
+
 		// Perform analysis
 		startTime := time.Now()
 		results := analyzer.AnalyzeResetFlow(target)
@@ -123,7 +123,7 @@ Examples:
 
 		// Show security score
 		fmt.Printf("\n🏆 Security Score: %d/100\n", results.SecurityScore)
-		
+
 		if results.SecurityScore < 70 {
 			fmt.Printf("⚠️  CRITICAL: Significant vulnerabilities detected!\n")
 		} else if results.SecurityScore < 85 {
@@ -199,7 +199,7 @@ Examples:
 
 		// Initialize analyzer
 		analyzer := core.NewWorkflowAnalyzer(config)
-		
+
 		// Perform analysis
 		startTime := time.Now()
 		results := analyzer.AnalyzeWorkflow(target)
@@ -272,10 +272,10 @@ Examples:
 		}
 
 		config := &logic.TestConfig{
-			Target:       target,
-			MaxWorkers:   workers,
-			Timeout:      30 * time.Second,
-			RequestDelay: time.Duration(requestDelay) * time.Millisecond,
+			Target:        target,
+			MaxWorkers:    workers,
+			Timeout:       30 * time.Second,
+			RequestDelay:  time.Duration(requestDelay) * time.Millisecond,
 			VerboseOutput: verbose,
 		}
 
@@ -294,7 +294,7 @@ Examples:
 
 		// Initialize tester
 		tester := core.NewRaceConditionTester(config)
-		
+
 		// Perform testing
 		startTime := time.Now()
 		results := tester.TestAllEndpoints(target)
@@ -316,11 +316,11 @@ Examples:
 				vulnerableCount++
 			}
 		}
-		
+
 		fmt.Printf("\n📊 Race Condition Summary:\n")
 		fmt.Printf("   Total endpoints tested: %d\n", len(results))
 		fmt.Printf("   Vulnerable endpoints: %d\n", vulnerableCount)
-		
+
 		if vulnerableCount > 0 {
 			fmt.Printf("⚠️  CRITICAL: Race condition vulnerabilities detected!\n")
 		} else {
@@ -397,7 +397,7 @@ Examples:
 
 		// Initialize tester
 		tester := recovery.NewMFABypassTester(config)
-		
+
 		// Perform testing
 		startTime := time.Now()
 		results := tester.TestAllMethods(target)
@@ -415,7 +415,7 @@ Examples:
 		// Security assessment
 		criticalCount := 0
 		highCount := 0
-		
+
 		for _, vuln := range results {
 			switch vuln.Severity {
 			case logic.SeverityCritical:
@@ -429,7 +429,7 @@ Examples:
 		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
 		fmt.Printf("   Critical bypasses: %d\n", criticalCount)
 		fmt.Printf("   High-risk bypasses: %d\n", highCount)
-		
+
 		if criticalCount > 0 {
 			fmt.Printf("🚨 CRITICAL: MFA can be completely bypassed!\n")
 		} else if highCount > 0 {
@@ -519,7 +519,7 @@ Examples:
 
 		// Initialize e-commerce tester
 		tester := payments.NewEcommerceLogicTester(config)
-		
+
 		// Perform testing
 		startTime := time.Now()
 		results := tester.TestAllEcommerceLogic(target)
@@ -537,7 +537,7 @@ Examples:
 		// Security assessment
 		criticalCount := 0
 		highCount := 0
-		
+
 		for _, vuln := range results {
 			switch vuln.Severity {
 			case logic.SeverityCritical:
@@ -551,7 +551,7 @@ Examples:
 		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
 		fmt.Printf("   Critical issues: %d\n", criticalCount)
 		fmt.Printf("   High-risk issues: %d\n", highCount)
-		
+
 		if criticalCount > 0 {
 			fmt.Printf("🚨 CRITICAL: Financial exploitation possible!\n")
 		} else if highCount > 0 {
@@ -648,7 +648,7 @@ Examples:
 
 		// Initialize recovery tester
 		tester := recovery.NewAccountRecoveryTester(config)
-		
+
 		// Perform testing
 		startTime := time.Now()
 		results := tester.TestAllMethods(target)
@@ -666,7 +666,7 @@ Examples:
 		// Security assessment
 		criticalCount := 0
 		highCount := 0
-		
+
 		for _, vuln := range results {
 			switch vuln.Severity {
 			case logic.SeverityCritical:
@@ -680,7 +680,7 @@ Examples:
 		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
 		fmt.Printf("   Critical bypasses: %d\n", criticalCount)
 		fmt.Printf("   High-risk bypasses: %d\n", highCount)
-		
+
 		if criticalCount > 0 {
 			fmt.Printf("🚨 CRITICAL: Account recovery can be fully bypassed!\n")
 		} else if highCount > 0 {
@@ -830,9 +830,9 @@ Examples:
 		}
 
 		fmt.Printf("📋 Generating business logic security report...\n")
-		
+
 		var vulnerabilities []logic.Vulnerability
-		
+
 		if findingsFile != "" {
 			// Load existing findings
 			var err error
@@ -876,7 +876,7 @@ func printResetAnalysisJSON(analysis *recovery.ResetFlowAnalysis) {
 func printResetAnalysisTable(analysis *recovery.ResetFlowAnalysis, verbose bool) {
 	fmt.Printf("🔐 Password Reset Flow Analysis\n")
 	fmt.Printf("═══════════════════════════════\n\n")
-	
+
 	fmt.Printf("📊 Endpoints discovered: %d\n", len(analysis.Endpoints))
 	for _, endpoint := range analysis.Endpoints {
 		status := "❌ Inactive"
@@ -885,13 +885,13 @@ func printResetAnalysisTable(analysis *recovery.ResetFlowAnalysis, verbose bool)
 		}
 		fmt.Printf("   %s %s (%s)\n", endpoint.Method, endpoint.URL, status)
 	}
-	
+
 	fmt.Printf("\n🎯 Vulnerabilities found: %d\n", len(analysis.Vulnerabilities))
 	for i, vuln := range analysis.Vulnerabilities {
 		severity := getSeverityEmoji(vuln.Severity)
 		fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
 		fmt.Printf("   %s\n", vuln.Description)
-		
+
 		if verbose && vuln.PoC != "" {
 			fmt.Printf("   PoC: %s\n", vuln.PoC)
 		}
@@ -917,12 +917,12 @@ func printWorkflowAnalysisJSON(analysis *core.WorkflowAnalysis) {
 func printWorkflowAnalysisTable(analysis *core.WorkflowAnalysis, verbose bool) {
 	fmt.Printf("🔄 Workflow Analysis Results\n")
 	fmt.Printf("═══════════════════════════\n\n")
-	
+
 	fmt.Printf("📊 Workflow Statistics:\n")
 	fmt.Printf("   Total states: %d\n", len(analysis.States))
 	fmt.Printf("   Vulnerabilities: %d\n", len(analysis.Vulnerabilities))
 	fmt.Printf("   Security score: %d/100\n\n", analysis.SecurityScore)
-	
+
 	if len(analysis.Vulnerabilities) > 0 {
 		fmt.Printf("🎯 Vulnerabilities:\n")
 		for i, vuln := range analysis.Vulnerabilities {
@@ -935,7 +935,7 @@ func printWorkflowAnalysisTable(analysis *core.WorkflowAnalysis, verbose bool) {
 			fmt.Println()
 		}
 	}
-	
+
 	if verbose {
 		fmt.Printf("📈 Summary:\n%s\n", analysis.Summary)
 	}
@@ -949,16 +949,16 @@ func printRaceResultsJSON(results []logic.RaceConditionTest) {
 func printRaceResultsTable(results []logic.RaceConditionTest, verbose bool) {
 	fmt.Printf("⚡ Race Condition Test Results\n")
 	fmt.Printf("════════════════════════════\n\n")
-	
+
 	for i, result := range results {
 		status := "✅ Safe"
 		if result.Vulnerable {
 			status = "🚨 VULNERABLE"
 		}
-		
+
 		fmt.Printf("%d. %s - %s\n", i+1, result.Name, status)
 		fmt.Printf("   Endpoint: %s\n", result.Endpoint)
-		
+
 		if result.Vulnerable {
 			fmt.Printf("   Impact: %s\n", result.Impact)
 			if verbose && len(result.Evidence) > 0 {
@@ -980,18 +980,18 @@ func printMFAResultsJSON(results []logic.Vulnerability) {
 func printMFAResultsTable(results []logic.Vulnerability, verbose bool) {
 	fmt.Printf("🔐 MFA Bypass Test Results\n")
 	fmt.Printf("═════════════════════════\n\n")
-	
+
 	if len(results) == 0 {
 		fmt.Printf("✅ No MFA bypass vulnerabilities found\n")
 		return
 	}
-	
+
 	for i, vuln := range results {
 		severity := getSeverityEmoji(vuln.Severity)
 		fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
 		fmt.Printf("   %s\n", vuln.Description)
 		fmt.Printf("   Impact: %s\n", vuln.Impact)
-		
+
 		if verbose && vuln.Details != "" {
 			fmt.Printf("   Details: %s\n", vuln.Details)
 		}
@@ -1002,17 +1002,17 @@ func printMFAResultsTable(results []logic.Vulnerability, verbose bool) {
 func printReportSummary(report *logic.BusinessLogicReport, verbose bool) {
 	fmt.Printf("📊 Business Logic Security Report\n")
 	fmt.Printf("════════════════════════════════\n\n")
-	
+
 	fmt.Printf("🎯 Executive Summary:\n")
 	fmt.Printf("%s\n\n", report.Executive.Overview)
-	
+
 	fmt.Printf("📈 Vulnerability Breakdown:\n")
 	fmt.Printf("   Critical: %d\n", report.Metadata.CriticalCount)
 	fmt.Printf("   High: %d\n", report.Metadata.HighCount)
 	fmt.Printf("   Medium: %d\n", report.Metadata.MediumCount)
 	fmt.Printf("   Low: %d\n", report.Metadata.LowCount)
 	fmt.Printf("   Total: %d\n\n", report.Metadata.VulnsFound)
-	
+
 	if len(report.Executive.KeyFindings) > 0 {
 		fmt.Printf("🔑 Key Findings:\n")
 		for _, finding := range report.Executive.KeyFindings {
@@ -1020,7 +1020,7 @@ func printReportSummary(report *logic.BusinessLogicReport, verbose bool) {
 		}
 		fmt.Println()
 	}
-	
+
 	if report.BusinessImpact.FinancialImpact != "" {
 		fmt.Printf("💰 Business Impact:\n")
 		fmt.Printf("   Financial Impact: %s\n", report.BusinessImpact.FinancialImpact)
@@ -1028,7 +1028,7 @@ func printReportSummary(report *logic.BusinessLogicReport, verbose bool) {
 		fmt.Printf("   Recovery Time: %s\n", report.BusinessImpact.RecoveryTime)
 		fmt.Println()
 	}
-	
+
 	if len(report.Executive.ImmediateActions) > 0 {
 		fmt.Printf("🚨 Immediate Actions Required:\n")
 		for _, action := range report.Executive.ImmediateActions {
@@ -1046,18 +1046,18 @@ func printPaymentResultsJSON(results []logic.Vulnerability) {
 func printPaymentResultsTable(results []logic.Vulnerability, verbose bool) {
 	fmt.Printf("💳 E-commerce Payment Logic Test Results\n")
 	fmt.Printf("════════════════════════════════════════\n\n")
-	
+
 	if len(results) == 0 {
 		fmt.Printf("✅ No e-commerce payment logic vulnerabilities found\n")
 		return
 	}
-	
+
 	for i, vuln := range results {
 		severity := getSeverityEmoji(vuln.Severity)
 		fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
 		fmt.Printf("   %s\n", vuln.Description)
 		fmt.Printf("   Impact: %s\n", vuln.Impact)
-		
+
 		if verbose && vuln.Details != "" {
 			fmt.Printf("   Details: %s\n", vuln.Details)
 		}
@@ -1076,18 +1076,18 @@ func printRecoveryResultsJSON(results []logic.Vulnerability) {
 func printRecoveryResultsTable(results []logic.Vulnerability, verbose bool) {
 	fmt.Printf("🔐 Account Recovery Test Results\n")
 	fmt.Printf("═══════════════════════════════\n\n")
-	
+
 	if len(results) == 0 {
 		fmt.Printf("✅ No account recovery vulnerabilities found\n")
 		return
 	}
-	
+
 	for i, vuln := range results {
 		severity := getSeverityEmoji(vuln.Severity)
 		fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
 		fmt.Printf("   %s\n", vuln.Description)
 		fmt.Printf("   Impact: %s\n", vuln.Impact)
-		
+
 		if verbose && vuln.Details != "" {
 			fmt.Printf("   Details: %s\n", vuln.Details)
 		}
@@ -1120,7 +1120,7 @@ func loadVulnerabilitiesFromFile(filename string) ([]logic.Vulnerability, error)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var vulnerabilities []logic.Vulnerability
 	err = json.Unmarshal(data, &vulnerabilities)
 	return vulnerabilities, err
@@ -1128,7 +1128,7 @@ func loadVulnerabilitiesFromFile(filename string) ([]logic.Vulnerability, error)
 
 func runComprehensiveTests(target string) []logic.Vulnerability {
 	vulnerabilities := []logic.Vulnerability{}
-	
+
 	config := &logic.TestConfig{
 		Target:           target,
 		TestTokenEntropy: true,
@@ -1137,17 +1137,17 @@ func runComprehensiveTests(target string) []logic.Vulnerability {
 		MaxWorkers:       10,
 		Timeout:          30 * time.Second,
 	}
-	
+
 	// Run password reset tests
 	resetAnalyzer := recovery.NewPasswordResetAnalyzer(config)
 	resetResults := resetAnalyzer.AnalyzeResetFlow(target)
 	vulnerabilities = append(vulnerabilities, resetResults.Vulnerabilities...)
-	
+
 	// Run workflow tests
 	workflowAnalyzer := core.NewWorkflowAnalyzer(config)
 	workflowResults := workflowAnalyzer.AnalyzeWorkflow(target)
 	vulnerabilities = append(vulnerabilities, workflowResults.Vulnerabilities...)
-	
+
 	// Run race condition tests
 	raceTester := core.NewRaceConditionTester(config)
 	raceResults := raceTester.TestAllEndpoints(target)
@@ -1165,22 +1165,22 @@ func runComprehensiveTests(target string) []logic.Vulnerability {
 			vulnerabilities = append(vulnerabilities, vuln)
 		}
 	}
-	
+
 	// Run MFA bypass tests
 	mfaTester := recovery.NewMFABypassTester(config)
 	mfaResults := mfaTester.TestAllMethods(target)
 	vulnerabilities = append(vulnerabilities, mfaResults...)
-	
+
 	// Run e-commerce tests
 	ecommerceTester := payments.NewEcommerceLogicTester(config)
 	ecommerceResults := ecommerceTester.TestAllEcommerceLogic(target)
 	vulnerabilities = append(vulnerabilities, ecommerceResults...)
-	
+
 	// Run account recovery tests
 	recoveryTester := recovery.NewAccountRecoveryTester(config)
 	recoveryResults := recoveryTester.TestAllMethods(target)
 	vulnerabilities = append(vulnerabilities, recoveryResults...)
-	
+
 	return vulnerabilities
 }
 
@@ -1190,7 +1190,7 @@ func generateBusinessLogicReport(vulnerabilities []logic.Vulnerability, includeB
 	highCount := 0
 	mediumCount := 0
 	lowCount := 0
-	
+
 	for _, vuln := range vulnerabilities {
 		switch vuln.Severity {
 		case logic.SeverityCritical:
@@ -1203,16 +1203,16 @@ func generateBusinessLogicReport(vulnerabilities []logic.Vulnerability, includeB
 			lowCount++
 		}
 	}
-	
+
 	// Generate executive summary
 	executiveSummary := generateExecutiveSummary(vulnerabilities, criticalCount, highCount)
-	
+
 	// Generate business impact if requested
 	var businessImpact logic.BusinessImpact
 	if includeBusiness {
 		businessImpact = generateBusinessImpact(vulnerabilities, criticalCount, highCount)
 	}
-	
+
 	report := &logic.BusinessLogicReport{
 		Metadata: logic.ReportMetadata{
 			GeneratedAt:   time.Now(),
@@ -1226,39 +1226,39 @@ func generateBusinessLogicReport(vulnerabilities []logic.Vulnerability, includeB
 		Vulnerabilities: vulnerabilities,
 		BusinessImpact:  businessImpact,
 	}
-	
+
 	return report
 }
 
 func generateExecutiveSummary(vulnerabilities []logic.Vulnerability, critical, high int) logic.ExecutiveSummary {
-	overview := fmt.Sprintf("Business logic security assessment identified %d vulnerabilities, including %d critical and %d high-severity issues.", 
+	overview := fmt.Sprintf("Business logic security assessment identified %d vulnerabilities, including %d critical and %d high-severity issues.",
 		len(vulnerabilities), critical, high)
-	
+
 	keyFindings := []string{}
 	immediateActions := []string{}
-	
+
 	// Analyze vulnerability types
 	vulnTypes := make(map[string]int)
 	for _, vuln := range vulnerabilities {
 		vulnTypes[vuln.Type]++
 	}
-	
+
 	// Generate findings based on vulnerability types
 	if vulnTypes[logic.VulnPasswordResetHijack] > 0 {
 		keyFindings = append(keyFindings, "Password reset flow can be hijacked for account takeover")
 		immediateActions = append(immediateActions, "Fix host header injection in password reset")
 	}
-	
+
 	if vulnTypes[logic.VulnMFABypass] > 0 {
 		keyFindings = append(keyFindings, "Multi-factor authentication can be bypassed")
 		immediateActions = append(immediateActions, "Review and strengthen MFA implementation")
 	}
-	
+
 	if vulnTypes[logic.VulnRaceCondition] > 0 {
 		keyFindings = append(keyFindings, "Race conditions allow business logic bypass")
 		immediateActions = append(immediateActions, "Implement proper synchronization controls")
 	}
-	
+
 	businessRisk := "LOW"
 	if critical > 0 {
 		businessRisk = "CRITICAL"
@@ -1267,7 +1267,7 @@ func generateExecutiveSummary(vulnerabilities []logic.Vulnerability, critical, h
 	} else if high > 0 {
 		businessRisk = "MEDIUM"
 	}
-	
+
 	return logic.ExecutiveSummary{
 		Overview:         overview,
 		KeyFindings:      keyFindings,
@@ -1280,7 +1280,7 @@ func generateExecutiveSummary(vulnerabilities []logic.Vulnerability, critical, h
 func generateBusinessImpact(vulnerabilities []logic.Vulnerability, critical, high int) logic.BusinessImpact {
 	var estimatedLoss float64
 	usersAffected := 1000 // Default estimate
-	
+
 	// Calculate financial impact based on vulnerability types
 	for _, vuln := range vulnerabilities {
 		switch vuln.Type {
@@ -1292,7 +1292,7 @@ func generateBusinessImpact(vulnerabilities []logic.Vulnerability, critical, hig
 			estimatedLoss += 25000 // Business logic impact
 		}
 	}
-	
+
 	financialImpact := "Low"
 	if estimatedLoss > 100000 {
 		financialImpact = "Critical"
@@ -1304,7 +1304,7 @@ func generateBusinessImpact(vulnerabilities []logic.Vulnerability, critical, hig
 		financialImpact = "Medium"
 		usersAffected = 2000
 	}
-	
+
 	return logic.BusinessImpact{
 		FinancialImpact:     financialImpact,
 		DataExposureRisk:    "High",
@@ -1365,7 +1365,7 @@ func generateHTMLReport(report *logic.BusinessLogicReport) string {
     <h2>Vulnerabilities</h2>
     %s
 </body>
-</html>`, 
+</html>`,
 		report.Metadata.GeneratedAt.Format("2006-01-02 15:04:05"),
 		report.Executive.Overview,
 		report.Metadata.VulnsFound,

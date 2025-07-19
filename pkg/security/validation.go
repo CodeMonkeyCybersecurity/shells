@@ -126,7 +126,7 @@ func ValidateFilename(filename string) (string, error) {
 
 	// Remove path traversal attempts
 	filename = filepath.Base(filename)
-	
+
 	// Check for dangerous characters
 	if strings.ContainsAny(filename, ";|&`$(){}[]<>") {
 		return "", fmt.Errorf("filename contains invalid characters")

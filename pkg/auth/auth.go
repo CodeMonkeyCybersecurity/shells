@@ -18,10 +18,10 @@ func NewDiscovery() *Discovery {
 
 // AuthDiscoveryResult contains discovered authentication information
 type AuthDiscoveryResult struct {
-	Target      string                 `json:"target"`
-	SAML        *SAMLEndpointInfo      `json:"saml,omitempty"`
-	OAuth2      *OAuth2EndpointInfo    `json:"oauth2,omitempty"`
-	WebAuthn    *WebAuthnEndpointInfo  `json:"webauthn,omitempty"`
+	Target   string                `json:"target"`
+	SAML     *SAMLEndpointInfo     `json:"saml,omitempty"`
+	OAuth2   *OAuth2EndpointInfo   `json:"oauth2,omitempty"`
+	WebAuthn *WebAuthnEndpointInfo `json:"webauthn,omitempty"`
 }
 
 // SAMLEndpointInfo contains SAML endpoint information
@@ -80,7 +80,7 @@ type SAMLScanner struct{}
 func (s *SAMLScanner) Scan(ctx context.Context, metadataURL string) []types.Finding {
 	// This is a simplified implementation that creates demo findings
 	// In practice this would perform actual SAML vulnerability testing
-	
+
 	findings := []types.Finding{
 		{
 			ID:          fmt.Sprintf("saml-%d", time.Now().Unix()),
@@ -95,6 +95,6 @@ func (s *SAMLScanner) Scan(ctx context.Context, metadataURL string) []types.Find
 			UpdatedAt:   time.Now(),
 		},
 	}
-	
+
 	return findings
 }

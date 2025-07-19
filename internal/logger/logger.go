@@ -171,16 +171,16 @@ func (l *Logger) StartSpanWithAttributes(ctx context.Context, name string, attrs
 
 func (l *Logger) LogDuration(ctx context.Context, operation string, start time.Time, fields ...interface{}) {
 	duration := time.Since(start)
-	
+
 	allFields := []interface{}{
 		"operation", operation,
 		"duration_ms", duration.Milliseconds(),
 		"duration", duration.String(),
 	}
 	allFields = append(allFields, fields...)
-	
+
 	l.WithContext(ctx).Infow("Operation completed", allFields...)
-	
+
 	// Add span event if in span context
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.AddEvent("operation_completed", trace.WithAttributes(
@@ -199,9 +199,9 @@ func (l *Logger) LogSlowOperation(ctx context.Context, operation string, duratio
 			"slow_operation", true,
 		}
 		allFields = append(allFields, fields...)
-		
+
 		l.WithContext(ctx).Warnw("Slow operation detected", allFields...)
-		
+
 		if span := trace.SpanFromContext(ctx); span.IsRecording() {
 			span.AddEvent("slow_operation", trace.WithAttributes(
 				attribute.String("operation", operation),
@@ -218,16 +218,16 @@ func (l *Logger) LogError(ctx context.Context, err error, operation string, fiel
 	if err == nil {
 		return
 	}
-	
+
 	allFields := []interface{}{
 		"error", err.Error(),
 		"operation", operation,
 		"error_type", fmt.Sprintf("%T", err),
 	}
 	allFields = append(allFields, fields...)
-	
+
 	l.WithContext(ctx).Errorw("Operation failed", allFields...)
-	
+
 	// Mark span as error and add error event
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.RecordError(err)
@@ -247,9 +247,9 @@ func (l *Logger) LogPanic(ctx context.Context, recovered interface{}, operation 
 		"panic_type", fmt.Sprintf("%T", recovered),
 	}
 	allFields = append(allFields, fields...)
-	
+
 	l.WithContext(ctx).DPanicw("Panic recovered", allFields...)
-	
+
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.AddEvent("panic_recovered", trace.WithAttributes(
 			attribute.String("operation", operation),
@@ -268,13 +268,13 @@ func (l *Logger) LogSecurityEvent(ctx context.Context, eventType string, severit
 		"severity", severity,
 		"timestamp", time.Now().UTC(),
 	}
-	
+
 	for k, v := range details {
 		allFields = append(allFields, k, v)
 	}
-	
+
 	l.WithContext(ctx).Infow("Security event detected", allFields...)
-	
+
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		attrs := []attribute.KeyValue{
 			attribute.String("event_type", eventType),
@@ -291,11 +291,11 @@ func (l *Logger) LogVulnerability(ctx context.Context, vuln map[string]interface
 	allFields := []interface{}{
 		"vulnerability_detected", true,
 	}
-	
+
 	for k, v := range vuln {
 		allFields = append(allFields, k, v)
 	}
-	
+
 	level := "info"
 	if severity, ok := vuln["severity"].(string); ok {
 		switch severity {
@@ -307,7 +307,7 @@ func (l *Logger) LogVulnerability(ctx context.Context, vuln map[string]interface
 			level = "debug"
 		}
 	}
-	
+
 	switch level {
 	case "warn":
 		l.WithContext(ctx).Warnw("Vulnerability detected", allFields...)
@@ -316,7 +316,7 @@ func (l *Logger) LogVulnerability(ctx context.Context, vuln map[string]interface
 	default:
 		l.WithContext(ctx).Infow("Vulnerability detected", allFields...)
 	}
-	
+
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		attrs := []attribute.KeyValue{attribute.Bool("vulnerability", true)}
 		for k, v := range vuln {
@@ -333,13 +333,13 @@ func (l *Logger) LogScanProgress(ctx context.Context, scanID string, progress fl
 		"status", status,
 		"scan_event", true,
 	}
-	
+
 	for k, v := range details {
 		allFields = append(allFields, k, v)
 	}
-	
+
 	l.WithContext(ctx).Infow("Scan progress update", allFields...)
-	
+
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		attrs := []attribute.KeyValue{
 			attribute.String("scan_id", scanID),
@@ -357,13 +357,13 @@ func (l *Logger) LogDiscoveryEvent(ctx context.Context, assetType string, assetV
 		"asset_value", assetValue,
 		"confidence", confidence,
 	}
-	
+
 	for k, v := range details {
 		allFields = append(allFields, k, v)
 	}
-	
+
 	l.WithContext(ctx).Infow("Asset discovered", allFields...)
-	
+
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.AddEvent("asset_discovered", trace.WithAttributes(
 			attribute.String("asset_type", assetType),
@@ -384,7 +384,7 @@ func (l *Logger) LogHTTPRequest(ctx context.Context, method, url string, statusC
 		"http_request", true,
 	}
 	allFields = append(allFields, fields...)
-	
+
 	level := "info"
 	if statusCode >= 400 {
 		level = "warn"
@@ -392,7 +392,7 @@ func (l *Logger) LogHTTPRequest(ctx context.Context, method, url string, statusC
 	if statusCode >= 500 {
 		level = "error"
 	}
-	
+
 	switch level {
 	case "error":
 		l.WithContext(ctx).Errorw("HTTP request completed", allFields...)
@@ -401,7 +401,7 @@ func (l *Logger) LogHTTPRequest(ctx context.Context, method, url string, statusC
 	default:
 		l.WithContext(ctx).Infow("HTTP request completed", allFields...)
 	}
-	
+
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.AddEvent("http_request", trace.WithAttributes(
 			attribute.String("method", method),
@@ -409,7 +409,7 @@ func (l *Logger) LogHTTPRequest(ctx context.Context, method, url string, statusC
 			attribute.Int("status_code", statusCode),
 			attribute.Int64("duration_ms", duration.Milliseconds()),
 		))
-		
+
 		if statusCode >= 400 {
 			span.SetStatus(codes.Error, fmt.Sprintf("HTTP %d", statusCode))
 		}
@@ -427,9 +427,9 @@ func (l *Logger) LogDatabaseOperation(ctx context.Context, operation string, tab
 		"database_event", true,
 	}
 	allFields = append(allFields, fields...)
-	
+
 	l.WithContext(ctx).Debugw("Database operation completed", allFields...)
-	
+
 	if span := trace.SpanFromContext(ctx); span.IsRecording() {
 		span.AddEvent("database_operation", trace.WithAttributes(
 			attribute.String("operation", operation),
@@ -462,37 +462,37 @@ func WithLogger(ctx context.Context, logger *Logger) context.Context {
 
 func (l *Logger) StartOperation(ctx context.Context, operation string, fields ...interface{}) (context.Context, trace.Span) {
 	ctx, span := l.StartSpan(ctx, operation)
-	
+
 	allFields := []interface{}{
 		"operation", operation,
 		"operation_start", true,
 	}
 	allFields = append(allFields, fields...)
-	
+
 	l.WithContext(ctx).Debugw("Operation started", allFields...)
-	
+
 	return ctx, span
 }
 
 func (l *Logger) FinishOperation(ctx context.Context, span trace.Span, operation string, start time.Time, err error, fields ...interface{}) {
 	defer span.End()
-	
+
 	duration := time.Since(start)
-	
+
 	allFields := []interface{}{
 		"operation", operation,
 		"duration_ms", duration.Milliseconds(),
 		"operation_end", true,
 	}
 	allFields = append(allFields, fields...)
-	
+
 	if err != nil {
 		l.LogError(ctx, err, operation, allFields...)
 	} else {
 		l.WithContext(ctx).Debugw("Operation completed successfully", allFields...)
 		span.SetStatus(codes.Ok, "completed")
 	}
-	
+
 	span.AddEvent("operation_finished", trace.WithAttributes(
 		attribute.String("operation", operation),
 		attribute.Int64("duration_ms", duration.Milliseconds()),

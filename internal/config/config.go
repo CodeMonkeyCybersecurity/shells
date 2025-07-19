@@ -174,32 +174,32 @@ type SmugglingConfig struct {
 
 type BusinessLogicConfig struct {
 	// General settings
-	Timeout                    time.Duration `mapstructure:"timeout"`
-	MaxRetries                 int           `mapstructure:"max_retries"`
-	UserAgent                  string        `mapstructure:"user_agent"`
-	FollowRedirects            bool          `mapstructure:"follow_redirects"`
-	VerifySSL                  bool          `mapstructure:"verify_ssl"`
-	VerboseOutput              bool          `mapstructure:"verbose_output"`
-	MaintainSession            bool          `mapstructure:"maintain_session"`
-	
+	Timeout         time.Duration `mapstructure:"timeout"`
+	MaxRetries      int           `mapstructure:"max_retries"`
+	UserAgent       string        `mapstructure:"user_agent"`
+	FollowRedirects bool          `mapstructure:"follow_redirects"`
+	VerifySSL       bool          `mapstructure:"verify_ssl"`
+	VerboseOutput   bool          `mapstructure:"verbose_output"`
+	MaintainSession bool          `mapstructure:"maintain_session"`
+
 	// Password reset testing
 	PasswordReset PasswordResetConfig `mapstructure:"password_reset"`
-	
+
 	// Workflow testing
 	Workflow WorkflowConfig `mapstructure:"workflow"`
-	
+
 	// Race condition testing
 	RaceCondition RaceConditionConfig `mapstructure:"race_condition"`
-	
+
 	// MFA bypass testing
 	MFABypass MFABypassConfig `mapstructure:"mfa_bypass"`
-	
+
 	// Account recovery testing
 	AccountRecovery AccountRecoveryConfig `mapstructure:"account_recovery"`
-	
+
 	// E-commerce testing
 	Ecommerce EcommerceConfig `mapstructure:"ecommerce"`
-	
+
 	// Reporting
 	Reporting ReportingConfig `mapstructure:"reporting"`
 }
@@ -217,17 +217,17 @@ type PasswordResetConfig struct {
 }
 
 type WorkflowConfig struct {
-	MaxDepth             int           `mapstructure:"max_depth"`
-	MaxStates            int           `mapstructure:"max_states"`
-	TestPrivileges       bool          `mapstructure:"test_privileges"`
-	TestStateSkipping    bool          `mapstructure:"test_state_skipping"`
-	TestStepReordering   bool          `mapstructure:"test_step_reordering"`
-	TestParallelExec     bool          `mapstructure:"test_parallel_exec"`
-	TestValueManip       bool          `mapstructure:"test_value_manip"`
-	TestAuthFlaws        bool          `mapstructure:"test_auth_flaws"`
-	TestTimeVulns        bool          `mapstructure:"test_time_vulns"`
-	AnalysisTimeout      time.Duration `mapstructure:"analysis_timeout"`
-	StateTimeout         time.Duration `mapstructure:"state_timeout"`
+	MaxDepth           int           `mapstructure:"max_depth"`
+	MaxStates          int           `mapstructure:"max_states"`
+	TestPrivileges     bool          `mapstructure:"test_privileges"`
+	TestStateSkipping  bool          `mapstructure:"test_state_skipping"`
+	TestStepReordering bool          `mapstructure:"test_step_reordering"`
+	TestParallelExec   bool          `mapstructure:"test_parallel_exec"`
+	TestValueManip     bool          `mapstructure:"test_value_manip"`
+	TestAuthFlaws      bool          `mapstructure:"test_auth_flaws"`
+	TestTimeVulns      bool          `mapstructure:"test_time_vulns"`
+	AnalysisTimeout    time.Duration `mapstructure:"analysis_timeout"`
+	StateTimeout       time.Duration `mapstructure:"state_timeout"`
 }
 
 type RaceConditionConfig struct {
@@ -243,18 +243,18 @@ type RaceConditionConfig struct {
 }
 
 type MFABypassConfig struct {
-	TestRememberMe      bool          `mapstructure:"test_remember_me"`
-	TestBackupCodes     bool          `mapstructure:"test_backup_codes"`
-	TestRecoveryFlow    bool          `mapstructure:"test_recovery_flow"`
-	TestSessionUpgrade  bool          `mapstructure:"test_session_upgrade"`
-	TestRaceCondition   bool          `mapstructure:"test_race_condition"`
-	TestResponseManip   bool          `mapstructure:"test_response_manip"`
-	TestTokenReuse      bool          `mapstructure:"test_token_reuse"`
-	TestCookieManip     bool          `mapstructure:"test_cookie_manip"`
-	TestAPIEndpoints    bool          `mapstructure:"test_api_endpoints"`
-	TestFlowManip       bool          `mapstructure:"test_flow_manip"`
-	SessionTimeout      time.Duration `mapstructure:"session_timeout"`
-	MaxAttempts         int           `mapstructure:"max_attempts"`
+	TestRememberMe     bool          `mapstructure:"test_remember_me"`
+	TestBackupCodes    bool          `mapstructure:"test_backup_codes"`
+	TestRecoveryFlow   bool          `mapstructure:"test_recovery_flow"`
+	TestSessionUpgrade bool          `mapstructure:"test_session_upgrade"`
+	TestRaceCondition  bool          `mapstructure:"test_race_condition"`
+	TestResponseManip  bool          `mapstructure:"test_response_manip"`
+	TestTokenReuse     bool          `mapstructure:"test_token_reuse"`
+	TestCookieManip    bool          `mapstructure:"test_cookie_manip"`
+	TestAPIEndpoints   bool          `mapstructure:"test_api_endpoints"`
+	TestFlowManip      bool          `mapstructure:"test_flow_manip"`
+	SessionTimeout     time.Duration `mapstructure:"session_timeout"`
+	MaxAttempts        int           `mapstructure:"max_attempts"`
 }
 
 type AccountRecoveryConfig struct {
@@ -274,55 +274,55 @@ type AccountRecoveryConfig struct {
 }
 
 type EcommerceConfig struct {
-	TestShoppingCart    bool          `mapstructure:"test_shopping_cart"`
-	TestPaymentLogic    bool          `mapstructure:"test_payment_logic"`
-	TestPricingLogic    bool          `mapstructure:"test_pricing_logic"`
-	TestCouponLogic     bool          `mapstructure:"test_coupon_logic"`
-	TestNegativeValues  bool          `mapstructure:"test_negative_values"`
-	TestIntegerOverflow bool          `mapstructure:"test_integer_overflow"`
-	TestCartManip       bool          `mapstructure:"test_cart_manip"`
-	TestPriceManip      bool          `mapstructure:"test_price_manip"`
-	TestCurrencyConf    bool          `mapstructure:"test_currency_conf"`
-	TestRaceConditions  bool          `mapstructure:"test_race_conditions"`
-	MaxCartItems        int           `mapstructure:"max_cart_items"`
-	PriceTestValues     []float64     `mapstructure:"price_test_values"`
-	CurrencyTestList    []string      `mapstructure:"currency_test_list"`
+	TestShoppingCart    bool      `mapstructure:"test_shopping_cart"`
+	TestPaymentLogic    bool      `mapstructure:"test_payment_logic"`
+	TestPricingLogic    bool      `mapstructure:"test_pricing_logic"`
+	TestCouponLogic     bool      `mapstructure:"test_coupon_logic"`
+	TestNegativeValues  bool      `mapstructure:"test_negative_values"`
+	TestIntegerOverflow bool      `mapstructure:"test_integer_overflow"`
+	TestCartManip       bool      `mapstructure:"test_cart_manip"`
+	TestPriceManip      bool      `mapstructure:"test_price_manip"`
+	TestCurrencyConf    bool      `mapstructure:"test_currency_conf"`
+	TestRaceConditions  bool      `mapstructure:"test_race_conditions"`
+	MaxCartItems        int       `mapstructure:"max_cart_items"`
+	PriceTestValues     []float64 `mapstructure:"price_test_values"`
+	CurrencyTestList    []string  `mapstructure:"currency_test_list"`
 }
 
 type ReportingConfig struct {
-	GenerateHTML        bool          `mapstructure:"generate_html"`
-	GenerateJSON        bool          `mapstructure:"generate_json"`
-	GeneratePDF         bool          `mapstructure:"generate_pdf"`
-	GenerateCSV         bool          `mapstructure:"generate_csv"`
-	IncludeBusinessImpact bool        `mapstructure:"include_business_impact"`
-	IncludePoCDetails   bool          `mapstructure:"include_poc_details"`
-	IncludeCharts       bool          `mapstructure:"include_charts"`
-	IncludeTimeline     bool          `mapstructure:"include_timeline"`
-	ReportTimeout       time.Duration `mapstructure:"report_timeout"`
-	OutputDirectory     string        `mapstructure:"output_directory"`
-	ReportTemplate      string        `mapstructure:"report_template"`
-	MaxReportSize       int           `mapstructure:"max_report_size"`
+	GenerateHTML          bool          `mapstructure:"generate_html"`
+	GenerateJSON          bool          `mapstructure:"generate_json"`
+	GeneratePDF           bool          `mapstructure:"generate_pdf"`
+	GenerateCSV           bool          `mapstructure:"generate_csv"`
+	IncludeBusinessImpact bool          `mapstructure:"include_business_impact"`
+	IncludePoCDetails     bool          `mapstructure:"include_poc_details"`
+	IncludeCharts         bool          `mapstructure:"include_charts"`
+	IncludeTimeline       bool          `mapstructure:"include_timeline"`
+	ReportTimeout         time.Duration `mapstructure:"report_timeout"`
+	OutputDirectory       string        `mapstructure:"output_directory"`
+	ReportTemplate        string        `mapstructure:"report_template"`
+	MaxReportSize         int           `mapstructure:"max_report_size"`
 }
 
 type ProwlerConfig struct {
-	NomadAddr     string        `mapstructure:"nomad_addr"`
-	DockerImage   string        `mapstructure:"docker_image"`
-	OutputFormat  string        `mapstructure:"output_format"`
-	ParallelJobs  int           `mapstructure:"parallel_jobs"`
-	Timeout       time.Duration `mapstructure:"timeout"`
-	AWSProfile    string        `mapstructure:"aws_profile"`
-	CacheDir      string        `mapstructure:"cache_dir"`
+	NomadAddr    string        `mapstructure:"nomad_addr"`
+	DockerImage  string        `mapstructure:"docker_image"`
+	OutputFormat string        `mapstructure:"output_format"`
+	ParallelJobs int           `mapstructure:"parallel_jobs"`
+	Timeout      time.Duration `mapstructure:"timeout"`
+	AWSProfile   string        `mapstructure:"aws_profile"`
+	CacheDir     string        `mapstructure:"cache_dir"`
 }
 
 type FaviconConfig struct {
-	Timeout         time.Duration `mapstructure:"timeout"`
-	UserAgent       string        `mapstructure:"user_agent"`
-	CacheDir        string        `mapstructure:"cache_dir"`
-	ShodanAPIKey    string        `mapstructure:"shodan_api_key"`
-	MaxConcurrency  int           `mapstructure:"max_concurrency"`
-	EnableShodan    bool          `mapstructure:"enable_shodan"`
-	EnableCache     bool          `mapstructure:"enable_cache"`
-	CustomDatabase  string        `mapstructure:"custom_database"`
+	Timeout        time.Duration `mapstructure:"timeout"`
+	UserAgent      string        `mapstructure:"user_agent"`
+	CacheDir       string        `mapstructure:"cache_dir"`
+	ShodanAPIKey   string        `mapstructure:"shodan_api_key"`
+	MaxConcurrency int           `mapstructure:"max_concurrency"`
+	EnableShodan   bool          `mapstructure:"enable_shodan"`
+	EnableCache    bool          `mapstructure:"enable_cache"`
+	CustomDatabase string        `mapstructure:"custom_database"`
 }
 
 func (c *Config) Validate() error {

@@ -13,12 +13,12 @@ import (
 
 // EcommerceLogicTester tests e-commerce specific business logic vulnerabilities
 type EcommerceLogicTester struct {
-	httpClient *http.Client
-	config     *logic.TestConfig
-	cartTester *ShoppingCartTester
+	httpClient    *http.Client
+	config        *logic.TestConfig
+	cartTester    *ShoppingCartTester
 	paymentTester *PaymentTester
 	pricingTester *PricingTester
-	couponTester *CouponTester
+	couponTester  *CouponTester
 }
 
 // NewEcommerceLogicTester creates a new e-commerce logic tester
@@ -160,7 +160,7 @@ func (s *ShoppingCartTester) testIntegerOverflow(cartEndpoint string) *logic.Vul
 	response := s.addToCart(cartEndpoint, payload)
 	if response.StatusCode == 200 {
 		cartTotal := s.getCartTotal(cartEndpoint)
-		
+
 		// Check for overflow (negative total from overflow)
 		if cartTotal < 0 {
 			return &logic.Vulnerability{
@@ -250,7 +250,7 @@ func (s *ShoppingCartTester) testCartRaceConditions(cartEndpoint string) *logic.
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			
+
 			var result CartOperationResult
 			if workerID%2 == 0 {
 				// Add items
@@ -272,7 +272,7 @@ func (s *ShoppingCartTester) testCartRaceConditions(cartEndpoint string) *logic.
 
 	addCount := 0
 	removeCount := 0
-	
+
 	for result := range results {
 		if result.Success {
 			if result.Operation == "add" {
@@ -453,7 +453,7 @@ func (p *PaymentTester) testCurrencyConfusion(paymentEndpoint string) *logic.Vul
 	confusionTests := []struct {
 		displayCurrency string
 		processCurrency string
-		amount         float64
+		amount          float64
 	}{
 		{"USD", "EUR", 100.00}, // Show USD, charge EUR
 		{"USD", "JPY", 100.00}, // Show USD, charge JPY
@@ -541,9 +541,9 @@ func (p *PricingTester) testPriceManipulation(target string) *logic.Vulnerabilit
 				Details:     fmt.Sprintf("Price changed from $%.2f to $%.2f", test.originalPrice, test.newPrice),
 				Impact:      "Customers can purchase items at arbitrary prices",
 				Evidence: map[string]interface{}{
-					"original_price": test.originalPrice,
+					"original_price":    test.originalPrice,
 					"manipulated_price": test.newPrice,
-					"method": test.method,
+					"method":            test.method,
 				},
 				CWE:         "CWE-602",
 				CVSS:        7.5,
@@ -637,9 +637,9 @@ func (c *CouponTester) TestCouponLogic(target string) []logic.Vulnerability {
 func (c *CouponTester) testCouponStacking(target string) *logic.Vulnerability {
 	// Test applying multiple coupons
 	coupons := []string{"SAVE10", "SAVE20", "FREESHIP", "WELCOME15"}
-	
+
 	originalTotal := c.getCartTotal(target)
-	
+
 	// Apply multiple coupons
 	successfulCoupons := []string{}
 	for _, coupon := range coupons {
@@ -647,9 +647,9 @@ func (c *CouponTester) testCouponStacking(target string) *logic.Vulnerability {
 			successfulCoupons = append(successfulCoupons, coupon)
 		}
 	}
-	
+
 	finalTotal := c.getCartTotal(target)
-	
+
 	if len(successfulCoupons) > 1 {
 		discount := originalTotal - finalTotal
 		return &logic.Vulnerability{
@@ -679,12 +679,12 @@ func (c *CouponTester) testCouponStacking(target string) *logic.Vulnerability {
 // testCouponReuse tests coupon reuse vulnerabilities
 func (c *CouponTester) testCouponReuse(target string) *logic.Vulnerability {
 	couponCode := "SAVE10"
-	
+
 	// Use coupon first time
 	if !c.applyCoupon(target, couponCode) {
 		return nil
 	}
-	
+
 	// Try to reuse the same coupon
 	if c.applyCoupon(target, couponCode) {
 		return &logic.Vulnerability{
@@ -759,8 +759,8 @@ type CartOperationResult struct {
 }
 
 type PaymentResult struct {
-	Success bool
-	Amount  float64
+	Success       bool
+	Amount        float64
 	TransactionID string
 }
 
@@ -784,7 +784,7 @@ func (s *ShoppingCartTester) getCartTotal(endpoint string) float64 {
 		return 0
 	}
 	defer resp.Body.Close()
-	
+
 	// Parse total from response (simplified)
 	return 100.0 // Mock value
 }
@@ -811,8 +811,8 @@ func (p *PaymentTester) attemptPaymentBypass(endpoint string, params map[string]
 func (p *PaymentTester) processPayment(endpoint string, data map[string]interface{}) PaymentResult {
 	// Process payment
 	return PaymentResult{
-		Success: true,
-		Amount:  100.0,
+		Success:       true,
+		Amount:        100.0,
 		TransactionID: "txn_" + uuid.New().String(),
 	}
 }

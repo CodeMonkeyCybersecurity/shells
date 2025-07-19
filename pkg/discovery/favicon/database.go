@@ -32,10 +32,10 @@ type TechnologyEntry struct {
 
 // DatabaseStats provides database statistics
 type DatabaseStats struct {
-	TotalEntries     int `json:"total_entries"`
-	TotalScans       int `json:"total_scans"`
+	TotalEntries      int `json:"total_entries"`
+	TotalScans        int `json:"total_scans"`
 	TotalTechnologies int `json:"total_technologies"`
-	UniqueHashes     int `json:"unique_hashes"`
+	UniqueHashes      int `json:"unique_hashes"`
 }
 
 // NewDatabase creates a new favicon database with default entries
@@ -106,7 +106,7 @@ func (db *Database) AddEntry(entry TechnologyEntry) error {
 // addEntryUnsafe adds an entry without locking (internal use)
 func (db *Database) addEntryUnsafe(entry TechnologyEntry) error {
 	key := strings.ToLower(entry.Hash)
-	
+
 	// Check for duplicates
 	for _, existing := range db.entries[key] {
 		if existing.Name == entry.Name && existing.HashType == entry.HashType {
@@ -198,7 +198,7 @@ func (db *Database) GetStatistics() DatabaseStats {
 
 	stats := db.stats
 	stats.UniqueHashes = len(db.entries)
-	
+
 	techSet := make(map[string]bool)
 	for _, entries := range db.entries {
 		for _, entry := range entries {
@@ -220,7 +220,7 @@ func (db *Database) GetTotalScans() int {
 func (db *Database) GetTotalTechnologies() int {
 	db.mutex.RLock()
 	defer db.mutex.RUnlock()
-	
+
 	techSet := make(map[string]bool)
 	for _, entries := range db.entries {
 		for _, entry := range entries {
@@ -471,7 +471,7 @@ func (db *Database) DeleteEntry(hash, technology, hashType string) error {
 		if entry.Name == technology && entry.HashType == hashType {
 			db.entries[key] = append(entries[:i], entries[i+1:]...)
 			db.stats.TotalEntries--
-			
+
 			// Remove key if no entries left
 			if len(db.entries[key]) == 0 {
 				delete(db.entries, key)
@@ -505,10 +505,10 @@ func (db *Database) ExportDatabase(format string) ([]byte, error) {
 
 func (db *Database) exportCSV(entries []TechnologyEntry) ([]byte, error) {
 	var lines []string
-	
+
 	// Header
 	lines = append(lines, "Hash,HashType,Name,Category,Version,Confidence,Source,Description")
-	
+
 	// Data rows
 	for _, entry := range entries {
 		line := fmt.Sprintf("%s,%s,%s,%s,%s,%.2f,%s,%s",
@@ -516,6 +516,6 @@ func (db *Database) exportCSV(entries []TechnologyEntry) ([]byte, error) {
 			entry.Version, entry.Confidence, entry.Source, entry.Description)
 		lines = append(lines, line)
 	}
-	
+
 	return []byte(strings.Join(lines, "\n")), nil
 }

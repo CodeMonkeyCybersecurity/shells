@@ -321,7 +321,7 @@ func (a *Attacker) testBulkInjection(ctx context.Context, endpoint *SCIMEndpoint
 			BulkID: "injection-test",
 			Path:   "/Users/../Groups", // Path traversal attempt
 			Data: map[string]interface{}{
-				"schemas": []string{SchemaUser},
+				"schemas":  []string{SchemaUser},
 				"userName": "admin'; DROP TABLE users; --",
 				"name": map[string]interface{}{
 					"givenName":  "Injection",
@@ -387,10 +387,10 @@ func (a *Attacker) testBulkInjection(ctx context.Context, endpoint *SCIMEndpoint
 				Solution:    "Implement proper input validation for bulk operations",
 				References:  []string{"https://tools.ietf.org/html/rfc7644#section-3.7"},
 				Metadata: map[string]interface{}{
-					"endpoint":     endpoint.URL,
-					"status_code":  resp.StatusCode,
+					"endpoint":      endpoint.URL,
+					"status_code":   resp.StatusCode,
 					"response_size": len(body),
-					"indicator":    indicator,
+					"indicator":     indicator,
 				},
 				CreatedAt: time.Now(),
 			}
@@ -434,9 +434,9 @@ func (a *Attacker) testTimingBasedEnumeration(ctx context.Context, endpoint *SCI
 
 	for _, username := range testUsers {
 		start := time.Now()
-		
+
 		filterURL := fmt.Sprintf("%s/Users?filter=%s", endpoint.URL, url.QueryEscape(fmt.Sprintf(`userName eq "%s"`, username)))
-		
+
 		req, err := http.NewRequestWithContext(ctx, "GET", filterURL, nil)
 		if err != nil {
 			continue
@@ -482,10 +482,10 @@ func (a *Attacker) testTimingBasedEnumeration(ctx context.Context, endpoint *SCI
 				Solution:    "Implement consistent response times for all user queries",
 				References:  []string{"https://tools.ietf.org/html/rfc7644#section-3.4.2.2"},
 				Metadata: map[string]interface{}{
-					"endpoint":    endpoint.URL,
-					"max_timing":  maxTiming.String(),
-					"min_timing":  minTiming.String(),
-					"timings":     timings,
+					"endpoint":   endpoint.URL,
+					"max_timing": maxTiming.String(),
+					"min_timing": minTiming.String(),
+					"timings":    timings,
 				},
 				CreatedAt: time.Now(),
 			}
@@ -513,7 +513,7 @@ func (a *Attacker) testResponseBasedEnumeration(ctx context.Context, endpoint *S
 
 	for _, testCase := range testCases {
 		filterURL := fmt.Sprintf("%s/Users?filter=%s", endpoint.URL, url.QueryEscape(fmt.Sprintf(`userName eq "%s"`, testCase.username)))
-		
+
 		req, err := http.NewRequestWithContext(ctx, "GET", filterURL, nil)
 		if err != nil {
 			continue
@@ -654,10 +654,10 @@ func (a *Attacker) testProvisioningPrivilegeEscalation(ctx context.Context, endp
 						Solution:    "Implement proper authorization checks for user provisioning",
 						References:  []string{"https://tools.ietf.org/html/rfc7644#section-3.3"},
 						Metadata: map[string]interface{}{
-							"endpoint":           endpoint.URL,
-							"status_code":        resp.StatusCode,
-							"privileged_attr":    attr,
-							"created_user_id":    createdUser["id"],
+							"endpoint":        endpoint.URL,
+							"status_code":     resp.StatusCode,
+							"privileged_attr": attr,
+							"created_user_id": createdUser["id"],
 						},
 						CreatedAt: time.Now(),
 					}

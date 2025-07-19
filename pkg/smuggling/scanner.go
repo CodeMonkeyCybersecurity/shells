@@ -25,17 +25,17 @@ type Scanner struct {
 // NewScanner creates a new HTTP Request Smuggling scanner
 func NewScanner() core.Scanner {
 	config := &SmugglingConfig{
-		Timeout:            DefaultTimeout,
-		MaxRetries:         3,
-		UserAgent:          "shells-smuggling-scanner/1.0",
-		FollowRedirects:    false, // Important for smuggling detection
-		VerifySSL:          true,
-		DifferentialDelay:  DefaultDifferentialDelay,
-		MaxPayloadSize:     MaxResponseSize,
-		Techniques:         []string{TechniqueCLTE, TechniqueTECL, TechniqueTETE, TechniqueHTTP2},
-		EnableTimingAnalysis: true,
+		Timeout:                    DefaultTimeout,
+		MaxRetries:                 3,
+		UserAgent:                  "shells-smuggling-scanner/1.0",
+		FollowRedirects:            false, // Important for smuggling detection
+		VerifySSL:                  true,
+		DifferentialDelay:          DefaultDifferentialDelay,
+		MaxPayloadSize:             MaxResponseSize,
+		Techniques:                 []string{TechniqueCLTE, TechniqueTECL, TechniqueTETE, TechniqueHTTP2},
+		EnableTimingAnalysis:       true,
 		EnableDifferentialAnalysis: true,
-		CustomHeaders:      make(map[string]string),
+		CustomHeaders:              make(map[string]string),
 	}
 
 	client := &http.Client{
@@ -172,19 +172,19 @@ func (s *Scanner) testTechnique(ctx context.Context, target, technique string) (
 	case TechniqueCLTE:
 		clteFindings := s.testCLTE(ctx, target)
 		findings = append(findings, clteFindings...)
-	
+
 	case TechniqueTECL:
 		teclFindings := s.testTECL(ctx, target)
 		findings = append(findings, teclFindings...)
-	
+
 	case TechniqueTETE:
 		teteFindings := s.testTETE(ctx, target)
 		findings = append(findings, teteFindings...)
-	
+
 	case TechniqueHTTP2:
 		http2Findings := s.testHTTP2(ctx, target)
 		findings = append(findings, http2Findings...)
-	
+
 	default:
 		return nil, fmt.Errorf("unsupported technique: %s", technique)
 	}
@@ -259,7 +259,7 @@ func (s *Scanner) createFinding(target, vulnType string, payload SmugglingPayloa
 	evidenceBuilder.WriteString(fmt.Sprintf("Technique: %s\n", payload.Technique))
 	evidenceBuilder.WriteString(fmt.Sprintf("Confidence: %.2f\n", result.Confidence))
 	evidenceBuilder.WriteString(fmt.Sprintf("Duration: %v\n", result.Duration))
-	
+
 	if len(result.Evidence) > 0 {
 		evidenceBuilder.WriteString("Evidence:\n")
 		for _, evidence := range result.Evidence {
@@ -299,9 +299,9 @@ func (s *Scanner) createFinding(target, vulnType string, payload SmugglingPayloa
 // buildSolution builds solution text for a technique
 func (s *Scanner) buildSolution(technique string) string {
 	solutions := map[string]string{
-		TechniqueCLTE: "Ensure frontend and backend handle Content-Length and Transfer-Encoding headers consistently. Disable Transfer-Encoding on frontend or reject requests with conflicting headers.",
-		TechniqueTECL: "Normalize Transfer-Encoding header processing between frontend and backend. Reject requests with both Content-Length and Transfer-Encoding headers.",
-		TechniqueTETE: "Implement strict Transfer-Encoding header validation. Reject requests with duplicate or obfuscated Transfer-Encoding headers.",
+		TechniqueCLTE:  "Ensure frontend and backend handle Content-Length and Transfer-Encoding headers consistently. Disable Transfer-Encoding on frontend or reject requests with conflicting headers.",
+		TechniqueTECL:  "Normalize Transfer-Encoding header processing between frontend and backend. Reject requests with both Content-Length and Transfer-Encoding headers.",
+		TechniqueTETE:  "Implement strict Transfer-Encoding header validation. Reject requests with duplicate or obfuscated Transfer-Encoding headers.",
 		TechniqueHTTP2: "Ensure proper HTTP/2 to HTTP/1.1 downgrade handling. Validate headers during protocol conversion and reject malformed requests.",
 	}
 

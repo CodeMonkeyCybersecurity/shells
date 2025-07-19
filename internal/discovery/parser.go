@@ -135,7 +135,7 @@ func (p *TargetParser) isValidDomain(domain string) bool {
 // isCompanyName determines if input looks like a company name
 func (p *TargetParser) isCompanyName(input string) bool {
 	// Basic heuristics for company names
-	
+
 	// Must contain at least one letter
 	hasLetter := false
 	for _, r := range input {
@@ -199,7 +199,7 @@ func (p *TargetParser) normalizeTarget(input string, targetType TargetType) stri
 func (p *TargetParser) normalizeCompanyName(input string) string {
 	// Basic normalization
 	name := strings.TrimSpace(input)
-	
+
 	// Remove quotes if present
 	if strings.HasPrefix(name, "\"") && strings.HasSuffix(name, "\"") {
 		name = name[1 : len(name)-1]
@@ -207,7 +207,7 @@ func (p *TargetParser) normalizeCompanyName(input string) string {
 	if strings.HasPrefix(name, "'") && strings.HasSuffix(name, "'") {
 		name = name[1 : len(name)-1]
 	}
-	
+
 	return name
 }
 
@@ -274,7 +274,7 @@ func (p *TargetParser) GetDomainFromTarget(target *Target) string {
 // GetSearchTermsFromTarget generates search terms for the target
 func (p *TargetParser) GetSearchTermsFromTarget(target *Target) []string {
 	var terms []string
-	
+
 	switch target.Type {
 	case TargetTypeCompany:
 		terms = append(terms, target.Value)
@@ -304,7 +304,7 @@ func (p *TargetParser) GetSearchTermsFromTarget(target *Target) []string {
 			terms = append(terms, "site:"+host)
 		}
 	}
-	
+
 	return terms
 }
 
@@ -317,13 +317,13 @@ func (p *TargetParser) removeCompanySuffixes(name string) string {
 		" Group", " Solutions", " Systems", " Technologies",
 		" Tech", " Labs", " Software", " Services",
 	}
-	
+
 	for _, suffix := range suffixes {
 		if strings.HasSuffix(name, suffix) {
 			return strings.TrimSpace(name[:len(name)-len(suffix)])
 		}
 	}
-	
+
 	return name
 }
 
@@ -337,7 +337,7 @@ func IsHighValueAsset(asset *Asset) bool {
 
 	// Check URL/title for high-value keywords
 	checkText := strings.ToLower(asset.Value + " " + asset.Title)
-	
+
 	for _, indicators := range HighValueIndicators {
 		for _, indicator := range indicators {
 			if strings.Contains(checkText, indicator) {
@@ -350,9 +350,9 @@ func IsHighValueAsset(asset *Asset) bool {
 	for _, tech := range asset.Technology {
 		lowerTech := strings.ToLower(tech)
 		if strings.Contains(lowerTech, "admin") ||
-		   strings.Contains(lowerTech, "management") ||
-		   strings.Contains(lowerTech, "dashboard") ||
-		   strings.Contains(lowerTech, "api") {
+			strings.Contains(lowerTech, "management") ||
+			strings.Contains(lowerTech, "dashboard") ||
+			strings.Contains(lowerTech, "api") {
 			return true
 		}
 	}

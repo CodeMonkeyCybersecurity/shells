@@ -73,7 +73,7 @@ func (h *Handler) Done() <-chan struct{} {
 // ShutdownWithTimeout executes shutdown with a timeout
 func (h *Handler) ShutdownWithTimeout(timeout time.Duration) error {
 	done := make(chan struct{})
-	
+
 	go func() {
 		defer close(done)
 		h.Shutdown()

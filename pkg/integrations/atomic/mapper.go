@@ -7,9 +7,9 @@ import (
 
 // VulnToAttackMapper maps vulnerability types to MITRE ATT&CK techniques
 type VulnToAttackMapper struct {
-	mappings      map[string][]string
-	descriptions  map[string]string
-	tactics       map[string]string
+	mappings     map[string][]string
+	descriptions map[string]string
+	tactics      map[string]string
 }
 
 // NewVulnToAttackMapper creates a new vulnerability to ATT&CK mapper
@@ -24,104 +24,104 @@ func NewVulnToAttackMapper() *VulnToAttackMapper {
 // Comprehensive mapping of vulnerability types to ATT&CK techniques
 var VulnerabilityToATTACK = map[string][]string{
 	// Web Application Vulnerabilities
-	"SSRF": {"T1219", "T1090", "T1083"}, // Remote Access Software, Proxy, File Discovery
-	"XXE": {"T1005", "T1083", "T1552.001"}, // Data from Local System, File Discovery, Credentials in Files
-	"SQLI": {"T1190", "T1005", "T1552"}, // Exploit Public-Facing App, Data from Local System, Credentials
-	"RCE": {"T1059", "T1106", "T1003"}, // Command Interpreter, Native API, Credential Dumping
-	"LFI": {"T1005", "T1083", "T1552.001"}, // Data from Local System, File Discovery, Credentials in Files
-	"RFI": {"T1105", "T1059", "T1190"}, // Ingress Tool Transfer, Command Interpreter, Exploit Public App
-	"COMMAND_INJECTION": {"T1059", "T1190", "T1068"}, // Command Interpreter, Exploit Public App, Privilege Escalation
-	"PATH_TRAVERSAL": {"T1083", "T1005", "T1552.001"}, // File Discovery, Data from Local System, Credentials in Files
-	"UPLOAD_VULNERABILITY": {"T1105", "T1059", "T1036"}, // Ingress Tool Transfer, Command Interpreter, Masquerading
-	"DESERIALIZATION": {"T1059", "T1190", "T1068"}, // Command Interpreter, Exploit Public App, Privilege Escalation
-	"TEMPLATE_INJECTION": {"T1059", "T1005", "T1083"}, // Command Interpreter, Data from Local System, File Discovery
-	"XPATH_INJECTION": {"T1005", "T1552", "T1190"}, // Data from Local System, Credentials, Exploit Public App
-	"LDAP_INJECTION": {"T1087", "T1069", "T1552"}, // Account Discovery, Permission Groups Discovery, Credentials
-	"XML_INJECTION": {"T1005", "T1083", "T1027"}, // Data from Local System, File Discovery, Obfuscated Files
-	
+	"SSRF":                 {"T1219", "T1090", "T1083"},     // Remote Access Software, Proxy, File Discovery
+	"XXE":                  {"T1005", "T1083", "T1552.001"}, // Data from Local System, File Discovery, Credentials in Files
+	"SQLI":                 {"T1190", "T1005", "T1552"},     // Exploit Public-Facing App, Data from Local System, Credentials
+	"RCE":                  {"T1059", "T1106", "T1003"},     // Command Interpreter, Native API, Credential Dumping
+	"LFI":                  {"T1005", "T1083", "T1552.001"}, // Data from Local System, File Discovery, Credentials in Files
+	"RFI":                  {"T1105", "T1059", "T1190"},     // Ingress Tool Transfer, Command Interpreter, Exploit Public App
+	"COMMAND_INJECTION":    {"T1059", "T1190", "T1068"},     // Command Interpreter, Exploit Public App, Privilege Escalation
+	"PATH_TRAVERSAL":       {"T1083", "T1005", "T1552.001"}, // File Discovery, Data from Local System, Credentials in Files
+	"UPLOAD_VULNERABILITY": {"T1105", "T1059", "T1036"},     // Ingress Tool Transfer, Command Interpreter, Masquerading
+	"DESERIALIZATION":      {"T1059", "T1190", "T1068"},     // Command Interpreter, Exploit Public App, Privilege Escalation
+	"TEMPLATE_INJECTION":   {"T1059", "T1005", "T1083"},     // Command Interpreter, Data from Local System, File Discovery
+	"XPATH_INJECTION":      {"T1005", "T1552", "T1190"},     // Data from Local System, Credentials, Exploit Public App
+	"LDAP_INJECTION":       {"T1087", "T1069", "T1552"},     // Account Discovery, Permission Groups Discovery, Credentials
+	"XML_INJECTION":        {"T1005", "T1083", "T1027"},     // Data from Local System, File Discovery, Obfuscated Files
+
 	// Authentication & Session Vulnerabilities
-	"WEAK_AUTHENTICATION": {"T1078", "T1110", "T1552"}, // Valid Accounts, Brute Force, Credentials
-	"SESSION_FIXATION": {"T1078", "T1134", "T1556"}, // Valid Accounts, Access Token Manipulation, Modify Authentication
-	"SESSION_HIJACKING": {"T1078", "T1185", "T1539"}, // Valid Accounts, Browser Session Hijacking, Steal Web Session Cookie
-	"BROKEN_AUTHENTICATION": {"T1078", "T1110", "T1555"}, // Valid Accounts, Brute Force, Credentials from Password Stores
-	"JWT_VULNERABILITY": {"T1552", "T1078", "T1134"}, // Credentials, Valid Accounts, Access Token Manipulation
-	"OAUTH_VULNERABILITY": {"T1078", "T1552", "T1134"}, // Valid Accounts, Credentials, Access Token Manipulation
-	"SAML_VULNERABILITY": {"T1078", "T1552", "T1134"}, // Valid Accounts, Credentials, Access Token Manipulation
+	"WEAK_AUTHENTICATION":    {"T1078", "T1110", "T1552"}, // Valid Accounts, Brute Force, Credentials
+	"SESSION_FIXATION":       {"T1078", "T1134", "T1556"}, // Valid Accounts, Access Token Manipulation, Modify Authentication
+	"SESSION_HIJACKING":      {"T1078", "T1185", "T1539"}, // Valid Accounts, Browser Session Hijacking, Steal Web Session Cookie
+	"BROKEN_AUTHENTICATION":  {"T1078", "T1110", "T1555"}, // Valid Accounts, Brute Force, Credentials from Password Stores
+	"JWT_VULNERABILITY":      {"T1552", "T1078", "T1134"}, // Credentials, Valid Accounts, Access Token Manipulation
+	"OAUTH_VULNERABILITY":    {"T1078", "T1552", "T1134"}, // Valid Accounts, Credentials, Access Token Manipulation
+	"SAML_VULNERABILITY":     {"T1078", "T1552", "T1134"}, // Valid Accounts, Credentials, Access Token Manipulation
 	"PASSWORD_POLICY_BYPASS": {"T1110", "T1078", "T1555"}, // Brute Force, Valid Accounts, Credentials from Password Stores
-	"MFA_BYPASS": {"T1078", "T1556", "T1621"}, // Valid Accounts, Modify Authentication Process, Multi-Factor Authentication Request Generation
-	"CSRF": {"T1185", "T1078", "T1102"}, // Browser Session Hijacking, Valid Accounts, Web Service
-	
+	"MFA_BYPASS":             {"T1078", "T1556", "T1621"}, // Valid Accounts, Modify Authentication Process, Multi-Factor Authentication Request Generation
+	"CSRF":                   {"T1185", "T1078", "T1102"}, // Browser Session Hijacking, Valid Accounts, Web Service
+
 	// Cloud Infrastructure Vulnerabilities
-	"PUBLIC_S3_BUCKET": {"T1530", "T1552.005", "T1087.004"}, // Data from Cloud Storage, Cloud Instance Metadata API, Cloud Account Discovery
-	"EXPOSED_CLOUD_STORAGE": {"T1530", "T1552.005", "T1619"}, // Data from Cloud Storage, Cloud Instance Metadata API, Cloud Storage Object Discovery
-	"EXPOSED_CLOUD_INSTANCE": {"T1552.005", "T1078.004", "T1087.004"}, // Cloud Instance Metadata API, Cloud Accounts, Cloud Account Discovery
-	"CLOUD_MISCONFIG": {"T1530", "T1078.004", "T1098"}, // Data from Cloud Storage, Cloud Accounts, Account Manipulation
-	"OVERPRIVILEGED_ROLE": {"T1098", "T1078.004", "T1069.003"}, // Account Manipulation, Cloud Accounts, Cloud Groups
-	"NO_MFA_CLOUD": {"T1078.004", "T1556", "T1621"}, // Cloud Accounts, Modify Authentication Process, Multi-Factor Authentication Request Generation
-	"EXPOSED_CLOUD_KEYS": {"T1552.005", "T1552.001", "T1078.004"}, // Cloud Instance Metadata API, Credentials in Files, Cloud Accounts
-	"CLOUD_PRIVILEGE_ESCALATION": {"T1068", "T1078.004", "T1098"}, // Exploitation for Privilege Escalation, Cloud Accounts, Account Manipulation
-	"EXPOSED_METADATA_API": {"T1552.005", "T1087.004", "T1069.003"}, // Cloud Instance Metadata API, Cloud Account Discovery, Cloud Groups
-	"IAM_MISCONFIG": {"T1098", "T1078.004", "T1069.003"}, // Account Manipulation, Cloud Accounts, Cloud Groups
-	
+	"PUBLIC_S3_BUCKET":           {"T1530", "T1552.005", "T1087.004"},     // Data from Cloud Storage, Cloud Instance Metadata API, Cloud Account Discovery
+	"EXPOSED_CLOUD_STORAGE":      {"T1530", "T1552.005", "T1619"},         // Data from Cloud Storage, Cloud Instance Metadata API, Cloud Storage Object Discovery
+	"EXPOSED_CLOUD_INSTANCE":     {"T1552.005", "T1078.004", "T1087.004"}, // Cloud Instance Metadata API, Cloud Accounts, Cloud Account Discovery
+	"CLOUD_MISCONFIG":            {"T1530", "T1078.004", "T1098"},         // Data from Cloud Storage, Cloud Accounts, Account Manipulation
+	"OVERPRIVILEGED_ROLE":        {"T1098", "T1078.004", "T1069.003"},     // Account Manipulation, Cloud Accounts, Cloud Groups
+	"NO_MFA_CLOUD":               {"T1078.004", "T1556", "T1621"},         // Cloud Accounts, Modify Authentication Process, Multi-Factor Authentication Request Generation
+	"EXPOSED_CLOUD_KEYS":         {"T1552.005", "T1552.001", "T1078.004"}, // Cloud Instance Metadata API, Credentials in Files, Cloud Accounts
+	"CLOUD_PRIVILEGE_ESCALATION": {"T1068", "T1078.004", "T1098"},         // Exploitation for Privilege Escalation, Cloud Accounts, Account Manipulation
+	"EXPOSED_METADATA_API":       {"T1552.005", "T1087.004", "T1069.003"}, // Cloud Instance Metadata API, Cloud Account Discovery, Cloud Groups
+	"IAM_MISCONFIG":              {"T1098", "T1078.004", "T1069.003"},     // Account Manipulation, Cloud Accounts, Cloud Groups
+
 	// Infrastructure & Network Vulnerabilities
-	"DEFAULT_CREDENTIALS": {"T1078", "T1110.001", "T1552.001"}, // Valid Accounts, Password Guessing, Credentials in Files
-	"EXPOSED_SERVICE": {"T1046", "T1190", "T1018"}, // Network Service Scanning, Exploit Public-Facing Application, Remote System Discovery
-	"OPEN_DATABASE": {"T1530", "T1005", "T1552"}, // Data from Cloud Storage, Data from Local System, Credentials
-	"EXPOSED_MONGODB": {"T1530", "T1005", "T1552"}, // Data from Cloud Storage, Data from Local System, Credentials
-	"EXPOSED_ELASTICSEARCH": {"T1530", "T1005", "T1552"}, // Data from Cloud Storage, Data from Local System, Credentials
-	"EXPOSED_REDIS": {"T1530", "T1005", "T1552"}, // Data from Cloud Storage, Data from Local System, Credentials
-	"INSECURE_PROTOCOL": {"T1040", "T1041", "T1071"}, // Network Sniffing, Exfiltration Over C2 Channel, Application Layer Protocol
-	"UNENCRYPTED_TRAFFIC": {"T1040", "T1557", "T1552"}, // Network Sniffing, Adversary-in-the-Middle, Credentials
-	"WEAK_SSL_TLS": {"T1040", "T1557", "T1552"}, // Network Sniffing, Adversary-in-the-Middle, Credentials
-	"EXPOSED_API": {"T1190", "T1087", "T1083"}, // Exploit Public-Facing Application, Account Discovery, File and Directory Discovery
-	"API_KEY_EXPOSURE": {"T1552.001", "T1552.002", "T1078"}, // Credentials in Files, Credentials in Registry, Valid Accounts
-	
+	"DEFAULT_CREDENTIALS":   {"T1078", "T1110.001", "T1552.001"}, // Valid Accounts, Password Guessing, Credentials in Files
+	"EXPOSED_SERVICE":       {"T1046", "T1190", "T1018"},         // Network Service Scanning, Exploit Public-Facing Application, Remote System Discovery
+	"OPEN_DATABASE":         {"T1530", "T1005", "T1552"},         // Data from Cloud Storage, Data from Local System, Credentials
+	"EXPOSED_MONGODB":       {"T1530", "T1005", "T1552"},         // Data from Cloud Storage, Data from Local System, Credentials
+	"EXPOSED_ELASTICSEARCH": {"T1530", "T1005", "T1552"},         // Data from Cloud Storage, Data from Local System, Credentials
+	"EXPOSED_REDIS":         {"T1530", "T1005", "T1552"},         // Data from Cloud Storage, Data from Local System, Credentials
+	"INSECURE_PROTOCOL":     {"T1040", "T1041", "T1071"},         // Network Sniffing, Exfiltration Over C2 Channel, Application Layer Protocol
+	"UNENCRYPTED_TRAFFIC":   {"T1040", "T1557", "T1552"},         // Network Sniffing, Adversary-in-the-Middle, Credentials
+	"WEAK_SSL_TLS":          {"T1040", "T1557", "T1552"},         // Network Sniffing, Adversary-in-the-Middle, Credentials
+	"EXPOSED_API":           {"T1190", "T1087", "T1083"},         // Exploit Public-Facing Application, Account Discovery, File and Directory Discovery
+	"API_KEY_EXPOSURE":      {"T1552.001", "T1552.002", "T1078"}, // Credentials in Files, Credentials in Registry, Valid Accounts
+
 	// Container & Orchestration Vulnerabilities
-	"DOCKER_MISCONFIG": {"T1610", "T1611", "T1068"}, // Deploy Container, Escape to Host, Exploitation for Privilege Escalation
-	"K8S_MISCONFIG": {"T1610", "T1078.004", "T1087.004"}, // Deploy Container, Cloud Accounts, Cloud Account Discovery
-	"EXPOSED_DOCKER_API": {"T1046", "T1610", "T1611"}, // Network Service Scanning, Deploy Container, Escape to Host
-	"CONTAINER_ESCAPE": {"T1611", "T1068", "T1055"}, // Escape to Host, Exploitation for Privilege Escalation, Process Injection
-	"PRIVILEGED_CONTAINER": {"T1610", "T1611", "T1068"}, // Deploy Container, Escape to Host, Exploitation for Privilege Escalation
-	"INSECURE_REGISTRY": {"T1105", "T1610", "T1036"}, // Ingress Tool Transfer, Deploy Container, Masquerading
-	
+	"DOCKER_MISCONFIG":     {"T1610", "T1611", "T1068"},         // Deploy Container, Escape to Host, Exploitation for Privilege Escalation
+	"K8S_MISCONFIG":        {"T1610", "T1078.004", "T1087.004"}, // Deploy Container, Cloud Accounts, Cloud Account Discovery
+	"EXPOSED_DOCKER_API":   {"T1046", "T1610", "T1611"},         // Network Service Scanning, Deploy Container, Escape to Host
+	"CONTAINER_ESCAPE":     {"T1611", "T1068", "T1055"},         // Escape to Host, Exploitation for Privilege Escalation, Process Injection
+	"PRIVILEGED_CONTAINER": {"T1610", "T1611", "T1068"},         // Deploy Container, Escape to Host, Exploitation for Privilege Escalation
+	"INSECURE_REGISTRY":    {"T1105", "T1610", "T1036"},         // Ingress Tool Transfer, Deploy Container, Masquerading
+
 	// Data Exposure & Privacy Vulnerabilities
-	"PII_EXPOSURE": {"T1005", "T1039", "T1114"}, // Data from Local System, Data from Network Shared Drive, Email Collection
-	"SENSITIVE_DATA_EXPOSURE": {"T1005", "T1552", "T1039"}, // Data from Local System, Credentials, Data from Network Shared Drive
-	"BACKUP_EXPOSURE": {"T1005", "T1552.001", "T1083"}, // Data from Local System, Credentials in Files, File and Directory Discovery
-	"LOG_EXPOSURE": {"T1005", "T1552.001", "T1083"}, // Data from Local System, Credentials in Files, File and Directory Discovery
-	"DATABASE_DUMP": {"T1005", "T1552", "T1530"}, // Data from Local System, Credentials, Data from Cloud Storage
-	"SOURCE_CODE_EXPOSURE": {"T1083", "T1552.001", "T1005"}, // File and Directory Discovery, Credentials in Files, Data from Local System
-	
+	"PII_EXPOSURE":            {"T1005", "T1039", "T1114"},     // Data from Local System, Data from Network Shared Drive, Email Collection
+	"SENSITIVE_DATA_EXPOSURE": {"T1005", "T1552", "T1039"},     // Data from Local System, Credentials, Data from Network Shared Drive
+	"BACKUP_EXPOSURE":         {"T1005", "T1552.001", "T1083"}, // Data from Local System, Credentials in Files, File and Directory Discovery
+	"LOG_EXPOSURE":            {"T1005", "T1552.001", "T1083"}, // Data from Local System, Credentials in Files, File and Directory Discovery
+	"DATABASE_DUMP":           {"T1005", "T1552", "T1530"},     // Data from Local System, Credentials, Data from Cloud Storage
+	"SOURCE_CODE_EXPOSURE":    {"T1083", "T1552.001", "T1005"}, // File and Directory Discovery, Credentials in Files, Data from Local System
+
 	// Business Logic & Authorization Vulnerabilities
-	"IDOR": {"T1087", "T1005", "T1083"}, // Account Discovery, Data from Local System, File and Directory Discovery
-	"PRIVILEGE_ESCALATION": {"T1068", "T1078", "T1134"}, // Exploitation for Privilege Escalation, Valid Accounts, Access Token Manipulation
+	"IDOR":                  {"T1087", "T1005", "T1083"}, // Account Discovery, Data from Local System, File and Directory Discovery
+	"PRIVILEGE_ESCALATION":  {"T1068", "T1078", "T1134"}, // Exploitation for Privilege Escalation, Valid Accounts, Access Token Manipulation
 	"ACCESS_CONTROL_BYPASS": {"T1078", "T1134", "T1068"}, // Valid Accounts, Access Token Manipulation, Exploitation for Privilege Escalation
-	"AUTHORIZATION_BYPASS": {"T1078", "T1134", "T1098"}, // Valid Accounts, Access Token Manipulation, Account Manipulation
-	"RATE_LIMITING_BYPASS": {"T1110", "T1078", "T1102"}, // Brute Force, Valid Accounts, Web Service
-	"WORKFLOW_BYPASS": {"T1078", "T1134", "T1102"}, // Valid Accounts, Access Token Manipulation, Web Service
-	
+	"AUTHORIZATION_BYPASS":  {"T1078", "T1134", "T1098"}, // Valid Accounts, Access Token Manipulation, Account Manipulation
+	"RATE_LIMITING_BYPASS":  {"T1110", "T1078", "T1102"}, // Brute Force, Valid Accounts, Web Service
+	"WORKFLOW_BYPASS":       {"T1078", "T1134", "T1102"}, // Valid Accounts, Access Token Manipulation, Web Service
+
 	// Client-Side Vulnerabilities
-	"XSS": {"T1185", "T1539", "T1555"}, // Browser Session Hijacking, Steal Web Session Cookie, Credentials from Password Stores
-	"CLICKJACKING": {"T1185", "T1102", "T1566"}, // Browser Session Hijacking, Web Service, Phishing
-	"OPEN_REDIRECT": {"T1566", "T1102", "T1219"}, // Phishing, Web Service, Remote Access Software
+	"XSS":                            {"T1185", "T1539", "T1555"}, // Browser Session Hijacking, Steal Web Session Cookie, Credentials from Password Stores
+	"CLICKJACKING":                   {"T1185", "T1102", "T1566"}, // Browser Session Hijacking, Web Service, Phishing
+	"OPEN_REDIRECT":                  {"T1566", "T1102", "T1219"}, // Phishing, Web Service, Remote Access Software
 	"CLIENT_SIDE_TEMPLATE_INJECTION": {"T1059", "T1185", "T1102"}, // Command and Scripting Interpreter, Browser Session Hijacking, Web Service
-	"DOM_XSS": {"T1185", "T1539", "T1102"}, // Browser Session Hijacking, Steal Web Session Cookie, Web Service
-	"STORED_XSS": {"T1185", "T1539", "T1102"}, // Browser Session Hijacking, Steal Web Session Cookie, Web Service
-	"REFLECTED_XSS": {"T1185", "T1566", "T1102"}, // Browser Session Hijacking, Phishing, Web Service
-	
+	"DOM_XSS":                        {"T1185", "T1539", "T1102"}, // Browser Session Hijacking, Steal Web Session Cookie, Web Service
+	"STORED_XSS":                     {"T1185", "T1539", "T1102"}, // Browser Session Hijacking, Steal Web Session Cookie, Web Service
+	"REFLECTED_XSS":                  {"T1185", "T1566", "T1102"}, // Browser Session Hijacking, Phishing, Web Service
+
 	// Cryptographic Vulnerabilities
-	"WEAK_CRYPTO": {"T1552", "T1040", "T1059"}, // Credentials, Network Sniffing, Command and Scripting Interpreter
-	"HARDCODED_SECRETS": {"T1552.001", "T1078", "T1083"}, // Credentials in Files, Valid Accounts, File and Directory Discovery
-	"INSECURE_RANDOM": {"T1552", "T1078", "T1110"}, // Credentials, Valid Accounts, Brute Force
+	"WEAK_CRYPTO":               {"T1552", "T1040", "T1059"},     // Credentials, Network Sniffing, Command and Scripting Interpreter
+	"HARDCODED_SECRETS":         {"T1552.001", "T1078", "T1083"}, // Credentials in Files, Valid Accounts, File and Directory Discovery
+	"INSECURE_RANDOM":           {"T1552", "T1078", "T1110"},     // Credentials, Valid Accounts, Brute Force
 	"CERTIFICATE_VULNERABILITY": {"T1552.004", "T1040", "T1557"}, // Private Keys, Network Sniffing, Adversary-in-the-Middle
-	"ENCRYPTION_BYPASS": {"T1552", "T1005", "T1040"}, // Credentials, Data from Local System, Network Sniffing
-	
+	"ENCRYPTION_BYPASS":         {"T1552", "T1005", "T1040"},     // Credentials, Data from Local System, Network Sniffing
+
 	// Supply Chain & Third-Party Vulnerabilities
-	"VULNERABLE_DEPENDENCY": {"T1195", "T1105", "T1059"}, // Supply Chain Compromise, Ingress Tool Transfer, Command and Scripting Interpreter
-	"MALICIOUS_PACKAGE": {"T1195.002", "T1105", "T1059"}, // Compromise Software Supply Chain, Ingress Tool Transfer, Command and Scripting Interpreter
-	"TYPOSQUATTING": {"T1195.002", "T1566", "T1102"}, // Compromise Software Supply Chain, Phishing, Web Service
-	"CDN_COMPROMISE": {"T1195.002", "T1102", "T1071"}, // Compromise Software Supply Chain, Web Service, Application Layer Protocol
-	"THIRD_PARTY_INTEGRATION": {"T1078", "T1102", "T1552"}, // Valid Accounts, Web Service, Credentials
+	"VULNERABLE_DEPENDENCY":   {"T1195", "T1105", "T1059"},     // Supply Chain Compromise, Ingress Tool Transfer, Command and Scripting Interpreter
+	"MALICIOUS_PACKAGE":       {"T1195.002", "T1105", "T1059"}, // Compromise Software Supply Chain, Ingress Tool Transfer, Command and Scripting Interpreter
+	"TYPOSQUATTING":           {"T1195.002", "T1566", "T1102"}, // Compromise Software Supply Chain, Phishing, Web Service
+	"CDN_COMPROMISE":          {"T1195.002", "T1102", "T1071"}, // Compromise Software Supply Chain, Web Service, Application Layer Protocol
+	"THIRD_PARTY_INTEGRATION": {"T1078", "T1102", "T1552"},     // Valid Accounts, Web Service, Credentials
 }
 
 // TechniqueDescriptions provides human-readable descriptions for techniques
@@ -176,7 +176,7 @@ var TechniqueDescriptions = map[string]string{
 // TechniqueTactics maps techniques to their primary MITRE ATT&CK tactics
 var TechniqueTactics = map[string]string{
 	"T1003": "Credential Access",
-	"T1005": "Collection", 
+	"T1005": "Collection",
 	"T1012": "Discovery",
 	"T1018": "Discovery",
 	"T1027": "Defense Evasion",
@@ -250,20 +250,20 @@ func (m *VulnToAttackMapper) GetTactic(technique string) string {
 func (m *VulnToAttackMapper) GetRelevantTests(vulnType string, atomicClient *AtomicClient) []AtomicTest {
 	techniques := m.GetTechniques(vulnType)
 	tests := []AtomicTest{}
-	
+
 	for _, technique := range techniques {
 		if test, err := atomicClient.GetSafeTest(technique); err == nil {
 			tests = append(tests, *test)
 		}
 	}
-	
+
 	return tests
 }
 
 // MapFindingToAttack creates comprehensive ATT&CK mapping for a finding
 func (m *VulnToAttackMapper) MapFindingToAttack(finding Finding) *AttackMapping {
 	techniques := m.GetTechniques(finding.Type)
-	
+
 	mapping := &AttackMapping{
 		VulnerabilityType: finding.Type,
 		VulnerabilityID:   finding.ID,
@@ -271,7 +271,7 @@ func (m *VulnToAttackMapper) MapFindingToAttack(finding Finding) *AttackMapping 
 		AttackChain:       []AttackStep{},
 		Summary:           "",
 	}
-	
+
 	// Map each technique
 	for i, technique := range techniques {
 		techMapping := TechniqueMapping{
@@ -282,7 +282,7 @@ func (m *VulnToAttackMapper) MapFindingToAttack(finding Finding) *AttackMapping 
 			Relevance:   m.calculateRelevance(finding.Type, technique),
 		}
 		mapping.Techniques = append(mapping.Techniques, techMapping)
-		
+
 		// Build attack chain
 		step := AttackStep{
 			Order:       i + 1,
@@ -294,10 +294,10 @@ func (m *VulnToAttackMapper) MapFindingToAttack(finding Finding) *AttackMapping 
 		}
 		mapping.AttackChain = append(mapping.AttackChain, step)
 	}
-	
+
 	// Generate summary
 	mapping.Summary = m.generateMappingSummary(finding, mapping)
-	
+
 	return mapping
 }
 
@@ -330,11 +330,11 @@ func (m *VulnToAttackMapper) assessTechniqueImpact(technique string, finding Fin
 		"T1087": "Information gathering for targeted attacks",
 		"T1083": "Sensitive file discovery and enumeration",
 	}
-	
+
 	if impact, exists := baseImpact[technique]; exists {
 		return fmt.Sprintf("%s (via %s vulnerability)", impact, finding.Type)
 	}
-	
+
 	return fmt.Sprintf("Potential security impact through %s", finding.Type)
 }
 
@@ -343,15 +343,15 @@ func (m *VulnToAttackMapper) generateMappingSummary(finding Finding, mapping *At
 	if len(mapping.Techniques) == 0 {
 		return fmt.Sprintf("No direct ATT&CK techniques mapped for %s vulnerability", finding.Type)
 	}
-	
+
 	primaryTactic := mapping.AttackChain[0].Tactic
 	techniqueCount := len(mapping.Techniques)
-	
+
 	return fmt.Sprintf(
 		"The %s vulnerability maps to %d ATT&CK techniques, primarily enabling %s tactics. "+
-		"This vulnerability provides an attack path for %s and related adversary behaviors.",
-		strings.ReplaceAll(finding.Type, "_", " "), 
-		techniqueCount, 
+			"This vulnerability provides an attack path for %s and related adversary behaviors.",
+		strings.ReplaceAll(finding.Type, "_", " "),
+		techniqueCount,
 		primaryTactic,
 		strings.ToLower(primaryTactic),
 	)

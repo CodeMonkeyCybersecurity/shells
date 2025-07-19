@@ -36,7 +36,7 @@ func NewDomainDiscovery(config *DiscoveryConfig, logger Logger) *DomainDiscovery
 	}
 }
 
-func (d *DomainDiscovery) Name() string { return "domain_discovery" }
+func (d *DomainDiscovery) Name() string  { return "domain_discovery" }
 func (d *DomainDiscovery) Priority() int { return 90 }
 
 func (d *DomainDiscovery) CanHandle(target *Target) bool {
@@ -113,7 +113,7 @@ func (d *DomainDiscovery) dnsEnumeration(domain string) []*Asset {
 
 	for _, subdomain := range subdomains {
 		fullDomain := subdomain + "." + domain
-		
+
 		// Check if subdomain resolves
 		if ips, err := net.LookupIP(fullDomain); err == nil && len(ips) > 0 {
 			asset := &Asset{
@@ -201,7 +201,7 @@ func (d *DomainDiscovery) certificateTransparency(domain string) []*Asset {
 
 	// Query Certificate Transparency logs
 	url := fmt.Sprintf("https://crt.sh/?q=%%.%s&output=json", domain)
-	
+
 	resp, err := d.client.Get(url)
 	if err != nil {
 		d.logger.Debug("Certificate transparency query failed", "domain", domain, "error", err)
@@ -223,7 +223,7 @@ func (d *DomainDiscovery) certificateTransparency(domain string) []*Asset {
 	}
 
 	seen := make(map[string]bool)
-	
+
 	for _, entry := range certEntries {
 		// Parse SANs from name_value
 		names := strings.Split(entry.NameValue, "\n")
@@ -232,12 +232,12 @@ func (d *DomainDiscovery) certificateTransparency(domain string) []*Asset {
 			if name == "" || seen[name] {
 				continue
 			}
-			
+
 			// Skip wildcard entries
 			if strings.HasPrefix(name, "*.") {
 				name = name[2:] // Remove *.
 			}
-			
+
 			// Validate domain
 			if d.isValidSubdomain(name, domain) {
 				asset := &Asset{
@@ -263,7 +263,7 @@ func (d *DomainDiscovery) isValidSubdomain(subdomain, baseDomain string) bool {
 	if subdomain == baseDomain {
 		return false
 	}
-	
+
 	return strings.HasSuffix(subdomain, "."+baseDomain) || subdomain == baseDomain
 }
 
@@ -322,7 +322,7 @@ func (d *DomainDiscovery) crawlURL(url, baseDomain string) []*Asset {
 	assets = append(assets, asset)
 
 	// TODO: Parse HTML for additional links and assets
-	
+
 	return assets
 }
 
@@ -372,7 +372,7 @@ func NewNetworkDiscovery(config *DiscoveryConfig, logger Logger) *NetworkDiscove
 	}
 }
 
-func (n *NetworkDiscovery) Name() string { return "network_discovery" }
+func (n *NetworkDiscovery) Name() string  { return "network_discovery" }
 func (n *NetworkDiscovery) Priority() int { return 80 }
 
 func (n *NetworkDiscovery) CanHandle(target *Target) bool {
@@ -487,13 +487,13 @@ func (n *NetworkDiscovery) isHostAlive(ip string) bool {
 		conn.Close()
 		return true
 	}
-	
+
 	conn, err = net.DialTimeout("tcp", ip+":443", 1*time.Second)
 	if err == nil {
 		conn.Close()
 		return true
 	}
-	
+
 	return false
 }
 
@@ -556,7 +556,7 @@ func (n *NetworkDiscovery) detectService(port int) string {
 		5432: "PostgreSQL",
 		3306: "MySQL",
 	}
-	
+
 	return services[port]
 }
 
@@ -582,7 +582,7 @@ func NewTechnologyDiscovery(config *DiscoveryConfig, logger Logger) *TechnologyD
 	}
 }
 
-func (t *TechnologyDiscovery) Name() string { return "technology_discovery" }
+func (t *TechnologyDiscovery) Name() string  { return "technology_discovery" }
 func (t *TechnologyDiscovery) Priority() int { return 70 }
 
 func (t *TechnologyDiscovery) CanHandle(target *Target) bool {
@@ -607,7 +607,7 @@ func (t *TechnologyDiscovery) Discover(ctx context.Context, target *Target, sess
 	}
 
 	technologies := t.detectTechnologies(url)
-	
+
 	if len(technologies) > 0 {
 		asset := &Asset{
 			Type:         AssetTypeURL,
@@ -647,11 +647,11 @@ func (t *TechnologyDiscovery) detectFromHeaders(headers http.Header) []string {
 	var technologies []string
 
 	patterns := map[string]*regexp.Regexp{
-		"nginx":     regexp.MustCompile(`nginx`),
-		"Apache":    regexp.MustCompile(`Apache`),
-		"PHP":       regexp.MustCompile(`PHP`),
-		"ASP.NET":   regexp.MustCompile(`ASP\.NET`),
-		"Express":   regexp.MustCompile(`Express`),
+		"nginx":      regexp.MustCompile(`nginx`),
+		"Apache":     regexp.MustCompile(`Apache`),
+		"PHP":        regexp.MustCompile(`PHP`),
+		"ASP.NET":    regexp.MustCompile(`ASP\.NET`),
+		"Express":    regexp.MustCompile(`Express`),
 		"Cloudflare": regexp.MustCompile(`cloudflare`),
 	}
 
@@ -684,7 +684,7 @@ func NewCompanyDiscovery(config *DiscoveryConfig, logger Logger) *CompanyDiscove
 	}
 }
 
-func (c *CompanyDiscovery) Name() string { return "company_discovery" }
+func (c *CompanyDiscovery) Name() string  { return "company_discovery" }
 func (c *CompanyDiscovery) Priority() int { return 60 }
 
 func (c *CompanyDiscovery) CanHandle(target *Target) bool {
@@ -700,7 +700,7 @@ func (c *CompanyDiscovery) Discover(ctx context.Context, target *Target, session
 
 	// Try to find domains associated with the company
 	domains := c.findCompanyDomains(target.Value)
-	
+
 	for _, domain := range domains {
 		asset := &Asset{
 			Type:         AssetTypeDomain,
@@ -723,7 +723,7 @@ func (c *CompanyDiscovery) findCompanyDomains(companyName string) []string {
 
 	// Basic heuristics to generate potential domains
 	normalizedName := strings.ToLower(strings.ReplaceAll(companyName, " ", ""))
-	
+
 	// Remove common suffixes
 	suffixes := []string{"inc", "corp", "corporation", "company", "co", "ltd", "llc"}
 	for _, suffix := range suffixes {

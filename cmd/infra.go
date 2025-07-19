@@ -237,7 +237,11 @@ func installNomad() error {
 		arch = "arm64"
 	}
 
-	version := "1.7.2"
+	// TODO: Make this configurable via flag or config file
+	version := os.Getenv("NOMAD_VERSION")
+	if version == "" {
+		version = "1.7.2" // Default version
+	}
 	url := fmt.Sprintf("https://releases.hashicorp.com/nomad/%s/nomad_%s_linux_%s.zip", version, version, arch)
 
 	log.Info("Downloading Nomad", "version", version, "arch", arch)
@@ -494,18 +498,18 @@ func buildScannerContainers() error {
 		log.Info("Building container", "name", container.name)
 
 		dockerfile := generateDockerfile(container.tools)
-		
+
 		// Create secure temporary file for Dockerfile
 		tempFile, err := security.CreateSecureTempFile("Dockerfile_", ".dockerfile")
 		if err != nil {
 			return fmt.Errorf("failed to create secure temp file: %w", err)
 		}
 		defer closeAndLogError(tempFile, "Dockerfile temp file")
-		
+
 		if _, err := tempFile.Write([]byte(dockerfile)); err != nil {
 			return fmt.Errorf("failed to write dockerfile for %s: %w", container.name, err)
 		}
-		
+
 		dockerfilePath := tempFile.Name()
 
 		cmd := exec.Command("docker", "build", "-t", container.name, "-f", dockerfilePath, ".")

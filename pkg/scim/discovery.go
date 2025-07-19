@@ -169,8 +169,8 @@ func (d *Discoverer) testUsersResource(ctx context.Context, baseURL string) *SCI
 	for _, userURL := range userURLs {
 		if d.testSCIMResource(ctx, userURL) {
 			return &SCIMEndpoint{
-				URL:         baseURL,
-				Resources:   []string{"Users"},
+				URL:          baseURL,
+				Resources:    []string{"Users"},
 				DiscoveredAt: time.Now(),
 			}
 		}
@@ -190,8 +190,8 @@ func (d *Discoverer) testGroupsResource(ctx context.Context, baseURL string) *SC
 	for _, groupURL := range groupURLs {
 		if d.testSCIMResource(ctx, groupURL) {
 			return &SCIMEndpoint{
-				URL:         baseURL,
-				Resources:   []string{"Groups"},
+				URL:          baseURL,
+				Resources:    []string{"Groups"},
 				DiscoveredAt: time.Now(),
 			}
 		}
@@ -211,8 +211,8 @@ func (d *Discoverer) testSchemasResource(ctx context.Context, baseURL string) *S
 	for _, schemaURL := range schemaURLs {
 		if d.testSCIMResource(ctx, schemaURL) {
 			return &SCIMEndpoint{
-				URL:         baseURL,
-				Resources:   []string{"Schemas"},
+				URL:          baseURL,
+				Resources:    []string{"Schemas"},
 				DiscoveredAt: time.Now(),
 			}
 		}
@@ -320,10 +320,10 @@ func (d *Discoverer) isServiceProviderConfig(config map[string]interface{}) bool
 // buildEndpointFromConfig builds a SCIM endpoint from ServiceProviderConfig
 func (d *Discoverer) buildEndpointFromConfig(baseURL string, config map[string]interface{}) *SCIMEndpoint {
 	endpoint := &SCIMEndpoint{
-		URL:         baseURL,
-		Resources:   []string{},
-		Schemas:     []string{},
-		Operations:  []string{},
+		URL:          baseURL,
+		Resources:    []string{},
+		Schemas:      []string{},
+		Operations:   []string{},
 		DiscoveredAt: time.Now(),
 	}
 

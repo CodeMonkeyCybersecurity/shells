@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -271,8 +272,36 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 	// Check AWS credentials (if profile specified)
 	if awsProfile != "" {
 		fmt.Printf("Checking AWS credentials (profile: %s)... ", awsProfile)
-		// TODO: Add AWS credential validation
-		fmt.Printf("⚠️  Skipped (implement AWS credential check)\n")
+
+		// Set AWS profile environment variable
+		os.Setenv("AWS_PROFILE", awsProfile)
+
+		// Test AWS credentials by calling STS GetCallerIdentity
+		cmd := exec.Command("aws", "sts", "get-caller-identity", "--profile", awsProfile)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			fmt.Printf("❌ Failed\n")
+			fmt.Printf("   Error: %v\n", err)
+			if len(output) > 0 {
+				fmt.Printf("   Output: %s\n", string(output))
+			}
+			fmt.Printf("   Ensure AWS credentials are configured for profile '%s'\n", awsProfile)
+			return fmt.Errorf("AWS credential validation failed")
+		}
+
+		fmt.Printf("✅ Valid\n")
+
+		// Parse and display account info
+		var accountInfo struct {
+			UserId  string `json:"UserId"`
+			Account string `json:"Account"`
+			Arn     string `json:"Arn"`
+		}
+		if err := json.Unmarshal(output, &accountInfo); err == nil {
+			fmt.Printf("   Account: %s\n", accountInfo.Account)
+			fmt.Printf("   User ARN: %s\n", accountInfo.Arn)
+		}
 	}
 
 	fmt.Printf("\n✅ Setup validation completed successfully!\n")

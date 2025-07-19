@@ -316,18 +316,18 @@ Examples:
 
 		for _, finding := range findings {
 			targetObj := atomic.Target{URL: finding.Target, Type: "web"}
-			
+
 			// Get techniques for this vulnerability type
 			mapper := atomic.NewVulnToAttackMapper()
 			techniques := mapper.GetTechniques(finding.Type)
-			
+
 			for _, technique := range techniques {
 				demo, err := client.DemonstrateImpact(technique, targetObj)
 				if err != nil {
 					fmt.Printf("Warning: Could not demonstrate %s for %s: %v\n", technique, finding.Type, err)
 					continue
 				}
-				
+
 				demonstration := atomic.Demonstration{
 					Technique:   technique,
 					Name:        demo.TestName,

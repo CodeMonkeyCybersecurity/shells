@@ -64,7 +64,7 @@ func (c *SecureClient) Get(ctx context.Context, url string) (*http.Response, err
 // Post performs a POST request with context
 func (c *SecureClient) Post(ctx context.Context, url, contentType string, body interface{}) (*http.Response, error) {
 	var reqBody io.Reader
-	
+
 	// Handle different body types
 	switch v := body.(type) {
 	case io.Reader:
@@ -86,22 +86,22 @@ func (c *SecureClient) Post(ctx context.Context, url, contentType string, body i
 			contentType = "application/json"
 		}
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", url, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	// Set content type
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
-	
+
 	// Set security headers
 	req.Header.Set("User-Agent", "shells-security-scanner/1.0")
 	req.Header.Set("Accept", "application/json,text/html,text/plain")
 	req.Header.Set("Cache-Control", "no-cache")
-	
+
 	return c.client.Do(req)
 }
 

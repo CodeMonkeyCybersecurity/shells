@@ -11,11 +11,11 @@ import (
 
 // AtomicClient provides safe interface to Atomic Red Team tests
 type AtomicClient struct {
-	atomicsPath   string
-	safetyFilter  *SafetyFilter
-	executor      *AtomicExecutor
-	config        Config
-	allowedTests  map[string]AtomicTest
+	atomicsPath  string
+	safetyFilter *SafetyFilter
+	executor     *AtomicExecutor
+	config       Config
+	allowedTests map[string]AtomicTest
 }
 
 // NewAtomicClient creates a new atomic client with safety constraints
@@ -26,7 +26,7 @@ func NewAtomicClient(config Config) (*AtomicClient, error) {
 		config:       config,
 		allowedTests: make(map[string]AtomicTest),
 	}
-	
+
 	// Initialize executor with safety constraints
 	executorConfig := ExecutorConfig{
 		Timeout:           config.Timeout,
@@ -38,18 +38,18 @@ func NewAtomicClient(config Config) (*AtomicClient, error) {
 		NomadAddr:         config.NomadAddr,
 		UseSecureExecutor: true, // Enable secure execution by default
 	}
-	
+
 	var err error
 	client.executor, err = NewAtomicExecutor(executorConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create executor: %w", err)
 	}
-	
+
 	// Load and validate safe tests
 	if err := client.loadSafeTests(); err != nil {
 		return nil, fmt.Errorf("failed to load safe tests: %w", err)
 	}
-	
+
 	return client, nil
 }
 
@@ -57,7 +57,7 @@ func NewAtomicClient(config Config) (*AtomicClient, error) {
 func (a *AtomicClient) loadSafeTests() error {
 	for _, technique := range a.safetyFilter.allowedTechniques {
 		testPath := filepath.Join(a.atomicsPath, technique, technique+".yaml")
-		
+
 		// Check if test file exists
 		if _, err := os.Stat(testPath); os.IsNotExist(err) {
 			// Try alternative path structure
@@ -66,18 +66,18 @@ func (a *AtomicClient) loadSafeTests() error {
 				continue // Skip if test doesn't exist
 			}
 		}
-		
+
 		test, err := a.loadTest(testPath)
 		if err != nil {
 			continue // Skip invalid tests
 		}
-		
+
 		// Safety validation
 		if a.safetyFilter.IsSafe(*test) {
 			a.allowedTests[technique] = *test
 		}
 	}
-	
+
 	return nil
 }
 
@@ -87,12 +87,12 @@ func (a *AtomicClient) loadTest(testPath string) (*AtomicTest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read test file %s: %w", testPath, err)
 	}
-	
+
 	var test AtomicTest
 	if err := yaml.Unmarshal(data, &test); err != nil {
 		return nil, fmt.Errorf("failed to parse test file %s: %w", testPath, err)
 	}
-	
+
 	return &test, nil
 }
 
@@ -102,7 +102,7 @@ func (a *AtomicClient) GetSafeTest(technique string) (*AtomicTest, error) {
 	if !exists {
 		return nil, fmt.Errorf("technique %s not found or not safe for bug bounty testing", technique)
 	}
-	
+
 	return &test, nil
 }
 
@@ -122,12 +122,12 @@ func (a *AtomicClient) ExecuteSafeTest(technique string, testName string, target
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 2. Additional safety validation with target context
 	if err := a.safetyFilter.ValidateTest(*test, target); err != nil {
 		return nil, fmt.Errorf("safety validation failed: %w", err)
 	}
-	
+
 	// 3. Find specific atomic test
 	var selectedTest *Test
 	for _, atomicTest := range test.AtomicTests {
@@ -136,11 +136,11 @@ func (a *AtomicClient) ExecuteSafeTest(technique string, testName string, target
 			break
 		}
 	}
-	
+
 	if selectedTest == nil {
 		return nil, fmt.Errorf("test %s not found in technique %s", testName, technique)
 	}
-	
+
 	// 4. Execute with safety constraints
 	result := &TestResult{
 		Technique:   technique,
@@ -148,23 +148,23 @@ func (a *AtomicClient) ExecuteSafeTest(technique string, testName string, target
 		SafetyCheck: true,
 		Evidence:    []Evidence{},
 	}
-	
+
 	startTime := time.Now()
-	
+
 	// Execute the test
 	execResult, err := a.executor.ExecuteWithConstraints(*selectedTest, target)
 	result.Duration = time.Since(startTime)
-	
+
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
 		return result, nil
 	}
-	
+
 	result.Success = execResult.Success
 	result.Output = execResult.Output
 	result.Evidence = execResult.Evidence
-	
+
 	return result, nil
 }
 
@@ -174,7 +174,7 @@ func (a *AtomicClient) DemonstrateImpact(technique string, target Target) (*Demo
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := &DemoResult{
 		Technique: technique,
 		TestName:  test.DisplayName,
@@ -182,9 +182,9 @@ func (a *AtomicClient) DemonstrateImpact(technique string, target Target) (*Demo
 		MITRELink: test.AttackLink,
 		Evidence:  []Evidence{},
 	}
-	
+
 	startTime := time.Now()
-	
+
 	// For demonstrations, we often want to show potential impact
 	if a.config.DryRun {
 		result.Evidence = append(result.Evidence, Evidence{
@@ -215,7 +215,7 @@ func (a *AtomicClient) DemonstrateImpact(technique string, target Target) (*Demo
 			}
 		}
 	}
-	
+
 	result.Duration = time.Since(startTime)
 	return result, nil
 }
@@ -232,7 +232,7 @@ func (a *AtomicClient) ValidateTestSafety(technique string) (*SafetyReport, erro
 	if err != nil {
 		return nil, err
 	}
-	
+
 	report := a.safetyFilter.GetSafetyReport(*test)
 	return &report, nil
 }
@@ -251,11 +251,11 @@ func (a *AtomicClient) assessImpact(technique string) string {
 		"T1069": "Permission mapping for escalation paths",
 		"T1018": "Network reconnaissance for lateral movement",
 	}
-	
+
 	if impact, exists := impactMap[technique]; exists {
 		return impact
 	}
-	
+
 	return "Potential security impact requires further analysis"
 }
 
@@ -263,7 +263,7 @@ func (a *AtomicClient) assessImpact(technique string) string {
 func (a *AtomicClient) assessSeverity(technique string) string {
 	severityMap := map[string]string{
 		"T1552": "HIGH",
-		"T1530": "HIGH", 
+		"T1530": "HIGH",
 		"T1190": "CRITICAL",
 		"T1078": "HIGH",
 		"T1003": "CRITICAL",
@@ -273,11 +273,11 @@ func (a *AtomicClient) assessSeverity(technique string) string {
 		"T1069": "MEDIUM",
 		"T1018": "MEDIUM",
 	}
-	
+
 	if severity, exists := severityMap[technique]; exists {
 		return severity
 	}
-	
+
 	return "MEDIUM"
 }
 
@@ -287,7 +287,7 @@ func (a *AtomicClient) CreateCustomTest(name string, technique string, descripti
 	if a.safetyFilter.containsBlockedCommand(command) {
 		return nil, fmt.Errorf("command contains blocked operations")
 	}
-	
+
 	customTest := &AtomicTest{
 		AttackTechnique: technique,
 		DisplayName:     name,
@@ -304,26 +304,26 @@ func (a *AtomicClient) CreateCustomTest(name string, technique string, descripti
 		},
 		SupportedPlatforms: []string{"linux", "macos", "windows"},
 	}
-	
+
 	// Validate the custom test
 	if !a.safetyFilter.IsSafe(*customTest) {
 		return nil, fmt.Errorf("custom test failed safety validation")
 	}
-	
+
 	return customTest, nil
 }
 
 // GenerateTestReport creates comprehensive test execution report
 func (a *AtomicClient) GenerateTestReport(results []TestResult) *TestReport {
 	report := &TestReport{
-		GeneratedAt:    time.Now(),
-		TotalTests:     len(results),
+		GeneratedAt:     time.Now(),
+		TotalTests:      len(results),
 		SuccessfulTests: 0,
-		FailedTests:    0,
-		Results:        results,
-		Summary:        "",
+		FailedTests:     0,
+		Results:         results,
+		Summary:         "",
 	}
-	
+
 	// Calculate statistics
 	for _, result := range results {
 		if result.Success {
@@ -332,14 +332,14 @@ func (a *AtomicClient) GenerateTestReport(results []TestResult) *TestReport {
 			report.FailedTests++
 		}
 	}
-	
+
 	// Generate executive summary
 	report.Summary = fmt.Sprintf(
 		"Executed %d atomic tests with %d successful and %d failed demonstrations. "+
-		"All tests were validated for bug bounty safety compliance.",
+			"All tests were validated for bug bounty safety compliance.",
 		report.TotalTests, report.SuccessfulTests, report.FailedTests,
 	)
-	
+
 	return report
 }
 

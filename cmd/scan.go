@@ -66,7 +66,7 @@ var portScanCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid target: %w", err)
 		}
-		
+
 		validPorts, err := security.ValidatePortRange(ports)
 		if err != nil {
 			return fmt.Errorf("invalid port range: %w", err)
@@ -96,7 +96,7 @@ var sslScanCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("invalid target: %w", err)
 		}
-		
+
 		if port != "" {
 			_, err := security.ValidatePort(port)
 			if err != nil {
@@ -515,7 +515,7 @@ func executePortScan(target string, options map[string]string, scanID string) ([
 
 	// Create secure command executor
 	executor := security.NewCommandExecutor()
-	
+
 	// Run secure nmap scan
 	ctx := context.Background()
 	output, err := executor.ExecuteNmapScan(ctx, target, ports)
@@ -560,7 +560,7 @@ func executeSSLScan(target string, options map[string]string, scanID string) ([]
 
 	// Create secure command executor
 	executor := security.NewCommandExecutor()
-	
+
 	// Run secure SSL scan
 	ctx := context.Background()
 	output, err := executor.ExecuteSSLScan(ctx, target, portNum)
@@ -597,7 +597,7 @@ func executeDNSScan(target string, options map[string]string, scanID string) ([]
 
 	// Create secure command executor
 	executor := security.NewCommandExecutor()
-	
+
 	// Use secure DNS lookup
 	ctx := context.Background()
 	output, err := executor.ExecuteDNSLookup(ctx, target)
@@ -896,7 +896,7 @@ func legacyDNSScan(target string, options map[string]string) error {
 
 	// Create secure command executor
 	executor := security.NewCommandExecutor()
-	
+
 	// Use secure DNS lookup
 	ctx := context.Background()
 	output, err := executor.ExecuteDNSLookup(ctx, target)
@@ -1012,11 +1012,11 @@ func runNomadScan(scanType types.ScanType, target string, options map[string]str
 		return nil, fmt.Errorf("failed to create secure temp file: %w", err)
 	}
 	defer closeAndLogErrorScan(tempFile, "nomad job temp file")
-	
+
 	if _, err := tempFile.Write([]byte(jobTemplate)); err != nil {
 		return nil, fmt.Errorf("failed to write job template: %w", err)
 	}
-	
+
 	jobFile := tempFile.Name()
 
 	// Submit job to Nomad
@@ -1158,7 +1158,7 @@ func collectNomadResults(scanID string) ([]types.Finding, error) {
 	if strings.Contains(scanID, "..") || strings.Contains(scanID, "/") {
 		return nil, fmt.Errorf("invalid scan ID")
 	}
-	
+
 	// Read results from the mounted volume with validated paths
 	resultFiles := []string{
 		fmt.Sprintf("/tmp/scan-results/%s.json", scanID),

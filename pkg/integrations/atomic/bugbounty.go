@@ -48,8 +48,8 @@ var BugBountyCustomTests = []AtomicTest{
 		DisplayName:     "Check for Exposed Credentials in Web Application",
 		AtomicTests: []Test{
 			{
-				Name:        "Search for API keys in JavaScript files",
-				Description: "Demonstrate exposed credentials in client-side code",
+				Name:               "Search for API keys in JavaScript files",
+				Description:        "Demonstrate exposed credentials in client-side code",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"target_url": {
@@ -64,8 +64,8 @@ var BugBountyCustomTests = []AtomicTest{
 				},
 			},
 			{
-				Name:        "Check for exposed environment variables",
-				Description: "Look for exposed environment variables in error pages",
+				Name:               "Check for exposed environment variables",
+				Description:        "Look for exposed environment variables in error pages",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"target_url": {
@@ -88,8 +88,8 @@ var BugBountyCustomTests = []AtomicTest{
 		DisplayName:     "Access Public Cloud Storage Buckets",
 		AtomicTests: []Test{
 			{
-				Name:        "List public S3 bucket contents",
-				Description: "Demonstrate ability to access public S3 bucket contents",
+				Name:               "List public S3 bucket contents",
+				Description:        "Demonstrate ability to access public S3 bucket contents",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"bucket_name": {
@@ -104,8 +104,8 @@ var BugBountyCustomTests = []AtomicTest{
 				},
 			},
 			{
-				Name:        "Check for public Azure blob storage",
-				Description: "Test access to public Azure blob storage containers",
+				Name:               "Check for public Azure blob storage",
+				Description:        "Test access to public Azure blob storage containers",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"storage_account": {
@@ -133,8 +133,8 @@ var BugBountyCustomTests = []AtomicTest{
 		DisplayName:     "Web Application Vulnerability Discovery",
 		AtomicTests: []Test{
 			{
-				Name:        "Basic web application fingerprinting",
-				Description: "Identify web application technologies and versions",
+				Name:               "Basic web application fingerprinting",
+				Description:        "Identify web application technologies and versions",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"target_url": {
@@ -149,8 +149,8 @@ var BugBountyCustomTests = []AtomicTest{
 				},
 			},
 			{
-				Name:        "Check for common vulnerable endpoints",
-				Description: "Test for common vulnerable or informative endpoints",
+				Name:               "Check for common vulnerable endpoints",
+				Description:        "Test for common vulnerable or informative endpoints",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"target_url": {
@@ -173,8 +173,8 @@ var BugBountyCustomTests = []AtomicTest{
 		DisplayName:     "Cloud Account Discovery",
 		AtomicTests: []Test{
 			{
-				Name:        "Enumerate cloud service accounts",
-				Description: "Discover cloud service accounts and permissions",
+				Name:               "Enumerate cloud service accounts",
+				Description:        "Discover cloud service accounts and permissions",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"cloud_provider": {
@@ -197,8 +197,8 @@ var BugBountyCustomTests = []AtomicTest{
 		DisplayName:     "Web Directory and File Discovery",
 		AtomicTests: []Test{
 			{
-				Name:        "Common file discovery via web",
-				Description: "Discover common sensitive files through web requests",
+				Name:               "Common file discovery via web",
+				Description:        "Discover common sensitive files through web requests",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"target_url": {
@@ -213,8 +213,8 @@ var BugBountyCustomTests = []AtomicTest{
 				},
 			},
 			{
-				Name:        "Backup file discovery",
-				Description: "Look for common backup file patterns",
+				Name:               "Backup file discovery",
+				Description:        "Look for common backup file patterns",
 				SupportedPlatforms: []string{"linux", "macos", "windows"},
 				InputArguments: map[string]InputArg{
 					"target_url": {
@@ -247,10 +247,10 @@ func (b *BugBountyAtomic) GetCustomTestByTechnique(technique string) *AtomicTest
 // DemonstrateImpact demonstrates vulnerability impact using custom and standard tests
 func (b *BugBountyAtomic) DemonstrateImpact(vulnType string, target Target) (*ImpactReport, error) {
 	report := &ImpactReport{
-		Vulnerability:   vulnType,
-		ATTACKChain:     []string{},
-		Demonstrations:  []Demonstration{},
-		GeneratedAt:     time.Now(),
+		Vulnerability:  vulnType,
+		ATTACKChain:    []string{},
+		Demonstrations: []Demonstration{},
+		GeneratedAt:    time.Now(),
 	}
 
 	// Get relevant techniques for the vulnerability
@@ -429,9 +429,9 @@ func (b *BugBountyAtomic) generateExecutiveSummary(vulnType string, report *Impa
 
 	return fmt.Sprintf(
 		"Impact analysis for %s vulnerability revealed %d applicable ATT&CK techniques, "+
-		"with %d successful demonstrations. This vulnerability provides multiple attack "+
-		"vectors that could be exploited by adversaries to achieve initial access, "+
-		"credential harvesting, and data exfiltration objectives.",
+			"with %d successful demonstrations. This vulnerability provides multiple attack "+
+			"vectors that could be exploited by adversaries to achieve initial access, "+
+			"credential harvesting, and data exfiltration objectives.",
 		strings.ReplaceAll(vulnType, "_", " "),
 		techniqueCount,
 		successfulDemos,

@@ -13,13 +13,13 @@ import (
 
 // AccountRecoveryTester provides comprehensive account recovery testing
 type AccountRecoveryTester struct {
-	httpClient       *http.Client
-	config           *logic.TestConfig
-	resetAnalyzer    *PasswordResetAnalyzer
-	mfaBypassTester  *MFABypassTester
-	methods          []logic.AccountRecoveryMethod
-	results          []logic.Vulnerability
-	mutex            sync.RWMutex
+	httpClient      *http.Client
+	config          *logic.TestConfig
+	resetAnalyzer   *PasswordResetAnalyzer
+	mfaBypassTester *MFABypassTester
+	methods         []logic.AccountRecoveryMethod
+	results         []logic.Vulnerability
+	mutex           sync.RWMutex
 }
 
 // NewAccountRecoveryTester creates a new account recovery tester
@@ -149,8 +149,8 @@ func (a *AccountRecoveryTester) testAccountEnumeration(target string) *logic.Vul
 				Details:     fmt.Sprintf("Endpoint %s reveals user existence", endpoint),
 				Impact:      "Attackers can enumerate valid user accounts",
 				Evidence: map[string]interface{}{
-					"endpoint":        endpoint,
-					"valid_response":  validResponse.StatusCode,
+					"endpoint":         endpoint,
+					"valid_response":   validResponse.StatusCode,
 					"invalid_response": invalidResponse.StatusCode,
 				},
 				CWE:         "CWE-204",
@@ -167,7 +167,7 @@ func (a *AccountRecoveryTester) testAccountEnumeration(target string) *logic.Vul
 // testRecoveryFlowChaining tests chaining recovery methods
 func (a *AccountRecoveryTester) testRecoveryFlowChaining(target string) *logic.Vulnerability {
 	// Test if recovery methods can be chained to bypass protections
-	
+
 	// Example: Use password reset to bypass security questions
 	resetToken := a.initiatePasswordReset(target, "victim@example.com")
 	if resetToken == "" {
@@ -548,11 +548,11 @@ func (a *AccountRecoveryTester) detectUserEnumeration(valid, invalid *RecoveryRe
 	if valid.StatusCode != invalid.StatusCode {
 		return true
 	}
-	
+
 	if len(valid.Body) != len(invalid.Body) {
 		return true
 	}
-	
+
 	timeDiff := float64(valid.Duration-invalid.Duration) / float64(valid.Duration)
 	return timeDiff > 0.2 // More than 20% difference
 }
@@ -595,14 +595,14 @@ func (s *SecurityQuestionMethod) isWeakQuestion(question string) bool {
 		"favorite color",
 		"first school",
 	}
-	
+
 	lowerQuestion := strings.ToLower(question)
 	for _, weak := range weakQuestions {
 		if strings.Contains(lowerQuestion, weak) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -641,7 +641,7 @@ func (b *BackupCodeMethod) calculateEntropy(codes []string) float64 {
 	if len(codes) == 0 {
 		return 0
 	}
-	
+
 	// Simplified entropy calculation
 	// 6 digits = log2(10^6) ≈ 20 bits
 	return 20.0
