@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -12,12 +13,14 @@ import (
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type sqlStore struct {
-	db  *sqlx.DB
-	cfg config.DatabaseConfig
+	db     *sqlx.DB
+	cfg    config.DatabaseConfig
+	logger *logger.Logger
 }
 
 // getPlaceholder returns the appropriate placeholder for the database driver
@@ -29,34 +32,119 @@ func (s *sqlStore) getPlaceholder(n int) string {
 }
 
 func NewStore(cfg config.DatabaseConfig) (core.ResultStore, error) {
+	// Initialize logger for database operations
+	log, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database logger: %w", err)
+	}
+	log = log.WithComponent("database")
+
+	ctx := context.Background()
+	ctx, span := log.StartOperation(ctx, "database.NewStore", 
+		"driver", cfg.Driver,
+		"dsn_masked", maskDSN(cfg.DSN),
+		"max_connections", cfg.MaxConnections,
+	)
+	defer func() {
+		log.FinishOperation(ctx, span, "database.NewStore", time.Now(), err)
+	}()
+
+	log.WithContext(ctx).Infow("Initializing database connection",
+		"driver", cfg.Driver,
+		"max_connections", cfg.MaxConnections,
+		"max_idle_conns", cfg.MaxIdleConns,
+		"conn_max_lifetime", cfg.ConnMaxLifetime,
+	)
+
+	start := time.Now()
 	db, err := sqlx.Connect(cfg.Driver, cfg.DSN)
 	if err != nil {
+		log.LogError(ctx, err, "database.Connect", 
+			"driver", cfg.Driver,
+			"duration_ms", time.Since(start).Milliseconds(),
+		)
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+
+	log.LogDuration(ctx, "database.Connect", start, 
+		"driver", cfg.Driver,
+		"success", true,
+	)
 
 	db.SetMaxOpenConns(cfg.MaxConnections)
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
+	log.WithContext(ctx).Debugw("Database connection pool configured",
+		"max_open_conns", cfg.MaxConnections,
+		"max_idle_conns", cfg.MaxIdleConns,
+		"conn_max_lifetime", cfg.ConnMaxLifetime,
+	)
+
 	store := &sqlStore{
-		db:  db,
-		cfg: cfg,
+		db:     db,
+		cfg:    cfg,
+		logger: log,
 	}
 
+	// Run database migrations
+	migrateStart := time.Now()
 	if err := store.migrate(); err != nil {
+		log.LogError(ctx, err, "database.Migrate",
+			"duration_ms", time.Since(migrateStart).Milliseconds(),
+		)
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
+
+	log.LogDuration(ctx, "database.Migrate", migrateStart, 
+		"success", true,
+	)
+
+	log.WithContext(ctx).Infow("Database store initialized successfully",
+		"driver", cfg.Driver,
+		"total_init_duration_ms", time.Since(start).Milliseconds(),
+	)
 
 	return store, nil
 }
 
+// maskDSN masks sensitive information in DSN for logging
+func maskDSN(dsn string) string {
+	// Simple masking - in production you'd want more sophisticated masking
+	if len(dsn) > 10 {
+		return dsn[:5] + "***" + dsn[len(dsn)-5:]
+	}
+	return "***"
+}
+
 func (s *sqlStore) migrate() error {
+	ctx := context.Background()
+	ctx, span := s.logger.StartOperation(ctx, "database.migrate", 
+		"driver", s.cfg.Driver,
+	)
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "database.migrate", time.Now(), nil)
+	}()
+
+	s.logger.WithContext(ctx).Infow("Starting database migration",
+		"driver", s.cfg.Driver,
+	)
+
 	// Enable foreign keys for SQLite
 	if s.cfg.Driver == "sqlite3" {
+		start := time.Now()
 		_, err := s.db.Exec("PRAGMA foreign_keys = ON;")
 		if err != nil {
+			s.logger.LogError(ctx, err, "database.migrate.pragma", 
+				"driver", s.cfg.Driver,
+				"duration_ms", time.Since(start).Milliseconds(),
+			)
 			return fmt.Errorf("failed to enable foreign keys: %w", err)
 		}
+		s.logger.LogDuration(ctx, "database.migrate.pragma", start, 
+			"pragma", "foreign_keys",
+			"enabled", true,
+		)
 	}
 
 	schema := `
@@ -98,13 +186,56 @@ func (s *sqlStore) migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at);
 	`
 
+	start := time.Now()
 	_, err := s.db.Exec(schema)
-	return err
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.migrate.schema", 
+			"duration_ms", time.Since(start).Milliseconds(),
+			"driver", s.cfg.Driver,
+		)
+		return err
+	}
+
+	s.logger.LogDuration(ctx, "database.migrate.schema", start, 
+		"tables_created", []string{"scans", "findings"},
+		"indexes_created", 5,
+		"success", true,
+	)
+
+	s.logger.WithContext(ctx).Infow("Database migration completed successfully",
+		"driver", s.cfg.Driver,
+		"total_duration_ms", time.Since(start).Milliseconds(),
+	)
+
+	return nil
 }
 
 func (s *sqlStore) SaveScan(ctx context.Context, scan *types.ScanRequest) error {
+	start := time.Now()
+	ctx, span := s.logger.StartOperation(ctx, "database.SaveScan", 
+		"scan_id", scan.ID,
+		"target", scan.Target,
+		"type", string(scan.Type),
+	)
+	var err error
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "database.SaveScan", start, err)
+	}()
+
+	s.logger.WithContext(ctx).Debugw("Saving scan to database",
+		"scan_id", scan.ID,
+		"target", scan.Target,
+		"type", string(scan.Type),
+		"status", string(scan.Status),
+		"worker_id", scan.WorkerID,
+	)
+
 	optionsJSON, err := json.Marshal(scan.Options)
 	if err != nil {
+		s.logger.LogError(ctx, err, "database.SaveScan.marshal", 
+			"scan_id", scan.ID,
+			"options_count", len(scan.Options),
+		)
 		return fmt.Errorf("failed to marshal options: %w", err)
 	}
 
@@ -135,8 +266,29 @@ func (s *sqlStore) SaveScan(ctx context.Context, scan *types.ScanRequest) error 
 		"worker_id":     scan.WorkerID,
 	}
 
-	_, err = s.db.NamedExecContext(ctx, query, args)
-	return err
+	queryStart := time.Now()
+	result, err := s.db.NamedExecContext(ctx, query, args)
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.SaveScan.insert", 
+			"scan_id", scan.ID,
+			"query_duration_ms", time.Since(queryStart).Milliseconds(),
+		)
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	s.logger.LogDatabaseOperation(ctx, "INSERT", "scans", rowsAffected, time.Since(queryStart),
+		"scan_id", scan.ID,
+		"target", scan.Target,
+	)
+
+	s.logger.WithContext(ctx).Infow("Scan saved successfully",
+		"scan_id", scan.ID,
+		"target", scan.Target,
+		"total_duration_ms", time.Since(start).Milliseconds(),
+	)
+
+	return nil
 }
 
 func (s *sqlStore) UpdateScan(ctx context.Context, scan *types.ScanRequest) error {
@@ -285,11 +437,59 @@ func (s *sqlStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*ty
 }
 
 func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) error {
+	start := time.Now()
+	ctx, span := s.logger.StartOperation(ctx, "database.SaveFindings", 
+		"findings_count", len(findings),
+	)
+	var err error
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "database.SaveFindings", start, err)
+	}()
+
+	if len(findings) == 0 {
+		s.logger.WithContext(ctx).Debugw("No findings to save",
+			"findings_count", 0,
+		)
+		return nil
+	}
+
+	// Extract scan_id from first finding for logging (all findings should have same scan_id)
+	scanID := findings[0].ScanID
+	s.logger.WithContext(ctx).Infow("Saving findings to database",
+		"findings_count", len(findings),
+		"scan_id", scanID,
+	)
+
+	// Count findings by severity for logging
+	severityCounts := make(map[types.Severity]int)
+	toolCounts := make(map[string]int)
+	for _, finding := range findings {
+		severityCounts[finding.Severity]++
+		toolCounts[finding.Tool]++
+	}
+
+	s.logger.WithContext(ctx).Debugw("Findings breakdown",
+		"scan_id", scanID,
+		"severity_counts", severityCounts,
+		"tool_counts", toolCounts,
+	)
+
+	txStart := time.Now()
 	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
-		return err
+		s.logger.LogError(ctx, err, "database.SaveFindings.begin_tx", 
+			"scan_id", scanID,
+			"findings_count", len(findings),
+			"tx_duration_ms", time.Since(txStart).Milliseconds(),
+		)
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
+
+	s.logger.LogDuration(ctx, "database.SaveFindings.begin_tx", txStart, 
+		"scan_id", scanID,
+		"success", true,
+	)
 
 	query := `
 		INSERT INTO findings (
@@ -301,14 +501,32 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 		)
 	`
 
-	for _, finding := range findings {
+	insertStart := time.Now()
+	totalRowsAffected := int64(0)
+
+	for i, finding := range findings {
+		findingStart := time.Now()
+		
 		refsJSON, err := json.Marshal(finding.References)
 		if err != nil {
-			return fmt.Errorf("failed to marshal references: %w", err)
+			s.logger.LogError(ctx, err, "database.SaveFindings.marshal_refs", 
+				"finding_id", finding.ID,
+				"scan_id", finding.ScanID,
+				"refs_count", len(finding.References),
+				"finding_index", i,
+			)
+			return fmt.Errorf("failed to marshal references for finding %s: %w", finding.ID, err)
 		}
+		
 		metaJSON, err := json.Marshal(finding.Metadata)
 		if err != nil {
-			return fmt.Errorf("failed to marshal metadata: %w", err)
+			s.logger.LogError(ctx, err, "database.SaveFindings.marshal_metadata", 
+				"finding_id", finding.ID,
+				"scan_id", finding.ScanID,
+				"metadata_keys", len(finding.Metadata),
+				"finding_index", i,
+			)
+			return fmt.Errorf("failed to marshal metadata for finding %s: %w", finding.ID, err)
 		}
 
 		args := map[string]interface{}{
@@ -327,12 +545,75 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 			"updated_at":  finding.UpdatedAt,
 		}
 
-		if _, err := tx.NamedExecContext(ctx, query, args); err != nil {
-			return err
+		queryStart := time.Now()
+		result, err := tx.NamedExecContext(ctx, query, args)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.SaveFindings.insert", 
+				"finding_id", finding.ID,
+				"scan_id", finding.ScanID,
+				"tool", finding.Tool,
+				"severity", string(finding.Severity),
+				"finding_index", i,
+				"query_duration_ms", time.Since(queryStart).Milliseconds(),
+			)
+			return fmt.Errorf("failed to insert finding %s: %w", finding.ID, err)
 		}
+
+		rowsAffected, _ := result.RowsAffected()
+		totalRowsAffected += rowsAffected
+
+		s.logger.LogDatabaseOperation(ctx, "INSERT", "findings", rowsAffected, time.Since(queryStart),
+			"finding_id", finding.ID,
+			"scan_id", finding.ScanID,
+			"tool", finding.Tool,
+			"severity", string(finding.Severity),
+		)
+
+		s.logger.WithContext(ctx).Debugw("Finding saved",
+			"finding_id", finding.ID,
+			"scan_id", finding.ScanID,
+			"tool", finding.Tool,
+			"severity", string(finding.Severity),
+			"finding_index", i+1,
+			"total_findings", len(findings),
+			"finding_duration_ms", time.Since(findingStart).Milliseconds(),
+		)
 	}
 
-	return tx.Commit()
+	s.logger.LogDuration(ctx, "database.SaveFindings.insert_all", insertStart, 
+		"scan_id", scanID,
+		"findings_count", len(findings),
+		"total_rows_affected", totalRowsAffected,
+		"success", true,
+	)
+
+	commitStart := time.Now()
+	err = tx.Commit()
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.SaveFindings.commit", 
+			"scan_id", scanID,
+			"findings_count", len(findings),
+			"commit_duration_ms", time.Since(commitStart).Milliseconds(),
+		)
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.logger.LogDuration(ctx, "database.SaveFindings.commit", commitStart, 
+		"scan_id", scanID,
+		"findings_count", len(findings),
+		"success", true,
+	)
+
+	s.logger.WithContext(ctx).Infow("Findings saved successfully",
+		"scan_id", scanID,
+		"findings_count", len(findings),
+		"severity_counts", severityCounts,
+		"tool_counts", toolCounts,
+		"total_rows_affected", totalRowsAffected,
+		"total_duration_ms", time.Since(start).Milliseconds(),
+	)
+
+	return nil
 }
 
 func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Finding, error) {

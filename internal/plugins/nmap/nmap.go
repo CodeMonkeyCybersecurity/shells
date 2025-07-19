@@ -7,30 +7,71 @@ import (
 	"net"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/google/uuid"
 )
 
 type nmapScanner struct {
 	cfg    config.NmapConfig
-	logger interface {
-		Info(msg string, keysAndValues ...interface{})
-		Error(msg string, keysAndValues ...interface{})
-		Debug(msg string, keysAndValues ...interface{})
-	}
+	logger *logger.Logger
 }
 
-func NewScanner(cfg config.NmapConfig, logger interface {
+func NewScanner(cfg config.NmapConfig, log interface {
 	Info(msg string, keysAndValues ...interface{})
 	Error(msg string, keysAndValues ...interface{})
 	Debug(msg string, keysAndValues ...interface{})
 }) core.Scanner {
-	return &nmapScanner{
-		cfg:    cfg,
-		logger: logger,
+	start := time.Now()
+
+	// Initialize enhanced logger for Nmap scanner
+	enhancedLogger, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
+	if err != nil {
+		// Fallback to basic logger if initialization fails
+		enhancedLogger, _ = logger.New(config.LoggerConfig{Level: "info", Format: "json"})
 	}
+	enhancedLogger = enhancedLogger.WithComponent("nmap-scanner")
+
+	ctx := context.Background()
+	ctx, span := enhancedLogger.StartOperation(ctx, "nmap.NewScanner")
+	defer func() {
+		enhancedLogger.FinishOperation(ctx, span, "nmap.NewScanner", start, nil)
+	}()
+
+	enhancedLogger.WithContext(ctx).Infow("Initializing Nmap scanner",
+		"scanner_type", "nmap",
+		"component", "network_scanner",
+		"binary_path", cfg.BinaryPath,
+		"available_profiles", len(cfg.Profiles),
+	)
+
+	// Log available profiles
+	profileNames := make([]string, 0, len(cfg.Profiles))
+	for profileName := range cfg.Profiles {
+		profileNames = append(profileNames, profileName)
+	}
+	enhancedLogger.WithContext(ctx).Debugw("Nmap scanner configuration",
+		"binary_path", cfg.BinaryPath,
+		"profiles", profileNames,
+		"total_profiles", len(cfg.Profiles),
+	)
+
+	scanner := &nmapScanner{
+		cfg:    cfg,
+		logger: enhancedLogger,
+	}
+
+	enhancedLogger.WithContext(ctx).Infow("Nmap scanner initialized successfully",
+		"scanner_type", "nmap",
+		"total_init_duration_ms", time.Since(start).Milliseconds(),
+		"capabilities", []string{"port_scanning", "service_detection", "os_detection", "vulnerability_assessment"},
+	)
+
+	return scanner
 }
 
 func (s *nmapScanner) Name() string {
@@ -42,73 +83,316 @@ func (s *nmapScanner) Type() types.ScanType {
 }
 
 func (s *nmapScanner) Validate(target string) error {
+	start := time.Now()
+	ctx := context.Background()
+	ctx, span := s.logger.StartOperation(ctx, "nmap.Validate",
+		"target", target,
+	)
+	var err error
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "nmap.Validate", start, err)
+	}()
+
+	s.logger.WithContext(ctx).Debugw("Validating Nmap target",
+		"target", target,
+		"target_length", len(target),
+	)
+
 	if target == "" {
-		return fmt.Errorf("target cannot be empty")
+		err = fmt.Errorf("target cannot be empty")
+		s.logger.LogError(ctx, err, "nmap.Validate.empty",
+			"validation_type", "empty_target",
+		)
+		return err
 	}
 
-	if net.ParseIP(target) == nil {
-		if _, err := net.LookupHost(target); err != nil {
-			return fmt.Errorf("invalid target: %w", err)
+	// Check if target is an IP address
+	validateStart := time.Now()
+	if ip := net.ParseIP(target); ip != nil {
+		s.logger.WithContext(ctx).Debugw("Target is valid IP address",
+			"target", target,
+			"ip_version", getIPVersion(ip),
+			"validation_duration_ms", time.Since(validateStart).Milliseconds(),
+		)
+	} else {
+		// Target is hostname - resolve it
+		resolveStart := time.Now()
+		addrs, err := net.LookupHost(target)
+		resolveD := time.Since(resolveStart)
+
+		if err != nil {
+			s.logger.LogError(ctx, err, "nmap.Validate.resolve",
+				"target", target,
+				"validation_type", "hostname_resolution",
+				"resolve_duration_ms", resolveD.Milliseconds(),
+			)
+			err = fmt.Errorf("invalid target: %w", err)
+			return err
 		}
+
+		s.logger.WithContext(ctx).Debugw("Hostname resolution successful",
+			"target", target,
+			"resolved_addresses", addrs,
+			"address_count", len(addrs),
+			"resolve_duration_ms", resolveD.Milliseconds(),
+		)
 	}
+
+	s.logger.WithContext(ctx).Infow("Nmap target validation successful",
+		"target", target,
+		"validation_duration_ms", time.Since(start).Milliseconds(),
+	)
 
 	return nil
 }
 
 func (s *nmapScanner) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
+	start := time.Now()
+	scanID := uuid.New().String()
+
+	ctx, span := s.logger.StartOperation(ctx, "nmap.Scan",
+		"target", target,
+		"scan_id", scanID,
+	)
+	var err error
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "nmap.Scan", start, err)
+	}()
+
+	s.logger.WithContext(ctx).Infow("Starting Nmap scan",
+		"target", target,
+		"scan_id", scanID,
+		"available_options", len(options),
+	)
+
+	// Profile selection with detailed logging
 	profile := options["profile"]
 	if profile == "" {
 		profile = "default"
+		s.logger.WithContext(ctx).Debugw("Using default profile",
+			"scan_id", scanID,
+			"reason", "no profile specified in options",
+		)
+	} else {
+		s.logger.WithContext(ctx).Debugw("Profile specified in options",
+			"scan_id", scanID,
+			"requested_profile", profile,
+		)
 	}
 
 	profileArgs, ok := s.cfg.Profiles[profile]
 	if !ok {
+		s.logger.WithContext(ctx).Warnw("Requested profile not found, falling back to default",
+			"scan_id", scanID,
+			"requested_profile", profile,
+			"available_profiles", getProfileNames(s.cfg.Profiles),
+		)
+		profile = "default"
 		profileArgs = s.cfg.Profiles["default"]
 	}
 
+	s.logger.WithContext(ctx).Infow("Profile selected",
+		"scan_id", scanID,
+		"selected_profile", profile,
+		"profile_args", profileArgs,
+	)
+
+	// Build command arguments with logging
 	args := []string{"-oX", "-", target}
+	baseArgsCount := len(args)
 
 	if ports := options["ports"]; ports != "" {
 		args = append(args, "-p", ports)
+		s.logger.WithContext(ctx).Debugw("Port specification added",
+			"scan_id", scanID,
+			"ports", ports,
+		)
 	}
 
-	args = append(args, strings.Fields(profileArgs)...)
+	profileArgsSlice := strings.Fields(profileArgs)
+	args = append(args, profileArgsSlice...)
 
-	s.logger.Info("Running nmap scan", "target", target, "args", args)
+	s.logger.WithContext(ctx).Infow("Nmap command prepared",
+		"scan_id", scanID,
+		"binary_path", s.cfg.BinaryPath,
+		"total_args", len(args),
+		"base_args_count", baseArgsCount,
+		"profile_args_count", len(profileArgsSlice),
+		"full_args", args,
+	)
 
+	// Execute command with timing
+	cmdStart := time.Now()
 	cmd := exec.CommandContext(ctx, s.cfg.BinaryPath, args...)
+
+	s.logger.WithContext(ctx).Infow("Executing Nmap scan",
+		"scan_id", scanID,
+		"command", s.cfg.BinaryPath,
+		"target", target,
+	)
+
 	output, err := cmd.Output()
+	cmdDuration := time.Since(cmdStart)
+
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("nmap failed: %s", string(exitErr.Stderr))
+			s.logger.LogError(ctx, err, "nmap.Scan.command_failed",
+				"scan_id", scanID,
+				"exit_code", exitErr.ExitCode(),
+				"stderr", string(exitErr.Stderr),
+				"command_duration_ms", cmdDuration.Milliseconds(),
+			)
+			err = fmt.Errorf("nmap failed: %s", string(exitErr.Stderr))
+			return nil, err
 		}
-		return nil, fmt.Errorf("failed to run nmap: %w", err)
+		s.logger.LogError(ctx, err, "nmap.Scan.execution_error",
+			"scan_id", scanID,
+			"command_duration_ms", cmdDuration.Milliseconds(),
+		)
+		err = fmt.Errorf("failed to run nmap: %w", err)
+		return nil, err
 	}
 
-	return s.parseNmapOutput(output, target)
+	s.logger.WithContext(ctx).Infow("Nmap execution completed successfully",
+		"scan_id", scanID,
+		"command_duration_ms", cmdDuration.Milliseconds(),
+		"output_size_bytes", len(output),
+	)
+
+	// Parse output with context
+	parseStart := time.Now()
+	findings, err := s.parseNmapOutput(ctx, output, target, scanID)
+	parseDuration := time.Since(parseStart)
+
+	if err != nil {
+		s.logger.LogError(ctx, err, "nmap.Scan.parse_error",
+			"scan_id", scanID,
+			"output_size_bytes", len(output),
+			"parse_duration_ms", parseDuration.Milliseconds(),
+		)
+		return nil, err
+	}
+
+	// Log scan completion with comprehensive metrics
+	s.logger.WithContext(ctx).Infow("Nmap scan completed successfully",
+		"scan_id", scanID,
+		"target", target,
+		"total_duration_ms", time.Since(start).Milliseconds(),
+		"command_duration_ms", cmdDuration.Milliseconds(),
+		"parse_duration_ms", parseDuration.Milliseconds(),
+		"findings_count", len(findings),
+		"output_size_bytes", len(output),
+		"profile_used", profile,
+	)
+
+	// Log high-severity findings immediately
+	for _, finding := range findings {
+		if finding.Severity == types.SeverityCritical || finding.Severity == types.SeverityHigh {
+			s.logger.WithContext(ctx).Warnw("High-severity finding discovered",
+				"scan_id", scanID,
+				"finding_type", finding.Type,
+				"severity", finding.Severity,
+				"title", finding.Title,
+				"host", finding.Metadata["host"],
+				"port", finding.Metadata["port"],
+			)
+		}
+	}
+
+	// Add scan metadata to all findings
+	for i := range findings {
+		if findings[i].Metadata == nil {
+			findings[i].Metadata = make(map[string]interface{})
+		}
+		findings[i].Metadata["scan_id"] = scanID
+		findings[i].Metadata["scan_duration_ms"] = time.Since(start).Milliseconds()
+		findings[i].Metadata["nmap_profile"] = profile
+	}
+
+	return findings, nil
 }
 
-func (s *nmapScanner) parseNmapOutput(xmlData []byte, target string) ([]types.Finding, error) {
+func (s *nmapScanner) parseNmapOutput(ctx context.Context, xmlData []byte, target string, scanID string) ([]types.Finding, error) {
+	start := time.Now()
+	ctx, span := s.logger.StartOperation(ctx, "nmap.parseNmapOutput",
+		"target", target,
+		"scan_id", scanID,
+		"xml_size_bytes", len(xmlData),
+	)
+	var err error
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "nmap.parseNmapOutput", start, err)
+	}()
+
+	s.logger.WithContext(ctx).Debugw("Starting Nmap output parsing",
+		"scan_id", scanID,
+		"xml_size_bytes", len(xmlData),
+		"target", target,
+	)
+
 	var nmapRun nmapRun
-	if err := xml.Unmarshal(xmlData, &nmapRun); err != nil {
-		return nil, fmt.Errorf("failed to parse nmap XML: %w", err)
+	parseStart := time.Now()
+	if err = xml.Unmarshal(xmlData, &nmapRun); err != nil {
+		s.logger.LogError(ctx, err, "nmap.parseNmapOutput.xml_unmarshal",
+			"scan_id", scanID,
+			"xml_size_bytes", len(xmlData),
+			"parse_duration_ms", time.Since(parseStart).Milliseconds(),
+		)
+		err = fmt.Errorf("failed to parse nmap XML: %w", err)
+		return nil, err
 	}
 
+	s.logger.WithContext(ctx).Debugw("XML unmarshaling completed",
+		"scan_id", scanID,
+		"parse_duration_ms", time.Since(parseStart).Milliseconds(),
+		"hosts_found", len(nmapRun.Hosts),
+	)
+
 	findings := []types.Finding{}
+	hostCount := 0
+	portCount := 0
+	serviceMap := make(map[string]int)
+	severityMap := make(map[types.Severity]int)
 
 	for _, host := range nmapRun.Hosts {
 		if host.Status.State != "up" {
+			s.logger.WithContext(ctx).Debugw("Skipping host - not up",
+				"scan_id", scanID,
+				"host_status", host.Status.State,
+			)
 			continue
 		}
 
+		hostCount++
 		address := s.getHostAddress(host)
+		hostPortCount := 0
+
+		s.logger.WithContext(ctx).Debugw("Processing active host",
+			"scan_id", scanID,
+			"host_address", address,
+			"total_ports", len(host.Ports.Ports),
+		)
 
 		for _, port := range host.Ports.Ports {
 			if port.State.State != "open" {
 				continue
 			}
 
+			hostPortCount++
+			portCount++
+			serviceMap[port.Service.Name]++
 			severity := s.calculateSeverity(port)
+			severityMap[severity]++
+
+			s.logger.WithContext(ctx).Debugw("Processing open port",
+				"scan_id", scanID,
+				"host", address,
+				"port", port.PortID,
+				"protocol", port.Protocol,
+				"service", port.Service.Name,
+				"version", port.Service.Version,
+				"severity", severity,
+			)
 
 			finding := types.Finding{
 				Tool:     "nmap",
@@ -136,13 +420,35 @@ func (s *nmapScanner) parseNmapOutput(xmlData []byte, target string) ([]types.Fi
 
 			if s.isHighRiskService(port.Service.Name) {
 				finding.Solution = s.getServiceRecommendation(port.Service.Name)
+				s.logger.WithContext(ctx).Warnw("High-risk service detected",
+					"scan_id", scanID,
+					"host", address,
+					"port", port.PortID,
+					"service", port.Service.Name,
+					"risk_level", "high",
+				)
 			}
 
 			findings = append(findings, finding)
 		}
 
+		s.logger.WithContext(ctx).Infow("Host processing completed",
+			"scan_id", scanID,
+			"host_address", address,
+			"open_ports", hostPortCount,
+		)
+
 		if len(host.OS.OSMatches) > 0 {
 			osMatch := host.OS.OSMatches[0]
+
+			s.logger.WithContext(ctx).Debugw("OS detection result",
+				"scan_id", scanID,
+				"host", address,
+				"os_name", osMatch.Name,
+				"accuracy", osMatch.Accuracy,
+				"total_matches", len(host.OS.OSMatches),
+			)
+
 			finding := types.Finding{
 				Tool:     "nmap",
 				Type:     "os_detection",
@@ -161,6 +467,17 @@ func (s *nmapScanner) parseNmapOutput(xmlData []byte, target string) ([]types.Fi
 			findings = append(findings, finding)
 		}
 	}
+
+	// Log comprehensive parsing summary
+	s.logger.WithContext(ctx).Infow("Nmap output parsing completed",
+		"scan_id", scanID,
+		"total_duration_ms", time.Since(start).Milliseconds(),
+		"hosts_processed", hostCount,
+		"total_open_ports", portCount,
+		"total_findings", len(findings),
+		"service_breakdown", serviceMap,
+		"severity_breakdown", severityMap,
+	)
 
 	return findings, nil
 }
@@ -314,4 +631,21 @@ type nmapOS struct {
 type nmapOSMatch struct {
 	Name     string `xml:"name,attr"`
 	Accuracy string `xml:"accuracy,attr"`
+}
+
+// Helper functions for enhanced logging
+
+func getIPVersion(ip net.IP) string {
+	if ip.To4() != nil {
+		return "IPv4"
+	}
+	return "IPv6"
+}
+
+func getProfileNames(profiles map[string]string) []string {
+	names := make([]string, 0, len(profiles))
+	for name := range profiles {
+		names = append(names, name)
+	}
+	return names
 }

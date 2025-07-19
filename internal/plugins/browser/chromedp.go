@@ -9,18 +9,16 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/google/uuid"
 )
 
 type chromedpAnalyzer struct {
-	logger interface {
-		Info(msg string, keysAndValues ...interface{})
-		Error(msg string, keysAndValues ...interface{})
-		Debug(msg string, keysAndValues ...interface{})
-	}
+	logger *logger.Logger
 	config BrowserConfig
 }
 
@@ -109,11 +107,28 @@ type JSVulnerability struct {
 	Source      string `json:"source"`
 }
 
-func NewChromedpAnalyzer(config BrowserConfig, logger interface {
+func NewChromedpAnalyzer(config BrowserConfig, log interface {
 	Info(msg string, keysAndValues ...interface{})
 	Error(msg string, keysAndValues ...interface{})
 	Debug(msg string, keysAndValues ...interface{})
 }) core.Scanner {
+	start := time.Now()
+
+	// Initialize enhanced logger for browser analyzer
+	enhancedLogger, err := logger.New(logger.Config{Level: "debug", Format: "json"})
+	if err != nil {
+		// Fallback to basic logger if initialization fails
+		enhancedLogger, _ = logger.New(logger.Config{Level: "info", Format: "json"})
+	}
+	enhancedLogger = enhancedLogger.WithComponent("browser-analyzer")
+
+	ctx := context.Background()
+	ctx, span := enhancedLogger.StartOperation(ctx, "browser.NewChromedpAnalyzer")
+	defer func() {
+		enhancedLogger.FinishOperation(ctx, span, "browser.NewChromedpAnalyzer", start, nil)
+	}()
+
+	// Set default configuration values
 	if config.Timeout == 0 {
 		config.Timeout = 30 * time.Second
 	}
@@ -127,10 +142,31 @@ func NewChromedpAnalyzer(config BrowserConfig, logger interface {
 		config.WaitForLoad = 5 * time.Second
 	}
 
-	return &chromedpAnalyzer{
-		logger: logger,
+	enhancedLogger.WithContext(ctx).Infow("Initializing browser-based JavaScript analyzer",
+		"scanner_type", "browser",
+		"component", "javascript_analyzer",
+		"headless", config.Headless,
+		"timeout_seconds", config.Timeout.Seconds(),
+		"viewport_width", config.ViewportWidth,
+		"viewport_height", config.ViewportHeight,
+		"wait_for_load_seconds", config.WaitForLoad.Seconds(),
+		"user_agent", config.UserAgent,
+		"disable_images", config.DisableImages,
+		"disable_css", config.DisableCSS,
+	)
+
+	analyzer := &chromedpAnalyzer{
+		logger: enhancedLogger,
 		config: config,
 	}
+
+	enhancedLogger.WithContext(ctx).Infow("Browser analyzer initialized successfully",
+		"scanner_type", "browser",
+		"total_init_duration_ms", time.Since(start).Milliseconds(),
+		"analysis_capabilities", []string{"api_endpoint_discovery", "secret_detection", "dom_source_analysis", "event_listener_analysis", "storage_analysis", "vulnerability_detection"},
+	)
+
+	return analyzer
 }
 
 func (a *chromedpAnalyzer) Name() string {
@@ -142,19 +178,67 @@ func (a *chromedpAnalyzer) Type() types.ScanType {
 }
 
 func (a *chromedpAnalyzer) Validate(target string) error {
+	start := time.Now()
+	ctx := context.Background()
+	ctx, span := a.logger.StartOperation(ctx, "browser.Validate",
+		"target", target,
+	)
+	var err error
+	defer func() {
+		a.logger.FinishOperation(ctx, span, "browser.Validate", start, err)
+	}()
+
+	a.logger.WithContext(ctx).Debugw("Validating browser analysis target",
+		"target", target,
+		"target_length", len(target),
+	)
+
 	if target == "" {
-		return fmt.Errorf("target cannot be empty")
+		err = fmt.Errorf("target cannot be empty")
+		a.logger.LogError(ctx, err, "browser.Validate.empty",
+			"validation_type", "empty_target",
+		)
+		return err
 	}
 
 	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
-		return fmt.Errorf("target must be a valid HTTP/HTTPS URL")
+		err = fmt.Errorf("target must be a valid HTTP/HTTPS URL")
+		a.logger.LogError(ctx, err, "browser.Validate.invalid_protocol",
+			"target", target,
+			"validation_type", "protocol_check",
+		)
+		return err
 	}
+
+	a.logger.WithContext(ctx).Infow("Browser target validation successful",
+		"target", target,
+		"validation_duration_ms", time.Since(start).Milliseconds(),
+		"protocol", strings.Split(strings.Split(target, "://")[0], "")[0],
+	)
 
 	return nil
 }
 
 func (a *chromedpAnalyzer) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
-	a.logger.Info("Starting browser-based JavaScript analysis", "target", target)
+	start := time.Now()
+	scanID := uuid.New().String()
+
+	ctx, span := a.logger.StartOperation(ctx, "browser.Scan",
+		"target", target,
+		"scan_id", scanID,
+	)
+	var err error
+	defer func() {
+		a.logger.FinishOperation(ctx, span, "browser.Scan", start, err)
+	}()
+
+	a.logger.WithContext(ctx).Infow("Starting browser-based JavaScript analysis",
+		"scan_id", scanID,
+		"target", target,
+		"timeout_seconds", a.config.Timeout.Seconds(),
+		"headless", a.config.Headless,
+		"wait_for_load_seconds", a.config.WaitForLoad.Seconds(),
+	)
 
 	// Setup Chrome options
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],

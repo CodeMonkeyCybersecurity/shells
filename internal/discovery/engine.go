@@ -8,16 +8,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	structlogger "github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Engine is the main discovery engine
 type Engine struct {
-	parser    *TargetParser
-	modules   map[string]DiscoveryModule
-	config    *DiscoveryConfig
-	sessions  map[string]*DiscoverySession
-	mutex     sync.RWMutex
-	logger    Logger
+	parser      *TargetParser
+	modules     map[string]DiscoveryModule
+	config      *DiscoveryConfig
+	sessions    map[string]*DiscoverySession
+	mutex       sync.RWMutex
+	logger      Logger
+	structLogger *structlogger.Logger // Enhanced structured logger
 }
 
 // Logger interface for the discovery engine
@@ -45,27 +49,36 @@ type DiscoveryModule interface {
 }
 
 // NewEngine creates a new discovery engine
-func NewEngine(config *DiscoveryConfig, logger Logger) *Engine {
-	if config == nil {
-		config = DefaultDiscoveryConfig()
+func NewEngine(discoveryConfig *DiscoveryConfig, logger Logger) *Engine {
+	if discoveryConfig == nil {
+		discoveryConfig = DefaultDiscoveryConfig()
 	}
+
+	// Initialize enhanced structured logger
+	structLog, err := structlogger.New(config.LoggerConfig{Level: "debug", Format: "json"})
+	if err != nil {
+		// Fallback to default logger
+		structLog, _ = structlogger.New(config.LoggerConfig{Level: "info", Format: "json"})
+	}
+	structLog = structLog.WithComponent("discovery")
 	if logger == nil {
 		logger = &SimpleLogger{}
 	}
 
 	engine := &Engine{
-		parser:   NewTargetParser(),
-		modules:  make(map[string]DiscoveryModule),
-		config:   config,
-		sessions: make(map[string]*DiscoverySession),
-		logger:   logger,
+		parser:       NewTargetParser(),
+		modules:      make(map[string]DiscoveryModule),
+		config:       discoveryConfig,
+		sessions:     make(map[string]*DiscoverySession),
+		logger:       logger,
+		structLogger: structLog,
 	}
 
 	// Register default modules
-	engine.RegisterModule(NewDomainDiscovery(config, logger))
-	engine.RegisterModule(NewNetworkDiscovery(config, logger))
-	engine.RegisterModule(NewTechnologyDiscovery(config, logger))
-	engine.RegisterModule(NewCompanyDiscovery(config, logger))
+	engine.RegisterModule(NewDomainDiscovery(discoveryConfig, logger))
+	engine.RegisterModule(NewNetworkDiscovery(discoveryConfig, logger))
+	engine.RegisterModule(NewTechnologyDiscovery(discoveryConfig, logger))
+	engine.RegisterModule(NewCompanyDiscovery(discoveryConfig, logger))
 
 	return engine
 }
@@ -74,21 +87,59 @@ func NewEngine(config *DiscoveryConfig, logger Logger) *Engine {
 func (e *Engine) RegisterModule(module DiscoveryModule) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
-	e.modules[module.Name()] = module
-	e.logger.Info("Registered discovery module", "module", module.Name())
+	
+	start := time.Now()
+	moduleName := module.Name()
+	priority := module.Priority()
+	
+	e.modules[moduleName] = module
+	
+	// Use both loggers for backward compatibility and enhanced logging
+	e.logger.Info("Registered discovery module", "module", moduleName)
+	
+	e.structLogger.WithFields(
+		"module", moduleName,
+		"priority", priority,
+		"total_modules", len(e.modules),
+		"registration_duration_ms", time.Since(start).Milliseconds(),
+	).Infow("Discovery module registered",
+		"module_type", fmt.Sprintf("%T", module),
+		"capabilities", "discovery",
+	)
 }
 
 // StartDiscovery starts a new discovery session
 func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
+	start := time.Now()
+	
+	e.structLogger.WithFields(
+		"raw_target", rawTarget,
+		"operation", "StartDiscovery",
+	).Infow("Starting discovery session")
+	
 	// Parse target
+	parseStart := time.Now()
 	target := e.parser.ParseTarget(rawTarget)
 	if target.Type == TargetTypeUnknown {
-		return nil, fmt.Errorf("unable to parse target: %s", rawTarget)
+		err := fmt.Errorf("unable to parse target: %s", rawTarget)
+		e.structLogger.LogError(context.Background(), err, "discovery.StartDiscovery.parse",
+			"raw_target", rawTarget,
+			"parse_duration_ms", time.Since(parseStart).Milliseconds(),
+		)
+		return nil, err
 	}
 
+	e.structLogger.LogDuration(context.Background(), "discovery.target_parse", parseStart,
+		"raw_target", rawTarget,
+		"parsed_type", string(target.Type),
+		"parsed_value", target.Value,
+		"confidence", target.Confidence,
+	)
+
 	// Create session
+	sessionID := uuid.New().String()
 	session := &DiscoverySession{
-		ID:              uuid.New().String(),
+		ID:              sessionID,
 		Target:          *target,
 		Assets:          make(map[string]*Asset),
 		Relationships:   make(map[string]*Relationship),
@@ -102,9 +153,25 @@ func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 
 	e.mutex.Lock()
 	e.sessions[session.ID] = session
+	totalSessions := len(e.sessions)
 	e.mutex.Unlock()
 
+	// Log with both loggers for compatibility
 	e.logger.Info("Started discovery session", "session_id", session.ID, "target", target.Value, "type", target.Type)
+	
+	e.structLogger.WithFields(
+		"session_id", sessionID,
+		"target_value", target.Value,
+		"target_type", string(target.Type),
+		"target_confidence", target.Confidence,
+		"total_sessions", totalSessions,
+		"session_init_duration_ms", time.Since(start).Milliseconds(),
+	).Infow("Discovery session created",
+		"max_depth", e.config.MaxDepth,
+		"max_assets", e.config.MaxAssets,
+		"timeout", e.config.Timeout,
+		"available_modules", len(e.modules),
+	)
 
 	// Start discovery in background
 	go e.runDiscovery(session)
@@ -140,8 +207,21 @@ func (e *Engine) ListSessions() []*DiscoverySession {
 
 // runDiscovery runs the discovery process
 func (e *Engine) runDiscovery(session *DiscoverySession) {
+	start := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), e.config.Timeout)
 	defer cancel()
+
+	// Add structured logger context
+	ctx, span := e.structLogger.StartOperation(ctx, "discovery.runDiscovery",
+		"session_id", session.ID,
+		"target_value", session.Target.Value,
+		"target_type", string(session.Target.Type),
+	)
+	
+	var finalErr error
+	defer func() {
+		e.structLogger.FinishOperation(ctx, span, "discovery.runDiscovery", start, finalErr)
+	}()
 
 	session.Status = StatusRunning
 	defer func() {
@@ -151,18 +231,66 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 		now := time.Now()
 		session.CompletedAt = &now
 		session.Progress = 100.0
+		
+		// Log session completion
+		totalDuration := time.Since(start)
+		e.structLogger.WithContext(ctx).Infow("Discovery session completed",
+			"session_id", session.ID,
+			"total_discovered", session.TotalDiscovered,
+			"high_value_assets", session.HighValueAssets,
+			"total_duration_ms", totalDuration.Milliseconds(),
+			"final_status", string(session.Status),
+			"error_count", len(session.Errors),
+		)
 	}()
 
+	// Log with both loggers for compatibility
 	e.logger.Info("Running discovery", "session_id", session.ID)
+	
+	e.structLogger.WithContext(ctx).Infow("Starting discovery execution",
+		"session_id", session.ID,
+		"target_value", session.Target.Value,
+		"target_type", string(session.Target.Type),
+		"timeout", e.config.Timeout,
+		"max_depth", e.config.MaxDepth,
+		"max_assets", e.config.MaxAssets,
+	)
 
 	// Get applicable modules
+	moduleStart := time.Now()
 	modules := e.getApplicableModules(&session.Target)
 	totalModules := len(modules)
 	
+	e.structLogger.LogDuration(ctx, "discovery.get_applicable_modules", moduleStart,
+		"session_id", session.ID,
+		"total_modules", totalModules,
+		"target_type", string(session.Target.Type),
+	)
+	
 	if totalModules == 0 {
+		finalErr = fmt.Errorf("no applicable modules found for target type: %s", session.Target.Type)
 		e.logger.Warn("No applicable modules found", "target_type", session.Target.Type)
+		e.structLogger.LogError(ctx, finalErr, "discovery.no_modules",
+			"session_id", session.ID,
+			"target_type", string(session.Target.Type),
+			"available_modules", len(e.modules),
+		)
+		session.Status = StatusFailed
 		return
 	}
+
+	// Log module execution plan
+	moduleNames := make([]string, len(modules))
+	for i, mod := range modules {
+		moduleNames[i] = mod.Name()
+	}
+	
+	e.structLogger.WithContext(ctx).Infow("Starting parallel module execution",
+		"session_id", session.ID,
+		"module_count", totalModules,
+		"modules", moduleNames,
+		"execution_timeout", e.config.Timeout,
+	)
 
 	// Run modules in parallel
 	var wg sync.WaitGroup
@@ -173,23 +301,71 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 		go func(mod DiscoveryModule, index int) {
 			defer wg.Done()
 			
-			e.logger.Debug("Running module", "module", mod.Name(), "session_id", session.ID)
+			modStart := time.Now()
+			modName := mod.Name()
 			
-			result, err := mod.Discover(ctx, &session.Target, session)
+			// Log with both loggers
+			e.logger.Debug("Running module", "module", modName, "session_id", session.ID)
+			
+			modCtx, modSpan := e.structLogger.StartSpanWithAttributes(ctx, 
+				fmt.Sprintf("discovery.module.%s", modName),
+				[]attribute.KeyValue{
+					attribute.String("module_name", modName),
+					attribute.String("session_id", session.ID),
+					attribute.Int("module_index", index),
+					attribute.Int("total_modules", totalModules),
+				},
+			)
+			defer modSpan.End()
+			
+			e.structLogger.WithContext(modCtx).Debugw("Starting module execution",
+				"module", modName,
+				"session_id", session.ID,
+				"module_index", index,
+				"module_priority", mod.Priority(),
+			)
+			
+			result, err := mod.Discover(modCtx, &session.Target, session)
+			modDuration := time.Since(modStart)
+			
 			if err != nil {
-				e.logger.Error("Module discovery failed", "module", mod.Name(), "error", err)
-				session.Errors = append(session.Errors, fmt.Sprintf("%s: %v", mod.Name(), err))
+				e.logger.Error("Module discovery failed", "module", modName, "error", err)
+				e.structLogger.LogError(modCtx, err, "discovery.module.failed",
+					"module", modName,
+					"session_id", session.ID,
+					"duration_ms", modDuration.Milliseconds(),
+				)
+				session.Errors = append(session.Errors, fmt.Sprintf("%s: %v", modName, err))
 				return
 			}
 			
 			if result != nil {
-				result.Source = mod.Name()
+				result.Source = modName
 				resultsChan <- result
+				
+				e.structLogger.WithContext(modCtx).Debugw("Module execution completed",
+					"module", modName,
+					"session_id", session.ID,
+					"assets_discovered", len(result.Assets),
+					"duration_ms", modDuration.Milliseconds(),
+				)
+			} else {
+				e.structLogger.WithContext(modCtx).Debugw("Module completed with no results",
+					"module", modName,
+					"session_id", session.ID,
+					"duration_ms", modDuration.Milliseconds(),
+				)
 			}
 			
 			// Update progress
 			progress := float64(index+1) / float64(totalModules) * 100.0
 			session.Progress = progress
+			
+			e.structLogger.LogScanProgress(modCtx, session.ID, progress, "running", map[string]interface{}{
+				"completed_modules": index + 1,
+				"total_modules": totalModules,
+				"current_module": modName,
+			})
 			
 		}(module, i)
 	}
