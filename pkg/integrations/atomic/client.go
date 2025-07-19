@@ -29,24 +29,25 @@ func NewAtomicClient(config Config) (*AtomicClient, error) {
 	
 	// Initialize executor with safety constraints
 	executorConfig := ExecutorConfig{
-		Timeout:     config.Timeout,
-		SandboxMode: config.SandboxMode,
-		DryRun:      config.DryRun,
-		DockerImage: config.DockerImage,
-		MemoryLimit: config.MemoryLimit,
-		CPULimit:    config.CPULimit,
-		NomadAddr:   config.NomadAddr,
+		Timeout:           config.Timeout,
+		SandboxMode:       config.SandboxMode,
+		DryRun:            config.DryRun,
+		DockerImage:       config.DockerImage,
+		MemoryLimit:       config.MemoryLimit,
+		CPULimit:          config.CPULimit,
+		NomadAddr:         config.NomadAddr,
+		UseSecureExecutor: true, // Enable secure execution by default
 	}
 	
 	var err error
 	client.executor, err = NewAtomicExecutor(executorConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create executor: %v", err)
+		return nil, fmt.Errorf("failed to create executor: %w", err)
 	}
 	
 	// Load and validate safe tests
 	if err := client.loadSafeTests(); err != nil {
-		return nil, fmt.Errorf("failed to load safe tests: %v", err)
+		return nil, fmt.Errorf("failed to load safe tests: %w", err)
 	}
 	
 	return client, nil
@@ -84,12 +85,12 @@ func (a *AtomicClient) loadSafeTests() error {
 func (a *AtomicClient) loadTest(testPath string) (*AtomicTest, error) {
 	data, err := os.ReadFile(testPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read test file %s: %v", testPath, err)
+		return nil, fmt.Errorf("failed to read test file %s: %w", testPath, err)
 	}
 	
 	var test AtomicTest
 	if err := yaml.Unmarshal(data, &test); err != nil {
-		return nil, fmt.Errorf("failed to parse test file %s: %v", testPath, err)
+		return nil, fmt.Errorf("failed to parse test file %s: %w", testPath, err)
 	}
 	
 	return &test, nil
@@ -124,7 +125,7 @@ func (a *AtomicClient) ExecuteSafeTest(technique string, testName string, target
 	
 	// 2. Additional safety validation with target context
 	if err := a.safetyFilter.ValidateTest(*test, target); err != nil {
-		return nil, fmt.Errorf("safety validation failed: %v", err)
+		return nil, fmt.Errorf("safety validation failed: %w", err)
 	}
 	
 	// 3. Find specific atomic test
@@ -354,11 +355,12 @@ type TestReport struct {
 
 // ExecutorConfig represents executor configuration
 type ExecutorConfig struct {
-	Timeout     time.Duration `json:"timeout"`
-	SandboxMode bool          `json:"sandbox_mode"`
-	DryRun      bool          `json:"dry_run"`
-	DockerImage string        `json:"docker_image"`
-	MemoryLimit string        `json:"memory_limit"`
-	CPULimit    string        `json:"cpu_limit"`
-	NomadAddr   string        `json:"nomad_addr"`
+	Timeout           time.Duration `json:"timeout"`
+	SandboxMode       bool          `json:"sandbox_mode"`
+	DryRun            bool          `json:"dry_run"`
+	DockerImage       string        `json:"docker_image"`
+	MemoryLimit       string        `json:"memory_limit"`
+	CPULimit          string        `json:"cpu_limit"`
+	NomadAddr         string        `json:"nomad_addr"`
+	UseSecureExecutor bool          `json:"use_secure_executor"`
 }

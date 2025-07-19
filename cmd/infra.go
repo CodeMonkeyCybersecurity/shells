@@ -12,8 +12,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/security"
 	"github.com/spf13/cobra"
 )
+
+// closeAndLogError is a helper function to handle deferred Close() errors
+func closeAndLogError(c io.Closer, name string) {
+	if err := c.Close(); err != nil {
+		log.Error("Failed to close resource", "name", name, "error", err)
+	}
+}
 
 var infraCmd = &cobra.Command{
 	Use:   "infra",
@@ -212,13 +220,13 @@ var infraContainersListCmd = &cobra.Command{
 // Implementation functions
 
 func installNomad() error {
-	fmt.Printf("📦 Installing Nomad...\n")
+	log.Info("Installing Nomad")
 
 	// Check if already installed
 	if _, err := exec.LookPath("nomad"); err == nil {
 		out, err := exec.Command("nomad", "version").Output()
 		if err == nil {
-			fmt.Printf("✅ Nomad already installed: %s", string(out))
+			log.Info("Nomad already installed", "version", string(out))
 			return nil
 		}
 	}
@@ -232,21 +240,21 @@ func installNomad() error {
 	version := "1.7.2"
 	url := fmt.Sprintf("https://releases.hashicorp.com/nomad/%s/nomad_%s_linux_%s.zip", version, version, arch)
 
-	fmt.Printf("📥 Downloading Nomad %s for linux_%s\n", version, arch)
+	log.Info("Downloading Nomad", "version", version, "arch", arch)
 
 	// Download
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to download Nomad: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogError(resp.Body, "HTTP response body")
 
 	tmpFile := "/tmp/nomad.zip"
 	out, err := os.Create(tmpFile)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer out.Close()
+	defer closeAndLogError(out, "nomad.zip file")
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
@@ -258,7 +266,7 @@ func installNomad() error {
 	if err != nil {
 		return fmt.Errorf("failed to open zip: %w", err)
 	}
-	defer r.Close()
+	defer closeAndLogError(r, "zip reader")
 
 	for _, f := range r.File {
 		if f.Name == "nomad" {
@@ -266,13 +274,13 @@ func installNomad() error {
 			if err != nil {
 				return fmt.Errorf("failed to open nomad binary: %w", err)
 			}
-			defer rc.Close()
+			defer closeAndLogError(rc, "zip file entry")
 
 			outFile, err := os.OpenFile("/tmp/nomad", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 			if err != nil {
 				return fmt.Errorf("failed to create nomad binary: %w", err)
 			}
-			defer outFile.Close()
+			defer closeAndLogError(outFile, "nomad binary file")
 
 			_, err = io.Copy(outFile, rc)
 			if err != nil {
@@ -288,9 +296,9 @@ func installNomad() error {
 		if err != nil {
 			return fmt.Errorf("failed to install nomad: %w", err)
 		}
-		fmt.Printf("✅ Nomad installed to /usr/local/bin/nomad\n")
+		log.Info("Nomad installed successfully", "path", "/usr/local/bin/nomad")
 	} else {
-		fmt.Printf("⚠️  Move /tmp/nomad to /usr/local/bin/nomad manually with: sudo mv /tmp/nomad /usr/local/bin/nomad\n")
+		log.Warn("Manual installation required", "command", "sudo mv /tmp/nomad /usr/local/bin/nomad")
 	}
 
 	// Cleanup
@@ -300,7 +308,7 @@ func installNomad() error {
 }
 
 func configureNomad() error {
-	fmt.Printf("⚙️  Configuring Nomad...\n")
+	log.Info("Configuring Nomad")
 
 	configDir := "/etc/nomad.d"
 	if os.Geteuid() != 0 {
@@ -363,23 +371,23 @@ telemetry {
 		if os.Geteuid() == 0 {
 			err = os.MkdirAll(dir, 0755)
 			if err != nil {
-				fmt.Printf("⚠️  Failed to create %s: %v\n", dir, err)
+				log.Warn("Failed to create directory", "dir", dir, "error", err)
 			}
 		} else {
-			fmt.Printf("⚠️  Create directory manually: sudo mkdir -p %s\n", dir)
+			log.Warn("Manual directory creation required", "command", fmt.Sprintf("sudo mkdir -p %s", dir))
 		}
 	}
 
-	fmt.Printf("✅ Nomad configuration written to %s\n", configPath)
+	log.Info("Nomad configuration written", "path", configPath)
 	return nil
 }
 
 func startNomad() error {
-	fmt.Printf("🚀 Starting Nomad agent...\n")
+	log.Info("Starting Nomad agent")
 
 	// Check if already running
 	if err := exec.Command("pgrep", "nomad").Run(); err == nil {
-		fmt.Printf("✅ Nomad is already running\n")
+		log.Info("Nomad is already running")
 		return nil
 	}
 
@@ -408,26 +416,25 @@ func startNomad() error {
 		return fmt.Errorf("nomad failed to start properly: %w", err)
 	}
 
-	fmt.Printf("✅ Nomad agent started successfully\n")
-	fmt.Printf("🌐 Web UI available at: http://localhost:4646\n")
+	log.Info("Nomad agent started successfully", "web-ui", "http://localhost:4646")
 
 	return nil
 }
 
 func stopNomad() error {
-	fmt.Printf("🛑 Stopping Nomad agent...\n")
+	log.Info("Stopping Nomad agent")
 
 	err := exec.Command("pkill", "nomad").Run()
 	if err != nil {
 		return fmt.Errorf("failed to stop nomad: %w", err)
 	}
 
-	fmt.Printf("✅ Nomad agent stopped\n")
+	log.Info("Nomad agent stopped")
 	return nil
 }
 
 func deployPostgreSQL() error {
-	fmt.Printf("🐘 Deploying PostgreSQL database...\n")
+	log.Info("Deploying PostgreSQL database")
 
 	jobPath := "/opt/shells/deployments/nomad/postgres.nomad"
 
@@ -438,28 +445,26 @@ func deployPostgreSQL() error {
 		return fmt.Errorf("failed to deploy PostgreSQL: %w\nOutput: %s", err, string(output))
 	}
 
-	fmt.Printf("✅ PostgreSQL job submitted to Nomad\n")
-	fmt.Printf("📄 Output: %s\n", string(output))
+	log.Info("PostgreSQL job submitted to Nomad", "output", string(output))
 
 	// Wait for deployment
-	fmt.Printf("⏳ Waiting for PostgreSQL to be ready...\n")
+	log.Info("Waiting for PostgreSQL to be ready")
 	for i := 0; i < 30; i++ {
 		if err := checkPostgreSQLStatus(); err == nil {
-			fmt.Printf("✅ PostgreSQL is ready!\n")
+			log.Info("PostgreSQL is ready")
 			return nil
 		}
 		time.Sleep(2 * time.Second)
 		fmt.Printf(".")
 	}
 
-	fmt.Printf("\n⚠️  PostgreSQL deployment may still be starting\n")
-	fmt.Printf("🔍 Check status with: nomad job status shells-postgres\n")
+	log.Warn("PostgreSQL deployment may still be starting", "check-command", "nomad job status shells-postgres")
 
 	return nil
 }
 
 func stopPostgreSQL() error {
-	fmt.Printf("🛑 Stopping PostgreSQL database...\n")
+	log.Info("Stopping PostgreSQL database")
 
 	cmd := exec.Command("nomad", "job", "stop", "shells-postgres")
 	output, err := cmd.CombinedOutput()
@@ -467,14 +472,13 @@ func stopPostgreSQL() error {
 		return fmt.Errorf("failed to stop PostgreSQL: %w\nOutput: %s", err, string(output))
 	}
 
-	fmt.Printf("✅ PostgreSQL job stopped\n")
-	fmt.Printf("📄 Output: %s\n", string(output))
+	log.Info("PostgreSQL job stopped", "output", string(output))
 
 	return nil
 }
 
 func buildScannerContainers() error {
-	fmt.Printf("🐳 Building scanner containers...\n")
+	log.Info("Building scanner containers")
 
 	containers := []struct {
 		name  string
@@ -487,24 +491,31 @@ func buildScannerContainers() error {
 	}
 
 	for _, container := range containers {
-		fmt.Printf("🔨 Building %s container...\n", container.name)
+		log.Info("Building container", "name", container.name)
 
 		dockerfile := generateDockerfile(container.tools)
-		dockerfilePath := fmt.Sprintf("/tmp/Dockerfile.%s", container.name)
-
-		err := os.WriteFile(dockerfilePath, []byte(dockerfile), 0644)
+		
+		// Create secure temporary file for Dockerfile
+		tempFile, err := security.CreateSecureTempFile("Dockerfile_", ".dockerfile")
 		if err != nil {
+			return fmt.Errorf("failed to create secure temp file: %w", err)
+		}
+		defer closeAndLogError(tempFile, "Dockerfile temp file")
+		
+		if _, err := tempFile.Write([]byte(dockerfile)); err != nil {
 			return fmt.Errorf("failed to write dockerfile for %s: %w", container.name, err)
 		}
+		
+		dockerfilePath := tempFile.Name()
 
 		cmd := exec.Command("docker", "build", "-t", container.name, "-f", dockerfilePath, ".")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			fmt.Printf("⚠️  Failed to build %s: %v\nOutput: %s\n", container.name, err, string(output))
+			log.Error("Failed to build container", "name", container.name, "error", err, "output", string(output))
 			continue
 		}
 
-		fmt.Printf("✅ Built %s container\n", container.name)
+		log.Info("Built container successfully", "name", container.name)
 	}
 
 	return nil
@@ -578,7 +589,7 @@ func listScannerContainers() error {
 }
 
 func configureDatabase() error {
-	fmt.Printf("⚙️  Configuring database connection...\n")
+	log.Info("Configuring database connection")
 
 	// Update config to use PostgreSQL
 	configPath := "/opt/shells/.shells.yaml"
@@ -596,14 +607,14 @@ func configureDatabase() error {
   dsn: "/tmp/shells.db"`,
 		`database:
   driver: "postgres"
-  dsn: "host=localhost port=5432 user=shells password=shells dbname=shells sslmode=disable"`)
+  dsn: "${DATABASE_URL:-postgres://shells:shells@localhost:5432/shells?sslmode=disable}"`)
 
 	err = os.WriteFile(configPath, []byte(newContent), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to update config: %w", err)
 	}
 
-	fmt.Printf("✅ Database configuration updated to PostgreSQL\n")
+	log.Info("Database configuration updated to PostgreSQL")
 	return nil
 }
 

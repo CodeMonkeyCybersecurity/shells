@@ -259,7 +259,7 @@ func (r *AtomicReporter) generateMitigations(demonstrations []Demonstration) []M
 func (r *AtomicReporter) SaveNavigatorLayer(layer NavigatorLayer, filename string) error {
 	data, err := json.MarshalIndent(layer, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal navigator layer: %v", err)
+		return fmt.Errorf("failed to marshal navigator layer: %w", err)
 	}
 	
 	return os.WriteFile(filename, data, 0644)
@@ -271,9 +271,14 @@ func (r *AtomicReporter) GenerateHTMLReport(report *ATTACKReport, filename strin
 	
 	file, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("failed to create HTML file: %v", err)
+		return fmt.Errorf("failed to create HTML file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// Log error but don't fail the operation
+			fmt.Fprintf(os.Stderr, "Failed to close HTML file: %v\n", err)
+		}
+	}()
 	
 	return tmpl.Execute(file, report)
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/security"
 )
 
 // AtomicExecutor handles safe execution of atomic tests
@@ -113,7 +114,7 @@ func (e *AtomicExecutor) validateExecution(test Test, target Target) error {
 	// Validate dependencies
 	for _, dep := range test.Dependencies {
 		if err := e.validateDependency(dep); err != nil {
-			return fmt.Errorf("dependency validation failed: %v", err)
+			return fmt.Errorf("dependency validation failed: %w", err)
 		}
 	}
 	
@@ -252,7 +253,12 @@ func (e *AtomicExecutor) executeInNomadSandbox(ctx context.Context, test Test, c
 
 // executeLocal executes command locally with constraints
 func (e *AtomicExecutor) executeLocal(ctx context.Context, test Test, command string, result *ExecutionResult) (*ExecutionResult, error) {
-	// Determine shell based on platform
+	// Use secure command executor if available
+	if e.config.UseSecureExecutor {
+		return e.executeSecurely(ctx, test, command, result)
+	}
+	
+	// Fallback to restricted shell execution
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
@@ -280,6 +286,51 @@ func (e *AtomicExecutor) executeLocal(ctx context.Context, test Test, command st
 	result.Evidence = append(result.Evidence, Evidence{
 		Type:        "LOCAL_EXECUTION",
 		Description: "Executed locally with safety constraints",
+		Command:     command,
+		Output:      result.Output,
+		Timestamp:   time.Now(),
+	})
+	
+	return result, nil
+}
+
+// executeSecurely uses the security package's command executor
+func (e *AtomicExecutor) executeSecurely(ctx context.Context, test Test, command string, result *ExecutionResult) (*ExecutionResult, error) {
+	// Parse command to extract binary and arguments
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return result, fmt.Errorf("empty command")
+	}
+	
+	binary := parts[0]
+	args := parts[1:]
+	
+	// Create secure command executor
+	cmdExec := security.NewCommandExecutor()
+	cmdExec.Timeout = e.config.Timeout
+	
+	// Add atomic test commands to allowed list
+	cmdExec.AllowedCommands["powershell"] = true
+	cmdExec.AllowedCommands["python"] = true
+	cmdExec.AllowedCommands["bash"] = true
+	cmdExec.AllowedCommands["sh"] = true
+	
+	// Execute command securely
+	output, err := cmdExec.ExecuteCommand(ctx, binary, args...)
+	result.Output = string(output)
+	result.EndTime = time.Now()
+	
+	if err != nil {
+		result.Error = err.Error()
+		result.Success = false
+	} else {
+		result.Success = true
+	}
+	
+	// Add execution evidence
+	result.Evidence = append(result.Evidence, Evidence{
+		Type:        "SECURE_EXECUTION",
+		Description: "Executed using secure command executor",
 		Command:     command,
 		Output:      result.Output,
 		Timestamp:   time.Now(),

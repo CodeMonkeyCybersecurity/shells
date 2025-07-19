@@ -18,9 +18,6 @@ job "webscan" {
       port "redis" {
         static = 6379
       }
-      port "postgres" {
-        static = 5432
-      }
       port "otel" {
         static = 4317
       }
@@ -84,37 +81,26 @@ EOF
       }
     }
 
-    task "postgres" {
+    task "sqlite-volume" {
       driver = "docker"
 
       config {
-        image = "postgres:15-alpine"
-        ports = ["postgres"]
-      }
-
-      env {
-        POSTGRES_DB       = "webscan"
-        POSTGRES_USER     = "webscan"
-        POSTGRES_PASSWORD = "webscan_password"
+        image = "alpine:latest"
+        command = "/bin/sh"
+        args = ["-c", "mkdir -p /data && touch /data/webscan.db && sleep infinity"]
+        volumes = [
+          "webscan-data:/data"
+        ]
       }
 
       resources {
-        cpu    = 1000
-        memory = 1024
+        cpu    = 100
+        memory = 128
       }
 
       service {
-        name = "webscan-postgres"
-        port = "postgres"
-        tags = ["webscan", "postgres", "database"]
-
-        check {
-          type     = "script"
-          command  = "/bin/sh"
-          args     = ["-c", "pg_isready -U webscan"]
-          interval = "10s"
-          timeout  = "2s"
-        }
+        name = "webscan-sqlite"
+        tags = ["webscan", "sqlite", "database"]
       }
     }
 
@@ -220,6 +206,9 @@ EOF
           "--config", "/local/config.yaml"
         ]
         cap_add = ["NET_ADMIN", "NET_RAW"]
+        volumes = [
+          "webscan-data:/data"
+        ]
       }
 
       template {
@@ -229,8 +218,8 @@ logger:
   format: json
 
 database:
-  driver: postgres
-  dsn: "host={{ range service "webscan-postgres" }}{{ .Address }}{{ end }} port={{ range service "webscan-postgres" }}{{ .Port }}{{ end }} user=webscan password=webscan_password dbname=webscan sslmode=disable"
+  driver: sqlite3
+  dsn: "/data/webscan.db"
 
 redis:
   addr: "{{ range service "webscan-redis" }}{{ .Address }}:{{ .Port }}{{ end }}"

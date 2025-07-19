@@ -132,7 +132,7 @@ func runAWSScan(cmd *cobra.Command, args []string) error {
 	// Initialize Prowler client
 	client, err := prowler.NewClient(config)
 	if err != nil {
-		return fmt.Errorf("failed to initialize Prowler client: %v", err)
+		return fmt.Errorf("failed to initialize Prowler client: %w", err)
 	}
 
 	if !quiet {
@@ -170,7 +170,7 @@ func runAWSScan(cmd *cobra.Command, args []string) error {
 	duration := time.Since(start)
 
 	if scanErr != nil {
-		return fmt.Errorf("scan failed: %v", scanErr)
+		return fmt.Errorf("scan failed: %w", scanErr)
 	}
 
 	// Filter results if needed
@@ -206,7 +206,7 @@ func runAWSList(cmd *cobra.Command, args []string) error {
 
 	client, err := prowler.NewClient(config)
 	if err != nil {
-		return fmt.Errorf("failed to initialize Prowler client: %v", err)
+		return fmt.Errorf("failed to initialize Prowler client: %w", err)
 	}
 
 	// Check what to list
@@ -222,7 +222,7 @@ func runAWSList(cmd *cobra.Command, args []string) error {
 	if listChecks {
 		checks, err := client.GetAvailableChecks(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to get available checks: %v", err)
+			return fmt.Errorf("failed to get available checks: %w", err)
 		}
 
 		return displayChecks(checks, listFormat)
@@ -250,7 +250,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 
 	client, err := prowler.NewClient(config)
 	if err != nil {
-		return fmt.Errorf("failed to initialize Prowler client: %v", err)
+		return fmt.Errorf("failed to initialize Prowler client: %w", err)
 	}
 
 	fmt.Printf("🔍 Validating AWS security scan setup...\n\n")
@@ -259,7 +259,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Checking Nomad connectivity (%s)... ", nomadAddr)
 	if err := client.Health(ctx); err != nil {
 		fmt.Printf("❌ Failed\n")
-		return fmt.Errorf("Nomad health check failed: %v", err)
+		return fmt.Errorf("Nomad health check failed: %w", err)
 	}
 	fmt.Printf("✅ OK\n")
 
@@ -339,12 +339,12 @@ func outputJSONResults(findings []types.Finding, summary AWSScanSummary, filenam
 
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal results: %v", err)
+		return fmt.Errorf("failed to marshal results: %w", err)
 	}
 
 	if filename != "" {
 		if err := os.WriteFile(filename, data, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %v", err)
+			return fmt.Errorf("failed to write file: %w", err)
 		}
 		fmt.Printf("📄 Results saved to: %s\n", filename)
 	} else {

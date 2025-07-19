@@ -38,7 +38,7 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %v", err)
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	var configData struct {
@@ -46,7 +46,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	if err := yaml.Unmarshal(data, &configData); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %v", err)
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
 	// Merge with defaults
@@ -54,7 +54,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	
 	// Validate safety constraints
 	if err := validateConfig(&mergedConfig); err != nil {
-		return nil, fmt.Errorf("config validation failed: %v", err)
+		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return &mergedConfig, nil
@@ -70,13 +70,13 @@ func SaveConfig(config Config, configPath string) error {
 
 	data, err := yaml.Marshal(configData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %v", err)
+		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
 	// Ensure directory exists
 	dir := filepath.Dir(configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %v", err)
+		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	return os.WriteFile(configPath, data, 0644)
@@ -161,7 +161,7 @@ func validateConfig(config *Config) error {
 	// Validate Docker constraints
 	if config.SandboxMode {
 		if err := validateDockerConfig(config); err != nil {
-			return fmt.Errorf("docker configuration invalid: %v", err)
+			return fmt.Errorf("docker configuration invalid: %w", err)
 		}
 	}
 

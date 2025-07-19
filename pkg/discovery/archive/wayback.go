@@ -7,11 +7,19 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
+
+// closeAndLogErrorWayback is a helper function to handle deferred Close() errors
+func closeAndLogErrorWayback(c io.Closer, name string) {
+	if err := c.Close(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to close %s: %v\n", name, err)
+	}
+}
 
 type WaybackScanner struct {
 	client    *http.Client
@@ -56,7 +64,7 @@ func (w *WaybackScanner) ScanDomain(ctx context.Context, domain string) (*Archiv
 	// Get all archived URLs
 	urls, err := w.getAllArchivedURLs(ctx, domain)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get archived URLs: %v", err)
+		return nil, fmt.Errorf("failed to get archived URLs: %w", err)
 	}
 
 	report.URLs = urls
@@ -129,7 +137,7 @@ func (w *WaybackScanner) getAllArchivedURLs(ctx context.Context, domain string) 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorWayback(resp.Body, "wayback API response")
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("wayback API returned status %d", resp.StatusCode)
@@ -204,7 +212,7 @@ func (w *WaybackScanner) fetchArchivedContent(ctx context.Context, u ArchivedURL
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorWayback(resp.Body, "wayback API response")
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to fetch archived content: %d", resp.StatusCode)
@@ -738,7 +746,7 @@ func (w *WaybackScanner) endpointStillExists(ctx context.Context, domain, path s
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorWayback(resp.Body, "wayback API response")
 
 	return resp.StatusCode < 400
 }

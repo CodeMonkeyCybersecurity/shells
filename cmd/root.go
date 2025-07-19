@@ -11,6 +11,12 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/smuggling"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -283,8 +289,39 @@ func executeComprehensiveScans(session *discovery.DiscoverySession) error {
 func runBusinessLogicTests(target string) error {
 	fmt.Printf("   🧠 Business Logic Tests...")
 	
-	// Create a simplified business logic tester call
-	// This would integrate with the business logic framework we created
+	// Create business logic analyzer
+	analyzer := logic.NewAnalyzer(logic.Config{
+		Target:        target,
+		Timeout:       30 * time.Second,
+		Workers:       10,
+		VerboseOutput: false,
+	})
+	
+	// Run comprehensive tests
+	ctx := context.Background()
+	results := []logic.TestResult{}
+	
+	// Test password reset flows
+	if resetResults, err := analyzer.TestPasswordReset(ctx); err == nil {
+		results = append(results, resetResults...)
+	}
+	
+	// Test MFA bypasses
+	if mfaResults, err := analyzer.TestMFABypass(ctx); err == nil {
+		results = append(results, mfaResults...)
+	}
+	
+	// Store results if vulnerabilities found
+	if len(results) > 0 {
+		for _, result := range results {
+			if result.Vulnerable {
+				if store != nil {
+					finding := result.ToFinding()
+					store.SaveFindings(ctx, []finding)
+				}
+			}
+		}
+	}
 	
 	fmt.Println(" ✅")
 	return nil
@@ -294,7 +331,29 @@ func runBusinessLogicTests(target string) error {
 func runAuthenticationTests(target string) error {
 	fmt.Printf("   🔐 Authentication Tests...")
 	
-	// This would integrate with the authentication testing framework
+	ctx := context.Background()
+	
+	// Discover authentication endpoints
+	discovery := auth.NewDiscovery()
+	result, err := discovery.DiscoverAuth(ctx, target)
+	if err != nil {
+		log.Debug("Authentication discovery failed", "error", err)
+		fmt.Println(" ℹ️ No auth endpoints found")
+		return nil
+	}
+	
+	// Test discovered authentication methods
+	if result.SAML != nil {
+		samlScanner := auth.NewSAMLScanner()
+		if findings := samlScanner.Scan(ctx, result.SAML.MetadataURL); len(findings) > 0 {
+			// Store findings
+			for _, f := range findings {
+				if store != nil {
+					store.SaveFindings(ctx, []types.Finding{f})
+				}
+			}
+		}
+	}
 	
 	fmt.Println(" ✅")
 	return nil
@@ -304,7 +363,35 @@ func runAuthenticationTests(target string) error {
 func runInfrastructureScans(target string) error {
 	fmt.Printf("   🏗️ Infrastructure Scans...")
 	
-	// This would integrate with Nmap, Nuclei, SSL testing, etc.
+	ctx := context.Background()
+	
+	// SSL/TLS scan
+	sslPlugin := plugins.NewSSLPlugin()
+	sslReq := &types.ScanRequest{
+		ID:     fmt.Sprintf("ssl-%d", time.Now().Unix()),
+		Target: target,
+		Type:   "ssl",
+		Status: "running",
+	}
+	if findings, err := sslPlugin.Execute(ctx, sslReq); err == nil && len(findings) > 0 {
+		if store != nil {
+			store.SaveFindings(ctx, findings)
+		}
+	}
+	
+	// Web technology scan  
+	httpxPlugin := plugins.NewHTTPXPlugin()
+	httpxReq := &types.ScanRequest{
+		ID:     fmt.Sprintf("httpx-%d", time.Now().Unix()),
+		Target: target,
+		Type:   "httpx",
+		Status: "running",
+	}
+	if findings, err := httpxPlugin.Execute(ctx, httpxReq); err == nil && len(findings) > 0 {
+		if store != nil {
+			store.SaveFindings(ctx, findings)
+		}
+	}
 	
 	fmt.Println(" ✅")
 	return nil
@@ -314,7 +401,40 @@ func runInfrastructureScans(target string) error {
 func runSpecializedTests(target string) error {
 	fmt.Printf("   🎪 Specialized Tests...")
 	
-	// This would integrate with SCIM, HTTP smuggling, favicon analysis, etc.
+	ctx := context.Background()
+	
+	// SCIM vulnerability testing
+	scimScanner := scim.NewScanner(scim.Config{
+		Timeout: 30 * time.Second,
+	})
+	if endpoints, err := scimScanner.Discover(ctx, target); err == nil && len(endpoints) > 0 {
+		for _, endpoint := range endpoints {
+			if vulns, err := scimScanner.Test(ctx, endpoint, scim.TestConfig{
+				TestAuth:    true,
+				TestFilters: true,
+				TestBulk:    true,
+			}); err == nil && len(vulns) > 0 {
+				// Store vulnerabilities
+				for _, v := range vulns {
+					if store != nil {
+						store.SaveFindings(ctx, []types.Finding{v.ToFinding()})
+					}
+				}
+			}
+		}
+	}
+	
+	// HTTP Request Smuggling detection
+	smugglingScanner := smuggling.NewScanner(smuggling.Config{
+		Timeout: 30 * time.Second,
+	})
+	if vulns, err := smugglingScanner.Detect(ctx, target); err == nil && len(vulns) > 0 {
+		for _, v := range vulns {
+			if store != nil {
+				store.SaveFindings(ctx, []types.Finding{v.ToFinding()})
+			}
+		}
+	}
 	
 	fmt.Println(" ✅")
 	return nil

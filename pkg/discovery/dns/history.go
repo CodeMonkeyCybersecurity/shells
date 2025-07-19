@@ -4,12 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
+
+// closeAndLogErrorDNS is a helper function to handle deferred Close() errors
+func closeAndLogErrorDNS(c io.Closer, name string) {
+	if err := c.Close(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to close %s: %v\n", name, err)
+	}
+}
 
 type DNSHistoryClient struct {
 	securityTrails *SecurityTrailsClient
@@ -79,7 +88,7 @@ func (d *DNSHistoryClient) GetCompleteHistory(ctx context.Context, domain string
 				history.Merge(st)
 				mu.Unlock()
 			} else {
-				errors <- fmt.Errorf("SecurityTrails error: %v", err)
+				errors <- fmt.Errorf("SecurityTrails error: %w", err)
 			}
 		}
 	}()
@@ -94,7 +103,7 @@ func (d *DNSHistoryClient) GetCompleteHistory(ctx context.Context, domain string
 				history.Merge(dnsdb)
 				mu.Unlock()
 			} else {
-				errors <- fmt.Errorf("DNSDB error: %v", err)
+				errors <- fmt.Errorf("DNSDB error: %w", err)
 			}
 		}
 	}()
@@ -108,7 +117,7 @@ func (d *DNSHistoryClient) GetCompleteHistory(ctx context.Context, domain string
 			history.Merge(viewdns)
 			mu.Unlock()
 		} else {
-			errors <- fmt.Errorf("ViewDNS error: %v", err)
+			errors <- fmt.Errorf("ViewDNS error: %w", err)
 		}
 	}()
 
@@ -247,7 +256,7 @@ func (st *SecurityTrailsClient) GetHistory(ctx context.Context, domain string) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorDNS(resp.Body, "DNS response body")
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("SecurityTrails API returned status %d", resp.StatusCode)
@@ -312,7 +321,7 @@ func (dnsdb *DNSDBClient) QueryDomain(ctx context.Context, domain string) (*DNSH
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorDNS(resp.Body, "DNS response body")
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("DNSDB API returned status %d", resp.StatusCode)
@@ -371,7 +380,7 @@ func (vdns *ViewDNSClient) GetIPHistory(ctx context.Context, domain string) (*DN
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorDNS(resp.Body, "DNS response body")
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("ViewDNS API returned status %d", resp.StatusCode)

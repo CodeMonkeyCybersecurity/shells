@@ -1,17 +1,27 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/security"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
+
+// closeAndLogErrorScan is a helper function to handle deferred Close() errors
+func closeAndLogErrorScan(c io.Closer, name string) {
+	if err := c.Close(); err != nil {
+		log.Error("Failed to close resource", "name", name, "error", err)
+	}
+}
 
 var scanCmd = &cobra.Command{
 	Use:   "scan",
@@ -51,14 +61,25 @@ var portScanCmd = &cobra.Command{
 		profile, _ := cmd.Flags().GetString("profile")
 		ports, _ := cmd.Flags().GetString("ports")
 
-		log.Info("Starting port scan", "target", target, "profile", profile)
+		// Validate and sanitize inputs
+		validTarget, err := security.ValidateTarget(target)
+		if err != nil {
+			return fmt.Errorf("invalid target: %w", err)
+		}
+		
+		validPorts, err := security.ValidatePortRange(ports)
+		if err != nil {
+			return fmt.Errorf("invalid port range: %w", err)
+		}
+
+		log.Info("Starting port scan", "target", validTarget, "profile", profile)
 
 		options := map[string]string{
 			"profile": profile,
-			"ports":   ports,
+			"ports":   validPorts,
 		}
 
-		return executeScan(target, types.ScanTypePort, options)
+		return executeScan(validTarget, types.ScanTypePort, options)
 	},
 }
 
@@ -70,13 +91,26 @@ var sslScanCmd = &cobra.Command{
 		target := args[0]
 		port, _ := cmd.Flags().GetString("port")
 
-		log.Info("Starting SSL scan", "target", target)
+		// Validate and sanitize inputs
+		validTarget, err := security.ValidateTarget(target)
+		if err != nil {
+			return fmt.Errorf("invalid target: %w", err)
+		}
+		
+		if port != "" {
+			_, err := security.ValidatePort(port)
+			if err != nil {
+				return fmt.Errorf("invalid port: %w", err)
+			}
+		}
+
+		log.Info("Starting SSL scan", "target", validTarget)
 
 		options := map[string]string{
 			"port": port,
 		}
 
-		return executeScan(target, types.ScanTypeSSL, options)
+		return executeScan(validTarget, types.ScanTypeSSL, options)
 	},
 }
 
@@ -368,11 +402,11 @@ func executeScan(target string, scanType types.ScanType, options map[string]stri
 	store := GetStore()
 	if store != nil {
 		if err := store.SaveScan(GetContext(), scanRequest); err != nil {
-			fmt.Printf("Warning: Failed to save scan to database: %v\n", err)
+			log.Warn("Failed to save scan to database", "error", err)
 		}
 	}
 
-	fmt.Printf("🔍 Executing %s scan on %s [ID: %s]\n", scanType, target, scanRequest.ID)
+	log.Info("Executing scan", "type", scanType, "target", target, "id", scanRequest.ID)
 
 	var findings []types.Finding
 	var err error
@@ -386,16 +420,16 @@ func executeScan(target string, scanType types.ScanType, options map[string]stri
 	// Check if nomad command is available
 	if useNomad {
 		if _, nomadErr := exec.LookPath("nomad"); nomadErr != nil {
-			fmt.Printf("⚠️  Nomad not available, falling back to local execution\n")
+			log.Warn("Nomad not available, falling back to local execution")
 			useNomad = false
 		}
 	}
 
 	if useNomad {
-		fmt.Printf("🐳 Running containerized scan via Nomad\n")
+		log.Info("Running containerized scan via Nomad")
 		findings, err = runNomadScan(scanType, target, options, scanRequest.ID)
 	} else {
-		fmt.Printf("🖥️  Running local scan\n")
+		log.Info("Running local scan")
 		switch scanType {
 		case types.ScanTypePort:
 			findings, err = executePortScan(target, options, scanRequest.ID)
@@ -425,19 +459,19 @@ func executeScan(target string, scanType types.ScanType, options map[string]stri
 	// Save scan results to database
 	if store != nil {
 		if updateErr := store.UpdateScan(GetContext(), scanRequest); updateErr != nil {
-			fmt.Printf("Warning: Failed to update scan in database: %v\n", updateErr)
+			log.Warn("Failed to update scan in database", "error", updateErr)
 		}
 
 		if len(findings) > 0 {
 			if findingsErr := store.SaveFindings(GetContext(), findings); findingsErr != nil {
-				fmt.Printf("Warning: Failed to save findings to database: %v\n", findingsErr)
+				log.Warn("Failed to save findings to database", "error", findingsErr)
 			} else {
-				fmt.Printf("✅ Saved %d findings to database\n", len(findings))
+				log.Info("Saved findings to database", "count", len(findings))
 			}
 		}
 	}
 
-	fmt.Printf("🏁 Scan completed [ID: %s] - Duration: %s\n", scanRequest.ID, completedTime.Sub(startTime).String())
+	log.Info("Scan completed", "id", scanRequest.ID, "duration", completedTime.Sub(startTime).String())
 
 	return err
 }
@@ -453,14 +487,13 @@ func executePortScan(target string, options map[string]string, scanID string) ([
 		ports = options["ports"]
 	}
 
-	fmt.Printf("📊 Port Scan Results for %s\n", target)
-	fmt.Printf("Profile: %s, Ports: %s\n", profile, ports)
+	log.Info("Starting port scan", "target", target, "profile", profile, "ports", ports)
 
 	var findings []types.Finding
 
 	// Check if nmap is available
 	if _, err := exec.LookPath("nmap"); err != nil {
-		fmt.Printf("⚠️  nmap not found, using basic connectivity test\n")
+		log.Warn("nmap not found, using basic connectivity test")
 		if err := basicConnectivityTest(target); err != nil {
 			return findings, err
 		}
@@ -480,14 +513,17 @@ func executePortScan(target string, options map[string]string, scanID string) ([
 		return findings, nil
 	}
 
-	// Run basic nmap scan
-	cmd := exec.Command("nmap", "-p", ports, target)
-	output, err := cmd.Output()
+	// Create secure command executor
+	executor := security.NewCommandExecutor()
+	
+	// Run secure nmap scan
+	ctx := context.Background()
+	output, err := executor.ExecuteNmapScan(ctx, target, ports)
 	if err != nil {
-		return findings, fmt.Errorf("nmap scan failed: %v", err)
+		return findings, fmt.Errorf("nmap scan failed: %w", err)
 	}
 
-	fmt.Printf("Results:\n%s\n", string(output))
+	log.Debug("Scan results", "output", string(output))
 
 	// Parse nmap output for open ports and create findings
 	findings = parseNmapOutput(string(output), scanID)
@@ -501,29 +537,38 @@ func executeSSLScan(target string, options map[string]string, scanID string) ([]
 		port = options["port"]
 	}
 
-	fmt.Printf("🔒 SSL/TLS Analysis for %s:%s\n", target, port)
+	// Validate port
+	portNum, err := security.ValidatePort(port)
+	if err != nil {
+		return nil, fmt.Errorf("invalid port: %w", err)
+	}
+
+	log.Info("Starting SSL/TLS analysis", "target", target, "port", portNum)
 
 	var findings []types.Finding
 
 	// Check if openssl is available
 	if _, err := exec.LookPath("openssl"); err != nil {
-		fmt.Printf("⚠️  openssl not found, using basic HTTP client test\n")
+		log.Warn("openssl not found, using basic HTTP client test")
 		if err := basicSSLTest(target, port); err != nil {
 			return findings, err
 		}
-		finding := createFinding(scanID, "ssl-basic", "ssl_test", "Basic SSL Test", "SSL/TLS connection successful", fmt.Sprintf("Connected to %s:%s", target, port), types.SeverityInfo)
+		finding := createFinding(scanID, "ssl-basic", "ssl_test", "Basic SSL Test", "SSL/TLS connection successful", fmt.Sprintf("Connected to %s:%d", target, portNum), types.SeverityInfo)
 		findings = append(findings, finding)
 		return findings, nil
 	}
 
-	// Run openssl s_client test
-	cmd := exec.Command("openssl", "s_client", "-connect", target+":"+port, "-servername", target, "-verify_return_error")
-	output, err := cmd.Output()
+	// Create secure command executor
+	executor := security.NewCommandExecutor()
+	
+	// Run secure SSL scan
+	ctx := context.Background()
+	output, err := executor.ExecuteSSLScan(ctx, target, portNum)
 	if err != nil {
-		return findings, fmt.Errorf("SSL test failed: %v", err)
+		return findings, fmt.Errorf("SSL test failed: %w", err)
 	}
 
-	fmt.Printf("Results:\n%s\n", string(output))
+	log.Debug("Scan results", "output", string(output))
 
 	// Parse SSL output for findings
 	findings = parseSSLOutput(string(output), scanID)
@@ -532,40 +577,41 @@ func executeSSLScan(target string, options map[string]string, scanID string) ([]
 }
 
 func executeWebScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("🌐 Web Application Scan for %s\n", target)
-	fmt.Printf("⚠️  ZAP not available, performing basic web probe\n")
+	log.Info("Starting web application scan", "target", target)
+	log.Warn("ZAP not available, performing basic web probe")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(target)
 	if err != nil {
-		return nil, fmt.Errorf("web probe failed: %v", err)
+		return nil, fmt.Errorf("web probe failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("Status: %s\n", resp.Status)
-	fmt.Printf("Server: %s\n", resp.Header.Get("Server"))
-	fmt.Printf("Content-Type: %s\n", resp.Header.Get("Content-Type"))
+	log.Info("Web probe response", "status", resp.Status, "server", resp.Header.Get("Server"), "content-type", resp.Header.Get("Content-Type"))
 
 	return nil, nil
 }
 
 func executeDNSScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("🌍 DNS Enumeration for %s\n", target)
+	log.Info("Starting DNS enumeration", "target", target)
 
-	// Use nslookup for basic DNS lookup
-	cmd := exec.Command("nslookup", target)
-	output, err := cmd.Output()
+	// Create secure command executor
+	executor := security.NewCommandExecutor()
+	
+	// Use secure DNS lookup
+	ctx := context.Background()
+	output, err := executor.ExecuteDNSLookup(ctx, target)
 	if err != nil {
-		return nil, fmt.Errorf("DNS lookup failed: %v", err)
+		return nil, fmt.Errorf("DNS lookup failed: %w", err)
 	}
 
-	fmt.Printf("Results:\n%s\n", string(output))
+	log.Debug("Scan results", "output", string(output))
 	return nil, nil
 }
 
 func executeDirScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("📁 Directory Discovery for %s\n", target)
-	fmt.Printf("⚠️  Directory enumeration tools not available, performing basic path check\n")
+	log.Info("Starting directory discovery", "target", target)
+	log.Warn("Directory enumeration tools not available, performing basic path check")
 
 	commonPaths := []string{"/admin", "/login", "/api", "/.well-known", "/robots.txt", "/sitemap.xml"}
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -579,7 +625,7 @@ func executeDirScan(target string, options map[string]string, scanID string) ([]
 		resp.Body.Close()
 
 		if resp.StatusCode < 400 {
-			fmt.Printf("✅ Found: %s [%d]\n", path, resp.StatusCode)
+			log.Info("Directory found", "path", path, "status", resp.StatusCode)
 		}
 	}
 
@@ -587,8 +633,8 @@ func executeDirScan(target string, options map[string]string, scanID string) ([]
 }
 
 func executeSCIMScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("👥 SCIM Vulnerability Scan for %s\n", target)
-	fmt.Printf("⚠️  Basic SCIM endpoint discovery\n")
+	log.Info("Starting SCIM vulnerability scan", "target", target)
+	log.Warn("Basic SCIM endpoint discovery")
 
 	scimPaths := []string{"/scim/v2", "/scim", "/api/scim/v2", "/api/scim"}
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -602,7 +648,7 @@ func executeSCIMScan(target string, options map[string]string, scanID string) ([
 		resp.Body.Close()
 
 		if resp.StatusCode < 400 {
-			fmt.Printf("✅ SCIM endpoint found: %s [%d]\n", path, resp.StatusCode)
+			log.Info("SCIM endpoint found", "path", path, "status", resp.StatusCode)
 		}
 	}
 
@@ -610,26 +656,24 @@ func executeSCIMScan(target string, options map[string]string, scanID string) ([
 }
 
 func executeSmugglingScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("🚛 HTTP Request Smuggling Detection for %s\n", target)
-	fmt.Printf("⚠️  Using basic smuggling detection\n")
+	log.Info("Starting HTTP request smuggling detection", "target", target)
+	log.Warn("Using basic smuggling detection")
 
 	// This is a simplified implementation
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(target)
 	if err != nil {
-		return nil, fmt.Errorf("smuggling test failed: %v", err)
+		return nil, fmt.Errorf("smuggling test failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("Response headers analyzed for smuggling indicators\n")
-	fmt.Printf("Transfer-Encoding: %s\n", resp.Header.Get("Transfer-Encoding"))
-	fmt.Printf("Content-Length: %s\n", resp.Header.Get("Content-Length"))
+	log.Info("Response headers analyzed for smuggling indicators", "transfer-encoding", resp.Header.Get("Transfer-Encoding"), "content-length", resp.Header.Get("Content-Length"))
 
 	return nil, nil
 }
 
 func executeOAuth2Scan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("🔐 OAuth2/OIDC Security Testing for %s\n", target)
+	log.Info("Starting OAuth2/OIDC security testing", "target", target)
 
 	oauthPaths := []string{"/.well-known/openid_configuration", "/oauth2/authorize", "/auth/oauth2"}
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -643,7 +687,7 @@ func executeOAuth2Scan(target string, options map[string]string, scanID string) 
 		resp.Body.Close()
 
 		if resp.StatusCode < 400 {
-			fmt.Printf("✅ OAuth2 endpoint found: %s [%d]\n", path, resp.StatusCode)
+			log.Info("OAuth2 endpoint found", "path", path, "status", resp.StatusCode)
 		}
 	}
 
@@ -651,7 +695,7 @@ func executeOAuth2Scan(target string, options map[string]string, scanID string) 
 }
 
 func executeHttpxScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("🌐 HTTP Probing for %s\n", target)
+	log.Info("Starting HTTP probing", "target", target)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -665,21 +709,18 @@ func executeHttpxScan(target string, options map[string]string, scanID string) (
 
 	resp, err := client.Get(target)
 	if err != nil {
-		return nil, fmt.Errorf("HTTP probe failed: %v", err)
+		return nil, fmt.Errorf("HTTP probe failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("Status: %s\n", resp.Status)
-	fmt.Printf("Content-Length: %s\n", resp.Header.Get("Content-Length"))
-	fmt.Printf("Server: %s\n", resp.Header.Get("Server"))
-	fmt.Printf("Technology: %s\n", resp.Header.Get("X-Powered-By"))
+	log.Info("HTTP probe response", "status", resp.Status, "content-length", resp.Header.Get("Content-Length"), "server", resp.Header.Get("Server"), "technology", resp.Header.Get("X-Powered-By"))
 
 	return nil, nil
 }
 
 func executeJSScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("📜 JavaScript Analysis for %s\n", target)
-	fmt.Printf("⚠️  Basic JavaScript endpoint discovery\n")
+	log.Info("Starting JavaScript analysis", "target", target)
+	log.Warn("Basic JavaScript endpoint discovery")
 
 	jsPaths := []string{"/js/", "/assets/js/", "/static/js/", "/app.js", "/main.js"}
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -694,7 +735,7 @@ func executeJSScan(target string, options map[string]string, scanID string) ([]t
 
 		contentType := resp.Header.Get("Content-Type")
 		if resp.StatusCode < 400 && strings.Contains(contentType, "javascript") {
-			fmt.Printf("✅ JavaScript file found: %s [%d]\n", path, resp.StatusCode)
+			log.Info("JavaScript file found", "path", path, "status", resp.StatusCode)
 		}
 	}
 
@@ -702,7 +743,7 @@ func executeJSScan(target string, options map[string]string, scanID string) ([]t
 }
 
 func executeAPISecan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("🔌 API Security Testing for %s\n", target)
+	log.Info("Starting API security testing", "target", target)
 
 	apiPaths := []string{"/api", "/graphql", "/api/v1", "/api/v2", "/rest"}
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -716,7 +757,7 @@ func executeAPISecan(target string, options map[string]string, scanID string) ([
 		resp.Body.Close()
 
 		if resp.StatusCode < 400 {
-			fmt.Printf("✅ API endpoint found: %s [%d]\n", path, resp.StatusCode)
+			log.Info("API endpoint found", "path", path, "status", resp.StatusCode)
 		}
 	}
 
@@ -724,21 +765,17 @@ func executeAPISecan(target string, options map[string]string, scanID string) ([
 }
 
 func executeVulnScan(target string, options map[string]string, scanID string) ([]types.Finding, error) {
-	fmt.Printf("🛡️  Vulnerability Scan for %s\n", target)
-	fmt.Printf("⚠️  OpenVAS not available, performing basic security checks\n")
+	log.Info("Starting vulnerability scan", "target", target)
+	log.Warn("OpenVAS not available, performing basic security checks")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(target)
 	if err != nil {
-		return nil, fmt.Errorf("vulnerability check failed: %v", err)
+		return nil, fmt.Errorf("vulnerability check failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("Security Headers Analysis:\n")
-	fmt.Printf("X-Frame-Options: %s\n", resp.Header.Get("X-Frame-Options"))
-	fmt.Printf("X-XSS-Protection: %s\n", resp.Header.Get("X-XSS-Protection"))
-	fmt.Printf("X-Content-Type-Options: %s\n", resp.Header.Get("X-Content-Type-Options"))
-	fmt.Printf("Strict-Transport-Security: %s\n", resp.Header.Get("Strict-Transport-Security"))
+	log.Info("Security headers analysis", "x-frame-options", resp.Header.Get("X-Frame-Options"), "x-xss-protection", resp.Header.Get("X-XSS-Protection"), "x-content-type-options", resp.Header.Get("X-Content-Type-Options"), "strict-transport-security", resp.Header.Get("Strict-Transport-Security"))
 
 	return nil, nil
 }
@@ -749,12 +786,12 @@ func basicConnectivityTest(target string) error {
 	if err != nil {
 		resp, err = client.Head("https://" + target)
 		if err != nil {
-			return fmt.Errorf("connectivity test failed: %v", err)
+			return fmt.Errorf("connectivity test failed: %w", err)
 		}
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("✅ Target is reachable [%d]\n", resp.StatusCode)
+	log.Info("Target is reachable", "status", resp.StatusCode)
 	return nil
 }
 
@@ -762,11 +799,11 @@ func basicSSLTest(target, port string) error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get("https://" + target + ":" + port)
 	if err != nil {
-		return fmt.Errorf("SSL test failed: %v", err)
+		return fmt.Errorf("SSL test failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("✅ SSL/TLS connection successful [%d]\n", resp.StatusCode)
+	log.Info("SSL/TLS connection successful", "status", resp.StatusCode)
 	return nil
 }
 
@@ -839,39 +876,41 @@ func runLegacyScan(target string, scanType types.ScanType, options map[string]st
 }
 
 func legacyWebScan(target string, options map[string]string) error {
-	fmt.Printf("🌐 Web Application Scan for %s\n", target)
-	fmt.Printf("⚠️  ZAP not available, performing basic web probe\n")
+	log.Info("Starting web application scan", "target", target)
+	log.Warn("ZAP not available, performing basic web probe")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(target)
 	if err != nil {
-		return fmt.Errorf("web probe failed: %v", err)
+		return fmt.Errorf("web probe failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("Status: %s\n", resp.Status)
-	fmt.Printf("Server: %s\n", resp.Header.Get("Server"))
-	fmt.Printf("Content-Type: %s\n", resp.Header.Get("Content-Type"))
+	log.Info("Web probe response", "status", resp.Status, "server", resp.Header.Get("Server"), "content-type", resp.Header.Get("Content-Type"))
 
 	return nil
 }
 
 func legacyDNSScan(target string, options map[string]string) error {
-	fmt.Printf("🌍 DNS Enumeration for %s\n", target)
+	log.Info("Starting DNS enumeration", "target", target)
 
-	cmd := exec.Command("nslookup", target)
-	output, err := cmd.Output()
+	// Create secure command executor
+	executor := security.NewCommandExecutor()
+	
+	// Use secure DNS lookup
+	ctx := context.Background()
+	output, err := executor.ExecuteDNSLookup(ctx, target)
 	if err != nil {
-		return fmt.Errorf("DNS lookup failed: %v", err)
+		return fmt.Errorf("DNS lookup failed: %w", err)
 	}
 
-	fmt.Printf("Results:\n%s\n", string(output))
+	log.Debug("Scan results", "output", string(output))
 	return nil
 }
 
 func legacyDirScan(target string, options map[string]string) error {
-	fmt.Printf("📁 Directory Discovery for %s\n", target)
-	fmt.Printf("⚠️  Directory enumeration tools not available, performing basic path check\n")
+	log.Info("Starting directory discovery", "target", target)
+	log.Warn("Directory enumeration tools not available, performing basic path check")
 
 	commonPaths := []string{"/admin", "/login", "/api", "/.well-known", "/robots.txt", "/sitemap.xml"}
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -885,7 +924,7 @@ func legacyDirScan(target string, options map[string]string) error {
 		resp.Body.Close()
 
 		if resp.StatusCode < 400 {
-			fmt.Printf("✅ Found: %s [%d]\n", path, resp.StatusCode)
+			log.Info("Directory found", "path", path, "status", resp.StatusCode)
 		}
 	}
 
@@ -893,8 +932,8 @@ func legacyDirScan(target string, options map[string]string) error {
 }
 
 func legacySCIMScan(target string, options map[string]string) error {
-	fmt.Printf("👥 SCIM Vulnerability Scan for %s\n", target)
-	fmt.Printf("⚠️  Basic SCIM endpoint discovery\n")
+	log.Info("Starting SCIM vulnerability scan", "target", target)
+	log.Warn("Basic SCIM endpoint discovery")
 
 	scimPaths := []string{"/scim/v2", "/scim", "/api/scim/v2", "/api/scim"}
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -908,7 +947,7 @@ func legacySCIMScan(target string, options map[string]string) error {
 		resp.Body.Close()
 
 		if resp.StatusCode < 400 {
-			fmt.Printf("✅ SCIM endpoint found: %s [%d]\n", path, resp.StatusCode)
+			log.Info("SCIM endpoint found", "path", path, "status", resp.StatusCode)
 		}
 	}
 
@@ -916,39 +955,33 @@ func legacySCIMScan(target string, options map[string]string) error {
 }
 
 func legacySmugglingScan(target string, options map[string]string) error {
-	fmt.Printf("🚛 HTTP Request Smuggling Detection for %s\n", target)
-	fmt.Printf("⚠️  Using basic smuggling detection\n")
+	log.Info("Starting HTTP request smuggling detection", "target", target)
+	log.Warn("Using basic smuggling detection")
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(target)
 	if err != nil {
-		return fmt.Errorf("smuggling test failed: %v", err)
+		return fmt.Errorf("smuggling test failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("Response headers analyzed for smuggling indicators\n")
-	fmt.Printf("Transfer-Encoding: %s\n", resp.Header.Get("Transfer-Encoding"))
-	fmt.Printf("Content-Length: %s\n", resp.Header.Get("Content-Length"))
+	log.Info("Response headers analyzed for smuggling indicators", "transfer-encoding", resp.Header.Get("Transfer-Encoding"), "content-length", resp.Header.Get("Content-Length"))
 
 	return nil
 }
 
 func legacyVulnScan(target string, options map[string]string) error {
-	fmt.Printf("🛡️  Vulnerability Scan for %s\n", target)
-	fmt.Printf("⚠️  OpenVAS not available, performing basic security checks\n")
+	log.Info("Starting vulnerability scan", "target", target)
+	log.Warn("OpenVAS not available, performing basic security checks")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(target)
 	if err != nil {
-		return fmt.Errorf("vulnerability check failed: %v", err)
+		return fmt.Errorf("vulnerability check failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closeAndLogErrorScan(resp.Body, "HTTP response body")
 
-	fmt.Printf("Security Headers Analysis:\n")
-	fmt.Printf("X-Frame-Options: %s\n", resp.Header.Get("X-Frame-Options"))
-	fmt.Printf("X-XSS-Protection: %s\n", resp.Header.Get("X-XSS-Protection"))
-	fmt.Printf("X-Content-Type-Options: %s\n", resp.Header.Get("X-Content-Type-Options"))
-	fmt.Printf("Strict-Transport-Security: %s\n", resp.Header.Get("Strict-Transport-Security"))
+	log.Info("Security headers analysis", "x-frame-options", resp.Header.Get("X-Frame-Options"), "x-xss-protection", resp.Header.Get("X-XSS-Protection"), "x-content-type-options", resp.Header.Get("X-Content-Type-Options"), "strict-transport-security", resp.Header.Get("Strict-Transport-Security"))
 
 	return nil
 }
@@ -973,11 +1006,18 @@ func createFinding(scanID, tool, findingType, title, description, evidence strin
 func runNomadScan(scanType types.ScanType, target string, options map[string]string, scanID string) ([]types.Finding, error) {
 	jobTemplate := generateNomadJobTemplate(scanType, target, options, scanID)
 
-	// Write job template to temporary file
-	jobFile := fmt.Sprintf("/tmp/scan_%s.nomad", scanID)
-	if err := os.WriteFile(jobFile, []byte(jobTemplate), 0644); err != nil {
+	// Write job template to secure temporary file
+	tempFile, err := security.CreateSecureTempFile("scan_", ".nomad")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create secure temp file: %w", err)
+	}
+	defer closeAndLogErrorScan(tempFile, "nomad job temp file")
+	
+	if _, err := tempFile.Write([]byte(jobTemplate)); err != nil {
 		return nil, fmt.Errorf("failed to write job template: %w", err)
 	}
+	
+	jobFile := tempFile.Name()
 
 	// Submit job to Nomad
 	cmd := exec.Command("nomad", "job", "run", jobFile)
@@ -1114,7 +1154,12 @@ func waitForNomadJobCompletion(scanID string) ([]types.Finding, error) {
 }
 
 func collectNomadResults(scanID string) ([]types.Finding, error) {
-	// Read results from the mounted volume
+	// Validate scanID to prevent path traversal
+	if strings.Contains(scanID, "..") || strings.Contains(scanID, "/") {
+		return nil, fmt.Errorf("invalid scan ID")
+	}
+	
+	// Read results from the mounted volume with validated paths
 	resultFiles := []string{
 		fmt.Sprintf("/tmp/scan-results/%s.json", scanID),
 		fmt.Sprintf("/tmp/scan-results/%s.txt", scanID),

@@ -231,7 +231,8 @@ nomad job run deployments/nomad/scanner-web.nomad
 
 ### Database Operations
 - Database migrations are handled automatically
-- Default PostgreSQL 
+- Uses SQLite for lightweight, embedded storage
+- Database file is created automatically on first run 
 
 ## Debugging Tips
 

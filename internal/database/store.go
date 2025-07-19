@@ -20,6 +20,14 @@ type sqlStore struct {
 	cfg config.DatabaseConfig
 }
 
+// getPlaceholder returns the appropriate placeholder for the database driver
+func (s *sqlStore) getPlaceholder(n int) string {
+	if s.cfg.Driver == "postgres" {
+		return fmt.Sprintf("$%d", n)
+	}
+	return "?"
+}
+
 func NewStore(cfg config.DatabaseConfig) (core.ResultStore, error) {
 	db, err := sqlx.Connect(cfg.Driver, cfg.DSN)
 	if err != nil {
@@ -174,13 +182,13 @@ func (s *sqlStore) GetScan(ctx context.Context, scanID string) (*types.ScanReque
 	var scan types.ScanRequest
 	var optionsJSON string
 
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, target, type, profile, options, scheduled_at,
 			   created_at, started_at, completed_at, status,
 			   error_message, worker_id
 		FROM scans
-		WHERE id = $1
-	`
+		WHERE id = %s
+	`, s.getPlaceholder(1))
 
 	err := s.db.GetContext(ctx, &struct {
 		*types.ScanRequest
@@ -294,8 +302,14 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	`
 
 	for _, finding := range findings {
-		refsJSON, _ := json.Marshal(finding.References)
-		metaJSON, _ := json.Marshal(finding.Metadata)
+		refsJSON, err := json.Marshal(finding.References)
+		if err != nil {
+			return fmt.Errorf("failed to marshal references: %w", err)
+		}
+		metaJSON, err := json.Marshal(finding.Metadata)
+		if err != nil {
+			return fmt.Errorf("failed to marshal metadata: %w", err)
+		}
 
 		args := map[string]interface{}{
 			"id":          finding.ID,
@@ -322,13 +336,13 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 }
 
 func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Finding, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
 			   evidence, solution, refs, metadata, created_at, updated_at
 		FROM findings
-		WHERE scan_id = $1
+		WHERE scan_id = %s
 		ORDER BY severity DESC, created_at DESC
-	`
+	`, s.getPlaceholder(1))
 
 	rows, err := s.db.QueryContext(ctx, query, scanID)
 	if err != nil {
@@ -352,10 +366,16 @@ func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Find
 		}
 
 		if refsJSON != "" {
-			json.Unmarshal([]byte(refsJSON), &finding.References)
+			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
+				// Log error but continue processing
+				fmt.Printf("Warning: failed to unmarshal references for finding %s: %v\n", finding.ID, err)
+			}
 		}
 		if metaJSON != "" {
-			json.Unmarshal([]byte(metaJSON), &finding.Metadata)
+			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
+				// Log error but continue processing
+				fmt.Printf("Warning: failed to unmarshal metadata for finding %s: %v\n", finding.ID, err)
+			}
 		}
 
 		findings = append(findings, finding)
@@ -365,13 +385,13 @@ func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Find
 }
 
 func (s *sqlStore) GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
 			   evidence, solution, refs, metadata, created_at, updated_at
 		FROM findings
-		WHERE severity = $1
+		WHERE severity = %s
 		ORDER BY created_at DESC
-	`
+	`, s.getPlaceholder(1))
 
 	rows, err := s.db.QueryContext(ctx, query, severity)
 	if err != nil {
@@ -395,10 +415,16 @@ func (s *sqlStore) GetFindingsBySeverity(ctx context.Context, severity types.Sev
 		}
 
 		if refsJSON != "" {
-			json.Unmarshal([]byte(refsJSON), &finding.References)
+			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
+				// Log error but continue processing
+				fmt.Printf("Warning: failed to unmarshal references for finding %s: %v\n", finding.ID, err)
+			}
 		}
 		if metaJSON != "" {
-			json.Unmarshal([]byte(metaJSON), &finding.Metadata)
+			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
+				// Log error but continue processing
+				fmt.Printf("Warning: failed to unmarshal metadata for finding %s: %v\n", finding.ID, err)
+			}
 		}
 
 		findings = append(findings, finding)
@@ -413,12 +439,12 @@ func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summar
 		ByTool:     make(map[string]int),
 	}
 
-	severityQuery := `
+	severityQuery := fmt.Sprintf(`
 		SELECT severity, COUNT(*) as count
 		FROM findings
-		WHERE scan_id = $1
+		WHERE scan_id = %s
 		GROUP BY severity
-	`
+	`, s.getPlaceholder(1))
 
 	rows, err := s.db.QueryContext(ctx, severityQuery, scanID)
 	if err != nil {
@@ -438,12 +464,12 @@ func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summar
 		summary.Total += count
 	}
 
-	toolQuery := `
+	toolQuery := fmt.Sprintf(`
 		SELECT tool, COUNT(*) as count
 		FROM findings
-		WHERE scan_id = $1
+		WHERE scan_id = %s
 		GROUP BY tool
-	`
+	`, s.getPlaceholder(1))
 
 	rows2, err := s.db.QueryContext(ctx, toolQuery, scanID)
 	if err != nil {
@@ -564,10 +590,16 @@ func (s *sqlStore) QueryFindings(ctx context.Context, query core.FindingQuery) (
 		}
 
 		if refsJSON != "" {
-			json.Unmarshal([]byte(refsJSON), &finding.References)
+			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
+				// Log error but continue processing
+				fmt.Printf("Warning: failed to unmarshal references for finding %s: %v\n", finding.ID, err)
+			}
 		}
 		if metaJSON != "" {
-			json.Unmarshal([]byte(metaJSON), &finding.Metadata)
+			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
+				// Log error but continue processing
+				fmt.Printf("Warning: failed to unmarshal metadata for finding %s: %v\n", finding.ID, err)
+			}
 		}
 
 		findings = append(findings, finding)

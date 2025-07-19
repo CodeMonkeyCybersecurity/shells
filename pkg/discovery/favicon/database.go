@@ -55,12 +55,12 @@ func NewDatabase() *Database {
 func (db *Database) LoadFromFile(filename string) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("failed to read database file: %v", err)
+		return fmt.Errorf("failed to read database file: %w", err)
 	}
 
 	var entries []TechnologyEntry
 	if err := json.Unmarshal(data, &entries); err != nil {
-		return fmt.Errorf("failed to parse database file: %v", err)
+		return fmt.Errorf("failed to parse database file: %w", err)
 	}
 
 	db.mutex.Lock()
@@ -85,7 +85,7 @@ func (db *Database) SaveToFile(filename string) error {
 
 	data, err := json.MarshalIndent(allEntries, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal database: %v", err)
+		return fmt.Errorf("failed to marshal database: %w", err)
 	}
 
 	return os.WriteFile(filename, data, 0644)

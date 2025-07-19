@@ -28,7 +28,9 @@ func NewDomainDiscovery(config *DiscoveryConfig, logger Logger) *DomainDiscovery
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{
+					MinVersion: tls.VersionTLS12,
+				},
 			},
 		},
 	}
@@ -572,7 +574,9 @@ func NewTechnologyDiscovery(config *DiscoveryConfig, logger Logger) *TechnologyD
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{
+					MinVersion: tls.VersionTLS12,
+				},
 			},
 		},
 	}

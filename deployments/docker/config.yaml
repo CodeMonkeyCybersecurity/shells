@@ -5,10 +5,10 @@ logger:
     - stdout
 
 database:
-  driver: postgres
-  dsn: "host=postgres user=webscan password=webscan_password dbname=webscan sslmode=disable"
-  max_connections: 25
-  max_idle_conns: 10
+  driver: sqlite3
+  dsn: "/data/shells.db"
+  max_connections: 1
+  max_idle_conns: 1
   conn_max_lifetime: 1h
 
 redis:
@@ -37,7 +37,8 @@ security:
     requests_per_second: 10
     burst_size: 20
   scope_file: /app/scope.txt
-  enable_auth: false
+  enable_auth: true
+  api_key: "${SHELLS_API_KEY}"
 
 tools:
   nmap:

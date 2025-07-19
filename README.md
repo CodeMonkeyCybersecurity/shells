@@ -16,7 +16,7 @@ A production-ready Cobra CLI tool for web application security testing and bug b
   - **Workflow Engine**: Complex multi-stage scanning pipelines
 - **Distributed Scanning**: Redis-based job queue with worker pools
 - **Observability**: OpenTelemetry integration with structured logging via otelzap
-- **Result Management**: Normalized result schema with PostgreSQL/SQLite storage
+- **Result Management**: Normalized result schema with SQLite storage (lightweight, embedded database)
 - **Deployment Ready**: Docker containers and Nomad job specifications
 - **Security Features**: Rate limiting, scope validation, audit trails
 
@@ -64,8 +64,8 @@ logger:
   format: json
 
 database:
-  driver: postgres
-  dsn: "host=localhost user=webscan password=password dbname=webscan"
+  driver: sqlite3
+  dsn: "webscan.db"  # SQLite database file path
 
 redis:
   addr: localhost:6379

@@ -64,7 +64,7 @@ func (h *FaviconHasher) DownloadAndHash(faviconURL string) (*HashResult, error) 
 	// Validate URL
 	parsedURL, err := url.Parse(faviconURL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid favicon URL: %v", err)
+		return nil, fmt.Errorf("invalid favicon URL: %w", err)
 	}
 
 	// Ensure HTTPS for secure connections
@@ -75,7 +75,7 @@ func (h *FaviconHasher) DownloadAndHash(faviconURL string) (*HashResult, error) 
 	// Create request
 	req, err := http.NewRequest("GET", parsedURL.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %v", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Set headers
@@ -92,7 +92,7 @@ func (h *FaviconHasher) DownloadAndHash(faviconURL string) (*HashResult, error) 
 			req.URL = parsedURL
 			resp, err = h.client.Do(req)
 			if err != nil {
-				return nil, fmt.Errorf("failed to download favicon: %v", err)
+				return nil, fmt.Errorf("failed to download favicon: %w", err)
 			}
 		} else {
 			return nil, fmt.Errorf("failed to download favicon: %v", err)
@@ -111,7 +111,7 @@ func (h *FaviconHasher) DownloadAndHash(faviconURL string) (*HashResult, error) 
 	// Read favicon data
 	data, err := io.ReadAll(limitedReader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read favicon data: %v", err)
+		return nil, fmt.Errorf("failed to read favicon data: %w", err)
 	}
 
 	if len(data) == 0 {

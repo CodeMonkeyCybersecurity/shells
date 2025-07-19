@@ -191,7 +191,7 @@ func runFaviconDiscovery(cmd *cobra.Command, args []string) error {
 	// Load target hosts
 	targetHosts, err := loadTargetHosts(hosts, hostsFile)
 	if err != nil {
-		return fmt.Errorf("failed to load target hosts: %v", err)
+		return fmt.Errorf("failed to load target hosts: %w", err)
 	}
 
 	if len(targetHosts) == 0 {
@@ -213,7 +213,7 @@ func runFaviconDiscovery(cmd *cobra.Command, args []string) error {
 	// Initialize scanner
 	scanner, err := favicon.NewScanner(config)
 	if err != nil {
-		return fmt.Errorf("failed to initialize favicon scanner: %v", err)
+		return fmt.Errorf("failed to initialize favicon scanner: %w", err)
 	}
 
 	fmt.Printf("🔍 Starting favicon discovery scan\n")
@@ -229,7 +229,7 @@ func runFaviconDiscovery(cmd *cobra.Command, args []string) error {
 	// Scan hosts
 	results, err := scanner.ScanHosts(ctx, targetHosts)
 	if err != nil {
-		return fmt.Errorf("scan failed: %v", err)
+		return fmt.Errorf("scan failed: %w", err)
 	}
 
 	duration := time.Since(start)
@@ -264,7 +264,7 @@ func runFaviconHash(cmd *cobra.Command, args []string) error {
 	// Load target hosts
 	targetHosts, err := loadTargetHosts(hosts, hostsFile)
 	if err != nil {
-		return fmt.Errorf("failed to load target hosts: %v", err)
+		return fmt.Errorf("failed to load target hosts: %w", err)
 	}
 
 	if len(targetHosts) == 0 {
@@ -353,7 +353,7 @@ func runFaviconAdd(cmd *cobra.Command, args []string) error {
 
 	// Add entry
 	if err := database.AddEntry(entry); err != nil {
-		return fmt.Errorf("failed to add entry: %v", err)
+		return fmt.Errorf("failed to add entry: %w", err)
 	}
 
 	fmt.Printf("✅ Added favicon hash mapping:\n")
@@ -381,19 +381,19 @@ func runFaviconExport(cmd *cobra.Command, args []string) error {
 	// Load custom database if specified
 	if customDatabase != "" {
 		if err := database.LoadFromFile(customDatabase); err != nil {
-			return fmt.Errorf("failed to load custom database: %v", err)
+			return fmt.Errorf("failed to load custom database: %w", err)
 		}
 	}
 
 	// Export database
 	data, err := database.ExportDatabase(exportFormat)
 	if err != nil {
-		return fmt.Errorf("failed to export database: %v", err)
+		return fmt.Errorf("failed to export database: %w", err)
 	}
 
 	if exportFile != "" {
 		if err := os.WriteFile(exportFile, data, 0644); err != nil {
-			return fmt.Errorf("failed to write export file: %v", err)
+			return fmt.Errorf("failed to write export file: %w", err)
 		}
 		fmt.Printf("📄 Database exported to: %s\n", exportFile)
 	} else {
@@ -410,7 +410,7 @@ func runFaviconStats(cmd *cobra.Command, args []string) error {
 	// Load custom database if specified
 	if customDatabase != "" {
 		if err := database.LoadFromFile(customDatabase); err != nil {
-			return fmt.Errorf("failed to load custom database: %v", err)
+			return fmt.Errorf("failed to load custom database: %w", err)
 		}
 	}
 
@@ -450,7 +450,7 @@ func loadTargetHosts(hostList []string, filename string) ([]string, error) {
 	if filename != "" {
 		data, err := os.ReadFile(filename)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read hosts file: %v", err)
+			return nil, fmt.Errorf("failed to read hosts file: %w", err)
 		}
 
 		lines := strings.Split(string(data), "\n")
@@ -478,12 +478,12 @@ func loadTargetHosts(hostList []string, filename string) ([]string, error) {
 func outputFaviconJSON(results []*favicon.FaviconResult, filename string) error {
 	data, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal results: %v", err)
+		return fmt.Errorf("failed to marshal results: %w", err)
 	}
 
 	if filename != "" {
 		if err := os.WriteFile(filename, data, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %v", err)
+			return fmt.Errorf("failed to write file: %w", err)
 		}
 		fmt.Printf("📄 Results saved to: %s\n", filename)
 	} else {
@@ -502,12 +502,12 @@ func outputFaviconCSV(results []*favicon.FaviconResult, filename string) error {
 
 	data, err := scanner.ExportResults(results, "csv")
 	if err != nil {
-		return fmt.Errorf("failed to export CSV: %v", err)
+		return fmt.Errorf("failed to export CSV: %w", err)
 	}
 
 	if filename != "" {
 		if err := os.WriteFile(filename, data, 0644); err != nil {
-			return fmt.Errorf("failed to write file: %v", err)
+			return fmt.Errorf("failed to write file: %w", err)
 		}
 		fmt.Printf("📄 Results saved to: %s\n", filename)
 	} else {

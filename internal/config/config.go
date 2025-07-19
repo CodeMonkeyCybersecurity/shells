@@ -369,11 +369,11 @@ func DefaultConfig() *Config {
 			OutputPaths: []string{"stdout"},
 		},
 		Database: DatabaseConfig{
-			Driver:          "postgres",
-			DSN:             "postgres://shells:shells@localhost:5432/shells?sslmode=disable",
-			MaxConnections:  25,
-			MaxIdleConns:    10,
-			ConnMaxLifetime: 2 * time.Hour,
+			Driver:          "sqlite3",
+			DSN:             "shells.db",
+			MaxConnections:  10,
+			MaxIdleConns:    5,
+			ConnMaxLifetime: 1 * time.Hour,
 		},
 		Redis: RedisConfig{
 			Addr:         "localhost:6379",
