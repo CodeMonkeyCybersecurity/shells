@@ -9,11 +9,11 @@ logger:
 
 # Database configuration
 database:
-  driver: "postgres"
-  dsn: "postgres://shells:shells@localhost:5432/shells?sslmode=disable"
-  max_connections: 25
-  max_idle_conns: 10
-  conn_max_lifetime: "2h"
+  driver: "sqlite3"
+  dsn: "shells.db"
+  max_connections: 10
+  max_idle_conns: 5
+  conn_max_lifetime: "1h"
 
 # Redis configuration (for caching and queues)
 redis:
@@ -260,4 +260,4 @@ tools:
 # SHELLS_PROWLER_AWS_PROFILE=production
 # SHELLS_FAVICON_SHODAN_API_KEY=your_shodan_key
 # SHELLS_SECURITY_API_KEY=your_api_key
-# SHELLS_DATABASE_DSN=postgres://user:pass@host:port/db
+# SHELLS_DATABASE_DSN=shells.db

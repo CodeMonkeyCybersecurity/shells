@@ -47,7 +47,7 @@ go test -race ./...
 
 - **`/internal/`** - Internal packages (not exposed externally)
   - `config/` - Configuration management using Viper
-  - `database/` - Database abstraction layer (PostgreSQL/SQLite)
+  - `database/` - Database abstraction layer (SQLite/PostgreSQL)
   - `jobs/` - Redis-based job queue implementation
   - `worker/` - Worker pool for distributed scanning
   - `plugins/` - Scanner plugin implementations
@@ -64,7 +64,7 @@ go test -race ./...
 1. **Worker-Based Architecture**
    - Uses Redis for job queuing
    - Configurable worker pools for parallel scanning
-   - Job status tracking in PostgreSQL/SQLite
+   - Job status tracking in SQLite/PostgreSQL
 
 2. **Plugin System**
    - Scanners are implemented as plugins in `/internal/plugins/`
@@ -77,7 +77,8 @@ go test -race ./...
    - Environment variables override config file values
 
 4. **Database**
-   - Supports both PostgreSQL and SQLite
+   - Uses SQLite by default for lightweight, embedded storage
+   - Supports PostgreSQL for production deployments
    - Uses sqlx for database operations
    - Migrations handled automatically on startup
 
@@ -225,14 +226,16 @@ shells resume scan-12345
 
 ### Deploying with Nomad
 ```bash
+# For production PostgreSQL deployment
 nomad job run deployments/nomad/postgres.nomad
 nomad job run deployments/nomad/scanner-web.nomad
 ```
 
 ### Database Operations
 - Database migrations are handled automatically
-- Uses SQLite for lightweight, embedded storage
-- Database file is created automatically on first run 
+- Uses SQLite for lightweight, embedded storage by default
+- Database file is created automatically on first run
+- PostgreSQL can be deployed for production environments 
 
 ## Debugging Tips
 
