@@ -53,7 +53,7 @@ if $IS_MAC; then
   LOG_DIR="$HOME/Library/Logs/shells"
 else
   SECRETS_DIR="/var/lib/shells/secrets"
-  CONFIG_DIR="/etc/shells"
+  CONFIG_DIR="/etc/shells-scanner"
   LOG_DIR="/var/log/shells"
 fi
 
