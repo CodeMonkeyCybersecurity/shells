@@ -5,7 +5,7 @@ logger:
 
 database:
   driver: "sqlite3"
-  dsn: "/tmp/shells.db"
+  dsn: "/opt/shells/shells.db"
   max_connections: 10
   max_idle_conns: 5
   conn_max_lifetime: "1h"
