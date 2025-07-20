@@ -369,8 +369,8 @@ func (e *Engine) CloudFlareArchiveCorrelation(domain string) []CorrelatedInsight
 
 	// Simplified correlation without external dependencies
 	insight := CorrelatedInsight{
-		ID:   generateInsightID(),
-		Type: InsightTypeOriginServerExposed,
+		ID:    generateInsightID(),
+		Type:  InsightTypeOriginServerExposed,
 		Title: fmt.Sprintf("Potential CloudFlare Origin Server Discovery: %s", domain),
 		Description: fmt.Sprintf(
 			"Domain %s may be using CloudFlare. Historical analysis could reveal origin servers.",

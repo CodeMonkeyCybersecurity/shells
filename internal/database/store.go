@@ -646,13 +646,13 @@ func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Find
 		if refsJSON != "" {
 			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
 				// Log error but continue processing
-				fmt.Printf("Warning: failed to unmarshal references for finding %s: %v\n", finding.ID, err)
+				s.logger.Warn("Failed to unmarshal references for finding", "finding_id", finding.ID, "error", err)
 			}
 		}
 		if metaJSON != "" {
 			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
 				// Log error but continue processing
-				fmt.Printf("Warning: failed to unmarshal metadata for finding %s: %v\n", finding.ID, err)
+				s.logger.Warn("Failed to unmarshal metadata for finding", "finding_id", finding.ID, "error", err)
 			}
 		}
 
@@ -695,13 +695,13 @@ func (s *sqlStore) GetFindingsBySeverity(ctx context.Context, severity types.Sev
 		if refsJSON != "" {
 			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
 				// Log error but continue processing
-				fmt.Printf("Warning: failed to unmarshal references for finding %s: %v\n", finding.ID, err)
+				s.logger.Warn("Failed to unmarshal references for finding", "finding_id", finding.ID, "error", err)
 			}
 		}
 		if metaJSON != "" {
 			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
 				// Log error but continue processing
-				fmt.Printf("Warning: failed to unmarshal metadata for finding %s: %v\n", finding.ID, err)
+				s.logger.Warn("Failed to unmarshal metadata for finding", "finding_id", finding.ID, "error", err)
 			}
 		}
 
@@ -870,13 +870,13 @@ func (s *sqlStore) QueryFindings(ctx context.Context, query core.FindingQuery) (
 		if refsJSON != "" {
 			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
 				// Log error but continue processing
-				fmt.Printf("Warning: failed to unmarshal references for finding %s: %v\n", finding.ID, err)
+				s.logger.Warn("Failed to unmarshal references for finding", "finding_id", finding.ID, "error", err)
 			}
 		}
 		if metaJSON != "" {
 			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
 				// Log error but continue processing
-				fmt.Printf("Warning: failed to unmarshal metadata for finding %s: %v\n", finding.ID, err)
+				s.logger.Warn("Failed to unmarshal metadata for finding", "finding_id", finding.ID, "error", err)
 			}
 		}
 

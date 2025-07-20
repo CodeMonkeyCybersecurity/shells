@@ -40,54 +40,57 @@ type Certificate struct {
 
 // CertificateIntel represents intelligence extracted from certificates
 type CertificateIntel struct {
-	Domain            string    `json:"domain"`
-	SANs              []string  `json:"sans"`
-	Organizations     []string  `json:"organizations"`
-	Emails            []string  `json:"emails"`
-	IssuedDate        time.Time `json:"issued_date"`
-	ExpiryDate        time.Time `json:"expiry_date"`
-	Issuer            string    `json:"issuer"`
-	SerialNumber      string    `json:"serial_number"`
-	Fingerprint       string    `json:"fingerprint"`
-	WildcardPatterns  []string  `json:"wildcard_patterns"`
-	InternalNames     []string  `json:"internal_names"`
+	Domain           string    `json:"domain"`
+	SANs             []string  `json:"sans"`
+	Organizations    []string  `json:"organizations"`
+	Emails           []string  `json:"emails"`
+	IssuedDate       time.Time `json:"issued_date"`
+	ExpiryDate       time.Time `json:"expiry_date"`
+	Issuer           string    `json:"issuer"`
+	SerialNumber     string    `json:"serial_number"`
+	Fingerprint      string    `json:"fingerprint"`
+	WildcardPatterns []string  `json:"wildcard_patterns"`
+	InternalNames    []string  `json:"internal_names"`
 }
 
 // Pattern represents a naming pattern found in certificates
 type Pattern struct {
-	Type        string    `json:"type"`
-	Template    string    `json:"template"`
-	Examples    []string  `json:"examples"`
-	Confidence  float64   `json:"confidence"`
-	Predictions []string  `json:"predictions"`
+	Type        string   `json:"type"`
+	Template    string   `json:"template"`
+	Examples    []string `json:"examples"`
+	Confidence  float64  `json:"confidence"`
+	Predictions []string `json:"predictions"`
 }
 
 // ArchiveFindings represents intelligence extracted from web archives
 type ArchiveFindings struct {
-	Domain           string                     `json:"domain"`
-	DeletedEndpoints []ArchivedEndpoint         `json:"deleted_endpoints"`
-	OldParameters    []string                   `json:"old_parameters"`
-	DevURLs          []string                   `json:"dev_urls"`
-	APIDocumentation []APIDoc                   `json:"api_documentation"`
-	ExposedSecrets   []Secret                   `json:"exposed_secrets"`
-	TechStackChanges []TechChange               `json:"tech_stack_changes"`
+	Domain           string                    `json:"domain"`
+	DeletedEndpoints []ArchivedEndpoint        `json:"deleted_endpoints"`
+	OldParameters    []string                  `json:"old_parameters"`
+	DevURLs          []string                  `json:"dev_urls"`
+	APIDocumentation []APIDoc                  `json:"api_documentation"`
+	ExposedSecrets   []Secret                  `json:"exposed_secrets"`
+	TechStackChanges []TechChange              `json:"tech_stack_changes"`
 	SecurityHeaders  map[string][]HeaderChange `json:"security_headers"`
 }
 
 // ArchivedEndpoint represents an endpoint found in archives
 type ArchivedEndpoint struct {
-	URL        string    `json:"url"`
-	Method     string    `json:"method"`
-	Parameters []string  `json:"parameters"`
-	LastSeen   time.Time `json:"last_seen"`
-	FirstSeen  time.Time `json:"first_seen"`
-	Status     string    `json:"status"` // active, deleted, moved
+	URL          string    `json:"url"`
+	Method       string    `json:"method"`
+	Parameters   []string  `json:"parameters"`
+	LastSeen     time.Time `json:"last_seen"`
+	FirstSeen    time.Time `json:"first_seen"`
+	Status       string    `json:"status"` // active, deleted, moved
+	Technologies []string  `json:"technologies"`
+	StillExists  bool      `json:"still_exists"`
 }
 
 // Secret represents exposed credentials found in archives
 type Secret struct {
 	Type      string    `json:"type"`
 	Value     string    `json:"value"` // redacted
+	Source    string    `json:"source"`
 	URL       string    `json:"url"`
 	Timestamp time.Time `json:"timestamp"`
 	Severity  string    `json:"severity"`

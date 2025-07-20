@@ -99,7 +99,7 @@ func (c *CertIntel) predictDomainsFromEmailPatterns(patterns []EmailPattern) []s
 
 func (a *ArchiveIntel) collectAllSnapshots(domain string) []Snapshot {
 	var allSnapshots []Snapshot
-	
+
 	for _, source := range a.sources {
 		snapshots, err := source.GetSnapshots(domain)
 		if err != nil {
@@ -108,7 +108,7 @@ func (a *ArchiveIntel) collectAllSnapshots(domain string) []Snapshot {
 		}
 		allSnapshots = append(allSnapshots, snapshots...)
 	}
-	
+
 	return allSnapshots
 }
 
@@ -135,7 +135,7 @@ func (a *ArchiveIntel) addOrUpdateEndpoint(findings *ArchiveFindings, endpoint A
 			return
 		}
 	}
-	
+
 	// Add new endpoint
 	endpoint.FirstSeen = timestamp
 	endpoint.LastSeen = timestamp
@@ -144,7 +144,7 @@ func (a *ArchiveIntel) addOrUpdateEndpoint(findings *ArchiveFindings, endpoint A
 
 func (a *ArchiveIntel) extractAPIDocs(content, baseURL string) []APIDoc {
 	var docs []APIDoc
-	
+
 	// Look for common API documentation patterns
 	patterns := []string{
 		`api.*docs?`,
@@ -153,7 +153,7 @@ func (a *ArchiveIntel) extractAPIDocs(content, baseURL string) []APIDoc {
 		`postman`,
 		`documentation`,
 	}
-	
+
 	for _, pattern := range patterns {
 		regex := regexp.MustCompile(`(?i)` + pattern)
 		if regex.MatchString(content) {
@@ -166,7 +166,7 @@ func (a *ArchiveIntel) extractAPIDocs(content, baseURL string) []APIDoc {
 			break
 		}
 	}
-	
+
 	return docs
 }
 
@@ -183,22 +183,22 @@ func (a *ArchiveIntel) sortSnapshotsByTime(snapshots []Snapshot) {
 
 func (a *ArchiveIntel) extractSecurityHeaders(content string) map[string]string {
 	headers := make(map[string]string)
-	
+
 	// Extract security headers from content
 	// This is a simplified implementation
 	headerPatterns := map[string]*regexp.Regexp{
-		"Content-Security-Policy": regexp.MustCompile(`(?i)content-security-policy:\s*([^\r\n]+)`),
+		"Content-Security-Policy":   regexp.MustCompile(`(?i)content-security-policy:\s*([^\r\n]+)`),
 		"Strict-Transport-Security": regexp.MustCompile(`(?i)strict-transport-security:\s*([^\r\n]+)`),
-		"X-Frame-Options": regexp.MustCompile(`(?i)x-frame-options:\s*([^\r\n]+)`),
-		"X-Content-Type-Options": regexp.MustCompile(`(?i)x-content-type-options:\s*([^\r\n]+)`),
+		"X-Frame-Options":           regexp.MustCompile(`(?i)x-frame-options:\s*([^\r\n]+)`),
+		"X-Content-Type-Options":    regexp.MustCompile(`(?i)x-content-type-options:\s*([^\r\n]+)`),
 	}
-	
+
 	for header, regex := range headerPatterns {
 		if matches := regex.FindStringSubmatch(content); len(matches) > 1 {
 			headers[header] = strings.TrimSpace(matches[1])
 		}
 	}
-	
+
 	return headers
 }
 
@@ -206,19 +206,19 @@ func (a *ArchiveIntel) detectTechnology(content string) string {
 	// Simple technology detection
 	techPatterns := map[string]*regexp.Regexp{
 		"WordPress": regexp.MustCompile(`(?i)wp-content|wordpress`),
-		"React": regexp.MustCompile(`(?i)react|reactjs`),
-		"Angular": regexp.MustCompile(`(?i)angular|angularjs`),
-		"Vue": regexp.MustCompile(`(?i)vue\.js|vuejs`),
-		"jQuery": regexp.MustCompile(`(?i)jquery`),
+		"React":     regexp.MustCompile(`(?i)react|reactjs`),
+		"Angular":   regexp.MustCompile(`(?i)angular|angularjs`),
+		"Vue":       regexp.MustCompile(`(?i)vue\.js|vuejs`),
+		"jQuery":    regexp.MustCompile(`(?i)jquery`),
 		"Bootstrap": regexp.MustCompile(`(?i)bootstrap`),
 	}
-	
+
 	for tech, regex := range techPatterns {
 		if regex.MatchString(content) {
 			return tech
 		}
 	}
-	
+
 	return "Unknown"
 }
 
@@ -238,13 +238,13 @@ func (c *CodeIntel) isBinaryFile(path string) bool {
 		".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
 		".mp3", ".mp4", ".avi", ".mov", ".wmv", ".flv",
 	}
-	
+
 	pathLower := strings.ToLower(path)
 	for _, ext := range binaryExtensions {
 		if strings.HasSuffix(pathLower, ext) {
 			return true
 		}
 	}
-	
+
 	return false
 }

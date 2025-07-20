@@ -317,8 +317,8 @@ func (e *Engine) detectInfrastructureLeakage(shared SharedInfrastructure) *Corre
 	// Check for internal infrastructure exposure
 	if e.isInternalInfrastructure(shared) {
 		insight := &CorrelatedInsight{
-			ID:   generateInsightID(),
-			Type: InsightTypeInfrastructureLeakage,
+			ID:    generateInsightID(),
+			Type:  InsightTypeInfrastructureLeakage,
 			Title: fmt.Sprintf("Internal Infrastructure Exposed: %s", shared.Value),
 			Description: fmt.Sprintf(
 				"Internal infrastructure component %s is exposed externally, "+
@@ -340,8 +340,8 @@ func (e *Engine) detectSubdomainTakeovers(nodes []InfrastructureNode) []Correlat
 	for _, node := range nodes {
 		if node.Type == "domain" && e.isTakeoverCandidate(node) {
 			insight := CorrelatedInsight{
-				ID:   generateInsightID(),
-				Type: InsightTypeSubdomainTakeover,
+				ID:    generateInsightID(),
+				Type:  InsightTypeSubdomainTakeover,
 				Title: fmt.Sprintf("Potential Subdomain Takeover: %s", node.Value),
 				Description: fmt.Sprintf(
 					"Domain %s may be vulnerable to subdomain takeover due to "+
@@ -423,38 +423,38 @@ func (e *Engine) detectRemovedSecurityFeatures(timeline []TimelineEvent) []strin
 
 func (e *Engine) buildDegradationDescription(trend float64, removedFeatures []string) string {
 	desc := "Security posture degradation detected: "
-	
+
 	if trend > 0 {
 		desc += fmt.Sprintf("Increasing severity trend (%.2f)", trend)
 	}
-	
+
 	if len(removedFeatures) > 0 {
 		if trend > 0 {
 			desc += " and "
 		}
 		desc += fmt.Sprintf("%d security features removed", len(removedFeatures))
 	}
-	
+
 	return desc
 }
 
 func (e *Engine) calculateDegradationConfidence(trend float64, removedFeatures []string) float64 {
 	confidence := 0.5
-	
+
 	if trend > 0.5 {
 		confidence += 0.3
 	} else if trend > 0.2 {
 		confidence += 0.2
 	}
-	
+
 	if len(removedFeatures) > 0 {
 		confidence += 0.2
 	}
-	
+
 	if confidence > 1.0 {
 		confidence = 1.0
 	}
-	
+
 	return confidence
 }
 
@@ -524,13 +524,13 @@ func (e *Engine) isInternalInfrastructure(shared SharedInfrastructure) bool {
 	// Check for internal infrastructure indicators
 	value := strings.ToLower(shared.Value)
 	internalKeywords := []string{"internal", "corp", "intranet", "local", "private"}
-	
+
 	for _, keyword := range internalKeywords {
 		if strings.Contains(value, keyword) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -555,13 +555,13 @@ func (e *Engine) isTakeoverCandidate(node InfrastructureNode) bool {
 	// Simple takeover detection based on common indicators
 	value := strings.ToLower(node.Value)
 	takeoverKeywords := []string{"herokuapp", "github.io", "netlify", "surge.sh", "bitbucket.io"}
-	
+
 	for _, keyword := range takeoverKeywords {
 		if strings.Contains(value, keyword) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -650,7 +650,7 @@ func (e *Engine) calculatePredictionSeverity(prediction Prediction) types.Severi
 // buildTechnologyGraph builds a technology stack graph
 func (e *Engine) buildTechnologyGraph(findings []types.Finding) TechnologyGraph {
 	graph := TechnologyGraph{
-		Technologies: make(map[string]TechnologyNode),
+		Technologies:  make(map[string]TechnologyNode),
 		Relationships: []TechnologyRelationship{},
 	}
 
@@ -695,7 +695,7 @@ func (e *Engine) findOrphanedEndpoints(migration TechnologyMigration) []string {
 
 // buildMigrationDescription builds description for technology migration
 func (e *Engine) buildMigrationDescription(migration TechnologyMigration, orphaned []string) string {
-	return fmt.Sprintf("Migration from %s to %s left %d orphaned endpoints", 
+	return fmt.Sprintf("Migration from %s to %s left %d orphaned endpoints",
 		migration.OldTech, migration.NewTech, len(orphaned))
 }
 

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"go.uber.org/zap"
 )
 
 // VulnPredictor uses machine learning to predict vulnerabilities based on historical data
@@ -19,7 +19,7 @@ type VulnPredictor struct {
 	historyStore     HistoryStore
 	cache            *PredictionCache
 	config           PredictorConfig
-	logger           *logger.Logger
+	logger           *zap.Logger
 	mu               sync.RWMutex
 }
 
@@ -121,7 +121,7 @@ type PredictionCache struct {
 }
 
 // NewVulnPredictor creates a new vulnerability predictor
-func NewVulnPredictor(config PredictorConfig, store HistoryStore, log *logger.Logger) (*VulnPredictor, error) {
+func NewVulnPredictor(config PredictorConfig, store HistoryStore, log *zap.Logger) (*VulnPredictor, error) {
 	model, err := loadModel(config.ModelPath)
 	if err != nil {
 		// Initialize with default model if loading fails
@@ -134,7 +134,7 @@ func NewVulnPredictor(config PredictorConfig, store HistoryStore, log *logger.Lo
 		historyStore:     store,
 		cache:            newPredictionCache(config.CacheSize),
 		config:           config,
-		logger:           log.WithComponent("vuln-predictor"),
+		logger:           log.With(zap.String("component", "vuln-predictor")),
 	}
 
 	// Start model update routine

@@ -38,7 +38,7 @@ func (rc *RiskCalculator) CalculateRiskScore(findings []types.Finding) float64 {
 	attackChainMultiplier := rc.calculateAttackChainMultiplier(findings)
 
 	// Calculate final score
-	riskScore := baseScore * exposureMultiplier * exploitabilityMultiplier * 
+	riskScore := baseScore * exposureMultiplier * exploitabilityMultiplier *
 		businessImpactMultiplier * attackChainMultiplier
 
 	// Cap at 10.0
@@ -68,9 +68,9 @@ func (rc *RiskCalculator) CalculateBusinessImpact(findings []types.Finding) Busi
 	}
 
 	// Calculate weighted overall score
-	impact.OverallScore = (impact.FinancialImpact*0.3 + 
-		impact.OperationalImpact*0.25 + 
-		impact.ReputationalImpact*0.25 + 
+	impact.OverallScore = (impact.FinancialImpact*0.3 +
+		impact.OperationalImpact*0.25 +
+		impact.ReputationalImpact*0.25 +
 		impact.ComplianceImpact*0.2)
 
 	return impact
@@ -79,18 +79,18 @@ func (rc *RiskCalculator) CalculateBusinessImpact(findings []types.Finding) Busi
 // CalculateExploitability assesses how easily findings can be exploited
 func (rc *RiskCalculator) CalculateExploitability(findings []types.Finding) ExploitabilityAssessment {
 	assessment := ExploitabilityAssessment{
-		SkillRequired:     rc.assessSkillLevel(findings),
-		ToolsRequired:     rc.assessToolRequirement(findings),
-		TimeRequired:      rc.assessTimeRequirement(findings),
-		AccessRequired:    rc.assessAccessRequirement(findings),
+		SkillRequired:       rc.assessSkillLevel(findings),
+		ToolsRequired:       rc.assessToolRequirement(findings),
+		TimeRequired:        rc.assessTimeRequirement(findings),
+		AccessRequired:      rc.assessAccessRequirement(findings),
 		DetectionLikelihood: rc.assessDetectionLikelihood(findings),
 	}
 
 	// Calculate overall exploitability score (lower is easier to exploit)
-	assessment.OverallScore = (assessment.SkillRequired*0.25 + 
-		assessment.ToolsRequired*0.2 + 
-		assessment.TimeRequired*0.2 + 
-		assessment.AccessRequired*0.25 + 
+	assessment.OverallScore = (assessment.SkillRequired*0.25 +
+		assessment.ToolsRequired*0.2 +
+		assessment.TimeRequired*0.2 +
+		assessment.AccessRequired*0.25 +
 		assessment.DetectionLikelihood*0.1)
 
 	return assessment
@@ -120,18 +120,18 @@ func (rc *RiskCalculator) calculateBaseScore(findings []types.Finding) float64 {
 
 func (rc *RiskCalculator) calculateExposureMultiplier(findings []types.Finding) float64 {
 	multiplier := 1.0
-	
+
 	for _, finding := range findings {
 		// Check for external exposure indicators
 		if rc.isExternallyExposed(finding) {
 			multiplier *= 1.5
 		}
-		
+
 		// Check for authentication bypass
 		if rc.isAuthenticationBypass(finding) {
 			multiplier *= 1.8
 		}
-		
+
 		// Check for privilege escalation
 		if rc.isPrivilegeEscalation(finding) {
 			multiplier *= 1.6
@@ -148,18 +148,18 @@ func (rc *RiskCalculator) calculateExposureMultiplier(findings []types.Finding) 
 
 func (rc *RiskCalculator) calculateExploitabilityMultiplier(findings []types.Finding) float64 {
 	multiplier := 1.0
-	
+
 	for _, finding := range findings {
 		// Check for remote code execution
 		if rc.isRemoteCodeExecution(finding) {
 			multiplier *= 2.0
 		}
-		
+
 		// Check for SQL injection
 		if rc.isSQLInjection(finding) {
 			multiplier *= 1.7
 		}
-		
+
 		// Check for known CVEs
 		if rc.hasKnownExploit(finding) {
 			multiplier *= 1.5
@@ -176,18 +176,18 @@ func (rc *RiskCalculator) calculateExploitabilityMultiplier(findings []types.Fin
 
 func (rc *RiskCalculator) calculateBusinessImpactMultiplier(findings []types.Finding) float64 {
 	multiplier := 1.0
-	
+
 	for _, finding := range findings {
 		// Check for data exposure
 		if rc.isDataExposure(finding) {
 			multiplier *= 1.8
 		}
-		
+
 		// Check for payment systems
 		if rc.affectsPaymentSystems(finding) {
 			multiplier *= 2.0
 		}
-		
+
 		// Check for customer data
 		if rc.affectsCustomerData(finding) {
 			multiplier *= 1.6
@@ -207,7 +207,7 @@ func (rc *RiskCalculator) calculateAttackChainMultiplier(findings []types.Findin
 	if len(findings) == 1 {
 		return 1.0
 	}
-	
+
 	// Log scale for attack chain complexity
 	chainLength := float64(len(findings))
 	multiplier := 1.0 + math.Log(chainLength)/math.Log(10)*0.5
@@ -225,7 +225,7 @@ func (rc *RiskCalculator) calculateAttackChainMultiplier(findings []types.Findin
 func (rc *RiskCalculator) isExternallyExposed(finding types.Finding) bool {
 	keywords := []string{"exposed", "public", "internet", "external", "0.0.0.0"}
 	content := strings.ToLower(finding.Description + " " + finding.Evidence)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -237,7 +237,7 @@ func (rc *RiskCalculator) isExternallyExposed(finding types.Finding) bool {
 func (rc *RiskCalculator) isAuthenticationBypass(finding types.Finding) bool {
 	keywords := []string{"auth", "login", "bypass", "unauthenticated", "anonymous"}
 	content := strings.ToLower(finding.Type + " " + finding.Description)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -249,7 +249,7 @@ func (rc *RiskCalculator) isAuthenticationBypass(finding types.Finding) bool {
 func (rc *RiskCalculator) isPrivilegeEscalation(finding types.Finding) bool {
 	keywords := []string{"privilege", "escalation", "admin", "root", "sudo", "elevation"}
 	content := strings.ToLower(finding.Type + " " + finding.Description)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -261,7 +261,7 @@ func (rc *RiskCalculator) isPrivilegeEscalation(finding types.Finding) bool {
 func (rc *RiskCalculator) isRemoteCodeExecution(finding types.Finding) bool {
 	keywords := []string{"rce", "code execution", "command injection", "shell", "exec"}
 	content := strings.ToLower(finding.Type + " " + finding.Description)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -273,7 +273,7 @@ func (rc *RiskCalculator) isRemoteCodeExecution(finding types.Finding) bool {
 func (rc *RiskCalculator) isSQLInjection(finding types.Finding) bool {
 	keywords := []string{"sql", "injection", "sqli", "database"}
 	content := strings.ToLower(finding.Type + " " + finding.Description)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -285,7 +285,7 @@ func (rc *RiskCalculator) isSQLInjection(finding types.Finding) bool {
 func (rc *RiskCalculator) hasKnownExploit(finding types.Finding) bool {
 	keywords := []string{"cve-", "exploit", "metasploit", "poc"}
 	content := strings.ToLower(finding.Evidence + " " + finding.Description)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -297,7 +297,7 @@ func (rc *RiskCalculator) hasKnownExploit(finding types.Finding) bool {
 func (rc *RiskCalculator) isDataExposure(finding types.Finding) bool {
 	keywords := []string{"data", "leak", "exposure", "dump", "backup", "database"}
 	content := strings.ToLower(finding.Type + " " + finding.Description)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -309,7 +309,7 @@ func (rc *RiskCalculator) isDataExposure(finding types.Finding) bool {
 func (rc *RiskCalculator) affectsPaymentSystems(finding types.Finding) bool {
 	keywords := []string{"payment", "card", "billing", "transaction", "stripe", "paypal"}
 	content := strings.ToLower(finding.Description + " " + finding.Evidence)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -321,7 +321,7 @@ func (rc *RiskCalculator) affectsPaymentSystems(finding types.Finding) bool {
 func (rc *RiskCalculator) affectsCustomerData(finding types.Finding) bool {
 	keywords := []string{"customer", "user", "personal", "pii", "gdpr", "ccpa"}
 	content := strings.ToLower(finding.Description + " " + finding.Evidence)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(content, keyword) {
 			return true
@@ -334,7 +334,7 @@ func (rc *RiskCalculator) affectsCustomerData(finding types.Finding) bool {
 
 func (rc *RiskCalculator) assessFinancialImpact(findings []types.Finding) float64 {
 	score := 5.0 // Base score
-	
+
 	for _, finding := range findings {
 		if rc.affectsPaymentSystems(finding) {
 			score += 3.0
@@ -346,7 +346,7 @@ func (rc *RiskCalculator) assessFinancialImpact(findings []types.Finding) float6
 			score += 1.5
 		}
 	}
-	
+
 	if score > 10.0 {
 		score = 10.0
 	}
@@ -355,7 +355,7 @@ func (rc *RiskCalculator) assessFinancialImpact(findings []types.Finding) float6
 
 func (rc *RiskCalculator) assessOperationalImpact(findings []types.Finding) float64 {
 	score := 5.0 // Base score
-	
+
 	for _, finding := range findings {
 		if rc.isRemoteCodeExecution(finding) {
 			score += 3.0
@@ -367,7 +367,7 @@ func (rc *RiskCalculator) assessOperationalImpact(findings []types.Finding) floa
 			score += 1.5
 		}
 	}
-	
+
 	if score > 10.0 {
 		score = 10.0
 	}
@@ -376,7 +376,7 @@ func (rc *RiskCalculator) assessOperationalImpact(findings []types.Finding) floa
 
 func (rc *RiskCalculator) assessReputationalImpact(findings []types.Finding) float64 {
 	score := 5.0 // Base score
-	
+
 	for _, finding := range findings {
 		if rc.affectsCustomerData(finding) {
 			score += 3.0
@@ -388,7 +388,7 @@ func (rc *RiskCalculator) assessReputationalImpact(findings []types.Finding) flo
 			score += 2.0
 		}
 	}
-	
+
 	if score > 10.0 {
 		score = 10.0
 	}
@@ -397,7 +397,7 @@ func (rc *RiskCalculator) assessReputationalImpact(findings []types.Finding) flo
 
 func (rc *RiskCalculator) assessComplianceImpact(findings []types.Finding) float64 {
 	score := 5.0 // Base score
-	
+
 	for _, finding := range findings {
 		if rc.affectsCustomerData(finding) {
 			score += 3.0
@@ -409,7 +409,7 @@ func (rc *RiskCalculator) assessComplianceImpact(findings []types.Finding) float
 			score += 2.0
 		}
 	}
-	
+
 	if score > 10.0 {
 		score = 10.0
 	}
@@ -420,7 +420,7 @@ func (rc *RiskCalculator) assessComplianceImpact(findings []types.Finding) float
 
 func (rc *RiskCalculator) assessSkillLevel(findings []types.Finding) float64 {
 	score := 5.0 // Medium skill required by default
-	
+
 	for _, finding := range findings {
 		if rc.hasKnownExploit(finding) {
 			score -= 2.0 // Lower skill needed
@@ -432,7 +432,7 @@ func (rc *RiskCalculator) assessSkillLevel(findings []types.Finding) float64 {
 			score += 2.0 // Higher skill needed
 		}
 	}
-	
+
 	if score < 1.0 {
 		score = 1.0
 	}
@@ -444,7 +444,7 @@ func (rc *RiskCalculator) assessSkillLevel(findings []types.Finding) float64 {
 
 func (rc *RiskCalculator) assessToolRequirement(findings []types.Finding) float64 {
 	score := 5.0 // Standard tools by default
-	
+
 	for _, finding := range findings {
 		if rc.hasKnownExploit(finding) {
 			score -= 2.0 // Common tools available
@@ -453,7 +453,7 @@ func (rc *RiskCalculator) assessToolRequirement(findings []types.Finding) float6
 			score += 3.0 // Custom tools needed
 		}
 	}
-	
+
 	if score < 1.0 {
 		score = 1.0
 	}
@@ -465,7 +465,7 @@ func (rc *RiskCalculator) assessToolRequirement(findings []types.Finding) float6
 
 func (rc *RiskCalculator) assessTimeRequirement(findings []types.Finding) float64 {
 	score := 5.0 // Medium time by default
-	
+
 	for _, finding := range findings {
 		if rc.hasKnownExploit(finding) {
 			score -= 2.0 // Quick exploitation
@@ -477,7 +477,7 @@ func (rc *RiskCalculator) assessTimeRequirement(findings []types.Finding) float6
 			score += 3.0 // Time-intensive
 		}
 	}
-	
+
 	if score < 1.0 {
 		score = 1.0
 	}
@@ -489,7 +489,7 @@ func (rc *RiskCalculator) assessTimeRequirement(findings []types.Finding) float6
 
 func (rc *RiskCalculator) assessAccessRequirement(findings []types.Finding) float64 {
 	score := 5.0 // Some access required by default
-	
+
 	for _, finding := range findings {
 		if rc.isExternallyExposed(finding) {
 			score -= 3.0 // No special access needed
@@ -501,7 +501,7 @@ func (rc *RiskCalculator) assessAccessRequirement(findings []types.Finding) floa
 			score += 3.0 // Internal access required
 		}
 	}
-	
+
 	if score < 1.0 {
 		score = 1.0
 	}
@@ -513,7 +513,7 @@ func (rc *RiskCalculator) assessAccessRequirement(findings []types.Finding) floa
 
 func (rc *RiskCalculator) assessDetectionLikelihood(findings []types.Finding) float64 {
 	score := 5.0 // Medium detection likelihood by default
-	
+
 	for _, finding := range findings {
 		if strings.Contains(strings.ToLower(finding.Description), "stealth") {
 			score -= 2.0 // Low detection
@@ -522,7 +522,7 @@ func (rc *RiskCalculator) assessDetectionLikelihood(findings []types.Finding) fl
 			score += 2.0 // High detection
 		}
 	}
-	
+
 	if score < 1.0 {
 		score = 1.0
 	}

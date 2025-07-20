@@ -499,3 +499,8 @@ func (l *Logger) FinishOperation(ctx context.Context, span trace.Span, operation
 		attribute.Bool("success", err == nil),
 	))
 }
+
+// Zap returns the underlying zap.Logger for compatibility with libraries that require it
+func (l *Logger) Zap() *zap.Logger {
+	return l.baseLogger
+}

@@ -33,7 +33,7 @@ func NewMLDiscovery(config *DiscoveryConfig, logger *logger.Logger) *MLDiscovery
 		UpdateInterval: 24 * time.Hour,
 	}
 
-	techAnalyzer, err := ml.NewTechStackAnalyzer(analyzerConfig, logger)
+	techAnalyzer, err := ml.NewTechStackAnalyzer(analyzerConfig, logger.Zap())
 	if err != nil {
 		logger.Error("Failed to create tech stack analyzer", "error", err)
 		// Create with minimal functionality
@@ -53,7 +53,7 @@ func NewMLDiscovery(config *DiscoveryConfig, logger *logger.Logger) *MLDiscovery
 	// Create a simple history store adapter
 	historyStore := &simpleHistoryStore{logger: logger}
 
-	vulnPredictor, err := ml.NewVulnPredictor(predictorConfig, historyStore, logger)
+	vulnPredictor, err := ml.NewVulnPredictor(predictorConfig, historyStore, logger.Zap())
 	if err != nil {
 		logger.Error("Failed to create vulnerability predictor", "error", err)
 		vulnPredictor = nil

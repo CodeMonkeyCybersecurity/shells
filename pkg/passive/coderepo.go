@@ -968,7 +968,7 @@ func (c *CodeIntel) getFileContent(repo Repository, file RepositoryFile) (string
 func (c *CodeIntel) deduplicateFindings(findings []Finding) []Finding {
 	seen := make(map[string]bool)
 	var unique []Finding
-	
+
 	for _, finding := range findings {
 		key := fmt.Sprintf("%s-%s-%s", finding.Type, finding.Repository, finding.URL)
 		if !seen[key] {
@@ -976,7 +976,7 @@ func (c *CodeIntel) deduplicateFindings(findings []Finding) []Finding {
 			unique = append(unique, finding)
 		}
 	}
-	
+
 	return unique
 }
 
@@ -994,14 +994,14 @@ func (c *CodeIntel) isConfigFile(path string) bool {
 		".yml", ".yaml", ".json", ".toml", ".ini", ".cfg",
 		".conf", ".config", "dockerfile", ".tf", ".env",
 	}
-	
+
 	pathLower := strings.ToLower(path)
 	for _, ext := range configFiles {
 		if strings.HasSuffix(pathLower, ext) || strings.Contains(pathLower, ext) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

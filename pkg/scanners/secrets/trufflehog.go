@@ -17,30 +17,30 @@ import (
 
 // TruffleHogScanner integrates with TruffleHog for secret scanning
 type TruffleHogScanner struct {
-	logger       *zap.Logger
-	binaryPath   string
-	verifiers    map[string]Verifier
-	customRules  []CustomRule
-	rateLimiter  *RateLimiter
+	logger      *zap.Logger
+	binaryPath  string
+	verifiers   map[string]Verifier
+	customRules []CustomRule
+	rateLimiter *RateLimiter
 }
 
 // SecretFinding represents a discovered secret
 type SecretFinding struct {
-	Type         string
-	Secret       string
+	Type           string
+	Secret         string
 	RedactedSecret string
-	File         string
-	Line         int
-	Column       int
-	Commit       string
-	Author       string
-	Email        string
-	Date         time.Time
-	Repository   string
-	Verified     bool
-	Severity     types.Severity
-	Context      string
-	Metadata     map[string]interface{}
+	File           string
+	Line           int
+	Column         int
+	Commit         string
+	Author         string
+	Email          string
+	Date           time.Time
+	Repository     string
+	Verified       bool
+	Severity       types.Severity
+	Context        string
+	Metadata       map[string]interface{}
 }
 
 // Verifier validates discovered secrets
@@ -121,7 +121,7 @@ func (t *TruffleHogScanner) ScanGitRepository(ctx context.Context, repoURL strin
 	// Sort by severity
 	t.sortFindingsBySeverity(findings)
 
-	t.logger.Info("TruffleHog scan completed", 
+	t.logger.Info("TruffleHog scan completed",
 		zap.String("repository", repoURL),
 		zap.Int("findings", len(findings)),
 		zap.Int("verified", t.countVerified(findings)))
@@ -193,7 +193,7 @@ func (t *TruffleHogScanner) parseTruffleHogOutput(output []byte) ([]SecretFindin
 
 	// TruffleHog outputs one JSON object per line
 	lines := strings.Split(string(output), "\n")
-	
+
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -215,11 +215,11 @@ func (t *TruffleHogScanner) parseTruffleHogOutput(output []byte) ([]SecretFindin
 // convertToSecretFinding converts TruffleHog result to our format
 func (t *TruffleHogScanner) convertToSecretFinding(result TruffleHogResult) SecretFinding {
 	finding := SecretFinding{
-		Type:       result.DetectorName,
-		Secret:     result.Raw,
+		Type:           result.DetectorName,
+		Secret:         result.Raw,
 		RedactedSecret: t.redactSecret(result.Raw),
-		Verified:   result.Verified,
-		Metadata:   make(map[string]interface{}),
+		Verified:       result.Verified,
+		Metadata:       make(map[string]interface{}),
 	}
 
 	// Extract source metadata
@@ -261,7 +261,7 @@ func (t *TruffleHogScanner) verifySecrets(ctx context.Context, findings []Secret
 		wg.Add(1)
 		go func(finding *SecretFinding) {
 			defer wg.Done()
-			
+
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
@@ -272,7 +272,7 @@ func (t *TruffleHogScanner) verifySecrets(ctx context.Context, findings []Secret
 			if verifier, exists := t.verifiers[finding.Type]; exists {
 				verified, err := verifier.Verify(ctx, finding.Secret)
 				if err != nil {
-					t.logger.Error("Verification failed", 
+					t.logger.Error("Verification failed",
 						zap.String("type", finding.Type),
 						zap.Error(err))
 				} else {
@@ -403,7 +403,7 @@ func (t *TruffleHogScanner) getRemediation(finding *SecretFinding) []string {
 	// Add type-specific steps
 	switch finding.Type {
 	case "AWS":
-		baseSteps = append(baseSteps, 
+		baseSteps = append(baseSteps,
 			"Review AWS CloudTrail for suspicious activity",
 			"Enable MFA on the AWS account",
 			"Use AWS Secrets Manager for credential storage")
@@ -567,7 +567,7 @@ func (v *JWTVerifier) GetMetadata(secret string) map[string]interface{} {
 	// Decode header and payload to extract metadata
 	// This is simplified - real implementation would properly decode
 	return map[string]interface{}{
-		"algorithm": "RS256", // Would extract from header
+		"algorithm": "RS256",   // Would extract from header
 		"issuer":    "unknown", // Would extract from payload
 	}
 }
@@ -627,14 +627,14 @@ func (t *TruffleHogScanner) calculateSeverity(result TruffleHogResult) types.Sev
 
 	// Severity based on secret type
 	severityMap := map[string]types.Severity{
-		"AWS":           types.SeverityCritical,
-		"AWS_SECRET":    types.SeverityCritical,
-		"GitHub":        types.SeverityHigh,
-		"Database":      types.SeverityCritical,
-		"PrivateKey":    types.SeverityCritical,
-		"Slack":         types.SeverityMedium,
-		"Generic":       types.SeverityMedium,
-		"JWT":           types.SeverityMedium,
+		"AWS":        types.SeverityCritical,
+		"AWS_SECRET": types.SeverityCritical,
+		"GitHub":     types.SeverityHigh,
+		"Database":   types.SeverityCritical,
+		"PrivateKey": types.SeverityCritical,
+		"Slack":      types.SeverityMedium,
+		"Generic":    types.SeverityMedium,
+		"JWT":        types.SeverityMedium,
 	}
 
 	if severity, exists := severityMap[result.DetectorName]; exists {
