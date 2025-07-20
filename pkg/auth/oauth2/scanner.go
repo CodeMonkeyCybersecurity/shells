@@ -536,7 +536,7 @@ func (s *SimpleScanner) runBasicOAuth2Tests(target string, options map[string]st
 		Solution:    "Review OAuth2 configuration for security best practices",
 		References:  []string{"https://tools.ietf.org/html/rfc6749", "https://openid.net/specs/openid-connect-core-1_0.html"},
 		Metadata: map[string]interface{}{
-			"target": target,
+			"target":    target,
 			"test_type": "configuration_discovery",
 		},
 		CreatedAt: now,
@@ -554,8 +554,8 @@ func (s *SimpleScanner) runBasicOAuth2Tests(target string, options map[string]st
 		Solution:    "Implement PKCE for all OAuth2 authorization code flows",
 		References:  []string{"https://tools.ietf.org/html/rfc7636"},
 		Metadata: map[string]interface{}{
-			"target": target,
-			"test_type": "pkce_check",
+			"target":         target,
+			"test_type":      "pkce_check",
 			"recommendation": "Enable PKCE for enhanced security",
 		},
 		CreatedAt: now,
@@ -573,7 +573,7 @@ func (s *SimpleScanner) runBasicOAuth2Tests(target string, options map[string]st
 		Solution:    "Implement cryptographically secure state parameter with sufficient entropy",
 		References:  []string{"https://tools.ietf.org/html/rfc6749#section-10.12"},
 		Metadata: map[string]interface{}{
-			"target": target,
+			"target":    target,
 			"test_type": "state_parameter_check",
 		},
 		CreatedAt: now,

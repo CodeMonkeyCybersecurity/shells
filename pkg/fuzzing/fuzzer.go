@@ -196,7 +196,7 @@ func (f *Fuzzer) ParameterFuzzing(ctx context.Context, target string, wordlist s
 
 	// Start workers
 	paramChan := make(chan paramTest, len(params)*len(methods))
-	
+
 	for i := 0; i < f.config.Threads; i++ {
 		wg.Add(1)
 		go func() {
@@ -267,7 +267,7 @@ func (f *Fuzzer) VHostFuzzing(ctx context.Context, target string, wordlist strin
 
 	// Extract base domain
 	baseDomain := targetURL.Hostname()
-	
+
 	// Get baseline (non-existent vhost)
 	baseline, err := f.getVHostBaseline(ctx, targetURL, "definitely-not-a-real-subdomain")
 	if err != nil {
@@ -335,7 +335,7 @@ func (f *Fuzzer) SubdomainFuzzing(ctx context.Context, domain string, wordlist s
 			defer wg.Done()
 			for sub := range subChan {
 				subdomain := fmt.Sprintf("%s.%s", sub, domain)
-				
+
 				// First try DNS resolution
 				if f.resolveDomain(subdomain) {
 					// If it resolves, try HTTP/HTTPS
@@ -406,7 +406,7 @@ func (f *Fuzzer) fuzzDirectory(ctx context.Context, baseURL *url.URL, path strin
 	// Test each URL
 	for _, u := range urls {
 		start := time.Now()
-		
+
 		req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 		if err != nil {
 			continue
@@ -467,7 +467,7 @@ func (f *Fuzzer) fuzzDirectory(ctx context.Context, baseURL *url.URL, path strin
 		}
 
 		f.logger.Debug("Found", "url", u, "status", resp.StatusCode, "size", size)
-		
+
 		return result
 	}
 
@@ -632,7 +632,7 @@ func NewRateLimiter(rate int) *RateLimiter {
 	if rate <= 0 {
 		rate = 1000 // Default: 1000 req/s
 	}
-	
+
 	interval := time.Second / time.Duration(rate)
 	return &RateLimiter{
 		rate:   rate,
@@ -666,7 +666,7 @@ func (f *Fuzzer) getBaseline(ctx context.Context, target *url.URL) (*baselineRes
 	}
 
 	req.Header.Set("User-Agent", f.config.UserAgent)
-	
+
 	resp, err := f.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -733,11 +733,11 @@ func (f *Fuzzer) recursiveFuzz(ctx context.Context, baseURL *url.URL, found []Fu
 
 			// Load a smaller wordlist for recursive fuzzing
 			words := f.getRecursiveWordlist()
-			
+
 			for _, word := range words {
 				newURL := *foundURL
 				newURL.Path = strings.TrimSuffix(newURL.Path, "/") + "/" + word
-				
+
 				if newResult := f.fuzzDirectory(ctx, &newURL, ""); newResult != nil {
 					results = append(results, *newResult)
 				}
@@ -774,7 +774,7 @@ func (f *Fuzzer) testParameterPollution(ctx context.Context, target *url.URL, kn
 			for _, test := range pollutionTests {
 				u := *target
 				q := u.Query()
-				
+
 				// Add multiple values
 				for _, v := range test.values {
 					q.Add(paramName, v)
@@ -830,7 +830,7 @@ func (f *Fuzzer) testArrayParameters(ctx context.Context, target *url.URL, param
 	for _, param := range params {
 		for _, notation := range arrayNotations {
 			arrayParam := fmt.Sprintf(notation, param)
-			
+
 			u := *target
 			q := u.Query()
 			q.Set(arrayParam, "test")
@@ -887,7 +887,7 @@ func (f *Fuzzer) testJSONParameters(ctx context.Context, target *url.URL, params
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := f.client.Do(req)
 	if err != nil {
 		return results
@@ -930,7 +930,7 @@ func (f *Fuzzer) getVHostBaseline(ctx context.Context, target *url.URL, vhost st
 
 	req.Host = vhost
 	req.Header.Set("User-Agent", f.config.UserAgent)
-	
+
 	resp, err := f.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -974,7 +974,7 @@ func (f *Fuzzer) testVHost(ctx context.Context, target *url.URL, vhost, baseDoma
 
 	req.Host = fullVHost
 	req.Header.Set("User-Agent", f.config.UserAgent)
-	
+
 	start := time.Now()
 	resp, err := f.client.Do(req)
 	if err != nil {
@@ -1007,7 +1007,7 @@ func (f *Fuzzer) resolveDomain(domain string) bool {
 
 	r := &net.Resolver{}
 	addrs, err := r.LookupHost(ctx, domain)
-	
+
 	return err == nil && len(addrs) > 0
 }
 
@@ -1021,7 +1021,7 @@ func (f *Fuzzer) testSubdomain(ctx context.Context, target, subdomain string) *F
 	}
 
 	req.Header.Set("User-Agent", f.config.UserAgent)
-	
+
 	start := time.Now()
 	resp, err := f.client.Do(req)
 	if err != nil {
@@ -1045,7 +1045,7 @@ func (f *Fuzzer) testSubdomain(ctx context.Context, target, subdomain string) *F
 // generateSubdomainPermutations creates smart subdomain variations
 func (f *Fuzzer) generateSubdomainPermutations(domain string, found []FuzzResult) []string {
 	permutations := []string{}
-	
+
 	// Extract found subdomain parts
 	parts := make(map[string]bool)
 	for _, result := range found {
@@ -1060,14 +1060,14 @@ func (f *Fuzzer) generateSubdomainPermutations(domain string, found []FuzzResult
 	// Common patterns
 	prefixes := []string{"dev", "staging", "test", "uat", "api", "admin", "portal"}
 	suffixes := []string{"01", "02", "1", "2", "new", "old", "backup"}
-	
+
 	// Generate combinations
 	for part := range parts {
 		for _, prefix := range prefixes {
 			permutations = append(permutations, fmt.Sprintf("%s-%s.%s", prefix, part, domain))
 			permutations = append(permutations, fmt.Sprintf("%s.%s.%s", prefix, part, domain))
 		}
-		
+
 		for _, suffix := range suffixes {
 			permutations = append(permutations, fmt.Sprintf("%s-%s.%s", part, suffix, domain))
 			permutations = append(permutations, fmt.Sprintf("%s%s.%s", part, suffix, domain))
@@ -1081,13 +1081,13 @@ func (f *Fuzzer) generateSubdomainPermutations(domain string, found []FuzzResult
 func uniqueStrings(items []string) []string {
 	seen := make(map[string]bool)
 	result := []string{}
-	
+
 	for _, item := range items {
 		if !seen[item] {
 			seen[item] = true
 			result = append(result, item)
 		}
 	}
-	
+
 	return result
 }

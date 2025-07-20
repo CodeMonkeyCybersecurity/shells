@@ -237,20 +237,20 @@ func (e *Executor) getToolCommand(toolName, target string, options map[string]st
 
 func (e *Executor) buildXSSStrikeCommand(target string, options map[string]string) []string {
 	args := []string{"python", "xsstrike.py", "-u", target}
-	
+
 	if options["crawl"] == "true" {
 		args = append(args, "--crawl")
 	}
 	if cookie := options["cookie"]; cookie != "" {
 		args = append(args, "--cookie", cookie)
 	}
-	
+
 	return args
 }
 
 func (e *Executor) buildSQLMapCommand(target string, options map[string]string) []string {
 	args := []string{"python", "sqlmap.py", "-u", target, "--batch"}
-	
+
 	if data := options["data"]; data != "" {
 		args = append(args, "--data", data)
 	}
@@ -260,67 +260,67 @@ func (e *Executor) buildSQLMapCommand(target string, options map[string]string) 
 	if method := options["method"]; method != "" {
 		args = append(args, "--method", method)
 	}
-	
+
 	return args
 }
 
 func (e *Executor) buildMasscanCommand(target string, options map[string]string) []string {
 	args := []string{"masscan", target}
-	
+
 	if ports := options["ports"]; ports != "" {
 		args = append(args, "-p", ports)
 	} else {
 		args = append(args, "-p", "1-65535")
 	}
-	
+
 	if rate := options["rate"]; rate != "" {
 		args = append(args, "--rate", rate)
 	} else {
 		args = append(args, "--rate", "1000")
 	}
-	
+
 	args = append(args, "--open-only")
 	return args
 }
 
 func (e *Executor) buildAquatoneCommand(target string, options map[string]string) []string {
 	args := []string{"aquatone"}
-	
+
 	if ports := options["ports"]; ports != "" {
 		args = append(args, "-ports", ports)
 	}
-	
+
 	args = append(args, "-out", "/output")
 	return args
 }
 
 func (e *Executor) buildTplmapCommand(target string, options map[string]string) []string {
 	args := []string{"python", "tplmap.py", "-u", target}
-	
+
 	if data := options["data"]; data != "" {
 		args = append(args, "--data", data)
 	}
-	
+
 	return args
 }
 
 func (e *Executor) buildSSRFMapCommand(target string, options map[string]string) []string {
 	args := []string{"python", "ssrfmap.py", "-u", target}
-	
+
 	if data := options["data"]; data != "" {
 		args = append(args, "--data", data)
 	}
-	
+
 	return args
 }
 
 func (e *Executor) buildNoSQLMapCommand(target string, options map[string]string) []string {
 	args := []string{"python", "nosqlmap.py", "-u", target}
-	
+
 	if cookie := options["cookie"]; cookie != "" {
 		args = append(args, "--cookie", cookie)
 	}
-	
+
 	return args
 }
 
@@ -330,11 +330,11 @@ func (e *Executor) buildCORSScannerCommand(target string, options map[string]str
 
 func (e *Executor) buildCommixCommand(target string, options map[string]string) []string {
 	args := []string{"python", "commix.py", "-u", target}
-	
+
 	if data := options["data"]; data != "" {
 		args = append(args, "--data", data)
 	}
-	
+
 	return args
 }
 

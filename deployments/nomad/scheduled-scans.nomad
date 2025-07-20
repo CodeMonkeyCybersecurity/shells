@@ -40,6 +40,8 @@ job "shells-scheduled-scans" {
         OTEL_EXPORTER_OTLP_ENDPOINT = "http://otel-collector:4317"
         SHELLS_SCHEDULED_MODE = "true"
         SHELLS_MAX_DURATION = "55m"
+        SHELLS_USE_NOMAD = "true"
+        NOMAD_ADDR = "http://${attr.unique.network.ip-address}:4646"
       }
       
       resources {

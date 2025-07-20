@@ -170,7 +170,7 @@ func (t *TLSScanner) TestCipherSuites(ctx context.Context, host, port string) []
 			Description: "The server does not support any cipher suites that provide forward secrecy",
 			Tool:        "protocol-tls",
 			Metadata: map[string]interface{}{
-				"ciphers":     supportedStrong,
+				"ciphers":    supportedStrong,
 				"confidence": "HIGH",
 				"target":     fmt.Sprintf("%s:%s", host, port),
 			},
@@ -213,10 +213,10 @@ func (t *TLSScanner) TestCertificateChain(ctx context.Context, host, port string
 			Description: fmt.Sprintf("Certificate is not valid until %s", cert.NotBefore),
 			Tool:        "protocol-tls",
 			Metadata: map[string]interface{}{
-				"not_before":  cert.NotBefore,
-				"current":     now,
+				"not_before": cert.NotBefore,
+				"current":    now,
 				"confidence": "HIGH",
-				"target":      fmt.Sprintf("%s:%s", host, port),
+				"target":     fmt.Sprintf("%s:%s", host, port),
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -231,10 +231,10 @@ func (t *TLSScanner) TestCertificateChain(ctx context.Context, host, port string
 			Description: fmt.Sprintf("Certificate expired on %s", cert.NotAfter),
 			Tool:        "protocol-tls",
 			Metadata: map[string]interface{}{
-				"not_after":   cert.NotAfter,
-				"current":     now,
+				"not_after":  cert.NotAfter,
+				"current":    now,
 				"confidence": "HIGH",
-				"target":      fmt.Sprintf("%s:%s", host, port),
+				"target":     fmt.Sprintf("%s:%s", host, port),
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -290,7 +290,7 @@ func (t *TLSScanner) TestCertificateChain(ctx context.Context, host, port string
 			Description: "Certificate uses a weak signature algorithm",
 			Tool:        "protocol-tls",
 			Metadata: map[string]interface{}{
-				"algorithm":   cert.SignatureAlgorithm.String(),
+				"algorithm":  cert.SignatureAlgorithm.String(),
 				"confidence": "HIGH",
 				"target":     fmt.Sprintf("%s:%s", host, port),
 			},
@@ -310,7 +310,7 @@ func (t *TLSScanner) TestCertificateChain(ctx context.Context, host, port string
 			Description: "Certificate uses a key size that is considered weak",
 			Tool:        "protocol-tls",
 			Metadata: map[string]interface{}{
-				"key_size":    keySize,
+				"key_size":   keySize,
 				"confidence": "HIGH",
 				"target":     fmt.Sprintf("%s:%s", host, port),
 			},
@@ -336,7 +336,7 @@ func (t *TLSScanner) TestVulnerabilities(ctx context.Context, host, port string)
 			Description: "The server is vulnerable to the Heartbleed bug, which allows remote attackers to read memory",
 			Tool:        "protocol-tls",
 			Metadata: map[string]interface{}{
-				"cve":         "CVE-2014-0160",
+				"cve":        "CVE-2014-0160",
 				"confidence": "HIGH",
 				"target":     fmt.Sprintf("%s:%s", host, port),
 			},
@@ -359,7 +359,7 @@ func (t *TLSScanner) TestVulnerabilities(ctx context.Context, host, port string)
 			Description: "The server is vulnerable to the POODLE attack due to SSL 3.0 support",
 			Tool:        "protocol-tls",
 			Metadata: map[string]interface{}{
-				"cve":         "CVE-2014-3566",
+				"cve":        "CVE-2014-3566",
 				"confidence": "HIGH",
 				"target":     fmt.Sprintf("%s:%s", host, port),
 			},

@@ -3,7 +3,6 @@ package discovery
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,17 +10,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/certs"
 )
 
 // DomainDiscovery discovers assets related to domains
 type DomainDiscovery struct {
 	config *DiscoveryConfig
-	logger Logger
+	logger *logger.Logger
 	client *http.Client
 }
 
 // NewDomainDiscovery creates a new domain discovery module
-func NewDomainDiscovery(config *DiscoveryConfig, logger Logger) *DomainDiscovery {
+func NewDomainDiscovery(config *DiscoveryConfig, logger *logger.Logger) *DomainDiscovery {
 	return &DomainDiscovery{
 		config: config,
 		logger: logger,
@@ -199,35 +201,49 @@ func (d *DomainDiscovery) enumerateDNSRecords(domain string) []*Asset {
 func (d *DomainDiscovery) certificateTransparency(domain string) []*Asset {
 	var assets []*Asset
 
-	// Query Certificate Transparency logs
-	url := fmt.Sprintf("https://crt.sh/?q=%%.%s&output=json", domain)
+	// Use the intel/certs package for enhanced certificate transparency
+	certIntel := certs.NewCertIntel(d.logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	resp, err := d.client.Get(url)
-	if err != nil {
-		d.logger.Debug("Certificate transparency query failed", "domain", domain, "error", err)
-		return assets
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return assets
-	}
-
-	var certEntries []struct {
-		CommonName string `json:"common_name"`
-		NameValue  string `json:"name_value"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&certEntries); err != nil {
-		return assets
-	}
+	// Stream certificates for the domain
+	certChan := certIntel.StreamCertificates(ctx, domain)
 
 	seen := make(map[string]bool)
 
-	for _, entry := range certEntries {
-		// Parse SANs from name_value
-		names := strings.Split(entry.NameValue, "\n")
-		for _, name := range names {
+	for cert := range certChan {
+		// Extract intelligence from certificate
+		intel := certIntel.ExtractIntel(cert)
+
+		// Add all discovered domains as assets
+		allDomains := append(intel.SubjectAltNames, cert.CommonName)
+
+		// Add internal domains with higher priority
+		for _, internalDomain := range intel.InternalDomains {
+			if !seen[internalDomain] && d.isValidSubdomain(internalDomain, domain) {
+				asset := &Asset{
+					Type:   AssetTypeSubdomain,
+					Value:  internalDomain,
+					Domain: domain,
+					Metadata: map[string]string{
+						"source":     "certificate_transparency",
+						"internal":   "true",
+						"issuer":     cert.IssuerName,
+						"not_before": cert.NotBefore.Format(time.RFC3339),
+						"not_after":  cert.NotAfter.Format(time.RFC3339),
+					},
+					Source:       d.Name(),
+					Confidence:   0.95, // Higher confidence for internal domains
+					DiscoveredAt: time.Now(),
+					LastSeen:     time.Now(),
+				}
+				assets = append(assets, asset)
+				seen[internalDomain] = true
+			}
+		}
+
+		// Process all domains from certificate
+		for _, name := range allDomains {
 			name = strings.TrimSpace(name)
 			if name == "" || seen[name] {
 				continue
@@ -241,17 +257,42 @@ func (d *DomainDiscovery) certificateTransparency(domain string) []*Asset {
 			// Validate domain
 			if d.isValidSubdomain(name, domain) {
 				asset := &Asset{
-					Type:         AssetTypeSubdomain,
-					Value:        name,
-					Domain:       domain,
-					Metadata:     map[string]string{"source": "certificate_transparency"},
+					Type:   AssetTypeSubdomain,
+					Value:  name,
+					Domain: domain,
+					Metadata: map[string]string{
+						"source":     "certificate_transparency",
+						"issuer":     cert.IssuerName,
+						"not_before": cert.NotBefore.Format(time.RFC3339),
+						"not_after":  cert.NotAfter.Format(time.RFC3339),
+					},
 					Source:       d.Name(),
 					Confidence:   0.85,
 					DiscoveredAt: time.Now(),
 					LastSeen:     time.Now(),
 				}
+
+				// Add organization info if available
+				if cert.Organization != "" {
+					asset.Metadata["organization"] = cert.Organization
+				}
+
 				assets = append(assets, asset)
 				seen[name] = true
+			}
+		}
+
+		// Extract patterns for future discovery
+		if len(intel.WildcardPatterns) > 0 {
+			// Store patterns as metadata for the domain asset
+			for _, pattern := range intel.WildcardPatterns {
+				if pattern.Confidence > 0.7 {
+					// This could be used to generate additional discovery targets
+					d.logger.Debug("Found wildcard pattern",
+						"pattern", pattern.Pattern,
+						"confidence", pattern.Confidence,
+						"type", pattern.Type)
+				}
 			}
 		}
 	}
@@ -362,10 +403,10 @@ func (d *DomainDiscovery) detectTechnology(resp *http.Response) []string {
 // NetworkDiscovery discovers network-related assets
 type NetworkDiscovery struct {
 	config *DiscoveryConfig
-	logger Logger
+	logger *logger.Logger
 }
 
-func NewNetworkDiscovery(config *DiscoveryConfig, logger Logger) *NetworkDiscovery {
+func NewNetworkDiscovery(config *DiscoveryConfig, logger *logger.Logger) *NetworkDiscovery {
 	return &NetworkDiscovery{
 		config: config,
 		logger: logger,
@@ -563,11 +604,11 @@ func (n *NetworkDiscovery) detectService(port int) string {
 // TechnologyDiscovery discovers technology stack information
 type TechnologyDiscovery struct {
 	config *DiscoveryConfig
-	logger Logger
+	logger *logger.Logger
 	client *http.Client
 }
 
-func NewTechnologyDiscovery(config *DiscoveryConfig, logger Logger) *TechnologyDiscovery {
+func NewTechnologyDiscovery(config *DiscoveryConfig, logger *logger.Logger) *TechnologyDiscovery {
 	return &TechnologyDiscovery{
 		config: config,
 		logger: logger,
@@ -672,11 +713,11 @@ func (t *TechnologyDiscovery) detectFromHeaders(headers http.Header) []string {
 // CompanyDiscovery discovers assets related to company names
 type CompanyDiscovery struct {
 	config *DiscoveryConfig
-	logger Logger
+	logger *logger.Logger
 	client *http.Client
 }
 
-func NewCompanyDiscovery(config *DiscoveryConfig, logger Logger) *CompanyDiscovery {
+func NewCompanyDiscovery(config *DiscoveryConfig, logger *logger.Logger) *CompanyDiscovery {
 	return &CompanyDiscovery{
 		config: config,
 		logger: logger,

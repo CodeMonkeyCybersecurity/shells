@@ -138,9 +138,9 @@ func (l *LDAPScanner) TestNullBind(ctx context.Context, target string) []types.F
 				"https://www.rfc-editor.org/rfc/rfc4513.html#section-5.1.2",
 			},
 			Metadata: map[string]interface{}{
-				"target":          fmt.Sprintf("%s:%s", host, port),
-				"vulnerable_dns":  vulnerableDNs,
-				"confidence":      "HIGH",
+				"target":         fmt.Sprintf("%s:%s", host, port),
+				"vulnerable_dns": vulnerableDNs,
+				"confidence":     "HIGH",
 			},
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),

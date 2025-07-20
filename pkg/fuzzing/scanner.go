@@ -102,7 +102,7 @@ func (s *Scanner) scanDirectories(ctx context.Context, target string) ([]FuzzRes
 }
 
 func (s *Scanner) scanParameters(ctx context.Context, target string) ([]FuzzResult, error) {
-	// Use default wordlist for parameter fuzzing  
+	// Use default wordlist for parameter fuzzing
 	fuzzer := NewFuzzer(s.fuzzer.config, s.logger)
 	return fuzzer.ParameterFuzzing(ctx, target, "")
 }
@@ -163,7 +163,7 @@ func (s *Scanner) convertToFindings(results []FuzzResult, findingType string) []
 
 	for _, result := range results {
 		severity := s.getSeverity(result)
-		
+
 		finding := types.Finding{
 			Tool:        "fuzzer",
 			Type:        findingType,

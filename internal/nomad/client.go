@@ -285,3 +285,26 @@ func (c *Client) RegisterJob(ctx context.Context, jobName, jobHCL string) error 
 
 	return nil
 }
+
+// StopJob stops a Nomad job
+func (c *Client) StopJob(ctx context.Context, jobID string) error {
+	url := fmt.Sprintf("%s/v1/job/%s", c.baseURL, jobID)
+
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to stop job: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 && resp.StatusCode != 204 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("job stop failed: %s", string(body))
+	}
+
+	return nil
+}

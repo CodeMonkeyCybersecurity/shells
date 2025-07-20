@@ -19,11 +19,11 @@ func NewXSSStrikeParser() OutputParser {
 
 func (p *XSSStrikeParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	// Look for XSS findings
 	xssRegex := regexp.MustCompile(`\[!\] XSS Vulnerability Found.*`)
 	matches := xssRegex.FindAllString(output, -1)
-	
+
 	for _, match := range matches {
 		findings = append(findings, ToolFinding{
 			Type:        "XSS",
@@ -34,7 +34,7 @@ func (p *XSSStrikeParser) Parse(output string) ([]ToolFinding, error) {
 			Solution:    "Implement proper input validation and output encoding",
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -48,7 +48,7 @@ func NewSQLMapParser() OutputParser {
 
 func (p *SQLMapParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	// Look for SQL injection findings
 	if strings.Contains(output, "parameter") && strings.Contains(output, "is vulnerable") {
 		findings = append(findings, ToolFinding{
@@ -60,7 +60,7 @@ func (p *SQLMapParser) Parse(output string) ([]ToolFinding, error) {
 			Solution:    "Use parameterized queries or prepared statements",
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -74,12 +74,12 @@ func NewMasscanParser() OutputParser {
 
 func (p *MasscanParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	portRegex := regexp.MustCompile(`Discovered open port (\d+)/(\w+) on (.+)`)
-	
+
 	openPorts := make(map[string][]string)
-	
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matches := portRegex.FindStringSubmatch(line); len(matches) > 0 {
@@ -90,14 +90,14 @@ func (p *MasscanParser) Parse(output string) ([]ToolFinding, error) {
 			openPorts[key] = append(openPorts[key], port)
 		}
 	}
-	
+
 	// Create findings for open ports
 	for hostProto, ports := range openPorts {
 		severity := SeverityInfo
 		if len(ports) > 10 {
 			severity = SeverityMedium
 		}
-		
+
 		findings = append(findings, ToolFinding{
 			Type:        "Open Ports",
 			Severity:    severity,
@@ -109,7 +109,7 @@ func (p *MasscanParser) Parse(output string) ([]ToolFinding, error) {
 			},
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -123,7 +123,7 @@ func NewAquatoneParser() OutputParser {
 
 func (p *AquatoneParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	// Aquatone creates screenshots and HTML reports
 	if strings.Contains(output, "screenshots") {
 		findings = append(findings, ToolFinding{
@@ -134,7 +134,7 @@ func (p *AquatoneParser) Parse(output string) ([]ToolFinding, error) {
 			Evidence:    output,
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -148,7 +148,7 @@ func NewTplmapParser() OutputParser {
 
 func (p *TplmapParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	if strings.Contains(output, "injection found") || strings.Contains(output, "vulnerable") {
 		findings = append(findings, ToolFinding{
 			Type:        "Template Injection",
@@ -159,7 +159,7 @@ func (p *TplmapParser) Parse(output string) ([]ToolFinding, error) {
 			Solution:    "Avoid user input in templates or use sandboxed template engines",
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -173,7 +173,7 @@ func NewSSRFMapParser() OutputParser {
 
 func (p *SSRFMapParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	if strings.Contains(output, "SSRF vulnerability") || strings.Contains(output, "successful") {
 		findings = append(findings, ToolFinding{
 			Type:        "SSRF",
@@ -184,7 +184,7 @@ func (p *SSRFMapParser) Parse(output string) ([]ToolFinding, error) {
 			Solution:    "Implement URL validation and whitelist allowed destinations",
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -198,7 +198,7 @@ func NewNoSQLMapParser() OutputParser {
 
 func (p *NoSQLMapParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	if strings.Contains(output, "injection successful") || strings.Contains(output, "vulnerable") {
 		findings = append(findings, ToolFinding{
 			Type:        "NoSQL Injection",
@@ -209,7 +209,7 @@ func (p *NoSQLMapParser) Parse(output string) ([]ToolFinding, error) {
 			Solution:    "Sanitize user input and use proper query builders",
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -223,7 +223,7 @@ func NewCORSScannerParser() OutputParser {
 
 func (p *CORSScannerParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	if strings.Contains(output, "misconfigured") || strings.Contains(output, "wildcard") {
 		findings = append(findings, ToolFinding{
 			Type:        "CORS Misconfiguration",
@@ -234,7 +234,7 @@ func (p *CORSScannerParser) Parse(output string) ([]ToolFinding, error) {
 			Solution:    "Configure CORS policies to only allow trusted origins",
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -248,7 +248,7 @@ func NewCommixParser() OutputParser {
 
 func (p *CommixParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	if strings.Contains(output, "command injection") || strings.Contains(output, "vulnerable") {
 		findings = append(findings, ToolFinding{
 			Type:        "Command Injection",
@@ -259,7 +259,7 @@ func (p *CommixParser) Parse(output string) ([]ToolFinding, error) {
 			Solution:    "Avoid executing system commands with user input",
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -273,11 +273,11 @@ func NewArjunParser() OutputParser {
 
 func (p *ArjunParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	// Look for discovered parameters
 	paramRegex := regexp.MustCompile(`\[\+\] Valid parameter found: (.+)`)
 	matches := paramRegex.FindAllStringSubmatch(output, -1)
-	
+
 	if len(matches) > 0 {
 		var params []string
 		for _, match := range matches {
@@ -285,7 +285,7 @@ func (p *ArjunParser) Parse(output string) ([]ToolFinding, error) {
 				params = append(params, match[1])
 			}
 		}
-		
+
 		findings = append(findings, ToolFinding{
 			Type:        "Parameter Discovery",
 			Severity:    SeverityInfo,
@@ -296,7 +296,7 @@ func (p *ArjunParser) Parse(output string) ([]ToolFinding, error) {
 			},
 		})
 	}
-	
+
 	return findings, nil
 }
 
@@ -310,7 +310,7 @@ func NewGopherusParser() OutputParser {
 
 func (p *GopherusParser) Parse(output string) ([]ToolFinding, error) {
 	var findings []ToolFinding
-	
+
 	if strings.Contains(output, "gopher://") || strings.Contains(output, "payload") {
 		findings = append(findings, ToolFinding{
 			Type:        "SSRF Exploitation",
@@ -320,6 +320,6 @@ func (p *GopherusParser) Parse(output string) ([]ToolFinding, error) {
 			Evidence:    output,
 		})
 	}
-	
+
 	return findings, nil
 }

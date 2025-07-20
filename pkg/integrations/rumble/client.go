@@ -367,9 +367,9 @@ func ConvertToFindings(assets []Asset) []types.Finding {
 			}
 
 			serviceFinding := types.Finding{
-				Type:       "SERVICE_EXPOSED",
-				Severity:   severity,
-				Title:      fmt.Sprintf("Service Exposed: %s on %s:%d", service.Service, asset.Address, service.Port),
+				Type:     "SERVICE_EXPOSED",
+				Severity: severity,
+				Title:    fmt.Sprintf("Service Exposed: %s on %s:%d", service.Service, asset.Address, service.Port),
 				Description: fmt.Sprintf("%s %s %s exposed on port %d",
 					service.Service, service.Product, service.Version, service.Port),
 				Metadata: map[string]interface{}{

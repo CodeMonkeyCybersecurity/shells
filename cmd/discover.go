@@ -62,7 +62,7 @@ func runDiscoveryOnly(target string) error {
 	config.MaxAssets = discoverMaxAssets
 
 	// Create discovery engine
-	engine := discovery.NewEngine(config, &DiscoveryLogger{log: log})
+	engine := discovery.NewEngine(config, log.WithComponent("discovery"))
 
 	// Start discovery
 	session, err := engine.StartDiscovery(target)

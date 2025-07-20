@@ -8,6 +8,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // Handler manages graceful shutdown of the application
@@ -15,13 +18,20 @@ type Handler struct {
 	shutdownFuncs []func() error
 	mu            sync.Mutex
 	done          chan struct{}
+	logger        *logger.Logger
 }
 
 // NewHandler creates a new graceful shutdown handler
 func NewHandler() *Handler {
+	// Create logger for shutdown handler
+	log, _ := logger.New(config.LoggerConfig{
+		Level:  "info",
+		Format: "json",
+	})
 	return &Handler{
 		shutdownFuncs: make([]func() error, 0),
 		done:          make(chan struct{}),
+		logger:        log.WithComponent("shutdown"),
 	}
 }
 
@@ -39,10 +49,10 @@ func (h *Handler) WaitForShutdown(ctx context.Context) {
 
 	select {
 	case sig := <-sigChan:
-		fmt.Printf("Received signal %s, starting graceful shutdown...\n", sig)
+		h.logger.Info("Received signal, starting graceful shutdown", "signal", sig)
 		h.Shutdown()
 	case <-ctx.Done():
-		fmt.Println("Context cancelled, starting graceful shutdown...")
+		h.logger.Info("Context cancelled, starting graceful shutdown")
 		h.Shutdown()
 	}
 }
@@ -60,7 +70,7 @@ func (h *Handler) Shutdown() {
 	// Execute shutdown functions in reverse order
 	for i := len(h.shutdownFuncs) - 1; i >= 0; i-- {
 		if err := h.shutdownFuncs[i](); err != nil {
-			fmt.Printf("Error during shutdown: %v\n", err)
+			h.logger.Error("Error during shutdown", "error", err)
 		}
 	}
 }

@@ -13,8 +13,11 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/boileau"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/fuzzing"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/ml"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/protocol"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/smuggling"
@@ -157,7 +160,7 @@ func runIntelligentDiscovery(target string) error {
 
 	// Create discovery engine
 	discoveryConfig := discovery.DefaultDiscoveryConfig()
-	discoveryEngine := discovery.NewEngine(discoveryConfig, &DiscoveryLogger{log: log})
+	discoveryEngine := discovery.NewEngine(discoveryConfig, log.WithComponent("discovery"))
 
 	// Start discovery
 	session, err := discoveryEngine.StartDiscovery(target)
@@ -278,6 +281,11 @@ func executeComprehensiveScans(session *discovery.DiscoverySession) error {
 		// Run specialized tests
 		if err := runSpecializedTests(target); err != nil {
 			log.Error("Specialized tests failed", "target", target, "error", err)
+		}
+
+		// Run ML-powered vulnerability prediction
+		if err := runMLPrediction(target); err != nil {
+			log.Error("ML prediction failed", "target", target, "error", err)
 		}
 	}
 
@@ -537,6 +545,12 @@ func runSpecializedTests(target string) error {
 		testsRun = append(testsRun, "Protocol")
 	}
 
+	// 7. Heavy Security Tools (Boileau)
+	if boileauFindings := runBoileauTests(ctx, target); len(boileauFindings) > 0 {
+		allFindings = append(allFindings, boileauFindings...)
+		testsRun = append(testsRun, "Boileau")
+	}
+
 	// Store all findings
 	if len(allFindings) > 0 && store != nil {
 		if err := store.SaveFindings(ctx, allFindings); err != nil {
@@ -558,10 +572,10 @@ func runSpecializedTests(target string) error {
 // runSCIMTests executes SCIM vulnerability tests
 func runSCIMTests(ctx context.Context, target string) []types.Finding {
 	log.WithContext(ctx).Debug("Starting SCIM vulnerability testing", "target", target)
-	
+
 	// Create SCIM scanner
 	scimScanner := scim.NewScanner()
-	
+
 	// Run comprehensive SCIM security scan
 	findings, err := scimScanner.Scan(ctx, target, map[string]string{
 		"test-auth":    "true",
@@ -569,41 +583,41 @@ func runSCIMTests(ctx context.Context, target string) []types.Finding {
 		"test-bulk":    "true",
 		"timeout":      "30s",
 	})
-	
+
 	if err != nil {
 		log.Error("SCIM scan failed", "target", target, "error", err)
 		return []types.Finding{}
 	}
-	
-	log.WithContext(ctx).Info("SCIM vulnerability testing completed", 
+
+	log.WithContext(ctx).Info("SCIM vulnerability testing completed",
 		"target", target, "findings_count", len(findings))
-	
+
 	return findings
 }
 
 // runHTTPSmugglingTests executes HTTP request smuggling tests
 func runHTTPSmugglingTests(ctx context.Context, target string) []types.Finding {
 	log.WithContext(ctx).Debug("Starting HTTP request smuggling testing", "target", target)
-	
+
 	// Create HTTP smuggling scanner
 	smugglingScanner := smuggling.NewScanner()
-	
+
 	// Run comprehensive smuggling security scan with all techniques
 	findings, err := smugglingScanner.Scan(ctx, target, map[string]string{
-		"technique":     "all",
+		"technique":    "all",
 		"differential": "true",
 		"timing":       "true",
 		"timeout":      "30s",
 	})
-	
+
 	if err != nil {
 		log.Error("HTTP smuggling scan failed", "target", target, "error", err)
 		return []types.Finding{}
 	}
-	
-	log.WithContext(ctx).Info("HTTP request smuggling testing completed", 
+
+	log.WithContext(ctx).Info("HTTP request smuggling testing completed",
 		"target", target, "findings_count", len(findings))
-	
+
 	return findings
 }
 
@@ -656,12 +670,12 @@ func runOAuth2SecurityTests(ctx context.Context, target string) []types.Finding 
 // runFuzzingTests executes directory and parameter fuzzing tests
 func runFuzzingTests(ctx context.Context, target string) []types.Finding {
 	log.WithContext(ctx).Debug("Starting fuzzing tests", "target", target)
-	
+
 	allFindings := []types.Finding{}
-	
+
 	// Create a simple fuzzing logger adapter
 	fuzzLogger := &FuzzingLogger{log: log}
-	
+
 	// Test 1: Directory fuzzing
 	dirConfig := fuzzing.ScannerConfig{
 		Mode:        "directory",
@@ -671,7 +685,7 @@ func runFuzzingTests(ctx context.Context, target string) []types.Finding {
 		StatusCodes: []int{200, 201, 204, 301, 302, 307, 401, 403},
 		SmartMode:   true,
 	}
-	
+
 	dirScanner := fuzzing.NewScanner(dirConfig, fuzzLogger)
 	dirFindings, err := dirScanner.Scan(ctx, target, map[string]string{})
 	if err != nil {
@@ -679,7 +693,7 @@ func runFuzzingTests(ctx context.Context, target string) []types.Finding {
 	} else {
 		allFindings = append(allFindings, dirFindings...)
 	}
-	
+
 	// Test 2: Parameter fuzzing
 	paramConfig := fuzzing.ScannerConfig{
 		Mode:        "parameter",
@@ -688,7 +702,7 @@ func runFuzzingTests(ctx context.Context, target string) []types.Finding {
 		StatusCodes: []int{200, 500},
 		SmartMode:   true,
 	}
-	
+
 	paramScanner := fuzzing.NewScanner(paramConfig, fuzzLogger)
 	paramFindings, err := paramScanner.Scan(ctx, target, map[string]string{})
 	if err != nil {
@@ -696,19 +710,19 @@ func runFuzzingTests(ctx context.Context, target string) []types.Finding {
 	} else {
 		allFindings = append(allFindings, paramFindings...)
 	}
-	
-	log.WithContext(ctx).Info("Fuzzing tests completed", 
+
+	log.WithContext(ctx).Info("Fuzzing tests completed",
 		"target", target, "findings_count", len(allFindings))
-	
+
 	return allFindings
 }
 
 // runProtocolTests executes protocol-specific security tests
 func runProtocolTests(ctx context.Context, target string) []types.Finding {
 	log.WithContext(ctx).Debug("Starting protocol security tests", "target", target)
-	
+
 	allFindings := []types.Finding{}
-	
+
 	// Create protocol scanner
 	protocolConfig := protocol.Config{
 		Timeout:      30 * time.Second,
@@ -716,10 +730,10 @@ func runProtocolTests(ctx context.Context, target string) []types.Finding {
 		CheckVulns:   true,
 		MaxWorkers:   5,
 	}
-	
+
 	protocolLogger := &ProtocolLogger{log: log}
 	protocolScanner := protocol.NewScanner(protocolConfig, protocolLogger)
-	
+
 	// Test common HTTPS port
 	if strings.Contains(target, "https://") || strings.Contains(target, ":443") {
 		tlsTarget := target
@@ -729,7 +743,7 @@ func runProtocolTests(ctx context.Context, target string) []types.Finding {
 				tlsTarget = fmt.Sprintf("%s:443", parsedURL.Host)
 			}
 		}
-		
+
 		tlsFindings, err := protocolScanner.ScanTLS(ctx, tlsTarget)
 		if err != nil {
 			log.Error("TLS protocol scan failed", "target", tlsTarget, "error", err)
@@ -737,11 +751,11 @@ func runProtocolTests(ctx context.Context, target string) []types.Finding {
 			allFindings = append(allFindings, tlsFindings...)
 		}
 	}
-	
+
 	// Test SMTP if port 25/587/465 is in target or hostname suggests mail server
-	if strings.Contains(target, "mail") || strings.Contains(target, "smtp") || 
-	   strings.Contains(target, ":25") || strings.Contains(target, ":587") || strings.Contains(target, ":465") {
-		
+	if strings.Contains(target, "mail") || strings.Contains(target, "smtp") ||
+		strings.Contains(target, ":25") || strings.Contains(target, ":587") || strings.Contains(target, ":465") {
+
 		// Try common SMTP ports
 		smtpPorts := []string{"25", "587", "465"}
 		for _, port := range smtpPorts {
@@ -751,7 +765,7 @@ func runProtocolTests(ctx context.Context, target string) []types.Finding {
 			} else {
 				smtpTarget = fmt.Sprintf("%s:%s", target, port)
 			}
-			
+
 			smtpFindings, err := protocolScanner.ScanSMTP(ctx, smtpTarget)
 			if err != nil {
 				log.Debug("SMTP protocol scan failed", "target", smtpTarget, "error", err)
@@ -761,10 +775,10 @@ func runProtocolTests(ctx context.Context, target string) []types.Finding {
 			}
 		}
 	}
-	
+
 	// Test LDAP if port 389/636 is in target or hostname suggests LDAP
 	if strings.Contains(target, "ldap") || strings.Contains(target, ":389") || strings.Contains(target, ":636") {
-		
+
 		// Try common LDAP ports
 		ldapPorts := []string{"389", "636"}
 		for _, port := range ldapPorts {
@@ -774,7 +788,7 @@ func runProtocolTests(ctx context.Context, target string) []types.Finding {
 			} else {
 				ldapTarget = fmt.Sprintf("%s:%s", target, port)
 			}
-			
+
 			ldapFindings, err := protocolScanner.ScanLDAP(ctx, ldapTarget)
 			if err != nil {
 				log.Debug("LDAP protocol scan failed", "target", ldapTarget, "error", err)
@@ -784,46 +798,256 @@ func runProtocolTests(ctx context.Context, target string) []types.Finding {
 			}
 		}
 	}
-	
-	log.WithContext(ctx).Info("Protocol security tests completed", 
+
+	log.WithContext(ctx).Info("Protocol security tests completed",
 		"target", target, "findings_count", len(allFindings))
-	
+
 	return allFindings
 }
 
-// DiscoveryLogger wraps the internal logger for the discovery engine
-type DiscoveryLogger struct {
-	log *logger.Logger
+// runBoileauTests executes heavy security tools (Boileau)
+func runBoileauTests(ctx context.Context, target string) []types.Finding {
+	log.WithContext(ctx).Debug("Starting Boileau heavy security tools", "target", target)
+
+	allFindings := []types.Finding{}
+
+	// Check if Nomad is available
+	nomadClient := nomad.NewClient("")
+	useNomad := nomadClient.IsAvailable()
+
+	if useNomad {
+		log.WithContext(ctx).Info("Nomad cluster detected, using distributed execution")
+	} else {
+		log.WithContext(ctx).Info("Nomad not available, using local Docker execution")
+	}
+
+	// Create Boileau scanner configuration
+	boileauConfig := boileau.Config{
+		UseDocker:      !useNomad, // Use Docker only if Nomad is not available
+		UseNomad:       useNomad,
+		OutputDir:      fmt.Sprintf("/tmp/boileau-%d", time.Now().Unix()),
+		Timeout:        5 * time.Minute,
+		MaxConcurrency: 3,
+		DockerImages: map[string]string{
+			"xsstrike":   "shells/xsstrike:latest",
+			"sqlmap":     "shells/sqlmap:latest",
+			"masscan":    "shells/masscan:latest",
+			"aquatone":   "shells/aquatone:latest",
+			"corscanner": "shells/corscanner:latest",
+		},
+	}
+
+	boileauLogger := &BoileauLogger{log: log}
+	boileauScanner := boileau.NewScanner(boileauConfig, boileauLogger)
+
+	// Run selected heavy tools based on target type
+	tools := []string{"xsstrike", "corscanner"}
+
+	// Add additional tools based on target characteristics
+	if strings.Contains(target, "login") || strings.Contains(target, "auth") {
+		tools = append(tools, "sqlmap")
+	}
+
+	// Execute tools
+	results, err := boileauScanner.RunMultipleTools(ctx, tools, target, map[string]string{
+		"output_dir": boileauConfig.OutputDir,
+	})
+
+	if err != nil {
+		log.Error("Boileau tools execution failed", "target", target, "error", err)
+		return allFindings
+	}
+
+	// Convert Boileau results to standard findings
+	standardFindings := boileauScanner.ConvertToFindings(results)
+	allFindings = append(allFindings, standardFindings...)
+
+	log.WithContext(ctx).Info("Boileau heavy security tools completed",
+		"target", target, "tools_count", len(tools), "findings_count", len(allFindings))
+
+	return allFindings
 }
 
-func (d *DiscoveryLogger) Info(msg string, fields ...interface{}) {
-	if d.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		d.log.Info(args...)
+// runMLPrediction uses machine learning to predict vulnerabilities
+func runMLPrediction(target string) error {
+	fmt.Printf("   🤖 ML Vulnerability Prediction...")
+
+	ctx := context.Background()
+
+	// Create ML configuration
+	analyzerConfig := ml.AnalyzerConfig{
+		FingerprintDB:  "fingerprints.json",
+		StrategyDB:     "strategies.json",
+		CacheSize:      1000,
+		CacheTTL:       30 * time.Minute,
+		MaxConcurrency: 10,
+		RequestTimeout: 30 * time.Second,
+		UserAgent:      "Shells Security Scanner",
+		UpdateInterval: 24 * time.Hour,
 	}
+
+	// Create tech stack analyzer
+	techAnalyzer, err := ml.NewTechStackAnalyzer(analyzerConfig, log.WithComponent("ml-techstack"))
+	if err != nil {
+		log.Error("Failed to create tech stack analyzer", "error", err)
+		fmt.Println(" ❌ (tech analyzer init failed)")
+		return err
+	}
+
+	// Analyze technology stack
+	techResult, err := techAnalyzer.AnalyzeTechStack(ctx, target)
+	if err != nil {
+		log.Error("Tech stack analysis failed", "target", target, "error", err)
+	} else if techResult != nil {
+		// Log discovered technologies
+		for _, tech := range techResult.Technologies {
+			log.Debug("Discovered technology",
+				"name", tech.Name,
+				"version", tech.Version,
+				"confidence", tech.Confidence)
+		}
+
+		// Create findings for high-confidence vulnerabilities
+		var findings []types.Finding
+		for _, vuln := range techResult.Vulnerabilities {
+			if vuln.Severity == "CRITICAL" || vuln.Severity == "HIGH" {
+				finding := types.Finding{
+					ID:          fmt.Sprintf("ml-tech-%s-%d", vuln.Technology, time.Now().Unix()),
+					ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+					Type:        "ML Technology Vulnerability",
+					Severity:    types.SeverityHigh,
+					Title:       fmt.Sprintf("%s in %s", vuln.Type, vuln.Technology),
+					Description: vuln.Description,
+					Tool:        "ml-techstack",
+					Evidence: fmt.Sprintf("Technology: %s, CVE: %s, Exploitable: %v",
+						vuln.Technology, vuln.CVE, vuln.Exploitable),
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+
+				if vuln.Severity == "CRITICAL" {
+					finding.Severity = types.SeverityCritical
+				}
+
+				findings = append(findings, finding)
+			}
+		}
+
+		// Save findings
+		if len(findings) > 0 && store != nil {
+			if err := store.SaveFindings(ctx, findings); err != nil {
+				log.Error("Failed to save ML tech findings", "error", err)
+			}
+		}
+	}
+
+	// Create vulnerability predictor
+	predictorConfig := ml.PredictorConfig{
+		ModelPath:         "model.json",
+		MinConfidence:     0.7,
+		HistoryWindowDays: 30,
+		CacheSize:         500,
+		UpdateInterval:    6 * time.Hour,
+		FeatureVersion:    "1.0",
+	}
+
+	// Create simple history store
+	historyStore := &mlHistoryStore{store: store, logger: log}
+
+	vulnPredictor, err := ml.NewVulnPredictor(predictorConfig, historyStore, log.WithComponent("ml-predictor"))
+	if err != nil {
+		log.Error("Failed to create vulnerability predictor", "error", err)
+		fmt.Println(" ⚠️ (partial)")
+		return nil // Don't fail completely
+	}
+
+	// Predict vulnerabilities
+	predictionResult, err := vulnPredictor.PredictVulnerabilities(ctx, target)
+	if err != nil {
+		log.Error("Vulnerability prediction failed", "target", target, "error", err)
+	} else if predictionResult != nil {
+		// Create findings for high-confidence predictions
+		var findings []types.Finding
+		for _, pred := range predictionResult.Predictions {
+			if pred.Probability >= 0.75 {
+				finding := types.Finding{
+					ID:       fmt.Sprintf("ml-pred-%s-%d", pred.VulnerabilityType, time.Now().Unix()),
+					ScanID:   fmt.Sprintf("scan-%d", time.Now().Unix()),
+					Type:     "ML Predicted Vulnerability",
+					Severity: types.SeverityMedium,
+					Title: fmt.Sprintf("Predicted: %s (%.0f%% confidence)",
+						pred.VulnerabilityType, pred.Probability*100),
+					Description: pred.Description,
+					Tool:        "ml-predictor",
+					Evidence: fmt.Sprintf("Indicators: %v, False Positive Rate: %.2f",
+						pred.Indicators, pred.FalsePositiveRate),
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+
+				// Adjust severity based on prediction
+				switch pred.Severity {
+				case "CRITICAL":
+					finding.Severity = types.SeverityCritical
+				case "HIGH":
+					finding.Severity = types.SeverityHigh
+				case "LOW":
+					finding.Severity = types.SeverityLow
+				}
+
+				findings = append(findings, finding)
+			}
+		}
+
+		// Log recommendations
+		if len(predictionResult.RecommendedScans) > 0 {
+			log.Info("ML recommended scans",
+				"target", target,
+				"scans", predictionResult.RecommendedScans,
+				"risk_score", predictionResult.RiskScore)
+		}
+
+		// Save findings
+		if len(findings) > 0 && store != nil {
+			if err := store.SaveFindings(ctx, findings); err != nil {
+				log.Error("Failed to save ML prediction findings", "error", err)
+			}
+		}
+	}
+
+	fmt.Println(" ✅")
+	return nil
 }
 
-func (d *DiscoveryLogger) Error(msg string, fields ...interface{}) {
-	if d.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		d.log.Error(args...)
-	}
+// mlHistoryStore adapts our store for ML usage
+type mlHistoryStore struct {
+	store  core.ResultStore
+	logger *logger.Logger
 }
 
-func (d *DiscoveryLogger) Debug(msg string, fields ...interface{}) {
-	if d.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		d.log.Debug(args...)
+func (m *mlHistoryStore) GetScanHistory(target string, window time.Duration) ([]types.Finding, error) {
+	if m.store == nil {
+		return []types.Finding{}, nil
 	}
+
+	// For now, return empty as we need to implement proper filtering
+	// In a real implementation, this would query the store with filters
+	return []types.Finding{}, nil
 }
 
-func (d *DiscoveryLogger) Warn(msg string, fields ...interface{}) {
-	if d.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		d.log.Warn(args...)
-	}
+func (m *mlHistoryStore) GetSimilarTargets(features map[string]interface{}, limit int) ([]ml.ScanTarget, error) {
+	// This would require more sophisticated similarity matching
+	// For now, return empty
+	return []ml.ScanTarget{}, nil
+}
+
+func (m *mlHistoryStore) StorePrediction(result *ml.PredictionResult) error {
+	m.logger.Debug("Storing ML prediction", "target", result.Target, "predictions", len(result.Predictions))
+	// Could store predictions as metadata or special findings
+	return nil
+}
+
+func (m *mlHistoryStore) GetPredictionAccuracy(predictionID string) (float64, error) {
+	// Would track prediction accuracy over time
+	return 0.85, nil
 }

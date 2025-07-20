@@ -73,8 +73,8 @@ func (s *Scanner) RunTool(ctx context.Context, toolName, target string, options 
 		}, err
 	}
 
-	s.logger.Info("Tool execution completed", 
-		"tool", toolName, 
+	s.logger.Info("Tool execution completed",
+		"tool", toolName,
 		"success", result.Success,
 		"findings", len(result.Findings),
 		"duration", result.Duration)
@@ -94,7 +94,7 @@ func (s *Scanner) RunMultipleTools(ctx context.Context, tools []string, target s
 		wg.Add(1)
 		go func(toolName string) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
@@ -203,8 +203,8 @@ func (c *ResultConverter) convertFinding(tool, target string, toolFinding ToolFi
 		Solution:    toolFinding.Solution,
 		References:  toolFinding.References,
 		Metadata: map[string]interface{}{
-			"boileau_tool": tool,
-			"target":       target,
+			"boileau_tool":  tool,
+			"target":        target,
 			"tool_metadata": toolFinding.Metadata,
 		},
 		CreatedAt: time.Now(),

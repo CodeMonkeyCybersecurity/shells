@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"net/http"
 	"os"
 	"strings"
 	"time"
-	"net/http"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
@@ -365,7 +365,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 
 	// Security analysis
 	fmt.Printf("\n🔐 Security Analysis:\n")
-	
+
 	// Check PKCE support
 	pkceMethods, hasPKCE := discoveryDoc["code_challenge_methods_supported"].([]interface{})
 	if !hasPKCE || len(pkceMethods) == 0 {
@@ -481,7 +481,7 @@ func displayOAuth2Results(findings []types.Finding, verbose bool) {
 	if summary != nil {
 		fmt.Printf("\n📊 Security Assessment Summary:\n")
 		fmt.Printf("   %s\n", summary.Title)
-		
+
 		details := summary.Metadata
 		fmt.Printf("   Total Tests: %v\n", details["total_tests"])
 		fmt.Printf("   Passed: %v\n", details["passed_tests"])
@@ -513,7 +513,7 @@ func displayOAuth2Results(findings []types.Finding, verbose bool) {
 			}[severity]
 
 			fmt.Printf("\n%s %s Severity Findings (%d):\n", emoji, severity, len(bySeverity[severity]))
-			
+
 			for _, finding := range bySeverity[severity] {
 				fmt.Printf("   • %s\n", finding.Title)
 				if verbose {
@@ -550,7 +550,7 @@ func generateOAuth2TextReport(results map[string]interface{}) string {
 
 func generateOAuth2MarkdownReport(results map[string]interface{}) string {
 	// Generate markdown report
-	return "# OAuth2 Security Report\n\n..." 
+	return "# OAuth2 Security Report\n\n..."
 }
 
 func generateOAuth2HTMLReport(results map[string]interface{}) string {

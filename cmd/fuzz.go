@@ -492,7 +492,7 @@ func displayFuzzResults(findings []types.Finding, verbose bool) {
 			if totalFound, ok := summary.Metadata["total_found"]; ok {
 				fmt.Printf("   Total discovered: %v\n", totalFound)
 			}
-			
+
 			if breakdown, ok := summary.Metadata["breakdown"].(map[string]int); ok {
 				fmt.Printf("   Breakdown:\n")
 				for itemType, count := range breakdown {
@@ -535,7 +535,7 @@ func displayFuzzResults(findings []types.Finding, verbose bool) {
 			for i := 0; i < displayCount; i++ {
 				finding := bySeverity[severity][i]
 				fmt.Printf("   • %s\n", finding.Title)
-				
+
 				if verbose && finding.Metadata != nil {
 					if statusCode, ok := finding.Metadata["status_code"]; ok {
 						fmt.Printf("     Status: %v", statusCode)
@@ -579,11 +579,11 @@ func saveFuzzResults(findings []types.Finding, output string) error {
 			fmt.Fprintf(file, "Target: %s\n", target)
 		}
 		fmt.Fprintf(file, "Description: %s\n", finding.Description)
-		
+
 		if finding.Solution != "" {
 			fmt.Fprintf(file, "Solution: %s\n", finding.Solution)
 		}
-		
+
 		fmt.Fprintf(file, "\n---\n\n")
 	}
 

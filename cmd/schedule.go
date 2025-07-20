@@ -35,7 +35,7 @@ duration each time it's triggered.
 Examples:
   shells schedule create example.com --cron "0 */6 * * *" --duration 5h
   shells schedule create "Acme Corp" --cron "0 2 * * *" --duration 8h`,
-	Args:  cobra.ExactArgs(1),
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 		cron, _ := cmd.Flags().GetString("cron")
@@ -45,44 +45,44 @@ Examples:
 		nomadAddr, _ := cmd.Flags().GetString("nomad-addr")
 		name, _ := cmd.Flags().GetString("name")
 
-		log.Info("Creating scheduled scan", 
-			"target", target, 
-			"cron", cron, 
-			"type", scanType, 
+		log.Info("Creating scheduled scan",
+			"target", target,
+			"cron", cron,
+			"type", scanType,
 			"profile", profile,
 			"duration", duration,
 			"name", name)
 
 		// Create Nomad client
 		client := nomad.NewClient(nomadAddr)
-		
+
 		if !client.IsAvailable() {
 			return fmt.Errorf("Nomad cluster not available at %s", nomadAddr)
 		}
-		
+
 		// Generate job name if not provided
 		if name == "" {
-			name = fmt.Sprintf("shells-scheduled-%s", 
+			name = fmt.Sprintf("shells-scheduled-%s",
 				strings.ReplaceAll(strings.ReplaceAll(target, ".", "-"), " ", "-"))
 		}
-		
+
 		// Create scheduled job definition
 		jobHCL := generateScheduledJobHCL(name, target, cron, scanType, duration, profile)
-		
+
 		ctx := context.Background()
-		
+
 		// Register the job
 		if err := client.RegisterJob(ctx, name, jobHCL); err != nil {
 			return fmt.Errorf("failed to create scheduled scan: %w", err)
 		}
-		
+
 		fmt.Printf("✅ Successfully created scheduled scan\n")
 		fmt.Printf("   Name: %s\n", name)
 		fmt.Printf("   Target: %s\n", target)
 		fmt.Printf("   Schedule: %s\n", cron)
 		fmt.Printf("   Duration: %s\n", duration)
 		fmt.Printf("   Type: %s\n", scanType)
-		
+
 		return nil
 	},
 }
@@ -93,18 +93,18 @@ var scheduleListCmd = &cobra.Command{
 	Long:  `List all scheduled scans running on the Nomad cluster.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nomadAddr, _ := cmd.Flags().GetString("nomad-addr")
-		
+
 		log.Info("Listing scheduled scans", "nomad_addr", nomadAddr)
-		
+
 		client := nomad.NewClient(nomadAddr)
-		
+
 		if !client.IsAvailable() {
 			return fmt.Errorf("Nomad cluster not available at %s", nomadAddr)
 		}
-		
+
 		fmt.Printf("📅 Scheduled Scans\n")
 		fmt.Printf("==================\n\n")
-		
+
 		// Note: This would require implementing a ListJobs method in the nomad client
 		// For now, show the default scheduled scan
 		ctx := context.Background()
@@ -113,17 +113,17 @@ var scheduleListCmd = &cobra.Command{
 			fmt.Printf("No scheduled scans found\n")
 			return nil
 		}
-		
+
 		statusIcon := "✅"
 		if status.Status != "running" {
 			statusIcon = "⚠️"
 		}
-		
+
 		fmt.Printf("%s shells-scheduled-scans: %s\n", statusIcon, status.Status)
 		fmt.Printf("   Schedule: Every hour (0 * * * *)\n")
 		fmt.Printf("   Duration: 55 minutes\n")
 		fmt.Printf("   Type: Comprehensive scanning\n\n")
-		
+
 		return nil
 	},
 }
@@ -140,16 +140,16 @@ var scheduleDeleteCmd = &cobra.Command{
 		log.Info("Deleting scheduled scan", "schedule_name", scheduleName, "nomad_addr", nomadAddr)
 
 		client := nomad.NewClient(nomadAddr)
-		
+
 		if !client.IsAvailable() {
 			return fmt.Errorf("Nomad cluster not available at %s", nomadAddr)
 		}
-		
+
 		fmt.Printf("🗑️ Deleting scheduled scan: %s\n", scheduleName)
-		
+
 		// Note: This would require implementing a DeleteJob method in the nomad client
 		fmt.Printf("✅ Scheduled scan deleted: %s\n", scheduleName)
-		
+
 		return nil
 	},
 }
@@ -161,7 +161,7 @@ func init() {
 	scheduleCreateCmd.Flags().String("duration", "55m", "Maximum duration for each scan run")
 	scheduleCreateCmd.Flags().String("nomad-addr", "", "Nomad address (default: $NOMAD_ADDR or http://localhost:4646)")
 	scheduleCreateCmd.Flags().String("name", "", "Custom name for the scheduled job")
-	
+
 	scheduleListCmd.Flags().String("nomad-addr", "", "Nomad address (default: $NOMAD_ADDR or http://localhost:4646)")
 	scheduleDeleteCmd.Flags().String("nomad-addr", "", "Nomad address (default: $NOMAD_ADDR or http://localhost:4646)")
 }
@@ -210,6 +210,8 @@ func generateScheduledJobHCL(name, target, cronExpr, scanType, duration, profile
         OTEL_EXPORTER_OTLP_ENDPOINT = "http://otel-collector:4317"
         SHELLS_SCHEDULED_MODE = "true"
         SHELLS_MAX_DURATION = "%s"
+        SHELLS_USE_NOMAD = "true"
+        NOMAD_ADDR = "http://${attr.unique.network.ip-address}:4646"
       }
       
       resources {

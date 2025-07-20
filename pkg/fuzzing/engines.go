@@ -62,7 +62,7 @@ func (p *PatternAnalyzer) GenerateParameterPatterns(target *url.URL) []string {
 
 	// Extract base name from path
 	pathParts := strings.Split(strings.Trim(target.Path, "/"), "/")
-	
+
 	for _, part := range pathParts {
 		if part == "" {
 			continue
@@ -76,7 +76,7 @@ func (p *PatternAnalyzer) GenerateParameterPatterns(target *url.URL) []string {
 		patterns = append(patterns, part+"Name")
 		patterns = append(patterns, strings.ToLower(part))
 		patterns = append(patterns, strings.ToUpper(part))
-		
+
 		// Singular/plural variations
 		if strings.HasSuffix(part, "s") {
 			singular := strings.TrimSuffix(part, "s")
@@ -206,11 +206,11 @@ func NewMLPredictor() *MLPredictor {
 func (m *MLPredictor) PredictParameters(target *url.URL) []string {
 	// Extract features
 	featureVector := m.features.Extract(target)
-	
+
 	// Score parameter candidates
 	candidates := m.generateCandidates(target)
 	scored := make(map[string]float64)
-	
+
 	for _, candidate := range candidates {
 		score := m.model.Score(candidate, featureVector)
 		if score > m.threshold {
@@ -264,11 +264,11 @@ func (m *MLPredictor) generateCandidates(target *url.URL) []string {
 // Extract extracts features from a URL
 func (f *FeatureExtractor) Extract(target *url.URL) map[string]float64 {
 	features := make(map[string]float64)
-	
+
 	for name, extractor := range f.features {
 		features[name] = extractor(target)
 	}
-	
+
 	return features
 }
 
@@ -299,14 +299,14 @@ func (m *SimpleModel) Score(parameter string, features map[string]float64) float
 
 func extractParameterFeatures(param string) map[string]float64 {
 	features := make(map[string]float64)
-	
+
 	// Length features
 	features["length"] = float64(len(param))
 	features["has_underscore"] = boolToFloat(strings.Contains(param, "_"))
 	features["has_dash"] = boolToFloat(strings.Contains(param, "-"))
 	features["is_camelcase"] = boolToFloat(isCamelCase(param))
 	features["has_numbers"] = boolToFloat(hasNumbers(param))
-	
+
 	// Common parameter indicators
 	commonPrefixes := []string{"get", "set", "is", "has", "can", "should"}
 	for _, prefix := range commonPrefixes {
@@ -314,14 +314,14 @@ func extractParameterFeatures(param string) map[string]float64 {
 			features["prefix_"+prefix] = 1.0
 		}
 	}
-	
+
 	commonSuffixes := []string{"id", "name", "type", "key", "token", "code"}
 	for _, suffix := range commonSuffixes {
 		if strings.HasSuffix(strings.ToLower(param), suffix) {
 			features["suffix_"+suffix] = 1.0
 		}
 	}
-	
+
 	return features
 }
 
@@ -366,13 +366,13 @@ func hasNumbers(s string) bool {
 
 func initializePatterns() map[string]*regexp.Regexp {
 	patterns := map[string]string{
-		"email":    `[\w\.-]+@[\w\.-]+\.\w+`,
-		"url":      `https?://[\w\.-]+(?::\d+)?(?:/[^\s]*)?`,
-		"api_key":  `[a-zA-Z0-9]{32,}`,
-		"jwt":      `eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+`,
-		"base64":   `[A-Za-z0-9+/]{4,}={0,2}`,
-		"hex":      `[0-9a-fA-F]{8,}`,
-		"uuid":     `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`,
+		"email":   `[\w\.-]+@[\w\.-]+\.\w+`,
+		"url":     `https?://[\w\.-]+(?::\d+)?(?:/[^\s]*)?`,
+		"api_key": `[a-zA-Z0-9]{32,}`,
+		"jwt":     `eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+`,
+		"base64":  `[A-Za-z0-9+/]{4,}={0,2}`,
+		"hex":     `[0-9a-fA-F]{8,}`,
+		"uuid":    `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`,
 	}
 
 	compiled := make(map[string]*regexp.Regexp)
@@ -437,16 +437,16 @@ func initializeModel() *SimpleModel {
 	// Pre-trained weights (in reality, these would be learned)
 	return &SimpleModel{
 		weights: map[string]float64{
-			"length":           -0.1,
-			"has_underscore":   0.3,
-			"is_camelcase":     0.2,
-			"suffix_id":        0.8,
-			"suffix_name":      0.7,
-			"suffix_key":       0.9,
-			"suffix_token":     0.9,
-			"prefix_get":       0.4,
-			"url_has_api":      0.6,
-			"url_path_depth":   0.2,
+			"length":         -0.1,
+			"has_underscore": 0.3,
+			"is_camelcase":   0.2,
+			"suffix_id":      0.8,
+			"suffix_name":    0.7,
+			"suffix_key":     0.9,
+			"suffix_token":   0.9,
+			"prefix_get":     0.4,
+			"url_has_api":    0.6,
+			"url_path_depth": 0.2,
 		},
 		bias: -0.5,
 	}
@@ -454,7 +454,7 @@ func initializeModel() *SimpleModel {
 
 func initializeFeatureExtractor() *FeatureExtractor {
 	return &FeatureExtractor{
-		features: map[string]func(*url.URL)float64{
+		features: map[string]func(*url.URL) float64{
 			"has_api": func(u *url.URL) float64 {
 				if strings.Contains(u.Host, "api") || strings.Contains(u.Path, "/api/") {
 					return 1.0

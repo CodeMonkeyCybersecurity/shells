@@ -16,15 +16,15 @@ type Config struct {
 
 // ToolResult represents the result of running a single tool
 type ToolResult struct {
-	Tool      string          `json:"tool"`
-	Target    string          `json:"target"`
-	Success   bool            `json:"success"`
-	StartTime time.Time       `json:"start_time"`
-	EndTime   time.Time       `json:"end_time"`
-	Duration  time.Duration   `json:"duration"`
-	Output    string          `json:"output,omitempty"`
-	Error     string          `json:"error,omitempty"`
-	Findings  []ToolFinding   `json:"findings,omitempty"`
+	Tool      string                 `json:"tool"`
+	Target    string                 `json:"target"`
+	Success   bool                   `json:"success"`
+	StartTime time.Time              `json:"start_time"`
+	EndTime   time.Time              `json:"end_time"`
+	Duration  time.Duration          `json:"duration"`
+	Output    string                 `json:"output,omitempty"`
+	Error     string                 `json:"error,omitempty"`
+	Findings  []ToolFinding          `json:"findings,omitempty"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 

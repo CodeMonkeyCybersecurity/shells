@@ -23,7 +23,7 @@ type SmartFuzzer struct {
 // NewSmartFuzzer creates an advanced fuzzer with ML and heuristics
 func NewSmartFuzzer(config FuzzerConfig, logger Logger) *SmartFuzzer {
 	config.SmartMode = true
-	
+
 	return &SmartFuzzer{
 		Fuzzer:      NewFuzzer(config, logger),
 		patterns:    NewPatternAnalyzer(),
@@ -81,9 +81,9 @@ func (s *SmartFuzzer) ContentDiscoveryWithContext(ctx context.Context, target st
 
 	// Load framework-specific wordlists
 	wordlists := s.getFrameworkWordlists(framework)
-	
+
 	results := []FuzzResult{}
-	
+
 	// Fuzz with each wordlist
 	for _, wordlist := range wordlists {
 		wlResults, err := s.DirectoryFuzzing(ctx, target, wordlist)
@@ -108,7 +108,7 @@ func (s *SmartFuzzer) ContentDiscoveryWithContext(ctx context.Context, target st
 // extractParametersFromJS analyzes JavaScript files for parameters
 func (s *SmartFuzzer) extractParametersFromJS(ctx context.Context, target *url.URL) []string {
 	params := []string{}
-	
+
 	// Common JS file locations
 	jsFiles := []string{
 		"/js/app.js",
@@ -120,7 +120,7 @@ func (s *SmartFuzzer) extractParametersFromJS(ctx context.Context, target *url.U
 
 	// Regex patterns for parameter extraction
 	patterns := []string{
-		`['"]([\w]+)['"]\s*:\s*`, // Object keys
+		`['"]([\w]+)['"]\s*:\s*`,  // Object keys
 		`\.get\(['"]([\w]+)['"]`,  // jQuery get
 		`\$\{([\w]+)\}`,           // Template literals
 		`params\.['"]([\w]+)['"]`, // params.something
@@ -130,7 +130,7 @@ func (s *SmartFuzzer) extractParametersFromJS(ctx context.Context, target *url.U
 	for _, jsPath := range jsFiles {
 		jsURL := *target
 		jsURL.Path = jsPath
-		
+
 		req, err := http.NewRequestWithContext(ctx, "GET", jsURL.String(), nil)
 		if err != nil {
 			continue
@@ -170,7 +170,7 @@ func (s *SmartFuzzer) testParameterPollution(ctx context.Context, target *url.UR
 			for _, test := range pollutionTests {
 				u := *target
 				q := u.Query()
-				
+
 				// Add multiple values
 				for _, v := range test.values {
 					q.Add(paramName, v)
@@ -226,7 +226,7 @@ func (s *SmartFuzzer) testArrayParameters(ctx context.Context, target *url.URL, 
 	for _, param := range params {
 		for _, notation := range arrayNotations {
 			arrayParam := fmt.Sprintf(notation, param)
-			
+
 			u := *target
 			q := u.Query()
 			q.Set(arrayParam, "test")
@@ -283,7 +283,7 @@ func (s *SmartFuzzer) testJSONParameters(ctx context.Context, target *url.URL, p
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return results
@@ -325,11 +325,11 @@ func (s *SmartFuzzer) recursiveFuzz(ctx context.Context, baseURL *url.URL, found
 
 			// Load a smaller wordlist for recursive fuzzing
 			words := s.getRecursiveWordlist()
-			
+
 			for _, word := range words {
 				newURL := *foundURL
 				newURL.Path = strings.TrimSuffix(newURL.Path, "/") + "/" + word
-				
+
 				if newResult := s.fuzzDirectory(ctx, &newURL, ""); newResult != nil {
 					results = append(results, *newResult)
 				}
@@ -355,7 +355,7 @@ func (s *SmartFuzzer) getVHostBaseline(ctx context.Context, target *url.URL, vho
 
 	req.Host = vhost
 	req.Header.Set("User-Agent", s.config.UserAgent)
-	
+
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -399,7 +399,7 @@ func (s *SmartFuzzer) testVHost(ctx context.Context, target *url.URL, vhost, bas
 
 	req.Host = fullVHost
 	req.Header.Set("User-Agent", s.config.UserAgent)
-	
+
 	start := time.Now()
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -432,7 +432,7 @@ func (s *SmartFuzzer) resolveDomain(domain string) bool {
 
 	r := &net.Resolver{}
 	addrs, err := r.LookupHost(ctx, domain)
-	
+
 	return err == nil && len(addrs) > 0
 }
 
@@ -446,7 +446,7 @@ func (s *SmartFuzzer) testSubdomain(ctx context.Context, target, subdomain strin
 	}
 
 	req.Header.Set("User-Agent", s.config.UserAgent)
-	
+
 	start := time.Now()
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -470,7 +470,7 @@ func (s *SmartFuzzer) testSubdomain(ctx context.Context, target, subdomain strin
 // generateSubdomainPermutations creates smart subdomain variations
 func (s *SmartFuzzer) generateSubdomainPermutations(domain string, found []FuzzResult) []string {
 	permutations := []string{}
-	
+
 	// Extract found subdomain parts
 	parts := make(map[string]bool)
 	for _, result := range found {
@@ -485,14 +485,14 @@ func (s *SmartFuzzer) generateSubdomainPermutations(domain string, found []FuzzR
 	// Common patterns
 	prefixes := []string{"dev", "staging", "test", "uat", "api", "admin", "portal"}
 	suffixes := []string{"01", "02", "1", "2", "new", "old", "backup"}
-	
+
 	// Generate combinations
 	for part := range parts {
 		for _, prefix := range prefixes {
 			permutations = append(permutations, fmt.Sprintf("%s-%s.%s", prefix, part, domain))
 			permutations = append(permutations, fmt.Sprintf("%s.%s.%s", prefix, part, domain))
 		}
-		
+
 		for _, suffix := range suffixes {
 			permutations = append(permutations, fmt.Sprintf("%s-%s.%s", part, suffix, domain))
 			permutations = append(permutations, fmt.Sprintf("%s%s.%s", part, suffix, domain))
@@ -545,7 +545,7 @@ func (s *SmartFuzzer) identifyFramework(ctx context.Context, target *url.URL) st
 // getFrameworkWordlists returns framework-specific wordlists
 func (s *SmartFuzzer) getFrameworkWordlists(framework string) []string {
 	baseWordlists := []string{"common.txt", "directories.txt"}
-	
+
 	frameworkWordlists := map[string][]string{
 		"php":     {"php.txt", "phpmyadmin.txt"},
 		"aspnet":  {"aspnet.txt", "iis.txt"},
@@ -637,7 +637,7 @@ func (s *SmartFuzzer) testParameterTypeConfusion(ctx context.Context, target *ur
 // testExtractedParameters tests parameters extracted from JavaScript
 func (s *SmartFuzzer) testExtractedParameters(ctx context.Context, target *url.URL, params []string) []FuzzResult {
 	results := []FuzzResult{}
-	
+
 	for _, param := range params {
 		u := *target
 		q := u.Query()
@@ -650,7 +650,7 @@ func (s *SmartFuzzer) testExtractedParameters(ctx context.Context, target *url.U
 		}
 
 		req.Header.Set("User-Agent", s.config.UserAgent)
-		
+
 		start := time.Now()
 		resp, err := s.client.Do(req)
 		if err != nil {
@@ -680,7 +680,7 @@ func (s *SmartFuzzer) testExtractedParameters(ctx context.Context, target *url.U
 // testPredictedParameters tests ML-predicted parameters
 func (s *SmartFuzzer) testPredictedParameters(ctx context.Context, target *url.URL, params []string) []FuzzResult {
 	results := []FuzzResult{}
-	
+
 	for _, param := range params {
 		u := *target
 		q := u.Query()
@@ -693,7 +693,7 @@ func (s *SmartFuzzer) testPredictedParameters(ctx context.Context, target *url.U
 		}
 
 		req.Header.Set("User-Agent", s.config.UserAgent)
-		
+
 		start := time.Now()
 		resp, err := s.client.Do(req)
 		if err != nil {
@@ -723,7 +723,7 @@ func (s *SmartFuzzer) testPredictedParameters(ctx context.Context, target *url.U
 // testPatternParameters tests pattern-generated parameters
 func (s *SmartFuzzer) testPatternParameters(ctx context.Context, target *url.URL, params []string) []FuzzResult {
 	results := []FuzzResult{}
-	
+
 	for _, param := range params {
 		u := *target
 		q := u.Query()
@@ -736,7 +736,7 @@ func (s *SmartFuzzer) testPatternParameters(ctx context.Context, target *url.URL
 		}
 
 		req.Header.Set("User-Agent", s.config.UserAgent)
-		
+
 		start := time.Now()
 		resp, err := s.client.Do(req)
 		if err != nil {
@@ -766,13 +766,13 @@ func (s *SmartFuzzer) testPatternParameters(ctx context.Context, target *url.URL
 func unique(items []string) []string {
 	seen := make(map[string]bool)
 	result := []string{}
-	
+
 	for _, item := range items {
 		if !seen[item] {
 			seen[item] = true
 			result = append(result, item)
 		}
 	}
-	
+
 	return result
 }

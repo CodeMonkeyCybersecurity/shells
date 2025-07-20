@@ -356,10 +356,10 @@ func runrumbleScan(cmd *cobra.Command, args []string) error {
 
 	// Display results
 	fmt.Printf("\n✅ Scan completed in %s\n", duration.Round(time.Second))
-	
+
 	// Analyze findings
 	summary := analyzerumbleFindings(findings)
-	
+
 	fmt.Printf("📊 Summary:\n")
 	fmt.Printf("   Total findings: %d\n", len(findings))
 	fmt.Printf("   Critical: %d\n", summary["CRITICAL"])
@@ -435,13 +435,13 @@ func runrumbleAssets(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Printf("\n  OS: %s\n", asset.OS)
 		fmt.Printf("  Services: ")
-		
+
 		serviceNames := []string{}
 		for _, service := range asset.Services {
 			serviceNames = append(serviceNames, fmt.Sprintf("%s:%d", service.Service, service.Port))
 		}
 		fmt.Printf("%s\n", strings.Join(serviceNames, ", "))
-		
+
 		fmt.Printf("  First seen: %s\n", asset.FirstSeen.Format("2006-01-02 15:04:05"))
 		fmt.Printf("  Last seen: %s\n", asset.LastSeen.Format("2006-01-02 15:04:05"))
 
@@ -557,7 +557,7 @@ func printrumbleFinding(finding types.Finding) {
 		fmt.Printf("   Target: %s\n", target)
 	}
 	fmt.Printf("   Description: %s\n", finding.Description)
-	
+
 	if finding.Metadata != nil {
 		fmt.Printf("   Details:\n")
 		for k, v := range finding.Metadata {

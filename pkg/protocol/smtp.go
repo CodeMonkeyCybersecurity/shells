@@ -97,8 +97,8 @@ func (s *SMTPScanner) TestUserEnumeration(ctx context.Context, target string) []
 				"command": "RCPT TO",
 				"port":    port,
 			},
-			Solution: "Configure SMTP server to return consistent responses for invalid recipients",
-			CreatedAt:   time.Now(),
+			Solution:  "Configure SMTP server to return consistent responses for invalid recipients",
+			CreatedAt: time.Now(),
 		})
 	}
 
@@ -192,7 +192,7 @@ func (s *SMTPScanner) TestSTARTTLS(ctx context.Context, target string) []types.F
 			Severity:    "HIGH",
 			Title:       "SMTP server does not support STARTTLS",
 			Description: "The SMTP server does not support STARTTLS, transmitting all data in plaintext",
-			Solution: "Enable STARTTLS support to encrypt SMTP communications",
+			Solution:    "Enable STARTTLS support to encrypt SMTP communications",
 			References: []string{
 				"https://tools.ietf.org/html/rfc3207",
 			},
@@ -204,7 +204,7 @@ func (s *SMTPScanner) TestSTARTTLS(ctx context.Context, target string) []types.F
 			Severity:    "MEDIUM",
 			Title:       "SMTP server does not enforce STARTTLS",
 			Description: "The SMTP server supports but does not require STARTTLS, allowing plaintext connections",
-			Solution: "Configure SMTP server to require STARTTLS for all connections",
+			Solution:    "Configure SMTP server to require STARTTLS for all connections",
 			CreatedAt:   time.Now(),
 		})
 	}
@@ -252,8 +252,8 @@ func (s *SMTPScanner) TestAuthentication(ctx context.Context, target string) []t
 				"insecure_methods": insecureMethods,
 				"all_methods":      authMethods,
 			},
-			Solution: "Disable PLAIN and LOGIN authentication methods over non-TLS connections",
-			CreatedAt:   time.Now(),
+			Solution:  "Disable PLAIN and LOGIN authentication methods over non-TLS connections",
+			CreatedAt: time.Now(),
 		})
 	}
 
@@ -264,7 +264,7 @@ func (s *SMTPScanner) TestAuthentication(ctx context.Context, target string) []t
 			Severity:    "HIGH",
 			Title:       "SMTP server allows anonymous authentication",
 			Description: "The SMTP server accepts anonymous authentication, potentially allowing unauthorized access",
-			Solution: "Disable anonymous authentication",
+			Solution:    "Disable anonymous authentication",
 			CreatedAt:   time.Now(),
 		})
 	}
@@ -298,7 +298,7 @@ func (s *SMTPScanner) testEXPN(ctx context.Context, host, port string) bool {
 
 	// Send EXPN command
 	response := s.sendCommand(conn, "EXPN postmaster")
-	
+
 	// If command is not rejected, it's enabled
 	return !strings.HasPrefix(response, "5")
 }
@@ -312,7 +312,7 @@ func (s *SMTPScanner) testRCPTEnum(ctx context.Context, host, port string) bool 
 
 	// Start mail transaction
 	s.sendCommand(conn, "MAIL FROM:<test@test.com>")
-	
+
 	// Test different recipients
 	validResp := s.sendCommand(conn, "RCPT TO:<postmaster@localhost>")
 	invalidResp := s.sendCommand(conn, "RCPT TO:<definitely-not-real-12345@localhost>")
@@ -321,9 +321,9 @@ func (s *SMTPScanner) testRCPTEnum(ctx context.Context, host, port string) bool 
 	s.sendCommand(conn, "RSET")
 
 	// Check if responses differ significantly
-	return validResp != invalidResp && 
-		   strings.HasPrefix(validResp, "2") && 
-		   strings.HasPrefix(invalidResp, "5")
+	return validResp != invalidResp &&
+		strings.HasPrefix(validResp, "2") &&
+		strings.HasPrefix(invalidResp, "5")
 }
 
 func (s *SMTPScanner) testRelay(ctx context.Context, host, port, from, to string) bool {
@@ -339,9 +339,9 @@ func (s *SMTPScanner) testRelay(ctx context.Context, host, port, from, to string
 	} else {
 		s.sendCommand(conn, "MAIL FROM:<>")
 	}
-	
+
 	response := s.sendCommand(conn, fmt.Sprintf("RCPT TO:<%s>", to))
-	
+
 	// Reset
 	s.sendCommand(conn, "RSET")
 
@@ -370,7 +370,7 @@ func (s *SMTPScanner) testSTARTTLSSupport(ctx context.Context, host, port string
 	// Try to send mail without STARTTLS
 	s.sendCommand(conn2, "MAIL FROM:<test@test.com>")
 	response = s.sendCommand(conn2, "RCPT TO:<test@test.com>")
-	
+
 	// If rejected, STARTTLS is enforced
 	enforced = !strings.HasPrefix(response, "2")
 
@@ -434,7 +434,7 @@ func (s *SMTPScanner) getSupportedAuth(ctx context.Context, host, port string) [
 
 	// Send EHLO to get capabilities
 	response := s.sendCommand(conn, "EHLO scanner.local")
-	
+
 	// Parse AUTH line
 	lines := strings.Split(response, "\n")
 	for _, line := range lines {
@@ -480,7 +480,7 @@ func (s *SMTPScanner) connectSMTP(ctx context.Context, host, port string) (net.C
 
 	// Send EHLO
 	fmt.Fprintf(conn, "EHLO scanner.local\r\n")
-	
+
 	// Read response
 	for {
 		line, err := reader.ReadString('\n')
@@ -488,7 +488,7 @@ func (s *SMTPScanner) connectSMTP(ctx context.Context, host, port string) (net.C
 			conn.Close()
 			return nil, err
 		}
-		
+
 		// Check if this is the last line
 		if len(line) >= 4 && line[3] == ' ' {
 			break
@@ -500,24 +500,24 @@ func (s *SMTPScanner) connectSMTP(ctx context.Context, host, port string) (net.C
 
 func (s *SMTPScanner) sendCommand(conn net.Conn, command string) string {
 	fmt.Fprintf(conn, "%s\r\n", command)
-	
+
 	reader := bufio.NewReader(conn)
 	response := ""
-	
+
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			break
 		}
-		
+
 		response += line
-		
+
 		// Check if this is the last line
 		if len(line) >= 4 && line[3] == ' ' {
 			break
 		}
 	}
-	
+
 	return response
 }
 

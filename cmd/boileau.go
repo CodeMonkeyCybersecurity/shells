@@ -146,7 +146,7 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 
 	// Tool-specific options
 	options := make(map[string]string)
-	
+
 	// Add common options
 	if ports, _ := cmd.Flags().GetString("ports"); ports != "" {
 		options["ports"] = ports
@@ -202,10 +202,10 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 
 	// Create scanner config
 	config := boileau.Config{
-		UseDocker:  useDocker,
-		UseNomad:   useNomad,
-		OutputDir:  outputDir,
-		Timeout:    timeout,
+		UseDocker: useDocker,
+		UseNomad:  useNomad,
+		OutputDir: outputDir,
+		Timeout:   timeout,
 		DockerImages: map[string]string{
 			"aquatone":   "shells/aquatone:latest",
 			"masscan":    "shells/masscan:latest",
@@ -239,12 +239,12 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 
 	// Display results
 	fmt.Printf("\n✅ %s completed in %s\n", toolName, duration.Round(time.Second))
-	
+
 	if result.Success {
 		fmt.Printf("📊 Results:\n")
 		fmt.Printf("   Status: Success\n")
 		fmt.Printf("   Findings: %d\n", len(result.Findings))
-		
+
 		if verbose && result.Output != "" {
 			fmt.Printf("\n📄 Tool Output:\n")
 			fmt.Println(result.Output)
@@ -269,7 +269,7 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 
 		// Convert to standard findings
 		// findings := scanner.ConvertToFindings([]*boileau.ToolResult{result})
-		
+
 		// Save results
 		if err := saveboileauResults(result, outputDir); err != nil {
 			log.Error("Failed to save results", "error", err)
@@ -416,8 +416,8 @@ func runboileauList(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display by category
-	categories := []string{"visual_recon", "port_scanner", "xss_scanner", "sql_injection", 
-		"template_injection", "ssrf_scanner", "ssrf_exploitation", "nosql_injection", 
+	categories := []string{"visual_recon", "port_scanner", "xss_scanner", "sql_injection",
+		"template_injection", "ssrf_scanner", "ssrf_exploitation", "nosql_injection",
 		"command_injection", "cors_misconfiguration", "parameter_discovery"}
 
 	for _, category := range categories {
@@ -442,11 +442,11 @@ func runboileauList(cmd *cobra.Command, args []string) error {
 
 func getToolsByCategory(category string) []string {
 	categories := map[string][]string{
-		"web": {"xsstrike", "tplmap", "sqlmap", "commix", "corscanner", "arjun"},
-		"network": {"masscan"},
+		"web":       {"xsstrike", "tplmap", "sqlmap", "commix", "corscanner", "arjun"},
+		"network":   {"masscan"},
 		"discovery": {"aquatone", "arjun"},
 		"injection": {"sqlmap", "nosqlmap", "commix", "tplmap", "xsstrike"},
-		"ssrf": {"ssrfmap", "gopherus"},
+		"ssrf":      {"ssrfmap", "gopherus"},
 	}
 
 	if tools, ok := categories[category]; ok {
