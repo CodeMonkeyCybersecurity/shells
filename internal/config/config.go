@@ -334,9 +334,8 @@ func (c *Config) Validate() error {
 		c.Logger.Format = "json"
 	}
 
-	if c.Database.Driver == "" {
-		c.Database.Driver = "sqlite3"
-	}
+	// Always use SQLite3
+	c.Database.Driver = "sqlite3"
 
 	if c.Redis.Addr == "" {
 		c.Redis.Addr = "localhost:6379"

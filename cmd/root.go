@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +14,10 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/fuzzing"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/protocol"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/smuggling"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -520,6 +525,18 @@ func runSpecializedTests(target string) error {
 		testsRun = append(testsRun, "OAuth2")
 	}
 
+	// 5. Directory/Path Fuzzing
+	if fuzzingFindings := runFuzzingTests(ctx, target); len(fuzzingFindings) > 0 {
+		allFindings = append(allFindings, fuzzingFindings...)
+		testsRun = append(testsRun, "Fuzzing")
+	}
+
+	// 6. Protocol Security Testing
+	if protocolFindings := runProtocolTests(ctx, target); len(protocolFindings) > 0 {
+		allFindings = append(allFindings, protocolFindings...)
+		testsRun = append(testsRun, "Protocol")
+	}
+
 	// Store all findings
 	if len(allFindings) > 0 && store != nil {
 		if err := store.SaveFindings(ctx, allFindings); err != nil {
@@ -540,47 +557,53 @@ func runSpecializedTests(target string) error {
 
 // runSCIMTests executes SCIM vulnerability tests
 func runSCIMTests(ctx context.Context, target string) []types.Finding {
-	var findings []types.Finding
-
-	// Create SCIM test finding
-	finding := types.Finding{
-		ID:          fmt.Sprintf("scim-%d", time.Now().Unix()),
-		ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
-		Type:        "SCIM Security",
-		Severity:    types.SeverityMedium,
-		Title:       "SCIM Endpoint Analysis",
-		Description: "Analyzed SCIM endpoints for security vulnerabilities",
-		Tool:        "scim-scanner",
-		Evidence:    fmt.Sprintf("Target: %s/scim/v2", target),
-		Solution:    "Ensure proper authentication and authorization on SCIM endpoints",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+	log.WithContext(ctx).Debug("Starting SCIM vulnerability testing", "target", target)
+	
+	// Create SCIM scanner
+	scimScanner := scim.NewScanner()
+	
+	// Run comprehensive SCIM security scan
+	findings, err := scimScanner.Scan(ctx, target, map[string]string{
+		"test-auth":    "true",
+		"test-filters": "true",
+		"test-bulk":    "true",
+		"timeout":      "30s",
+	})
+	
+	if err != nil {
+		log.Error("SCIM scan failed", "target", target, "error", err)
+		return []types.Finding{}
 	}
-
-	findings = append(findings, finding)
+	
+	log.WithContext(ctx).Info("SCIM vulnerability testing completed", 
+		"target", target, "findings_count", len(findings))
+	
 	return findings
 }
 
 // runHTTPSmugglingTests executes HTTP request smuggling tests
 func runHTTPSmugglingTests(ctx context.Context, target string) []types.Finding {
-	var findings []types.Finding
-
-	// Create smuggling test finding
-	finding := types.Finding{
-		ID:          fmt.Sprintf("smuggling-%d", time.Now().Unix()),
-		ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
-		Type:        "HTTP Request Smuggling",
-		Severity:    types.SeverityLow,
-		Title:       "HTTP Request Smuggling Analysis",
-		Description: "Tested for HTTP request smuggling vulnerabilities",
-		Tool:        "smuggling-scanner",
-		Evidence:    fmt.Sprintf("Target: %s", target),
-		Solution:    "Ensure consistent parsing of Content-Length and Transfer-Encoding headers",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+	log.WithContext(ctx).Debug("Starting HTTP request smuggling testing", "target", target)
+	
+	// Create HTTP smuggling scanner
+	smugglingScanner := smuggling.NewScanner()
+	
+	// Run comprehensive smuggling security scan with all techniques
+	findings, err := smugglingScanner.Scan(ctx, target, map[string]string{
+		"technique":     "all",
+		"differential": "true",
+		"timing":       "true",
+		"timeout":      "30s",
+	})
+	
+	if err != nil {
+		log.Error("HTTP smuggling scan failed", "target", target, "error", err)
+		return []types.Finding{}
 	}
-
-	findings = append(findings, finding)
+	
+	log.WithContext(ctx).Info("HTTP request smuggling testing completed", 
+		"target", target, "findings_count", len(findings))
+	
 	return findings
 }
 
@@ -628,6 +651,144 @@ func runOAuth2SecurityTests(ctx context.Context, target string) []types.Finding 
 
 	findings = append(findings, finding)
 	return findings
+}
+
+// runFuzzingTests executes directory and parameter fuzzing tests
+func runFuzzingTests(ctx context.Context, target string) []types.Finding {
+	log.WithContext(ctx).Debug("Starting fuzzing tests", "target", target)
+	
+	allFindings := []types.Finding{}
+	
+	// Create a simple fuzzing logger adapter
+	fuzzLogger := &FuzzingLogger{log: log}
+	
+	// Test 1: Directory fuzzing
+	dirConfig := fuzzing.ScannerConfig{
+		Mode:        "directory",
+		Threads:     10,
+		Timeout:     30 * time.Second,
+		Extensions:  []string{".php", ".asp", ".aspx", ".jsp", ".html", ".txt"},
+		StatusCodes: []int{200, 201, 204, 301, 302, 307, 401, 403},
+		SmartMode:   true,
+	}
+	
+	dirScanner := fuzzing.NewScanner(dirConfig, fuzzLogger)
+	dirFindings, err := dirScanner.Scan(ctx, target, map[string]string{})
+	if err != nil {
+		log.Error("Directory fuzzing failed", "target", target, "error", err)
+	} else {
+		allFindings = append(allFindings, dirFindings...)
+	}
+	
+	// Test 2: Parameter fuzzing
+	paramConfig := fuzzing.ScannerConfig{
+		Mode:        "parameter",
+		Threads:     5,
+		Timeout:     20 * time.Second,
+		StatusCodes: []int{200, 500},
+		SmartMode:   true,
+	}
+	
+	paramScanner := fuzzing.NewScanner(paramConfig, fuzzLogger)
+	paramFindings, err := paramScanner.Scan(ctx, target, map[string]string{})
+	if err != nil {
+		log.Error("Parameter fuzzing failed", "target", target, "error", err)
+	} else {
+		allFindings = append(allFindings, paramFindings...)
+	}
+	
+	log.WithContext(ctx).Info("Fuzzing tests completed", 
+		"target", target, "findings_count", len(allFindings))
+	
+	return allFindings
+}
+
+// runProtocolTests executes protocol-specific security tests
+func runProtocolTests(ctx context.Context, target string) []types.Finding {
+	log.WithContext(ctx).Debug("Starting protocol security tests", "target", target)
+	
+	allFindings := []types.Finding{}
+	
+	// Create protocol scanner
+	protocolConfig := protocol.Config{
+		Timeout:      30 * time.Second,
+		CheckCiphers: true,
+		CheckVulns:   true,
+		MaxWorkers:   5,
+	}
+	
+	protocolLogger := &ProtocolLogger{log: log}
+	protocolScanner := protocol.NewScanner(protocolConfig, protocolLogger)
+	
+	// Test common HTTPS port
+	if strings.Contains(target, "https://") || strings.Contains(target, ":443") {
+		tlsTarget := target
+		if !strings.Contains(target, ":443") {
+			// Add default HTTPS port if not specified
+			if parsedURL, err := url.Parse(target); err == nil {
+				tlsTarget = fmt.Sprintf("%s:443", parsedURL.Host)
+			}
+		}
+		
+		tlsFindings, err := protocolScanner.ScanTLS(ctx, tlsTarget)
+		if err != nil {
+			log.Error("TLS protocol scan failed", "target", tlsTarget, "error", err)
+		} else {
+			allFindings = append(allFindings, tlsFindings...)
+		}
+	}
+	
+	// Test SMTP if port 25/587/465 is in target or hostname suggests mail server
+	if strings.Contains(target, "mail") || strings.Contains(target, "smtp") || 
+	   strings.Contains(target, ":25") || strings.Contains(target, ":587") || strings.Contains(target, ":465") {
+		
+		// Try common SMTP ports
+		smtpPorts := []string{"25", "587", "465"}
+		for _, port := range smtpPorts {
+			var smtpTarget string
+			if parsedURL, err := url.Parse(target); err == nil {
+				smtpTarget = fmt.Sprintf("%s:%s", parsedURL.Host, port)
+			} else {
+				smtpTarget = fmt.Sprintf("%s:%s", target, port)
+			}
+			
+			smtpFindings, err := protocolScanner.ScanSMTP(ctx, smtpTarget)
+			if err != nil {
+				log.Debug("SMTP protocol scan failed", "target", smtpTarget, "error", err)
+			} else if len(smtpFindings) > 0 {
+				allFindings = append(allFindings, smtpFindings...)
+				break // Found SMTP service, no need to test other ports
+			}
+		}
+	}
+	
+	// Test LDAP if port 389/636 is in target or hostname suggests LDAP
+	if strings.Contains(target, "ldap") || strings.Contains(target, ":389") || strings.Contains(target, ":636") {
+		
+		// Try common LDAP ports
+		ldapPorts := []string{"389", "636"}
+		for _, port := range ldapPorts {
+			var ldapTarget string
+			if parsedURL, err := url.Parse(target); err == nil {
+				ldapTarget = fmt.Sprintf("%s:%s", parsedURL.Host, port)
+			} else {
+				ldapTarget = fmt.Sprintf("%s:%s", target, port)
+			}
+			
+			ldapFindings, err := protocolScanner.ScanLDAP(ctx, ldapTarget)
+			if err != nil {
+				log.Debug("LDAP protocol scan failed", "target", ldapTarget, "error", err)
+			} else if len(ldapFindings) > 0 {
+				allFindings = append(allFindings, ldapFindings...)
+				break // Found LDAP service, no need to test other ports
+			}
+		}
+	}
+	
+	log.WithContext(ctx).Info("Protocol security tests completed", 
+		"target", target, "findings_count", len(allFindings))
+	
+	return allFindings
 }
 
 // DiscoveryLogger wraps the internal logger for the discovery engine

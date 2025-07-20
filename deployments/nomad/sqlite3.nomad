@@ -1,49 +1,45 @@
-job "shells-scanner-web" {
+job "shells-sqlite3" {
   datacenters = ["dc1"]
   type        = "service"
   
-  group "web" {
+  group "database" {
     count = 1
     
     network {
-      port "http" {
-        static = 8080
+      port "db" {
+        static = 8081
       }
     }
     
     service {
-      name = "shells-scanner-web"
-      port = "http"
+      name = "shells-database"
+      port = "db"
       
       check {
-        type     = "http"
-        path     = "/health"
+        type     = "tcp"
         interval = "30s"
         timeout  = "5s"
       }
     }
     
-    task "scanner-web" {
+    task "sqlite-server" {
       driver = "docker"
       
       config {
-        image = "shells:latest"
-        ports = ["http"]
-        command = "/shells"
-        args = ["scan", "--web-mode", "--port", "8080"]
+        image = "alpine:latest"
+        command = "/bin/sh"
+        args = ["-c", "while true; do sleep 3600; done"]
+        ports = ["db"]
       }
       
       env {
-        SHELLS_LOG_LEVEL = "info"
-        SHELLS_LOG_FORMAT = "json"
         SHELLS_DATABASE_DRIVER = "sqlite3"
         SHELLS_DATABASE_DSN = "/data/shells.db"
-        OTEL_EXPORTER_OTLP_ENDPOINT = "http://otel-collector:4317"
       }
       
       resources {
-        cpu    = 500
-        memory = 512
+        cpu    = 200
+        memory = 256
       }
       
       volume_mount {

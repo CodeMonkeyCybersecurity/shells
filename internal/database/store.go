@@ -23,11 +23,8 @@ type sqlStore struct {
 	logger *logger.Logger
 }
 
-// getPlaceholder returns the appropriate placeholder for the database driver
+// getPlaceholder returns the appropriate placeholder for SQLite
 func (s *sqlStore) getPlaceholder(n int) string {
-	if s.cfg.Driver == "postgres" {
-		return fmt.Sprintf("$%d", n)
-	}
 	return "?"
 }
 

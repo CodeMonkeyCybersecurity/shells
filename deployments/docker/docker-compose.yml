@@ -13,22 +13,6 @@ services:
       timeout: 5s
       retries: 5
 
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: webscan
-      POSTGRES_USER: webscan
-      POSTGRES_PASSWORD: webscan_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U webscan"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   otel-collector:
     image: otel/opentelemetry-collector:latest
     command: ["--config=/etc/otel-collector-config.yaml"]
@@ -49,11 +33,10 @@ services:
     command: ["worker", "--config", "/app/config.yaml"]
     depends_on:
       - redis
-      - postgres
       - otel-collector
     environment:
       WEBSCAN_REDIS_ADDR: redis:6379
-      WEBSCAN_DATABASE_DSN: "host=postgres user=webscan password=webscan_password dbname=webscan sslmode=disable"
+      WEBSCAN_DATABASE_DSN: "shells.db"
       WEBSCAN_TELEMETRY_ENDPOINT: otel-collector:4317
     volumes:
       - ./config.yaml:/app/config.yaml
@@ -78,4 +61,3 @@ services:
     
 volumes:
   redis_data:
-  postgres_data:

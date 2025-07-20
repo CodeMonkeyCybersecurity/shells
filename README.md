@@ -257,7 +257,7 @@ WebScan CLI includes state-of-the-art security testing modules designed for seri
 1. **Job Queue**: Redis-based priority queue for scan jobs
 2. **Worker Pool**: Scalable workers that process scan jobs
 3. **Plugin System**: Modular scanner integration
-4. **Result Store**: SQLite/PostgreSQL for persistent storage
+4. **Result Store**: SQLite for persistent storage
 5. **Telemetry**: OpenTelemetry for distributed tracing and metrics
 
 ### Security Features
