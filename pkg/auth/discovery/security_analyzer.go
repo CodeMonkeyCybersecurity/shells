@@ -54,17 +54,18 @@ func (s *SecurityAnalyzer) AnalyzeImplementation(impl *AuthImplementation) ([]st
 			)
 		}
 
+		// Common OAuth2 vulnerabilities
 		vulnerabilities = append(vulnerabilities,
-			"Potential for authorization server mix-up attacks",
-			"Possible redirect URI manipulation",
-			"Token replay attacks if not properly validated",
+			"Potential redirect URI manipulation if not properly validated",
+			"Possible authorization code replay if not properly handled",
+			"JWT algorithm confusion attacks if JWT tokens are used",
 		)
 
 	case AuthTypeSAML:
 		features = append(features,
-			"XML-based SSO",
-			"Identity federation",
-			"Attribute-based authorization",
+			"XML-based assertions",
+			"Single Sign-On capabilities",
+			"Attribute-based access control",
 		)
 
 		vulnerabilities = append(vulnerabilities,
@@ -148,25 +149,27 @@ func (s *SecurityAnalyzer) AnalyzeImplementation(impl *AuthImplementation) ([]st
 
 	case AuthTypeBasicAuth:
 		vulnerabilities = append(vulnerabilities,
-			"Credentials transmitted in every request",
-			"Base64 encoding is not encryption",
-			"Vulnerable to replay attacks",
+			"Credentials transmitted in base64 encoding (not encryption)",
+			"Vulnerable to credential theft if not over HTTPS",
 			"No built-in session management",
+			"Credentials sent with every request",
 		)
 
 	case AuthTypeDigestAuth:
-		features = append(features, "Password not sent in plaintext")
+		features = append(features, "Challenge-response mechanism")
 		vulnerabilities = append(vulnerabilities,
-			"MD5 hash algorithm is cryptographically weak",
 			"Vulnerable to rainbow table attacks",
-			"No protection against replay attacks",
+			"Uses MD5 which is cryptographically weak",
+			"Susceptible to man-in-the-middle attacks",
 		)
 
 	case AuthTypeFormLogin:
+		features = append(features, "User-friendly login interface")
 		vulnerabilities = append(vulnerabilities,
-			"Session management complexity",
-			"Vulnerable to session fixation",
-			"CSRF attacks if not properly protected",
+			"Vulnerable to credential stuffing attacks",
+			"Potential for SQL injection if not properly parameterized",
+			"Session fixation if sessions not properly managed",
+			"CSRF attacks if no proper token protection",
 		)
 	}
 
