@@ -54,6 +54,9 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/likexian/gokit v0.25.15 // indirect
+	github.com/likexian/whois v1.15.6 // indirect
+	github.com/likexian/whois-parser v1.24.20 // indirect
 	github.com/miekg/dns v1.1.67 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

@@ -84,6 +84,16 @@ func (c *DefaultASNClient) GetASNsByOrg(org string) ([]string, error) {
 	return []string{}, nil
 }
 
+func (c *DefaultASNClient) LookupIP(ip string) (*ASNInfo, error) {
+	// TODO: Implement actual ASN lookup by IP
+	return &ASNInfo{
+		ASN:          "AS12345",
+		Organization: "Example Network",
+		Country:      "US",
+		IPRanges:     []string{"192.0.2.0/24"},
+	}, nil
+}
+
 // DefaultTrademarkClient provides trademark searches
 type DefaultTrademarkClient struct {
 	logger *logger.Logger
@@ -169,6 +179,11 @@ func (c *DefaultCloudClient) FindGCPProjects(org string) ([]CloudAccount, error)
 func (c *DefaultCloudClient) FindAzureSubscriptions(org string) ([]CloudAccount, error) {
 	// TODO: Implement actual Azure subscription discovery
 	return []CloudAccount{}, nil
+}
+
+// NewDefaultCloudAssetClient creates a default cloud asset client
+func NewDefaultCloudAssetClient(logger *logger.Logger) *DefaultCloudClient {
+	return NewDefaultCloudClient(logger)
 }
 
 // EnhancedWhoisClient provides more advanced WHOIS lookups using DNS

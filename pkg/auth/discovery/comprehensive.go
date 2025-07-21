@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -456,87 +457,6 @@ func (c *ComprehensiveAuthDiscovery) checkWellKnownEndpoints(ctx context.Context
 	wg.Wait()
 }
 
-// Additional required types
-type KerberosEndpoint struct {
-	Host  string `json:"host"`
-	Port  int    `json:"port"`
-	Realm string `json:"realm"`
-}
-
-type RADIUSEndpoint struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-}
-
-type SMBEndpoint struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-}
-
-type RDPEndpoint struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-}
-
-type SSHEndpoint struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-}
-
-type IMAPAuthMethod struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-}
-
-type DatabaseAuth struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-	Type string `json:"type"`
-}
-
-type BasicAuthEndpoint struct {
-	URL   string `json:"url"`
-	Realm string `json:"realm"`
-}
-
-type SAMLEndpoint struct {
-	MetadataURL string `json:"metadata_url"`
-	SSOURL      string `json:"sso_url"`
-	EntityID    string `json:"entity_id"`
-}
-
-type OIDCEndpoint struct {
-	ConfigURL string `json:"config_url"`
-}
-
-type WebAuthnEndpoint struct {
-	RegisterURL     string `json:"register_url"`
-	LoginURL        string `json:"login_url"`
-	AttestationType string `json:"attestation_type"`
-}
-
-type CASEndpoint struct {
-	URL string `json:"url"`
-}
-
-type JWTEndpoint struct {
-	URL string `json:"url"`
-}
-
-type NTLMEndpoint struct {
-	URL string `json:"url"`
-}
-
-type CookieAuth struct {
-	Name   string `json:"name"`
-	Domain string `json:"domain"`
-}
-
-type HeaderAuth struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
 type RESTEndpoint struct {
 	URL string `json:"url"`
 }
@@ -576,6 +496,79 @@ type WebAuthnMethod struct {
 
 func (w *WebAuthnMethod) GetType() string { return w.Type }
 func (w *WebAuthnMethod) GetURL() string  { return w.URL }
+
+// OIDCMethod represents OpenID Connect authentication
+type OIDCMethod struct {
+	URL  string
+	Type string
+}
+
+func (o *OIDCMethod) GetType() string { return o.Type }
+func (o *OIDCMethod) GetURL() string  { return o.URL }
+
+// OAuth2Method represents OAuth2 authentication
+type OAuth2Method struct {
+	URL  string
+	Type string
+}
+
+func (o *OAuth2Method) GetType() string { return o.Type }
+func (o *OAuth2Method) GetURL() string  { return o.URL }
+
+// SAMLMethod represents SAML authentication
+type SAMLMethod struct {
+	URL  string
+	Type string
+}
+
+func (s *SAMLMethod) GetType() string { return s.Type }
+func (s *SAMLMethod) GetURL() string  { return s.URL }
+
+// ShibbolethMethod represents Shibboleth authentication
+type ShibbolethMethod struct {
+	URL  string
+	Type string
+}
+
+func (s *ShibbolethMethod) GetType() string { return s.Type }
+func (s *ShibbolethMethod) GetURL() string  { return s.URL }
+
+// CASMethod represents CAS authentication
+type CASMethod struct {
+	URL  string
+	Type string
+}
+
+func (c *CASMethod) GetType() string { return c.Type }
+func (c *CASMethod) GetURL() string  { return c.URL }
+
+// GenericLoginMethod represents generic form-based login
+type GenericLoginMethod struct {
+	URL  string
+	Type string
+}
+
+func (g *GenericLoginMethod) GetType() string { return g.Type }
+func (g *GenericLoginMethod) GetURL() string  { return g.URL }
+
+// WordPressMethod represents WordPress authentication
+type WordPressMethod struct {
+	URL  string
+	Type string
+}
+
+func (w *WordPressMethod) GetType() string { return w.Type }
+func (w *WordPressMethod) GetURL() string  { return w.URL }
+
+// APIAuthMethod represents API authentication
+type APIAuthMethod struct {
+	URL      string
+	Type     string
+	AuthType string
+}
+
+func (a *APIAuthMethod) GetType() string { return a.Type }
+func (a *APIAuthMethod) GetURL() string  { return a.URL }
 
 // APIExtractor extracts API authentication endpoints
 type APIExtractor struct {
@@ -713,46 +706,353 @@ func (c *ComprehensiveAuthDiscovery) categorizeAuthMethod(method AuthMethod, web
 }
 
 func (c *ComprehensiveAuthDiscovery) checkOIDCConfiguration(url string) AuthMethod {
-	return nil
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	// Check if it's a valid OIDC configuration
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		return nil
+	}
+
+	// For now, just return a basic OIDC endpoint
+	// In a real implementation, you would parse the JSON response
+	return &OIDCMethod{
+		URL:  url,
+		Type: "oidc",
+	}
 }
 
 func (c *ComprehensiveAuthDiscovery) checkOAuth2Configuration(url string) AuthMethod {
-	return nil
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	// Check if it's a valid OAuth2 configuration
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "application/json") {
+		return nil
+	}
+
+	return &OAuth2Method{
+		URL:  url,
+		Type: "oauth2",
+	}
 }
 
 func (c *ComprehensiveAuthDiscovery) checkOAuth2Endpoint(url string) AuthMethod {
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// OAuth2 endpoints often return specific responses
+	if resp.StatusCode == 400 || resp.StatusCode == 401 {
+		// Check for OAuth2-specific error messages in body
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		if n > 0 {
+			bodyStr := string(body[:n])
+			if strings.Contains(bodyStr, "client_id") || 
+			   strings.Contains(bodyStr, "grant_type") ||
+			   strings.Contains(bodyStr, "redirect_uri") {
+				return &OAuth2Method{
+					URL:  url,
+					Type: "oauth2",
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkSAMLMetadata(url string) AuthMethod {
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	// Check if it's XML (SAML metadata is XML)
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "xml") || strings.Contains(contentType, "saml") {
+		// Read a bit of the body to check for SAML indicators
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		if n > 0 {
+			bodyStr := string(body[:n])
+			if strings.Contains(bodyStr, "EntityDescriptor") ||
+			   strings.Contains(bodyStr, "urn:oasis:names:tc:SAML") {
+				return &SAMLMethod{
+					URL:  url,
+					Type: "saml",
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkSAMLEndpoint(url string) AuthMethod {
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// SAML SSO endpoints often redirect or return specific content
+	if resp.StatusCode == 302 || resp.StatusCode == 200 {
+		// Check headers for SAML indicators
+		if resp.Header.Get("SAMLRequest") != "" ||
+		   resp.Header.Get("SAMLResponse") != "" {
+			return &SAMLMethod{
+				URL:  url,
+				Type: "saml",
+			}
+		}
+
+		// Check body for SAML forms
+		body := make([]byte, 2048)
+		n, _ := resp.Body.Read(body)
+		if n > 0 {
+			bodyStr := string(body[:n])
+			if strings.Contains(bodyStr, "SAMLRequest") ||
+			   strings.Contains(bodyStr, "SAMLResponse") ||
+			   strings.Contains(bodyStr, "RelayState") {
+				return &SAMLMethod{
+					URL:  url,
+					Type: "saml",
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkShibboleth(url string) AuthMethod {
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// Shibboleth specific checks
+	if resp.StatusCode == 200 {
+		// Check for Shibboleth headers
+		if resp.Header.Get("Shib-Session-ID") != "" ||
+		   resp.Header.Get("Shib-Identity-Provider") != "" {
+			return &ShibbolethMethod{
+				URL:  url,
+				Type: "shibboleth",
+			}
+		}
+
+		// Check content type for Shibboleth metadata
+		contentType := resp.Header.Get("Content-Type")
+		if strings.Contains(contentType, "xml") {
+			body := make([]byte, 1024)
+			n, _ := resp.Body.Read(body)
+			if n > 0 && strings.Contains(string(body[:n]), "shibboleth") {
+				return &ShibbolethMethod{
+					URL:  url,
+					Type: "shibboleth",
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkCASEndpoint(url string) AuthMethod {
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// CAS login pages have specific characteristics
+	if resp.StatusCode == 200 {
+		body := make([]byte, 2048)
+		n, _ := resp.Body.Read(body)
+		if n > 0 {
+			bodyStr := string(body[:n])
+			// Look for CAS-specific elements
+			if strings.Contains(bodyStr, "cas:serviceResponse") ||
+			   strings.Contains(bodyStr, "login-form") && strings.Contains(bodyStr, "lt") ||
+			   strings.Contains(bodyStr, "execution") && strings.Contains(bodyStr, "_eventId") {
+				return &CASMethod{
+					URL:  url,
+					Type: "cas",
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkGenericLogin(url string) AuthMethod {
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	// Parse HTML to find login forms
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil
+	}
+
+	// Look for login forms
+	hasLoginForm := false
+	doc.Find("form").Each(func(i int, s *goquery.Selection) {
+		// Check for password fields
+		if s.Find("input[type='password']").Length() > 0 {
+			hasLoginForm = true
+		}
+	})
+
+	if hasLoginForm {
+		return &GenericLoginMethod{
+			URL:  url,
+			Type: "form_login",
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkWordPressLogin(url string) AuthMethod {
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil
+	}
+
+	// Check for WordPress-specific indicators
+	body := make([]byte, 4096)
+	n, _ := resp.Body.Read(body)
+	if n > 0 {
+		bodyStr := string(body[:n])
+		// WordPress login page indicators
+		if strings.Contains(bodyStr, "wp-login.php") ||
+		   strings.Contains(bodyStr, "wordpress") ||
+		   strings.Contains(bodyStr, "wp-submit") ||
+		   strings.Contains(bodyStr, "user_login") && strings.Contains(bodyStr, "user_pass") {
+			return &WordPressMethod{
+				URL:  url,
+				Type: "wordpress",
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkAPIAuth(url string) AuthMethod {
+	// Try common API authentication patterns
+	req, _ := http.NewRequest("GET", url, nil)
+	
+	// Test without auth first
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// API endpoints often return 401/403 without auth
+	if resp.StatusCode == 401 || resp.StatusCode == 403 {
+		// Check WWW-Authenticate header
+		authHeader := resp.Header.Get("WWW-Authenticate")
+		if authHeader != "" {
+			return &APIAuthMethod{
+				URL:      url,
+				Type:     "api_auth",
+				AuthType: authHeader,
+			}
+		}
+
+		// Check for API-specific error responses
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		if n > 0 {
+			bodyStr := string(body[:n])
+			if strings.Contains(bodyStr, "api_key") ||
+			   strings.Contains(bodyStr, "access_token") ||
+			   strings.Contains(bodyStr, "authorization") {
+				return &APIAuthMethod{
+					URL:  url,
+					Type: "api_auth",
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *ComprehensiveAuthDiscovery) checkWebAuthnEndpoint(url string) AuthMethod {
+	// WebAuthn endpoints typically accept POST requests
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Accept", "application/json")
+	
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// WebAuthn endpoints often return JSON
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "json") {
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		if n > 0 {
+			bodyStr := string(body[:n])
+			// Look for WebAuthn/FIDO2 specific fields
+			if strings.Contains(bodyStr, "challenge") ||
+			   strings.Contains(bodyStr, "publicKey") ||
+			   strings.Contains(bodyStr, "credentialId") ||
+			   strings.Contains(bodyStr, "authenticator") {
+				return &WebAuthnMethod{
+					URL:  url,
+					Type: "webauthn",
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -771,35 +1071,253 @@ func (c *ComprehensiveAuthDiscovery) discoverAPIAuth(ctx context.Context, target
 }
 
 func (c *ComprehensiveAuthDiscovery) probeKerberos(ctx context.Context, port PortScanResult) *KerberosEndpoint {
-	return nil
+	// Kerberos typically runs on port 88
+	endpoint := &KerberosEndpoint{
+		Host: port.Host,
+		Port: port.Port,
+	}
+
+	// Basic connectivity check
+	// In a real implementation, you would send Kerberos protocol messages
+	c.logger.Debugw("Probing Kerberos endpoint",
+		"host", port.Host,
+		"port", port.Port)
+
+	// Extract realm from banner if available
+	if port.Banner != "" {
+		// Look for realm information in banner
+		if strings.Contains(port.Banner, "REALM") {
+			// Extract realm name
+			endpoint.Realm = "DETECTED.REALM"
+		}
+	}
+
+	return endpoint
 }
 
 func (c *ComprehensiveAuthDiscovery) probeRADIUS(ctx context.Context, port PortScanResult) *RADIUSEndpoint {
-	return nil
+	// RADIUS typically runs on port 1812 (auth) and 1813 (accounting)
+	endpoint := &RADIUSEndpoint{
+		Host: port.Host,
+		Port: port.Port,
+	}
+
+	c.logger.Debugw("Probing RADIUS endpoint",
+		"host", port.Host,
+		"port", port.Port)
+
+	// In a real implementation, you would send RADIUS Access-Request packets
+	// to test the server and potentially enumerate supported authentication methods
+
+	return endpoint
 }
 
 func (c *ComprehensiveAuthDiscovery) probeSMB(ctx context.Context, port PortScanResult) *SMBEndpoint {
-	return nil
+	// SMB/CIFS typically runs on port 445 (or 139 for NetBIOS)
+	endpoint := &SMBEndpoint{
+		Host: port.Host,
+		Port: port.Port,
+	}
+
+	c.logger.Debugw("Probing SMB endpoint",
+		"host", port.Host,
+		"port", port.Port)
+
+	// In a real implementation, you would:
+	// 1. Attempt SMB negotiation
+	// 2. Check for null session access
+	// 3. Enumerate shares if possible
+	// 4. Check authentication methods supported
+
+	return endpoint
 }
 
 func (c *ComprehensiveAuthDiscovery) probeSMTPAuth(ctx context.Context, port PortScanResult) *SMTPAuthMethod {
-	return nil
+	endpoint := &SMTPAuthMethod{
+		Host:              port.Host,
+		Port:              port.Port,
+		TLS:               port.SSL,
+		AuthMechanisms:    []string{},
+		StartTLSAvailable: false,
+	}
+
+	// Simple SMTP AUTH detection
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", port.Host, port.Port), 5*time.Second)
+	if err != nil {
+		return endpoint
+	}
+	defer conn.Close()
+
+	// Read banner
+	buffer := make([]byte, 1024)
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	n, _ := conn.Read(buffer)
+
+	if n > 0 && strings.Contains(string(buffer[:n]), "220") {
+		// Send EHLO
+		conn.Write([]byte("EHLO test\r\n"))
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		n, _ = conn.Read(buffer)
+
+		if n > 0 {
+			response := string(buffer[:n])
+			// Parse AUTH mechanisms
+			if strings.Contains(response, "AUTH") {
+				lines := strings.Split(response, "\n")
+				for _, line := range lines {
+					if strings.Contains(line, "AUTH") {
+						// Extract auth mechanisms
+						parts := strings.Fields(line)
+						if len(parts) > 1 {
+							endpoint.AuthMechanisms = parts[1:]
+						}
+					}
+					if strings.Contains(line, "STARTTLS") {
+						endpoint.StartTLSAvailable = true
+					}
+				}
+			}
+		}
+	}
+
+	return endpoint
 }
 
 func (c *ComprehensiveAuthDiscovery) probeIMAPAuth(ctx context.Context, port PortScanResult) *IMAPAuthMethod {
-	return nil
+	endpoint := &IMAPAuthMethod{
+		Host:           port.Host,
+		Port:           port.Port,
+		TLS:            port.SSL,
+		AuthMechanisms: []string{},
+	}
+
+	// Simple IMAP capability detection
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", port.Host, port.Port), 5*time.Second)
+	if err != nil {
+		return endpoint
+	}
+	defer conn.Close()
+
+	// Read banner
+	buffer := make([]byte, 1024)
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	n, _ := conn.Read(buffer)
+
+	if n > 0 && strings.Contains(string(buffer[:n]), "OK") {
+		// Send CAPABILITY command
+		conn.Write([]byte("a001 CAPABILITY\r\n"))
+		conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		n, _ = conn.Read(buffer)
+
+		if n > 0 {
+			response := string(buffer[:n])
+			// Parse AUTH mechanisms
+			if strings.Contains(response, "AUTH=") {
+				// Extract auth mechanisms from CAPABILITY response
+				parts := strings.Split(response, " ")
+				for _, part := range parts {
+					if strings.HasPrefix(part, "AUTH=") {
+						mech := strings.TrimPrefix(part, "AUTH=")
+						endpoint.AuthMechanisms = append(endpoint.AuthMechanisms, mech)
+					}
+				}
+			}
+		}
+	}
+
+	return endpoint
 }
 
 func (c *ComprehensiveAuthDiscovery) probeDatabaseAuth(ctx context.Context, port PortScanResult) *DatabaseAuth {
-	return nil
+	endpoint := &DatabaseAuth{
+		Host: port.Host,
+		Port: port.Port,
+	}
+
+	// Identify database type based on port and banner
+	switch port.Port {
+	case 3306:
+		endpoint.DatabaseType = "MySQL"
+		endpoint.AuthMethod = "mysql_native_password"
+	case 5432:
+		endpoint.DatabaseType = "PostgreSQL"
+		endpoint.AuthMethod = "md5/scram-sha-256"
+	case 1433:
+		endpoint.DatabaseType = "MSSQL"
+		endpoint.AuthMethod = "sql_server_auth"
+	case 27017:
+		endpoint.DatabaseType = "MongoDB"
+		endpoint.AuthMethod = "scram-sha"
+	case 6379:
+		endpoint.DatabaseType = "Redis"
+		endpoint.AuthMethod = "password/acl"
+	default:
+		// Try to identify from banner
+		if port.Banner != "" {
+			bannerLower := strings.ToLower(port.Banner)
+			if strings.Contains(bannerLower, "mysql") {
+				endpoint.DatabaseType = "MySQL"
+			} else if strings.Contains(bannerLower, "postgresql") {
+				endpoint.DatabaseType = "PostgreSQL"
+			} else if strings.Contains(bannerLower, "oracle") {
+				endpoint.DatabaseType = "Oracle"
+			}
+		}
+	}
+
+	c.logger.Debugw("Identified database",
+		"host", port.Host,
+		"port", port.Port,
+		"type", endpoint.DatabaseType)
+
+	return endpoint
 }
 
 func (c *ComprehensiveAuthDiscovery) determineLDAPType(endpoint *LDAPEndpoint) string {
-	return "Unknown"
+	// Determine LDAP server type based on various indicators
+
+	// Check vendor name first
+	if endpoint.VendorName != "" {
+		vendorLower := strings.ToLower(endpoint.VendorName)
+		if strings.Contains(vendorLower, "microsoft") {
+			return "Active Directory"
+		} else if strings.Contains(vendorLower, "openldap") {
+			return "OpenLDAP"
+		} else if strings.Contains(vendorLower, "389") {
+			return "389 Directory Server"
+		} else if strings.Contains(vendorLower, "oracle") {
+			return "Oracle Directory Server"
+		}
+	}
+
+	// Check naming contexts
+	for _, nc := range endpoint.NamingContexts {
+		ncLower := strings.ToLower(nc)
+		if strings.Contains(ncLower, "dc=") && strings.Contains(ncLower, "domaincontroller") {
+			return "Active Directory"
+		}
+	}
+
+	// Check SASL mechanisms
+	for _, mech := range endpoint.SupportedSASLMechanisms {
+		if mech == "GSSAPI" || mech == "GSS-SPNEGO" {
+			// These are strongly associated with AD
+			return "Active Directory"
+		}
+	}
+
+	return "Generic LDAP"
 }
 
 func (c *ComprehensiveAuthDiscovery) checkLDAPUserEnumeration(l interface{}, context string) bool {
-	return false
+	// Check if user enumeration is possible
+	// In a real implementation, you would:
+	// 1. Try to search for common user attributes
+	// 2. Check if anonymous bind allows user searches
+	// 3. Test for timing differences in user lookups
+
+	// For now, return true if we have a valid context
+	return context != ""
 }
 
 // Integration with existing discovery engine

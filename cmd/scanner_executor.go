@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
@@ -170,26 +171,116 @@ func executeAuthScanner(ctx context.Context, rec discovery.ScannerRecommendation
 }
 
 func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.ScannerRecommendation) error {
-	log.Debugw("Executing auth scanner locally",
+	log.Infow("Executing comprehensive auth scanner locally",
 		"target", target,
 		"args", rec.Arguments)
 
-	// TODO: Implement actual auth scanner logic
-	// For now, create a placeholder finding
-	if store != nil {
-		finding := types.Finding{
-			ID:          fmt.Sprintf("auth-context-%d", time.Now().Unix()),
+	// Import the auth discovery package
+	authDiscovery := authpkg.NewComprehensiveAuthDiscovery(log)
+	
+	// Run comprehensive auth discovery
+	inventory, err := authDiscovery.DiscoverAll(ctx, target)
+	if err != nil {
+		log.Errorw("Auth discovery failed", "error", err, "target", target)
+		return err
+	}
+	
+	// Convert inventory to findings
+	var findings []types.Finding
+	
+	// Network authentication findings
+	if inventory.NetworkAuth != nil {
+		// LDAP findings
+		for _, ldap := range inventory.NetworkAuth.LDAP {
+			findings = append(findings, types.Finding{
+				ID:          fmt.Sprintf("auth-ldap-%s-%d", ldap.Host, time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        "LDAP Authentication",
+				Severity:    types.SeverityMedium,
+				Title:       fmt.Sprintf("LDAP Server Found at %s:%d", ldap.Host, ldap.Port),
+				Description: fmt.Sprintf("LDAP server type: %s, Anonymous bind: %v", ldap.Type, ldap.AnonymousBindAllowed),
+				Tool:        "comprehensive-auth",
+				Evidence:    fmt.Sprintf("Target: %s\nNaming contexts: %v\nSASL mechanisms: %v", target, ldap.NamingContexts, ldap.SupportedSASLMechanisms),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+			})
+		}
+		
+		// Add findings for other network auth methods
+		if len(inventory.NetworkAuth.Kerberos) > 0 {
+			findings = append(findings, types.Finding{
+				ID:          fmt.Sprintf("auth-kerberos-%d", time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        "Kerberos Authentication",
+				Severity:    types.SeverityMedium,
+				Title:       fmt.Sprintf("Kerberos Authentication Found (%d endpoints)", len(inventory.NetworkAuth.Kerberos)),
+				Description: "Kerberos authentication endpoints discovered",
+				Tool:        "comprehensive-auth",
+				Evidence:    fmt.Sprintf("Target: %s", target),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+			})
+		}
+	}
+	
+	// Web authentication findings
+	if inventory.WebAuth != nil {
+		// Form login findings
+		for _, form := range inventory.WebAuth.FormLogin {
+			findings = append(findings, types.Finding{
+				ID:          fmt.Sprintf("auth-form-%d", time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        "Form-Based Authentication",
+				Severity:    types.SeverityInfo,
+				Title:       fmt.Sprintf("Login Form Found at %s", form.URL),
+				Description: fmt.Sprintf("Form method: %s, Has CSRF: %v", form.Method, form.CSRFToken),
+				Tool:        "comprehensive-auth",
+				Evidence:    fmt.Sprintf("Target: %s\nUsername field: %s\nPassword field: %s", target, form.UsernameField, form.PasswordField),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+			})
+		}
+		
+		// OAuth2/OIDC findings
+		if len(inventory.WebAuth.OAuth2) > 0 || len(inventory.WebAuth.OIDC) > 0 {
+			findings = append(findings, types.Finding{
+				ID:          fmt.Sprintf("auth-oauth-%d", time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        "OAuth2/OIDC Authentication",
+				Severity:    types.SeverityInfo,
+				Title:       "Modern Authentication Methods Found",
+				Description: fmt.Sprintf("OAuth2 endpoints: %d, OIDC endpoints: %d", len(inventory.WebAuth.OAuth2), len(inventory.WebAuth.OIDC)),
+				Tool:        "comprehensive-auth",
+				Evidence:    fmt.Sprintf("Target: %s", target),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+			})
+		}
+	}
+	
+	// Custom authentication findings
+	for _, custom := range inventory.CustomAuth {
+		findings = append(findings, types.Finding{
+			ID:          fmt.Sprintf("auth-custom-%s-%d", custom.Type, time.Now().Unix()),
 			ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
-			Type:        "Context-Aware Auth Test",
-			Severity:    types.SeverityInfo,
-			Title:       "Authentication Methods Tested",
-			Description: fmt.Sprintf("Tested authentication on %s with args: %v", target, rec.Arguments),
-			Tool:        "auth-scanner",
-			Evidence:    fmt.Sprintf("Target: %s\nPriority: %d", target, rec.Priority),
+			Type:        "Custom Authentication",
+			Severity:    types.SeverityHigh,
+			Title:       fmt.Sprintf("Custom Authentication Detected: %s", custom.Type),
+			Description: custom.Description,
+			Tool:        "comprehensive-auth",
+			Evidence:    fmt.Sprintf("Target: %s\nConfidence: %.2f\nIndicators: %v", target, custom.Confidence, custom.Indicators),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
+		})
+	}
+	
+	// Save all findings
+	if store != nil && len(findings) > 0 {
+		if err := store.SaveFindings(ctx, findings); err != nil {
+			log.Errorw("Failed to save auth findings", "error", err)
+			return err
 		}
-		return store.SaveFindings(ctx, []types.Finding{finding})
+		log.Infow("Saved auth discovery findings", "count", len(findings))
 	}
 	
 	return nil

@@ -112,6 +112,7 @@ type CertificateClient interface {
 type ASNClient interface {
 	LookupASN(asn string) (*ASNInfo, error)
 	GetASNsByOrg(org string) ([]string, error)
+	LookupIP(ip string) (*ASNInfo, error)
 }
 
 type TrademarkClient interface {

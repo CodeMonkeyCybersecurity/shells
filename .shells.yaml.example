@@ -261,3 +261,42 @@ tools:
 # SHELLS_FAVICON_SHODAN_API_KEY=your_shodan_key
 # SHELLS_SECURITY_API_KEY=your_api_key
 # SHELLS_DATABASE_DSN=shells.db
+
+// Add to .shells.yaml.example
+
+discovery:
+  # Organization correlation settings
+  organization:
+    enable_whois: true
+    enable_certs: true
+    enable_asn: true
+    enable_trademark: false  # Requires API key
+    enable_linkedin: false   # Requires API key
+    enable_github: true
+    enable_cloud: true
+    cache_ttl: "24h"
+    max_correlation_workers: 5
+    
+  # Subsidiary discovery
+  subsidiary_discovery:
+    enabled: true
+    max_depth: 2  # How many levels of subsidiaries to discover
+    
+  # Employee discovery  
+  employee_discovery:
+    enabled: false  # Requires LinkedIn API
+    max_employees: 100
+    
+  # Cloud asset discovery
+  cloud_discovery:
+    aws:
+      enabled: true
+      use_public_snapshots: true
+      use_public_amis: true
+      check_s3_buckets: true
+    azure:
+      enabled: true
+      check_storage_accounts: true
+    gcp:
+      enabled: true
+      check_storage_buckets: true

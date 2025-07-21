@@ -23,6 +23,9 @@ type sqlStore struct {
 	logger *logger.Logger
 }
 
+// Store is a public type alias for sqlStore
+type Store = sqlStore
+
 // getPlaceholder returns the appropriate placeholder for SQLite
 func (s *sqlStore) getPlaceholder(n int) string {
 	return "?"
@@ -771,6 +774,11 @@ func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summar
 
 func (s *sqlStore) Close() error {
 	return s.db.Close()
+}
+
+// DB returns the underlying sqlx.DB instance
+func (s *sqlStore) DB() *sqlx.DB {
+	return s.db
 }
 
 // Enhanced query methods for findings

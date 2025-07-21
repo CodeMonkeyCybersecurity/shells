@@ -87,8 +87,8 @@ func NewJavaScriptAnalyzer(logger *logger.Logger) *JavaScriptAnalyzer {
 }
 
 func (j *JavaScriptAnalyzer) initializePatterns() {
-	// API endpoint patterns
-	j.patterns["api_endpoint"] = regexp.MustCompile(`(["'])(\/api\/[^"']+|https?:\/\/[^"']+\/api[^"']+)\1`)
+	// API endpoint patterns - fixed regex to avoid invalid escape sequence
+	j.patterns["api_endpoint"] = regexp.MustCompile(`(["'])(\/api\/[^"']+|https?:\/\/[^"']+\/api[^"']+)(["'])`)
 
 	// Authentication function patterns
 	j.patterns["auth_function"] = regexp.MustCompile(`(login|authenticate|signin|getToken|refreshToken|logout)\s*[:(]`)

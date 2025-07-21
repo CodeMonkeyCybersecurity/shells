@@ -17,13 +17,14 @@ import (
 
 // Engine is the main discovery engine
 type Engine struct {
-	parser     *TargetParser
-	classifier *discoverypkg.IdentifierClassifier
-	modules    map[string]DiscoveryModule
-	config     *DiscoveryConfig
-	sessions   map[string]*DiscoverySession
-	mutex      sync.RWMutex
-	logger     *logger.Logger // Enhanced structured logger
+	parser        *TargetParser
+	classifier    *discoverypkg.IdentifierClassifier
+	modules       map[string]DiscoveryModule
+	config        *DiscoveryConfig
+	sessions      map[string]*DiscoverySession
+	mutex         sync.RWMutex
+	logger        *logger.Logger // Enhanced structured logger
+	scopeValidator *ScopeValidator
 }
 
 // DiscoveryModule interface for discovery modules
@@ -36,6 +37,11 @@ type DiscoveryModule interface {
 
 // NewEngine creates a new discovery engine
 func NewEngine(discoveryConfig *DiscoveryConfig, structLog *logger.Logger) *Engine {
+	return NewEngineWithScopeValidator(discoveryConfig, structLog, nil)
+}
+
+// NewEngineWithScopeValidator creates a new discovery engine with scope validation
+func NewEngineWithScopeValidator(discoveryConfig *DiscoveryConfig, structLog *logger.Logger, scopeValidator *ScopeValidator) *Engine {
 	if discoveryConfig == nil {
 		discoveryConfig = DefaultDiscoveryConfig()
 	}
@@ -53,12 +59,13 @@ func NewEngine(discoveryConfig *DiscoveryConfig, structLog *logger.Logger) *Engi
 	structLog = structLog.WithComponent("discovery")
 
 	engine := &Engine{
-		parser:     NewTargetParser(),
-		classifier: discoverypkg.NewIdentifierClassifier(),
-		modules:    make(map[string]DiscoveryModule),
-		config:     discoveryConfig,
-		sessions:   make(map[string]*DiscoverySession),
-		logger:     structLog,
+		parser:        NewTargetParser(),
+		classifier:    discoverypkg.NewIdentifierClassifier(),
+		modules:       make(map[string]DiscoveryModule),
+		config:        discoveryConfig,
+		sessions:      make(map[string]*DiscoverySession),
+		logger:        structLog,
+		scopeValidator: scopeValidator,
 	}
 
 	// Register default modules
@@ -437,8 +444,29 @@ func (e *Engine) processDiscoveryResult(session *DiscoverySession, result *Disco
 		return
 	}
 
+	// Filter assets through scope validation if validator is available
+	filteredAssets := result.Assets
+	if e.scopeValidator != nil {
+		var err error
+		filteredAssets, err = e.scopeValidator.FilterAssets(result.Assets)
+		if err != nil {
+			e.logger.Error("Scope validation failed", "error", err)
+			// Continue with unfiltered assets if scope validation fails
+			filteredAssets = result.Assets
+		} else {
+			originalCount := len(result.Assets)
+			filteredCount := len(filteredAssets)
+			if originalCount != filteredCount {
+				e.logger.Info("Assets filtered by scope validation",
+					"original", originalCount,
+					"filtered", filteredCount,
+					"removed", originalCount-filteredCount)
+			}
+		}
+	}
+
 	// Add assets
-	for _, asset := range result.Assets {
+	for _, asset := range filteredAssets {
 		if len(session.Assets) >= e.config.MaxAssets {
 			e.logger.Warn("Maximum assets reached", "max", e.config.MaxAssets)
 			break
