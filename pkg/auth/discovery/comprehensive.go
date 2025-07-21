@@ -19,13 +19,14 @@ import (
 
 // ComprehensiveAuthDiscovery provides intelligent authentication discovery
 type ComprehensiveAuthDiscovery struct {
-	logger       *logger.Logger
-	httpClient   *http.Client
-	portScanner  *PortScanner
-	webCrawler   *WebCrawler
-	jsAnalyzer   *JavaScriptAnalyzer
-	mlDetector   *MLAuthDetectorEngine
-	apiExtractor *APIExtractor
+	logger           *logger.Logger
+	httpClient       *http.Client
+	portScanner      *PortScanner
+	webCrawler       *WebCrawler
+	jsAnalyzer       *JavaScriptAnalyzer
+	mlDetector       *MLAuthDetectorEngine
+	apiExtractor     *APIExtractor
+	securityAnalyzer *SecurityAnalyzer
 }
 
 // AuthInventory contains all discovered authentication methods
@@ -83,11 +84,12 @@ func NewComprehensiveAuthDiscovery(logger *logger.Logger) *ComprehensiveAuthDisc
 				return http.ErrUseLastResponse // Don't follow redirects automatically
 			},
 		},
-		portScanner:  NewPortScanner(logger),
-		webCrawler:   NewWebCrawler(logger),
-		jsAnalyzer:   NewJavaScriptAnalyzer(logger),
-		mlDetector:   NewMLAuthDetector(logger),
-		apiExtractor: NewAPIExtractor(logger),
+		portScanner:      NewPortScanner(logger),
+		webCrawler:       NewWebCrawler(logger),
+		jsAnalyzer:       NewJavaScriptAnalyzer(logger),
+		mlDetector:       NewMLAuthDetector(logger),
+		apiExtractor:     NewAPIExtractor(logger),
+		securityAnalyzer: NewSecurityAnalyzer(logger),
 	}
 }
 
@@ -179,6 +181,8 @@ func (c *ComprehensiveAuthDiscovery) DiscoverAll(ctx context.Context, target str
 
 	return inventory, nil
 }
+
+// DiscoverEndpoints method is now implemented in api_extractor.go
 
 // discoverNetworkAuth discovers network-based authentication methods
 func (c *ComprehensiveAuthDiscovery) discoverNetworkAuth(ctx context.Context, target *TargetInfo) (*NetworkAuthMethods, error) {
@@ -570,16 +574,7 @@ type APIAuthMethod struct {
 func (a *APIAuthMethod) GetType() string { return a.Type }
 func (a *APIAuthMethod) GetURL() string  { return a.URL }
 
-// APIExtractor extracts API authentication endpoints
-type APIExtractor struct {
-	logger *logger.Logger
-}
-
-func NewAPIExtractor(logger *logger.Logger) *APIExtractor {
-	return &APIExtractor{
-		logger: logger,
-	}
-}
+// APIExtractor is now defined in api_extractor.go
 
 // verifyCustomAuth verifies a custom authentication method
 func (c *ComprehensiveAuthDiscovery) verifyCustomAuth(ctx context.Context, method *CustomAuthMethod) bool {

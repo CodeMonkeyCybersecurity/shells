@@ -4,6 +4,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -406,6 +407,75 @@ func (w *WebCrawler) shouldVisit(urlStr string) bool {
 	}
 
 	return true
+}
+
+// CrawlForAuth performs authentication-focused crawling
+func (w *WebCrawler) CrawlForAuth(ctx context.Context, url string, maxDepth int) ([]WebPage, error) {
+	w.maxDepth = maxDepth
+	var allPages []WebPage
+	
+	// Reset visited state for this crawl
+	w.visitedMutex.Lock()
+	w.visited = make(map[string]bool)
+	w.visitedMutex.Unlock()
+	
+	// Find auth pages using existing discovery logic
+	authPages := w.FindAuthPages(ctx, url)
+	
+	// Convert CrawlResult to WebPage
+	for _, page := range authPages {
+		// Fetch the actual content for each auth page
+		content, err := w.fetchPageContent(ctx, page.URL)
+		if err != nil {
+			w.logger.Debug("Failed to fetch page content", "url", page.URL, "error", err)
+			continue
+		}
+		
+		webPage := WebPage{
+			URL:     page.URL,
+			Content: content,
+		}
+		allPages = append(allPages, webPage)
+	}
+	
+	// Also fetch the main page content
+	if mainContent, err := w.fetchPageContent(ctx, url); err == nil {
+		mainPage := WebPage{
+			URL:     url,
+			Content: mainContent,
+		}
+		allPages = append(allPages, mainPage)
+	}
+	
+	return allPages, nil
+}
+
+// fetchPageContent fetches the HTML content of a page
+func (w *WebCrawler) fetchPageContent(ctx context.Context, url string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	
+	resp, err := w.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	
+	// Only process HTML content
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "html") {
+		return "", fmt.Errorf("not HTML content")
+	}
+	
+	// Read the body
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	
+	return string(bodyBytes), nil
 }
 
 func (w *WebCrawler) calculateAuthConfidence(result *CrawlResult) float64 {

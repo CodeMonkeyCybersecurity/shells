@@ -230,6 +230,12 @@ func (j *JavaScriptAnalyzer) resolveURL(baseURL, relativeURL string) string {
 	return base.ResolveReference(relative).String()
 }
 
+// AnalyzeURL analyzes a URL for JavaScript authentication patterns
+func (j *JavaScriptAnalyzer) AnalyzeURL(ctx context.Context, url string) ([]interface{}, error) {
+	// Placeholder implementation - returns empty results
+	return []interface{}{}, nil
+}
+
 // analyzeScript analyzes a single JavaScript file
 func (j *JavaScriptAnalyzer) analyzeScript(ctx context.Context, scriptURL string) *JSAuthDiscovery {
 	j.logger.Debug("Analyzing script", "url", scriptURL)

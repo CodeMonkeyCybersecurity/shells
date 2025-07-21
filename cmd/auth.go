@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/federation"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
@@ -68,53 +69,70 @@ Examples:
 		// Create logger
 		logger := NewLogger(verbose)
 
-		// Create analyzers
-		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
-
 		fmt.Printf("🔍 Discovering authentication methods for: %s\n\n", target)
 
-		// Discover authentication configuration
-		config, err := crossAnalyzer.AnalyzeTarget(target)
+		// Use comprehensive authentication discovery
+		discoveryConfig := &discovery.Config{
+			MaxDepth:           3,
+			FollowRedirects:    true,
+			MaxRedirects:       10,
+			Timeout:            30 * time.Second,
+			UserAgent:          "shells-auth-discovery/1.0",
+			Threads:            10,
+			EnableJSAnalysis:   true,
+			EnableAPIDiscovery: true,
+			EnablePortScanning: false,
+		}
+
+		engine := discovery.NewEngine(log, discoveryConfig)
+		discoveryResult, err := engine.Discover(cmd.Context(), target)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
 
-		// Discover federation providers
-		domain := extractDomain(target)
+		// Also run legacy discovery for federation
+		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
+		legacyConfig, _ := crossAnalyzer.AnalyzeTarget(target)
 
-		// Create HTTP client with timeout
+		domain := extractDomain(target)
 		httpClient := &http.Client{
 			Timeout: 30 * time.Second,
 		}
 		discoverer := federation.NewFederationDiscoverer(httpClient, logger)
 		federationResult := discoverer.DiscoverAllProviders(domain)
 
-		// Create discovery result
+		// Create combined result
 		result := struct {
-			Target     string                                `json:"target"`
-			Protocols  []common.AuthProtocol                 `json:"protocols"`
-			Endpoints  []common.AuthEndpoint                 `json:"endpoints"`
-			Federation *federation.FederationDiscoveryResult `json:"federation"`
-			Summary    DiscoverySummary                      `json:"summary"`
-			Timestamp  time.Time                             `json:"timestamp"`
+			Target               string                                 `json:"target"`
+			ComprehensiveResults *discovery.DiscoveryResult            `json:"comprehensive_results"`
+			LegacyProtocols      []common.AuthProtocol                 `json:"legacy_protocols,omitempty"`
+			LegacyEndpoints      []common.AuthEndpoint                 `json:"legacy_endpoints,omitempty"`
+			Federation           *federation.FederationDiscoveryResult `json:"federation"`
+			Summary              DiscoverySummary                      `json:"summary"`
+			Timestamp            time.Time                             `json:"timestamp"`
 		}{
-			Target:     target,
-			Protocols:  config.Configuration.Protocols,
-			Endpoints:  config.Configuration.Endpoints,
-			Federation: federationResult,
-			Timestamp:  time.Now(),
+			Target:               target,
+			ComprehensiveResults: discoveryResult,
+			Federation:           federationResult,
+			Timestamp:            time.Now(),
 		}
 
-		// Generate summary
+		// Add legacy results if available
+		if legacyConfig != nil {
+			result.LegacyProtocols = legacyConfig.Configuration.Protocols
+			result.LegacyEndpoints = legacyConfig.Configuration.Endpoints
+		}
+
+		// Generate summary combining both discovery methods
 		result.Summary = DiscoverySummary{
-			TotalEndpoints:      len(config.Configuration.Endpoints),
-			ProtocolsFound:      len(config.Configuration.Protocols),
+			TotalEndpoints:      discoveryResult.TotalEndpoints + len(result.LegacyEndpoints),
+			ProtocolsFound:      len(discoveryResult.Implementations),
 			FederationProviders: federationResult.TotalFound,
-			HasSAML:             contains(config.Configuration.Protocols, common.ProtocolSAML),
-			HasOAuth2:           contains(config.Configuration.Protocols, common.ProtocolOAuth2),
-			HasOIDC:             contains(config.Configuration.Protocols, common.ProtocolOIDC),
-			HasWebAuthn:         contains(config.Configuration.Protocols, common.ProtocolWebAuthn),
+			HasSAML:             containsAuthType(discoveryResult.Implementations, discovery.AuthTypeSAML),
+			HasOAuth2:           containsAuthType(discoveryResult.Implementations, discovery.AuthTypeOAuth2),
+			HasOIDC:             containsAuthType(discoveryResult.Implementations, discovery.AuthTypeOIDC),
+			HasWebAuthn:         containsAuthType(discoveryResult.Implementations, discovery.AuthTypeWebAuthn),
 			HasFederation:       federationResult.TotalFound > 0,
 		}
 
@@ -123,7 +141,7 @@ Examples:
 			jsonData, _ := json.MarshalIndent(result, "", "  ")
 			fmt.Println(string(jsonData))
 		} else {
-			printDiscoveryResults(result)
+			printComprehensiveDiscoveryResults(result)
 		}
 	},
 }
@@ -649,9 +667,99 @@ func saveAuthResultsToDatabase(target string, report *common.AuthReport, scanTyp
 	return nil
 }
 
+func printComprehensiveDiscoveryResults(result struct {
+	Target               string                                 `json:"target"`
+	ComprehensiveResults *discovery.DiscoveryResult            `json:"comprehensive_results"`
+	LegacyProtocols      []common.AuthProtocol                 `json:"legacy_protocols,omitempty"`
+	LegacyEndpoints      []common.AuthEndpoint                 `json:"legacy_endpoints,omitempty"`
+	Federation           *federation.FederationDiscoveryResult `json:"federation"`
+	Summary              DiscoverySummary                      `json:"summary"`
+	Timestamp            time.Time                             `json:"timestamp"`
+}) {
+	fmt.Printf("📊 Comprehensive Authentication Discovery Results\n")
+	fmt.Printf("═══════════════════════════════════════════════════\n\n")
+
+	fmt.Printf("🎯 Target: %s\n", result.Target)
+	fmt.Printf("🕐 Scanned: %s\n", result.Timestamp.Format("2006-01-02 15:04:05"))
+	fmt.Printf("⏱️  Discovery Time: %s\n\n", result.ComprehensiveResults.DiscoveryTime)
+
+	// Print comprehensive results
+	fmt.Printf("📋 Discovery Summary:\n")
+	fmt.Printf("  • Authentication Implementations: %d\n", len(result.ComprehensiveResults.Implementations))
+	fmt.Printf("  • Total Endpoints: %d\n", result.ComprehensiveResults.TotalEndpoints)
+	fmt.Printf("  • Federation Providers: %d\n", result.Summary.FederationProviders)
+	fmt.Printf("  • Risk Score: %.1f/10\n\n", result.ComprehensiveResults.RiskScore)
+
+	// Print discovered implementations
+	if len(result.ComprehensiveResults.Implementations) > 0 {
+		fmt.Printf("🔐 Authentication Implementations:\n")
+		for i, impl := range result.ComprehensiveResults.Implementations {
+			fmt.Printf("  %d. %s\n", i+1, impl.Name)
+			fmt.Printf("     Type: %s\n", impl.Type)
+			fmt.Printf("     Domain: %s\n", impl.Domain)
+			fmt.Printf("     Endpoints: %d\n", len(impl.Endpoints))
+			
+			if len(impl.SecurityFeatures) > 0 {
+				fmt.Printf("     ✅ Features: %s\n", strings.Join(impl.SecurityFeatures[:min(3, len(impl.SecurityFeatures))], ", "))
+			}
+			
+			if len(impl.Vulnerabilities) > 0 {
+				fmt.Printf("     ⚠️  Vulnerabilities: %d found\n", len(impl.Vulnerabilities))
+			}
+			fmt.Println()
+		}
+	}
+
+	// Print protocols detected
+	fmt.Printf("🔍 Protocols Detected:\n")
+	if result.Summary.HasSAML {
+		fmt.Printf("  ✅ SAML\n")
+	}
+	if result.Summary.HasOAuth2 {
+		fmt.Printf("  ✅ OAuth2\n")
+	}
+	if result.Summary.HasOIDC {
+		fmt.Printf("  ✅ OpenID Connect\n")
+	}
+	if result.Summary.HasWebAuthn {
+		fmt.Printf("  ✅ WebAuthn/FIDO2\n")
+	}
+	if result.Summary.HasFederation {
+		fmt.Printf("  ✅ Federation\n")
+	}
+	fmt.Println()
+
+	// Print recommendations
+	if len(result.ComprehensiveResults.Recommendations) > 0 {
+		fmt.Printf("💡 Recommendations:\n")
+		for _, rec := range result.ComprehensiveResults.Recommendations {
+			fmt.Printf("  • %s\n", rec)
+		}
+		fmt.Println()
+	}
+
+	// Print federation details if available
+	if result.Federation != nil && result.Federation.TotalFound > 0 {
+		fmt.Printf("🏢 Federation Providers:\n")
+		for provider, details := range result.Federation.Providers {
+			fmt.Printf("  • %s: %d endpoints\n", provider, len(details.Endpoints))
+		}
+	}
+}
+
+
 func contains(slice []common.AuthProtocol, item common.AuthProtocol) bool {
 	for _, s := range slice {
 		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAuthType(implementations []discovery.AuthImplementation, authType discovery.AuthType) bool {
+	for _, impl := range implementations {
+		if impl.Type == authType {
 			return true
 		}
 	}
