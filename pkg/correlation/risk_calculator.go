@@ -5,20 +5,22 @@ import (
 	"math"
 	"strings"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
-	"go.uber.org/zap"
 )
 
 // RiskCalculator calculates risk scores for correlated insights
 type RiskCalculator struct {
-	logger *zap.Logger
+	logger *logger.Logger
 }
 
 // NewRiskCalculator creates a new risk calculator
 func NewRiskCalculator() *RiskCalculator {
-	logger, _ := zap.NewProduction()
+	cfg := config.LoggerConfig{Level: "info", Format: "json"}
+	log, _ := logger.New(cfg)
 	return &RiskCalculator{
-		logger: logger,
+		logger: log.WithComponent("risk-calculator"),
 	}
 }
 
@@ -46,13 +48,13 @@ func (rc *RiskCalculator) CalculateRiskScore(findings []types.Finding) float64 {
 		riskScore = 10.0
 	}
 
-	rc.logger.Info("Risk score calculated",
-		zap.Float64("base_score", baseScore),
-		zap.Float64("exposure_multiplier", exposureMultiplier),
-		zap.Float64("exploitability_multiplier", exploitabilityMultiplier),
-		zap.Float64("business_impact_multiplier", businessImpactMultiplier),
-		zap.Float64("attack_chain_multiplier", attackChainMultiplier),
-		zap.Float64("final_score", riskScore))
+	rc.logger.Infow("Risk score calculated",
+		"base_score", baseScore,
+		"exposure_multiplier", exposureMultiplier,
+		"exploitability_multiplier", exploitabilityMultiplier,
+		"business_impact_multiplier", businessImpactMultiplier,
+		"attack_chain_multiplier", attackChainMultiplier,
+		"final_score", riskScore)
 
 	return riskScore
 }

@@ -5,20 +5,22 @@ import (
 	"sort"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
-	"go.uber.org/zap"
 )
 
 // TimelineAnalyzer analyzes temporal patterns in findings
 type TimelineAnalyzer struct {
-	logger *zap.Logger
+	logger *logger.Logger
 }
 
 // NewTimelineAnalyzer creates a new timeline analyzer
 func NewTimelineAnalyzer() *TimelineAnalyzer {
-	logger, _ := zap.NewProduction()
+	cfg := config.LoggerConfig{Level: "info", Format: "json"}
+	log, _ := logger.New(cfg)
 	return &TimelineAnalyzer{
-		logger: logger,
+		logger: log.WithComponent("timeline-analyzer"),
 	}
 }
 
@@ -42,7 +44,7 @@ func (ta *TimelineAnalyzer) BuildTimeline(findings []types.Finding) []TimelineEv
 		return events[i].Timestamp.Before(events[j].Timestamp)
 	})
 
-	ta.logger.Info("Timeline built", zap.Int("events", len(events)))
+	ta.logger.Infow("Timeline built", "events", len(events))
 	return events
 }
 
@@ -62,7 +64,7 @@ func (ta *TimelineAnalyzer) DetectTemporalPatterns(timeline []TimelineEvent) []T
 	escalationPatterns := ta.detectEscalationPatterns(timeline)
 	patterns = append(patterns, escalationPatterns...)
 
-	ta.logger.Info("Temporal patterns detected", zap.Int("patterns", len(patterns)))
+	ta.logger.Infow("Temporal patterns detected", "patterns", len(patterns))
 	return patterns
 }
 

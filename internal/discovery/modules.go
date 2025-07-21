@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/certs"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/cloudflare"
 )
 
 // DomainDiscovery discovers assets related to domains
@@ -72,10 +74,28 @@ func (d *DomainDiscovery) Discover(ctx context.Context, target *Target, session 
 		result.Assets = append(result.Assets, certAssets...)
 	}
 
+	// Use organization context if available
+	if session.OrgContext != nil {
+		// TODO: Implement organization-aware discovery methods
+		// d.prioritizeOrgDomains(session.OrgContext.KnownDomains)
+		// d.searchEmployeeEmails(domain, session.OrgContext.EmailPatterns)
+		// d.checkSubsidiaryDomains(domain, session.OrgContext.Subsidiaries)
+
+		// For now, just log that org context is available
+		d.logger.Info("Organization context available for domain discovery",
+			"known_domains", len(session.OrgContext.KnownDomains),
+			"subsidiaries", len(session.OrgContext.Subsidiaries))
+	}
+
 	// Web crawling
 	if d.config.EnableWebCrawl {
 		webAssets := d.webCrawling(domain)
 		result.Assets = append(result.Assets, webAssets...)
+	}
+
+	// Cloudflare bypass detection
+	if cfAssets := d.checkCloudflareBypass(ctx, domain); len(cfAssets) > 0 {
+		result.Assets = append(result.Assets, cfAssets...)
 	}
 
 	d.logger.Debug("Domain discovery completed", "domain", domain, "assets_found", len(result.Assets))
@@ -710,18 +730,127 @@ func (t *TechnologyDiscovery) detectFromHeaders(headers http.Header) []string {
 	return technologies
 }
 
+// checkCloudflareBypass checks if domain is behind Cloudflare and finds origin IPs
+func (d *DomainDiscovery) checkCloudflareBypass(ctx context.Context, domain string) []*Asset {
+	var assets []*Asset
+
+	// Create Cloudflare intelligence client
+	cfIntel := cloudflare.NewCloudFlareIntel(d.logger)
+
+	// Check if domain is behind Cloudflare
+	isCloudflare, err := cfIntel.DetectCloudFlare(ctx, domain)
+	if err != nil {
+		d.logger.Debug("Failed to detect Cloudflare", "domain", domain, "error", err)
+		return assets
+	}
+
+	if !isCloudflare {
+		return assets
+	}
+
+	d.logger.Info("Domain is behind Cloudflare, attempting to find origin IPs", "domain", domain)
+
+	// Try to find origin IPs
+	candidates, err := cfIntel.FindOriginIP(ctx, domain)
+	if err != nil {
+		d.logger.Error("Failed to find origin IPs", "domain", domain, "error", err)
+		return assets
+	}
+
+	// Convert candidates to assets
+	for _, candidate := range candidates {
+		asset := &Asset{
+			Type:       AssetTypeIP,
+			Value:      candidate.IP,
+			Domain:     domain,
+			Title:      fmt.Sprintf("Potential origin IP for %s", domain),
+			Technology: []string{"Cloudflare Bypass"},
+			Metadata: map[string]string{
+				"discovery_type": candidate.DiscoveryType,
+				"confidence":     fmt.Sprintf("%.2f", candidate.Confidence),
+				"evidence":       strings.Join(candidate.Evidence, "; "),
+				"cloudflare":     "origin",
+			},
+			Source:       d.Name(),
+			Confidence:   candidate.Confidence,
+			DiscoveredAt: candidate.Timestamp,
+			LastSeen:     time.Now(),
+			Tags:         []string{"cloudflare-bypass", "origin-ip"},
+		}
+
+		// Higher priority for high-confidence origin IPs
+		if candidate.Confidence > 0.8 {
+			asset.Priority = 90
+		} else if candidate.Confidence > 0.6 {
+			asset.Priority = 70
+		} else {
+			asset.Priority = 50
+		}
+
+		assets = append(assets, asset)
+	}
+
+	if len(assets) > 0 {
+		d.logger.Info("Found potential origin IPs",
+			"domain", domain,
+			"count", len(assets),
+			"high_confidence", countHighConfidence(assets),
+		)
+	}
+
+	return assets
+}
+
+func countHighConfidence(assets []*Asset) int {
+	count := 0
+	for _, asset := range assets {
+		if asset.Confidence > 0.8 {
+			count++
+		}
+	}
+	return count
+}
+
 // CompanyDiscovery discovers assets related to company names
 type CompanyDiscovery struct {
-	config *DiscoveryConfig
-	logger *logger.Logger
-	client *http.Client
+	config     *DiscoveryConfig
+	logger     *logger.Logger
+	client     *http.Client
+	correlator *correlation.OrganizationCorrelator
 }
 
 func NewCompanyDiscovery(config *DiscoveryConfig, logger *logger.Logger) *CompanyDiscovery {
+	// Create organization correlator
+	correlatorConfig := correlation.CorrelatorConfig{
+		EnableWhois:     true,
+		EnableCerts:     true,
+		EnableASN:       true,
+		EnableTrademark: true,
+		EnableLinkedIn:  true,
+		EnableGitHub:    true,
+		EnableCloud:     true,
+		CacheTTL:        24 * time.Hour,
+		MaxWorkers:      5,
+	}
+
+	correlator := correlation.NewOrganizationCorrelator(correlatorConfig, logger)
+
+	// Set up default clients
+	correlator.SetClients(
+		correlation.NewDefaultWhoisClient(logger),
+		correlation.NewDefaultCertificateClient(logger),
+		correlation.NewDefaultASNClient(logger),
+		correlation.NewDefaultTrademarkClient(logger),
+		correlation.NewDefaultLinkedInClient(logger),
+		correlation.NewDefaultGitHubClient(logger),
+		correlation.NewDefaultCloudClient(logger),
+	)
+
 	return &CompanyDiscovery{
-		config: config,
-		logger: logger,
-		client: &http.Client{Timeout: 10 * time.Second},
+		config:     config,
+		logger:     logger,
+		client:     &http.Client{Timeout: 10 * time.Second},
+		correlator: correlator,
 	}
 }
 
@@ -739,7 +868,119 @@ func (c *CompanyDiscovery) Discover(ctx context.Context, target *Target, session
 		Source:        c.Name(),
 	}
 
-	// Try to find domains associated with the company
+	// Use the organization correlator for comprehensive discovery
+	org, err := c.correlator.FindOrganizationAssets(ctx, target.Value)
+	if err != nil {
+		c.logger.Error("Organization correlation failed", "company", target.Value, "error", err)
+		// Fall back to basic discovery
+		return c.basicDiscovery(target, result)
+	}
+
+	// Convert organization data to assets
+	c.logger.Info("Organization correlation completed",
+		"company", org.Name,
+		"domains", len(org.Domains),
+		"ips", len(org.IPRanges),
+		"asns", len(org.ASNs),
+		"employees", len(org.Employees),
+		"confidence", org.Confidence,
+	)
+
+	// Add domains as assets
+	for _, domain := range org.Domains {
+		asset := &Asset{
+			Type:         AssetTypeDomain,
+			Value:        domain,
+			Domain:       domain,
+			Title:        fmt.Sprintf("Domain for %s", org.Name),
+			Metadata:     map[string]string{"company": org.Name, "source": "correlation"},
+			Source:       c.Name(),
+			Confidence:   org.Confidence,
+			DiscoveredAt: time.Now(),
+			LastSeen:     time.Now(),
+		}
+		result.Assets = append(result.Assets, asset)
+	}
+
+	// Add IP ranges as assets
+	for _, ipRange := range org.IPRanges {
+		asset := &Asset{
+			Type:         AssetTypeIPRange,
+			Value:        ipRange,
+			Title:        fmt.Sprintf("IP Range for %s", org.Name),
+			Metadata:     map[string]string{"company": org.Name, "source": "correlation"},
+			Source:       c.Name(),
+			Confidence:   org.Confidence,
+			DiscoveredAt: time.Now(),
+			LastSeen:     time.Now(),
+		}
+		result.Assets = append(result.Assets, asset)
+	}
+
+	// Add ASNs as assets
+	for _, asn := range org.ASNs {
+		asset := &Asset{
+			Type:         AssetTypeASN,
+			Value:        asn,
+			Title:        fmt.Sprintf("ASN for %s", org.Name),
+			Metadata:     map[string]string{"company": org.Name, "source": "correlation"},
+			Source:       c.Name(),
+			Confidence:   org.Confidence,
+			DiscoveredAt: time.Now(),
+			LastSeen:     time.Now(),
+		}
+		result.Assets = append(result.Assets, asset)
+	}
+
+	// Add GitHub organizations as assets
+	for _, ghOrg := range org.GitHubOrgs {
+		asset := &Asset{
+			Type:         AssetTypeRepository,
+			Value:        "github.com/" + ghOrg,
+			Title:        fmt.Sprintf("GitHub org for %s", org.Name),
+			Metadata:     map[string]string{"company": org.Name, "platform": "github"},
+			Source:       c.Name(),
+			Confidence:   org.Confidence * 0.9, // Slightly lower confidence for GitHub
+			DiscoveredAt: time.Now(),
+			LastSeen:     time.Now(),
+		}
+		result.Assets = append(result.Assets, asset)
+	}
+
+	// Add cloud accounts as metadata
+	if len(org.CloudAccounts) > 0 {
+		for _, account := range org.CloudAccounts {
+			asset := &Asset{
+				Type:  AssetTypeCloudAccount,
+				Value: fmt.Sprintf("%s:%s", account.Provider, account.AccountID),
+				Title: fmt.Sprintf("%s account for %s", account.Provider, org.Name),
+				Metadata: map[string]string{
+					"company":  org.Name,
+					"provider": account.Provider,
+					"account":  account.AccountID,
+				},
+				Source:       c.Name(),
+				Confidence:   org.Confidence * 0.8,
+				DiscoveredAt: time.Now(),
+				LastSeen:     time.Now(),
+			}
+			result.Assets = append(result.Assets, asset)
+		}
+	}
+
+	// Store organization metadata in session
+	if session.DiscoveryTarget != nil && session.DiscoveryTarget.Metadata == nil {
+		session.DiscoveryTarget.Metadata = make(map[string]interface{})
+	}
+	if session.DiscoveryTarget != nil {
+		session.DiscoveryTarget.Metadata["organization"] = org
+	}
+
+	return result, nil
+}
+
+func (c *CompanyDiscovery) basicDiscovery(target *Target, result *DiscoveryResult) (*DiscoveryResult, error) {
+	// Fall back to basic domain generation
 	domains := c.findCompanyDomains(target.Value)
 
 	for _, domain := range domains {
@@ -749,7 +990,7 @@ func (c *CompanyDiscovery) Discover(ctx context.Context, target *Target, session
 			Domain:       domain,
 			Metadata:     map[string]string{"company": target.Value},
 			Source:       c.Name(),
-			Confidence:   0.7,
+			Confidence:   0.5, // Lower confidence for basic discovery
 			DiscoveredAt: time.Now(),
 			LastSeen:     time.Now(),
 		}

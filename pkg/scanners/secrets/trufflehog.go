@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
-	"go.uber.org/zap"
 )
 
 // TruffleHogScanner integrates with TruffleHog for secret scanning
 type TruffleHogScanner struct {
-	logger      *zap.Logger
+	logger      *logger.Logger
 	binaryPath  string
 	verifiers   map[string]Verifier
 	customRules []CustomRule
@@ -61,7 +61,7 @@ type CustomRule struct {
 }
 
 // NewTruffleHogScanner creates a new TruffleHog scanner
-func NewTruffleHogScanner(logger *zap.Logger) *TruffleHogScanner {
+func NewTruffleHogScanner(logger *logger.Logger) *TruffleHogScanner {
 	scanner := &TruffleHogScanner{
 		logger:      logger,
 		binaryPath:  "trufflehog",
@@ -81,7 +81,7 @@ func NewTruffleHogScanner(logger *zap.Logger) *TruffleHogScanner {
 
 // ScanGitRepository scans a Git repository for secrets
 func (t *TruffleHogScanner) ScanGitRepository(ctx context.Context, repoURL string) ([]SecretFinding, error) {
-	t.logger.Info("Starting TruffleHog scan", zap.String("repository", repoURL))
+	t.logger.Infow("Starting TruffleHog scan", "repository", repoURL)
 
 	// Build TruffleHog command
 	args := []string{
@@ -98,7 +98,7 @@ func (t *TruffleHogScanner) ScanGitRepository(ctx context.Context, repoURL strin
 	if err != nil {
 		// TruffleHog returns non-zero exit code when secrets are found
 		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
-			t.logger.Error("TruffleHog error", zap.String("stderr", string(exitErr.Stderr)))
+			t.logger.Errorw("TruffleHog error", "stderr", string(exitErr.Stderr))
 		}
 	}
 
@@ -121,17 +121,17 @@ func (t *TruffleHogScanner) ScanGitRepository(ctx context.Context, repoURL strin
 	// Sort by severity
 	t.sortFindingsBySeverity(findings)
 
-	t.logger.Info("TruffleHog scan completed",
-		zap.String("repository", repoURL),
-		zap.Int("findings", len(findings)),
-		zap.Int("verified", t.countVerified(findings)))
+	t.logger.Infow("TruffleHog scan completed",
+		"repository", repoURL,
+		"findings", len(findings),
+		"verified", t.countVerified(findings))
 
 	return findings, nil
 }
 
 // ScanFileSystem scans a file system path for secrets
 func (t *TruffleHogScanner) ScanFileSystem(ctx context.Context, path string) ([]SecretFinding, error) {
-	t.logger.Info("Starting filesystem scan", zap.String("path", path))
+	t.logger.Infow("Starting filesystem scan", "path", path)
 
 	args := []string{
 		"filesystem",
@@ -161,7 +161,7 @@ func (t *TruffleHogScanner) ScanFileSystem(ctx context.Context, path string) ([]
 
 // ScanDockerImage scans a Docker image for secrets
 func (t *TruffleHogScanner) ScanDockerImage(ctx context.Context, image string) ([]SecretFinding, error) {
-	t.logger.Info("Starting Docker image scan", zap.String("image", image))
+	t.logger.Infow("Starting Docker image scan", "image", image)
 
 	args := []string{
 		"docker",
@@ -201,7 +201,7 @@ func (t *TruffleHogScanner) parseTruffleHogOutput(output []byte) ([]SecretFindin
 
 		var result TruffleHogResult
 		if err := json.Unmarshal([]byte(line), &result); err != nil {
-			t.logger.Error("Failed to parse TruffleHog line", zap.Error(err), zap.String("line", line))
+			t.logger.Errorw("Failed to parse TruffleHog line", "error", err, "line", line)
 			continue
 		}
 
@@ -272,9 +272,9 @@ func (t *TruffleHogScanner) verifySecrets(ctx context.Context, findings []Secret
 			if verifier, exists := t.verifiers[finding.Type]; exists {
 				verified, err := verifier.Verify(ctx, finding.Secret)
 				if err != nil {
-					t.logger.Error("Verification failed",
-						zap.String("type", finding.Type),
-						zap.Error(err))
+					t.logger.Errorw("Verification failed",
+						"type", finding.Type,
+						"error", err)
 				} else {
 					finding.Verified = verified
 					if verified {
@@ -458,7 +458,7 @@ type GitMetadata struct {
 
 // AWSVerifier verifies AWS credentials
 type AWSVerifier struct {
-	logger *zap.Logger
+	logger *logger.Logger
 }
 
 func (v *AWSVerifier) Name() string {
@@ -482,7 +482,7 @@ func (v *AWSVerifier) Verify(ctx context.Context, secret string) (bool, error) {
 
 	// Make minimal AWS API call to verify
 	// This is a simplified example - real implementation would use AWS SDK
-	v.logger.Info("Verifying AWS credentials", zap.String("access_key", accessKey[:10]+"..."))
+	v.logger.Infow("Verifying AWS credentials", "access_key", accessKey[:10]+"...")
 
 	// For safety, we'll just validate the format for now
 	// In production, you'd make a read-only API call
@@ -503,7 +503,7 @@ func (v *AWSVerifier) GetMetadata(secret string) map[string]interface{} {
 
 // GitHubVerifier verifies GitHub tokens
 type GitHubVerifier struct {
-	logger *zap.Logger
+	logger *logger.Logger
 }
 
 func (v *GitHubVerifier) Name() string {
@@ -513,7 +513,7 @@ func (v *GitHubVerifier) Name() string {
 func (v *GitHubVerifier) Verify(ctx context.Context, secret string) (bool, error) {
 	// Make a simple API call to verify the token
 	// This is simplified - real implementation would use GitHub API
-	v.logger.Info("Verifying GitHub token")
+	v.logger.Infow("Verifying GitHub token")
 
 	// Check token format
 	if strings.HasPrefix(secret, "ghp_") || strings.HasPrefix(secret, "gho_") {
@@ -754,7 +754,7 @@ func extractAWSAccountID(accessKey string) string {
 
 // SlackVerifier verifies Slack webhooks and tokens
 type SlackVerifier struct {
-	logger *zap.Logger
+	logger *logger.Logger
 }
 
 func (v *SlackVerifier) Name() string {
@@ -793,7 +793,7 @@ func (v *SlackVerifier) GetMetadata(secret string) map[string]interface{} {
 
 // GenericAPIVerifier handles generic API keys
 type GenericAPIVerifier struct {
-	logger *zap.Logger
+	logger *logger.Logger
 }
 
 func (v *GenericAPIVerifier) Name() string {

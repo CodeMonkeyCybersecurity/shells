@@ -113,3 +113,18 @@ type ScanProfile struct {
 	RateLimit   int               `json:"rate_limit"`
 	Timeout     time.Duration     `json:"timeout"`
 }
+
+// DiscoveryTarget represents a target for discovery with all possible identifiers
+type DiscoveryTarget struct {
+	Identifier    string                 `json:"identifier"` // Original input
+	Type          string                 `json:"type"`       // Type of identifier
+	Confidence    float64                `json:"confidence"` // Classification confidence
+	PrimaryDomain string                 `json:"primary_domain,omitempty"`
+	PrimaryIP     string                 `json:"primary_ip,omitempty"`
+	IPRange       string                 `json:"ip_range,omitempty"`
+	CompanyName   string                 `json:"company_name,omitempty"`
+	ASN           string                 `json:"asn,omitempty"`
+	GitHubOrg     string                 `json:"github_org,omitempty"`
+	AWSAccountID  string                 `json:"aws_account_id,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+}

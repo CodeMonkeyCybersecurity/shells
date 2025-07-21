@@ -33,9 +33,9 @@ func NewMLDiscovery(config *DiscoveryConfig, logger *logger.Logger) *MLDiscovery
 		UpdateInterval: 24 * time.Hour,
 	}
 
-	techAnalyzer, err := ml.NewTechStackAnalyzer(analyzerConfig, logger.Zap())
+	techAnalyzer, err := ml.NewTechStackAnalyzer(analyzerConfig, logger)
 	if err != nil {
-		logger.Error("Failed to create tech stack analyzer", "error", err)
+		logger.Errorw("Failed to create tech stack analyzer", "error", err)
 		// Create with minimal functionality
 		techAnalyzer = nil
 	}
@@ -53,9 +53,9 @@ func NewMLDiscovery(config *DiscoveryConfig, logger *logger.Logger) *MLDiscovery
 	// Create a simple history store adapter
 	historyStore := &simpleHistoryStore{logger: logger}
 
-	vulnPredictor, err := ml.NewVulnPredictor(predictorConfig, historyStore, logger.Zap())
+	vulnPredictor, err := ml.NewVulnPredictor(predictorConfig, historyStore, logger)
 	if err != nil {
-		logger.Error("Failed to create vulnerability predictor", "error", err)
+		logger.Errorw("Failed to create vulnerability predictor", "error", err)
 		vulnPredictor = nil
 	}
 
@@ -101,7 +101,7 @@ func (m *MLDiscovery) Discover(ctx context.Context, target *Target, session *Dis
 			var err error
 			techResult, err = m.techAnalyzer.AnalyzeTechStack(ctx, url)
 			if err != nil {
-				m.logger.Error("Tech stack analysis failed", "error", err)
+				m.logger.Errorw("Tech stack analysis failed", "error", err)
 			} else {
 				// Add technology insights as metadata
 				for _, tech := range techResult.Technologies {
@@ -136,7 +136,7 @@ func (m *MLDiscovery) Discover(ctx context.Context, target *Target, session *Dis
 	if m.vulnPredictor != nil {
 		predictionResult, err := m.vulnPredictor.PredictVulnerabilities(ctx, target.Value)
 		if err != nil {
-			m.logger.Error("Vulnerability prediction failed", "error", err)
+			m.logger.Errorw("Vulnerability prediction failed", "error", err)
 		} else {
 			// Add predicted vulnerabilities as high-priority assets
 			for _, pred := range predictionResult.Predictions {

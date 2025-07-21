@@ -2,19 +2,25 @@ package discovery
 
 import (
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // TargetType represents the type of input target
 type TargetType string
 
 const (
-	TargetTypeCompany TargetType = "company"
-	TargetTypeEmail   TargetType = "email"
-	TargetTypeDomain  TargetType = "domain"
-	TargetTypeIP      TargetType = "ip"
-	TargetTypeIPRange TargetType = "ip_range"
-	TargetTypeURL     TargetType = "url"
-	TargetTypeUnknown TargetType = "unknown"
+	TargetTypeCompany     TargetType = "company"
+	TargetTypeEmail       TargetType = "email"
+	TargetTypeDomain      TargetType = "domain"
+	TargetTypeIP          TargetType = "ip"
+	TargetTypeIPRange     TargetType = "ip_range"
+	TargetTypeNetwork     TargetType = "network"
+	TargetTypeURL         TargetType = "url"
+	TargetTypeASN         TargetType = "asn"
+	TargetTypeCertificate TargetType = "certificate"
+	TargetTypeUnknown     TargetType = "unknown"
 )
 
 // Target represents a parsed input target
@@ -51,21 +57,29 @@ type Asset struct {
 type AssetType string
 
 const (
-	AssetTypeDomain      AssetType = "domain"
-	AssetTypeSubdomain   AssetType = "subdomain"
-	AssetTypeURL         AssetType = "url"
-	AssetTypeIP          AssetType = "ip"
-	AssetTypePort        AssetType = "port"
-	AssetTypeService     AssetType = "service"
-	AssetTypeEndpoint    AssetType = "endpoint"
-	AssetTypeAPI         AssetType = "api"
-	AssetTypeLogin       AssetType = "login"
-	AssetTypeAdmin       AssetType = "admin"
-	AssetTypePayment     AssetType = "payment"
-	AssetTypeFile        AssetType = "file"
-	AssetTypeDirectory   AssetType = "directory"
-	AssetTypeCertificate AssetType = "certificate"
-	AssetTypeEmail       AssetType = "email"
+	AssetTypeDomain         AssetType = "domain"
+	AssetTypeSubdomain      AssetType = "subdomain"
+	AssetTypeURL            AssetType = "url"
+	AssetTypeIP             AssetType = "ip"
+	AssetTypeIPRange        AssetType = "ip_range"
+	AssetTypeASN            AssetType = "asn"
+	AssetTypePort           AssetType = "port"
+	AssetTypeService        AssetType = "service"
+	AssetTypeEndpoint       AssetType = "endpoint"
+	AssetTypeAPI            AssetType = "api"
+	AssetTypeLogin          AssetType = "login"
+	AssetTypeAdmin          AssetType = "admin"
+	AssetTypePayment        AssetType = "payment"
+	AssetTypeRepository     AssetType = "repository"
+	AssetTypeCloudAccount   AssetType = "cloud_account"
+	AssetTypeFile           AssetType = "file"
+	AssetTypeDirectory      AssetType = "directory"
+	AssetTypeCertificate    AssetType = "certificate"
+	AssetTypeEmail          AssetType = "email"
+	AssetTypeAuthentication AssetType = "authentication"
+	AssetTypeAuth           AssetType = "auth"
+	AssetTypeMailServer     AssetType = "mail_server"
+	AssetTypeAdminPanel     AssetType = "admin_panel"
 )
 
 // Relationship represents a relationship between assets
@@ -99,6 +113,7 @@ const (
 type DiscoverySession struct {
 	ID              string                   `json:"id"`
 	Target          Target                   `json:"target"`
+	DiscoveryTarget *types.DiscoveryTarget   `json:"discovery_target,omitempty"`
 	Assets          map[string]*Asset        `json:"assets"`
 	Relationships   map[string]*Relationship `json:"relationships"`
 	Status          SessionStatus            `json:"status"`
@@ -109,6 +124,22 @@ type DiscoverySession struct {
 	HighValueAssets int                      `json:"high_value_assets"`
 	Errors          []string                 `json:"errors,omitempty"`
 	Config          *DiscoveryConfig         `json:"config"`
+	// Add organization context
+	Organization *correlation.Organization `json:"organization,omitempty"`
+	OrgContext   *OrganizationContext      `json:"org_context,omitempty"`
+	Metadata     map[string]interface{}    `json:"metadata,omitempty"`
+}
+
+// OrganizationContext provides context for discovery modules
+type OrganizationContext struct {
+	OrgID         string
+	OrgName       string
+	KnownDomains  []string
+	KnownIPRanges []string
+	EmailPatterns []string
+	Subsidiaries  []string
+	Technologies  []string
+	IndustryType  string
 }
 
 // SessionStatus represents the status of a discovery session

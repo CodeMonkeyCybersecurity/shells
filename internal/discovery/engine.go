@@ -3,23 +3,27 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	discoverypkg "github.com/CodeMonkeyCybersecurity/shells/pkg/discovery"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 // Engine is the main discovery engine
 type Engine struct {
-	parser   *TargetParser
-	modules  map[string]DiscoveryModule
-	config   *DiscoveryConfig
-	sessions map[string]*DiscoverySession
-	mutex    sync.RWMutex
-	logger   *logger.Logger // Enhanced structured logger
+	parser     *TargetParser
+	classifier *discoverypkg.IdentifierClassifier
+	modules    map[string]DiscoveryModule
+	config     *DiscoveryConfig
+	sessions   map[string]*DiscoverySession
+	mutex      sync.RWMutex
+	logger     *logger.Logger // Enhanced structured logger
 }
 
 // DiscoveryModule interface for discovery modules
@@ -49,14 +53,17 @@ func NewEngine(discoveryConfig *DiscoveryConfig, structLog *logger.Logger) *Engi
 	structLog = structLog.WithComponent("discovery")
 
 	engine := &Engine{
-		parser:   NewTargetParser(),
-		modules:  make(map[string]DiscoveryModule),
-		config:   discoveryConfig,
-		sessions: make(map[string]*DiscoverySession),
-		logger:   structLog,
+		parser:     NewTargetParser(),
+		classifier: discoverypkg.NewIdentifierClassifier(),
+		modules:    make(map[string]DiscoveryModule),
+		config:     discoveryConfig,
+		sessions:   make(map[string]*DiscoverySession),
+		logger:     structLog,
 	}
 
 	// Register default modules
+	// Context-aware discovery runs first with highest priority
+	engine.RegisterModule(NewContextAwareDiscovery(discoveryConfig, structLog))
 	engine.RegisterModule(NewDomainDiscovery(discoveryConfig, structLog))
 	engine.RegisterModule(NewNetworkDiscovery(discoveryConfig, structLog))
 	engine.RegisterModule(NewTechnologyDiscovery(discoveryConfig, structLog))
@@ -100,16 +107,28 @@ func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 		"operation", "StartDiscovery",
 	).Infow("Starting discovery session")
 
-	// Parse target
+	// Classify the identifier first
+	classifyStart := time.Now()
+	classification, err := e.classifier.Classify(rawTarget)
+	if err != nil {
+		e.logger.LogError(context.Background(), err, "discovery.StartDiscovery.classify",
+			"raw_target", rawTarget,
+			"classify_duration_ms", time.Since(classifyStart).Milliseconds(),
+		)
+		return nil, fmt.Errorf("failed to classify identifier: %w", err)
+	}
+
+	// Convert to discovery target
+	discoveryTarget := e.classifier.ConvertToDiscoveryTarget(classification)
+
+	// Parse target for backwards compatibility
 	parseStart := time.Now()
 	target := e.parser.ParseTarget(rawTarget)
 	if target.Type == TargetTypeUnknown {
-		err := fmt.Errorf("unable to parse target: %s", rawTarget)
-		e.logger.LogError(context.Background(), err, "discovery.StartDiscovery.parse",
-			"raw_target", rawTarget,
-			"parse_duration_ms", time.Since(parseStart).Milliseconds(),
-		)
-		return nil, err
+		// Use classification to set target type
+		target.Type = e.mapClassificationToTargetType(classification.Type)
+		target.Value = classification.Normalized
+		target.Confidence = classification.Confidence
 	}
 
 	e.logger.LogDuration(context.Background(), "discovery.target_parse", parseStart,
@@ -124,6 +143,7 @@ func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 	session := &DiscoverySession{
 		ID:              sessionID,
 		Target:          *target,
+		DiscoveryTarget: discoveryTarget,
 		Assets:          make(map[string]*Asset),
 		Relationships:   make(map[string]*Relationship),
 		Status:          StatusPending,
@@ -238,6 +258,22 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 		"max_depth", e.config.MaxDepth,
 		"max_assets", e.config.MaxAssets,
 	)
+
+	// Run organization correlation first if available
+	if orgModule := e.getOrgCorrelationModule(); orgModule != nil {
+		result, err := orgModule.Discover(ctx, &session.Target, session)
+		if err == nil && result != nil {
+			e.processDiscoveryResult(session, result)
+
+			// Extract organization context for other modules
+			if org, ok := session.Metadata["organization"].(*correlation.Organization); ok {
+				session.OrgContext = e.buildOrgContext(org)
+
+				// Inject context into all modules
+				e.injectOrgContext(session.OrgContext)
+			}
+		}
+	}
 
 	// Get applicable modules
 	moduleStart := time.Now()
@@ -491,6 +527,62 @@ func (e *Engine) postProcessAssets(session *DiscoverySession) {
 
 	// Calculate final priorities
 	e.calculateFinalPriorities(session)
+
+	// Handle edge cases with organization context
+	if session.OrgContext != nil {
+		e.filterCDNAssets(session)
+		e.identifySharedHosting(session)
+		e.correlateSubsidiaries(session)
+		e.validateAssetOwnership(session)
+	}
+
+	// Update confidence scores based on correlation
+	e.updateAssetConfidence(session)
+
+}
+
+// filterCDNAssets removes or marks CDN assets
+func (e *Engine) filterCDNAssets(session *DiscoverySession) {
+	cdnProviders := []string{
+		"cloudflare", "akamai", "fastly", "cloudfront",
+		"incapsula", "maxcdn", "stackpath",
+	}
+
+	for _, asset := range session.Assets {
+		if asset.Type == AssetTypeIP || asset.Type == AssetTypeDomain {
+			for _, cdn := range cdnProviders {
+				if e.isCDNAsset(asset, cdn) {
+					asset.Tags = append(asset.Tags, "cdn:"+cdn)
+					asset.Metadata["is_cdn"] = "true"
+					asset.Priority = int(PriorityLow)
+
+					// Try to find origin
+					if origin := e.findOriginServer(asset, session); origin != "" {
+						asset.Metadata["origin_server"] = origin
+						asset.Priority = int(PriorityHigh)
+					}
+				}
+			}
+		}
+	}
+}
+
+// In NewEngine or a setup function
+func (e *Engine) RegisterDefaultModules() {
+	// Register organization correlation first (highest priority)
+	// TODO: Fix import cycle before enabling - NewOrgCorrelationModule is in pkg/auth/discovery
+	// e.RegisterModule(NewOrgCorrelationModule(e.config, e.logger))
+
+	// Then existing modules
+	e.RegisterModule(NewDomainDiscovery(e.config, e.logger))
+	e.RegisterModule(NewNetworkDiscovery(e.config, e.logger))
+	e.RegisterModule(NewTechnologyDiscovery(e.config, e.logger))
+	e.RegisterModule(NewCompanyDiscovery(e.config, e.logger))
+	e.RegisterModule(NewMLDiscovery(e.config, e.logger))
+
+	// Add the comprehensive auth discovery
+	// TODO: Fix import cycle before enabling - auth package not imported
+	// e.RegisterModule(auth.NewAuthDiscoveryModule(e.logger))
 }
 
 // createAssetRelationships creates relationships between discovered assets
@@ -640,4 +732,279 @@ func (e *Engine) StopDiscovery(sessionID string) error {
 	}
 
 	return nil
+}
+
+// mapClassificationToTargetType maps identifier types to target types
+func (e *Engine) mapClassificationToTargetType(identifierType discoverypkg.IdentifierType) TargetType {
+	switch identifierType {
+	case discoverypkg.IdentifierTypeEmail:
+		return TargetTypeEmail
+	case discoverypkg.IdentifierTypeDomain, discoverypkg.IdentifierTypeURL:
+		return TargetTypeDomain
+	case discoverypkg.IdentifierTypeIP:
+		return TargetTypeIP
+	case discoverypkg.IdentifierTypeIPRange:
+		return TargetTypeNetwork
+	case discoverypkg.IdentifierTypeCompanyName:
+		return TargetTypeCompany
+	case discoverypkg.IdentifierTypeASN:
+		return TargetTypeASN
+	case discoverypkg.IdentifierTypeCertHash:
+		return TargetTypeCertificate
+	default:
+		return TargetTypeUnknown
+	}
+}
+
+// Add helper to get org correlation module
+func (e *Engine) getOrgCorrelationModule() DiscoveryModule {
+	e.mutex.RLock()
+	defer e.mutex.RUnlock()
+
+	if module, exists := e.modules["organization_correlation"]; exists {
+		return module
+	}
+	return nil
+}
+
+// buildOrgContext extracts context from organization
+func (e *Engine) buildOrgContext(org *correlation.Organization) *OrganizationContext {
+	// Generate org ID from name or use metadata if available
+	orgID := ""
+	if id, ok := org.Metadata["id"].(string); ok {
+		orgID = id
+	} else if org.Name != "" {
+		// Create a deterministic ID from org name
+		orgID = fmt.Sprintf("org-%s", strings.ReplaceAll(strings.ToLower(org.Name), " ", "-"))
+	} else {
+		orgID = uuid.New().String()
+	}
+
+	ctx := &OrganizationContext{
+		OrgID:   orgID,
+		OrgName: org.Name,
+	}
+
+	// Extract domains (they are already strings)
+	ctx.KnownDomains = append(ctx.KnownDomains, org.Domains...)
+
+	// Extract IP ranges (they are already strings)
+	ctx.KnownIPRanges = append(ctx.KnownIPRanges, org.IPRanges...)
+
+	// Extract subsidiaries
+	ctx.Subsidiaries = append(ctx.Subsidiaries, org.Subsidiaries...)
+
+	// Extract technologies
+	for _, tech := range org.Technologies {
+		ctx.Technologies = append(ctx.Technologies, tech.Name)
+	}
+
+	// Extract email patterns from employees
+	emailDomains := make(map[string]bool)
+	for _, emp := range org.Employees {
+		if emp.Email != "" {
+			parts := strings.Split(emp.Email, "@")
+			if len(parts) == 2 {
+				emailDomains[parts[1]] = true
+			}
+		}
+	}
+	for domain := range emailDomains {
+		ctx.EmailPatterns = append(ctx.EmailPatterns, "*@"+domain)
+	}
+
+	// Extract other context
+	if industry, ok := org.Metadata["industry"].(string); ok {
+		ctx.IndustryType = industry
+	}
+
+	return ctx
+}
+
+// injectOrgContext injects organization context into all modules
+func (e *Engine) injectOrgContext(orgContext *OrganizationContext) {
+	if orgContext == nil {
+		return
+	}
+
+	e.mutex.RLock()
+	defer e.mutex.RUnlock()
+
+	// Inject context into each module that supports it
+	for _, module := range e.modules {
+		// Check if module implements an interface that accepts org context
+		if contextAware, ok := module.(interface {
+			SetOrganizationContext(*OrganizationContext)
+		}); ok {
+			contextAware.SetOrganizationContext(orgContext)
+		}
+	}
+}
+
+// identifySharedHosting identifies assets on shared hosting
+func (e *Engine) identifySharedHosting(session *DiscoverySession) {
+	// Group assets by IP
+	ipToAssets := make(map[string][]*Asset)
+	for _, asset := range session.Assets {
+		if asset.IP != "" {
+			ipToAssets[asset.IP] = append(ipToAssets[asset.IP], asset)
+		}
+	}
+
+	// Mark shared hosting
+	for ip, assets := range ipToAssets {
+		if len(assets) > 5 {
+			// Likely shared hosting
+			for _, asset := range assets {
+				asset.Tags = append(asset.Tags, "shared_hosting")
+				asset.Metadata["shared_ip"] = ip
+				asset.Metadata["co_hosted_count"] = fmt.Sprintf("%d", len(assets))
+			}
+		}
+	}
+}
+
+// correlateSubsidiaries correlates subsidiary assets
+func (e *Engine) correlateSubsidiaries(session *DiscoverySession) {
+	if session.OrgContext == nil {
+		return
+	}
+
+	// Look for subsidiary patterns in domain names
+	for _, asset := range session.Assets {
+		if asset.Type == AssetTypeDomain || asset.Type == AssetTypeSubdomain {
+			for _, subsidiary := range session.OrgContext.Subsidiaries {
+				if strings.Contains(strings.ToLower(asset.Value), strings.ToLower(subsidiary)) {
+					asset.Tags = append(asset.Tags, "subsidiary")
+					asset.Metadata["subsidiary_name"] = subsidiary
+				}
+			}
+		}
+	}
+}
+
+// validateAssetOwnership validates that assets belong to the organization
+func (e *Engine) validateAssetOwnership(session *DiscoverySession) {
+	if session.OrgContext == nil {
+		return
+	}
+
+	for _, asset := range session.Assets {
+		isOwned := false
+
+		// Check domains
+		if asset.Type == AssetTypeDomain || asset.Type == AssetTypeSubdomain {
+			for _, knownDomain := range session.OrgContext.KnownDomains {
+				if strings.HasSuffix(asset.Value, knownDomain) {
+					isOwned = true
+					break
+				}
+			}
+		}
+
+		// Check IPs
+		if asset.Type == AssetTypeIP && asset.IP != "" {
+			for _, ipRange := range session.OrgContext.KnownIPRanges {
+				// Simple check - could be enhanced with proper CIDR parsing
+				if strings.HasPrefix(asset.IP, ipRange) {
+					isOwned = true
+					break
+				}
+			}
+		}
+
+		if isOwned {
+			asset.Tags = append(asset.Tags, "verified_ownership")
+			asset.Confidence = asset.Confidence * 1.2 // Boost confidence
+			if asset.Confidence > 1.0 {
+				asset.Confidence = 1.0
+			}
+		} else {
+			asset.Tags = append(asset.Tags, "unverified_ownership")
+		}
+	}
+}
+
+// updateAssetConfidence updates confidence scores based on correlation
+func (e *Engine) updateAssetConfidence(session *DiscoverySession) {
+	for _, asset := range session.Assets {
+		// Boost confidence for assets with multiple relationships
+		relationshipCount := 0
+		for _, rel := range session.Relationships {
+			if rel.Source == asset.ID || rel.Target == asset.ID {
+				relationshipCount++
+			}
+		}
+
+		if relationshipCount > 5 {
+			asset.Confidence = asset.Confidence * 1.1
+		}
+
+		// Cap confidence at 1.0
+		if asset.Confidence > 1.0 {
+			asset.Confidence = 1.0
+		}
+	}
+}
+
+// isCDNAsset checks if an asset belongs to a CDN provider
+func (e *Engine) isCDNAsset(asset *Asset, cdnProvider string) bool {
+	// Check various indicators
+	switch cdnProvider {
+	case "cloudflare":
+		// Check IP ranges, headers, etc.
+		if asset.Type == AssetTypeIP {
+			// Simplified check - in real implementation, check against Cloudflare IP ranges
+			return false
+		}
+		if asset.Type == AssetTypeDomain {
+			// Check for Cloudflare indicators in metadata
+			if ct, ok := asset.Metadata["content_type"]; ok && strings.Contains(ct, "cloudflare") {
+				return true
+			}
+		}
+	case "akamai":
+		// Check for Akamai indicators
+		if asset.Metadata["server"] == "AkamaiGHost" {
+			return true
+		}
+	case "fastly":
+		// Check for Fastly indicators
+		if strings.Contains(asset.Value, ".fastly.net") {
+			return true
+		}
+	}
+	return false
+}
+
+// findOriginServer attempts to find the origin server behind a CDN
+func (e *Engine) findOriginServer(asset *Asset, session *DiscoverySession) string {
+	// Various techniques to find origin server
+	// 1. Check historical DNS records
+	// 2. Look for origin subdomains
+	// 3. Check SSL certificates
+	// 4. Analyze error messages
+
+	// Simplified implementation
+	if asset.Type == AssetTypeDomain {
+		// Check for common origin patterns
+		originPatterns := []string{"origin.", "real.", "direct.", "backend."}
+		baseDomain := asset.Value
+
+		for _, pattern := range originPatterns {
+			potentialOrigin := pattern + baseDomain
+			// In real implementation, verify this domain exists
+			if e.verifyDomain(potentialOrigin) {
+				return potentialOrigin
+			}
+		}
+	}
+
+	return ""
+}
+
+// verifyDomain checks if a domain exists (simplified)
+func (e *Engine) verifyDomain(domain string) bool {
+	// In real implementation, perform DNS lookup
+	return false
 }

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // TechStackAnalyzer performs adaptive scanning based on technology fingerprinting
@@ -22,7 +22,7 @@ type TechStackAnalyzer struct {
 	httpClient     *http.Client
 	cache          *TechStackCache
 	config         AnalyzerConfig
-	logger         *zap.Logger
+	logger         *logger.Logger
 	mu             sync.RWMutex
 }
 
@@ -133,7 +133,7 @@ type CachedResult struct {
 }
 
 // NewTechStackAnalyzer creates a new technology stack analyzer
-func NewTechStackAnalyzer(config AnalyzerConfig, log *zap.Logger) (*TechStackAnalyzer, error) {
+func NewTechStackAnalyzer(config AnalyzerConfig, log *logger.Logger) (*TechStackAnalyzer, error) {
 	analyzer := &TechStackAnalyzer{
 		fingerprints:   make(map[string]*TechFingerprint),
 		scanStrategies: make(map[string]*ScanStrategy),
@@ -148,7 +148,7 @@ func NewTechStackAnalyzer(config AnalyzerConfig, log *zap.Logger) (*TechStackAna
 		},
 		cache:  newTechStackCache(config.CacheSize, config.CacheTTL),
 		config: config,
-		logger: log.Named("techstack"),
+		logger: log.WithComponent("techstack"),
 	}
 
 	// Load fingerprints and strategies
@@ -677,7 +677,7 @@ func (tsa *TechStackAnalyzer) loadFingerprints(dbPath string) error {
 	}
 
 	// Add more fingerprints as needed
-	tsa.logger.Info("Loaded technology fingerprints", zap.Int("count", len(tsa.fingerprints)))
+	tsa.logger.Infow("Loaded technology fingerprints", "count", len(tsa.fingerprints))
 	return nil
 }
 
@@ -702,7 +702,7 @@ func (tsa *TechStackAnalyzer) loadStrategies(dbPath string) error {
 		},
 	}
 
-	tsa.logger.Info("Loaded scan strategies", zap.Int("count", len(tsa.scanStrategies)))
+	tsa.logger.Infow("Loaded scan strategies", "count", len(tsa.scanStrategies))
 	return nil
 }
 
@@ -715,10 +715,10 @@ func (tsa *TechStackAnalyzer) makeRequest(ctx context.Context, target string) (*
 
 	req.Header.Set("User-Agent", tsa.config.UserAgent)
 
-	tsa.logger.Debug("Making HTTP request", zap.String("target", target))
+	tsa.logger.Debugw("Making HTTP request", "target", target)
 	resp, err := tsa.httpClient.Do(req)
 	if err != nil {
-		tsa.logger.Error("HTTP request failed", zap.String("target", target), zap.Error(err))
+		tsa.logger.Errorw("HTTP request failed", "target", target, "error", err)
 		return nil, err
 	}
 
@@ -745,16 +745,16 @@ func (tsa *TechStackAnalyzer) updateDatabasesPeriodically() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		tsa.logger.Info("Updating fingerprint databases")
+		tsa.logger.Infow("Updating fingerprint databases")
 
 		// Reload fingerprints
 		if err := tsa.loadFingerprints(tsa.config.FingerprintDB); err != nil {
-			tsa.logger.Error("Failed to update fingerprints", zap.Error(err))
+			tsa.logger.Errorw("Failed to update fingerprints", "error", err)
 		}
 
 		// Reload strategies
 		if err := tsa.loadStrategies(tsa.config.StrategyDB); err != nil {
-			tsa.logger.Error("Failed to update strategies", zap.Error(err))
+			tsa.logger.Errorw("Failed to update strategies", "error", err)
 		}
 	}
 }
