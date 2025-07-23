@@ -2303,6 +2303,74 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	}
 	log.Info("Discovery session started", "session_id", session.ID, "target", target)
 	
+	// Wait for discovery to complete and collect discovered assets
+	log.Info("Waiting for discovery to complete...", "session_id", session.ID)
+	fmt.Println("⏳ Discovery in progress...")
+	
+	var discoveredAssets []*discovery.Asset
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	
+	timeout := time.After(30 * time.Minute) // Maximum discovery time
+	var lastProgress float64 = 0
+	
+	for {
+		select {
+		case <-ticker.C:
+			// Check session status
+			session, err = engine.GetSession(session.ID)
+			if err != nil {
+				return fmt.Errorf("failed to get session: %w", err)
+			}
+			
+			// Update progress if changed
+			if session.Progress > lastProgress {
+				fmt.Printf("\r🔍 Discovery progress: %.0f%% | Assets found: %d | High-value: %d", 
+					session.Progress, session.TotalDiscovered, session.HighValueAssets)
+				lastProgress = session.Progress
+			}
+			
+			if session.Status == discovery.StatusCompleted {
+				fmt.Println("\n✅ Discovery completed!")
+				// Collect all discovered assets
+				for _, asset := range session.Assets {
+					discoveredAssets = append(discoveredAssets, asset)
+				}
+				goto discoveryComplete
+			} else if session.Status == discovery.StatusFailed {
+				fmt.Println("\n❌ Discovery failed!")
+				if len(session.Errors) > 0 {
+					for _, err := range session.Errors {
+						log.Error("Discovery error", "error", err)
+					}
+				}
+				return fmt.Errorf("discovery failed")
+			}
+			
+		case <-timeout:
+			fmt.Println("\n⚠️ Discovery timeout reached")
+			log.Warn("Discovery timeout", "session_id", session.ID)
+			// Still collect what we found
+			for _, asset := range session.Assets {
+				discoveredAssets = append(discoveredAssets, asset)
+			}
+			goto discoveryComplete
+		}
+	}
+	
+discoveryComplete:
+	// Log discovered assets
+	log.Info("Discovery complete", 
+		"session_id", session.ID,
+		"total_assets", len(discoveredAssets),
+		"high_value_assets", session.HighValueAssets)
+	
+	// Group assets by type for summary
+	assetsByType := make(map[discovery.AssetType]int)
+	for _, asset := range discoveredAssets {
+		assetsByType[asset.Type]++
+	}
+	
 	// Run comprehensive auth discovery if we have organization context
 	if orgContext != nil {
 		log.Info("Running comprehensive authentication discovery",
@@ -2337,26 +2405,58 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		}
 	}
 	
-	// Store results in SQLite database
-	log.Info("Storing discovery results in database")
-	
-	// Create scan jobs using Nomad
-	log.Info("Creating Nomad jobs for scanning")
-	
-	// For now, we'll use the existing scanner functionality
-	// TODO: Integrate with actual Nomad API
+	// Print discovery summary
 	fmt.Printf("\n📊 Discovery Summary:\n")
 	fmt.Printf("   Session ID: %s\n", session.ID)
 	fmt.Printf("   Target: %s\n", target)
+	fmt.Printf("   Total Assets: %d\n", len(discoveredAssets))
+	for assetType, count := range assetsByType {
+		fmt.Printf("   - %s: %d\n", assetType, count)
+	}
 	if orgContext != nil {
 		fmt.Printf("   Organization: %s\n", orgContext.OrgName)
-		fmt.Printf("   Domains: %d\n", len(orgContext.KnownDomains))
+		fmt.Printf("   Known Domains: %d\n", len(orgContext.KnownDomains))
 		fmt.Printf("   IP Ranges: %d\n", len(orgContext.KnownIPRanges))
 	}
 	fmt.Printf("\n")
 	
+	// Run comprehensive auth discovery on ALL discovered assets
+	if len(discoveredAssets) > 0 {
+		log.Info("Running comprehensive authentication discovery on discovered assets",
+			"asset_count", len(discoveredAssets))
+		
+		// Create comprehensive auth discovery
+		authDiscovery := authdiscovery.NewComprehensiveAuthDiscovery(log)
+		
+		// Process each discovered domain/URL asset
+		for _, asset := range discoveredAssets {
+			if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeURL || asset.Type == discovery.AssetTypeSubdomain {
+				log.Info("Discovering authentication methods for asset", "asset", asset.Value)
+				
+				authInventory, err := authDiscovery.DiscoverAll(ctx, asset.Value)
+				if err != nil {
+					log.Error("Failed to discover auth for asset", "asset", asset.Value, "error", err)
+					continue
+				}
+				
+				// Store auth findings in database
+				findings := convertAuthInventoryToFindings(authInventory, asset.Value, session.ID)
+				if err := db.SaveFindings(ctx, findings); err != nil {
+					log.Error("Failed to save auth findings", "error", err)
+				}
+				
+				log.Info("Discovered authentication methods",
+					"asset", asset.Value,
+					"network_auth", getNetworkAuthCount(authInventory.NetworkAuth),
+					"web_auth", getWebAuthCount(authInventory.WebAuth),
+					"api_auth", getAPIAuthCount(authInventory.APIAuth),
+					"custom_auth", len(authInventory.CustomAuth))
+			}
+		}
+	}
+	
 	// Run all available scanners
-	fmt.Println("🚀 Running comprehensive security scans...")
+	fmt.Println("🚀 Running comprehensive security scans on all discovered assets...")
 	
 	// Run comprehensive scanning on discovered assets
 	if err := runComprehensiveScanning(ctx, session, orgContext, log, store); err != nil {
@@ -2479,19 +2579,36 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 
 	log.Info("Nomad cluster available, submitting distributed scan jobs")
 
-	// Collect all targets for scanning
+	// Collect all targets for scanning from discovered assets
 	var targets []string
+	seen := make(map[string]bool)
 	
-	// Add organization domains
-	if orgContext != nil {
-		targets = append(targets, orgContext.KnownDomains...)
-		log.Info("Added organization domains to scan targets", "count", len(orgContext.KnownDomains))
+	// Add all discovered assets
+	for _, asset := range session.Assets {
+		if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeURL {
+			if !seen[asset.Value] {
+				targets = append(targets, asset.Value)
+				seen[asset.Value] = true
+			}
+		}
 	}
 	
-	// Add discovered assets from session
+	// Add organization domains if no assets discovered
+	if len(targets) == 0 && orgContext != nil {
+		for _, domain := range orgContext.KnownDomains {
+			if !seen[domain] {
+				targets = append(targets, domain)
+				seen[domain] = true
+			}
+		}
+	}
+	
+	// Fallback to original target if nothing found
 	if len(targets) == 0 {
-		targets = append(targets, session.Target.Value) // fallback to original target
+		targets = append(targets, session.Target.Value)
 	}
+	
+	log.Info("Collected scanning targets", "count", len(targets), "targets", targets)
 
 	// Submit scanner jobs to Nomad
 	var submittedJobs []string
@@ -2566,19 +2683,36 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 func runComprehensiveScanningLocal(ctx context.Context, session *discovery.DiscoverySession, orgContext *discovery.OrganizationContext, log *logger.Logger, store core.ResultStore) error {
 	log.Info("Starting local comprehensive security scanning", "session_id", session.ID)
 
-	// Collect all targets for scanning
+	// Collect all targets for scanning from discovered assets
 	var targets []string
+	seen := make(map[string]bool)
 	
-	// Add organization domains
-	if orgContext != nil {
-		targets = append(targets, orgContext.KnownDomains...)
-		log.Info("Added organization domains to scan targets", "count", len(orgContext.KnownDomains))
+	// Add all discovered assets
+	for _, asset := range session.Assets {
+		if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeURL {
+			if !seen[asset.Value] {
+				targets = append(targets, asset.Value)
+				seen[asset.Value] = true
+			}
+		}
 	}
 	
-	// Add discovered assets from session
+	// Add organization domains if no assets discovered
+	if len(targets) == 0 && orgContext != nil {
+		for _, domain := range orgContext.KnownDomains {
+			if !seen[domain] {
+				targets = append(targets, domain)
+				seen[domain] = true
+			}
+		}
+	}
+	
+	// Fallback to original target if nothing found
 	if len(targets) == 0 {
-		targets = append(targets, session.Target.Value) // fallback to original target
+		targets = append(targets, session.Target.Value)
 	}
+	
+	log.Info("Collected scanning targets", "count", len(targets), "targets", targets)
 
 	// Run SCIM scanning locally
 	log.Info("Running local SCIM vulnerability scans")

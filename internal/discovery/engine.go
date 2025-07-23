@@ -410,6 +410,20 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 	// Post-process assets
 	e.postProcessAssets(session)
 
+	// Update session status before returning
+	e.mutex.Lock()
+	if storedSession, exists := e.sessions[session.ID]; exists {
+		storedSession.Progress = 100.0
+		storedSession.Status = StatusCompleted
+		storedSession.TotalDiscovered = session.TotalDiscovered
+		storedSession.HighValueAssets = session.HighValueAssets
+		storedSession.Assets = session.Assets
+		storedSession.Relationships = session.Relationships
+		now := time.Now()
+		storedSession.CompletedAt = &now
+	}
+	e.mutex.Unlock()
+
 	e.logger.Info("Discovery completed",
 		"session_id", session.ID,
 		"total_assets", session.TotalDiscovered,

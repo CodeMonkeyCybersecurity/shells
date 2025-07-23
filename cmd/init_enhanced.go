@@ -5,5 +5,6 @@ package cmd
 
 func init() {
 	// Enhance the root command with advanced infrastructure mapping
-	EnhanceRootCommand()
+	// Disabled: Using the main discovery implementation in root.go instead
+	// EnhanceRootCommand()
 }
