@@ -29,6 +29,10 @@ This command will:
 4. Report the size of the new binary
 
 Use --dry-run to check for updates without installing.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Skip database initialization for self-update
+		return nil
+	},
 	RunE: runSelfUpdate,
 }
 
