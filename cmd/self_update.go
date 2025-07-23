@@ -30,8 +30,8 @@ This command will:
 
 Use --dry-run to check for updates without installing.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Skip database initialization for self-update
-		return nil
+		// Initialize config but skip database for self-update
+		return initConfig()
 	},
 	RunE: runSelfUpdate,
 }

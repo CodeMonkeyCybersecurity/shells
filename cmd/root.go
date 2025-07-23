@@ -67,15 +67,6 @@ Point-and-Click Mode:
 			return cmd.Help()
 		}
 
-		// Check if the argument matches a subcommand name
-		// This should not happen normally as Cobra handles subcommands,
-		// but adding as a safeguard
-		for _, subCmd := range cmd.Commands() {
-			if subCmd.Name() == args[0] || subCmd.HasAlias(args[0]) {
-				return fmt.Errorf("'%s' is a command, not a target. Use 'shells %s --help' for more information", args[0], args[0])
-			}
-		}
-
 		// Point-and-click mode: intelligent discovery and testing
 		// Initialize database
 		db, err := database.NewStore(cfg.Database)
@@ -86,6 +77,11 @@ Point-and-Click Mode:
 		return runMainDiscovery(cmd, args, log, db)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Skip initialization for certain commands that don't need it
+		if cmd.Name() == "self-update" {
+			return nil
+		}
+		
 		if err := initConfig(); err != nil {
 			return fmt.Errorf("failed to initialize config: %w", err)
 		}
