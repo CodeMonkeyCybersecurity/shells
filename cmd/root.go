@@ -172,9 +172,19 @@ func GetLogger() *logger.Logger {
 func runIntelligentDiscovery(target string) error {
 	log.Infow("Starting intelligent discovery", "target", target)
 
-	// Create discovery engine
+	// Create discovery engine with enhanced features
 	discoveryConfig := discovery.DefaultDiscoveryConfig()
-	discoveryEngine := discovery.NewEngine(discoveryConfig, log.WithComponent("discovery"))
+	discoveryConfig.MaxDepth = 5
+	discoveryConfig.MaxAssets = 10000
+	discoveryConfig.EnableDNS = true
+	discoveryConfig.EnableCertLog = true
+	discoveryConfig.EnableSearch = true
+	discoveryConfig.EnablePortScan = true
+	discoveryConfig.EnableWebCrawl = true
+	discoveryConfig.EnableTechStack = true
+	discoveryConfig.Timeout = 60 * time.Minute
+	
+	discoveryEngine := discovery.NewEngineWithConfig(discoveryConfig, log.WithComponent("discovery"), cfg)
 
 	// Start discovery
 	session, err := discoveryEngine.StartDiscovery(target)
@@ -2278,16 +2288,17 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	// Start comprehensive discovery
 	fmt.Println("🔍 Starting comprehensive asset discovery and scanning...")
 	
-	// Create discovery config
+	// Create discovery config with all features enabled
 	discoveryConfig := discovery.DefaultDiscoveryConfig()
-	discoveryConfig.MaxDepth = 3
-	discoveryConfig.MaxAssets = 1000
+	discoveryConfig.MaxDepth = 5          // Increased for recursive discovery
+	discoveryConfig.MaxAssets = 10000     // Increased for comprehensive spidering
 	discoveryConfig.EnableDNS = true
 	discoveryConfig.EnableCertLog = true
-	discoveryConfig.EnableSearch = true
+	discoveryConfig.EnableSearch = true   // Search engines enabled
 	discoveryConfig.EnablePortScan = true
-	discoveryConfig.EnableWebCrawl = true
+	discoveryConfig.EnableWebCrawl = true // Web spidering enabled
 	discoveryConfig.EnableTechStack = true
+	discoveryConfig.Timeout = 60 * time.Minute // Increased timeout for thorough discovery
 	
 	// Create scope validator if we have programs configured
 	var scopeValidator *discovery.ScopeValidator
@@ -2298,8 +2309,11 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		fmt.Printf("⚠️  Scope validation disabled - all discovered assets will be processed\n\n")
 	}
 	
-	// Initialize discovery engine with scope validation
+	// Initialize discovery engine with enhanced discovery and scope validation
 	engine := discovery.NewEngineWithScopeValidator(discoveryConfig, log, scopeValidator)
+	
+	// Register enhanced discovery module
+	engine.RegisterModule(discovery.NewEnhancedDiscovery(discoveryConfig, log, cfg))
 	
 	// Start discovery with the target
 	session, err := engine.StartDiscovery(target)

@@ -5,13 +5,16 @@ import (
 )
 
 type Config struct {
-	Logger    LoggerConfig    `mapstructure:"logger"`
-	Database  DatabaseConfig  `mapstructure:"database"`
-	Redis     RedisConfig     `mapstructure:"redis"`
-	Worker    WorkerConfig    `mapstructure:"worker"`
-	Telemetry TelemetryConfig `mapstructure:"telemetry"`
-	Security  SecurityConfig  `mapstructure:"security"`
-	Tools     ToolsConfig     `mapstructure:"tools"`
+	Logger       LoggerConfig    `mapstructure:"logger"`
+	Database     DatabaseConfig  `mapstructure:"database"`
+	Redis        RedisConfig     `mapstructure:"redis"`
+	Worker       WorkerConfig    `mapstructure:"worker"`
+	Telemetry    TelemetryConfig `mapstructure:"telemetry"`
+	Security     SecurityConfig  `mapstructure:"security"`
+	Tools        ToolsConfig     `mapstructure:"tools"`
+	ShodanAPIKey string          `mapstructure:"shodan_api_key"`
+	CensysAPIKey string          `mapstructure:"censys_api_key"`
+	CensysSecret string          `mapstructure:"censys_secret"`
 }
 
 type LoggerConfig struct {

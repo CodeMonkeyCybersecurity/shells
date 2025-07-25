@@ -80,6 +80,7 @@ const (
 	AssetTypeAuth           AssetType = "auth"
 	AssetTypeMailServer     AssetType = "mail_server"
 	AssetTypeAdminPanel     AssetType = "admin_panel"
+	AssetTypeOrganization   AssetType = "organization"
 )
 
 // Relationship represents a relationship between assets

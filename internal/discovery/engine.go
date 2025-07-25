@@ -40,6 +40,16 @@ func NewEngine(discoveryConfig *DiscoveryConfig, structLog *logger.Logger) *Engi
 	return NewEngineWithScopeValidator(discoveryConfig, structLog, nil)
 }
 
+// NewEngineWithConfig creates a new discovery engine with full config
+func NewEngineWithConfig(discoveryConfig *DiscoveryConfig, structLog *logger.Logger, cfg *config.Config) *Engine {
+	engine := NewEngineWithScopeValidator(discoveryConfig, structLog, nil)
+	
+	// Register enhanced discovery module with config
+	engine.RegisterModule(NewEnhancedDiscovery(discoveryConfig, structLog, cfg))
+	
+	return engine
+}
+
 // NewEngineWithScopeValidator creates a new discovery engine with scope validation
 func NewEngineWithScopeValidator(discoveryConfig *DiscoveryConfig, structLog *logger.Logger, scopeValidator *ScopeValidator) *Engine {
 	if discoveryConfig == nil {
@@ -69,7 +79,7 @@ func NewEngineWithScopeValidator(discoveryConfig *DiscoveryConfig, structLog *lo
 	}
 
 	// Register default modules
-	// Context-aware discovery runs first with highest priority
+	// Context-aware discovery
 	engine.RegisterModule(NewContextAwareDiscovery(discoveryConfig, structLog))
 	engine.RegisterModule(NewDomainDiscovery(discoveryConfig, structLog))
 	engine.RegisterModule(NewNetworkDiscovery(discoveryConfig, structLog))
