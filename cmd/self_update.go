@@ -20,15 +20,18 @@ var selfUpdateCmd = &cobra.Command{
 	Use:   "self-update",
 	Short: "Update shells to the latest version from GitHub",
 	Long: `Update shells to the latest version by pulling from the GitHub repository,
-running the install script, and verifying the update with SHA256 checksums.
+rebuilding the binary, and verifying the update with SHA256 checksums.
 
 This command will:
 1. Pull the latest code from the GitHub repository
-2. Run ./install.sh to build and install the new version
+2. Run ./install.sh to rebuild and install the binary
 3. Compare SHA256 hashes to verify the update
 4. Report the size of the new binary
 
-Use --dry-run to check for updates without installing.`,
+The binary is always rebuilt after pulling to ensure you have the latest version,
+even if no new commits were pulled.
+
+Use --dry-run to preview the update without installing.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Initialize config but skip database for self-update
 		return initConfig()
@@ -91,27 +94,16 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to pull latest changes: %w", err)
 	}
 
-	// Check if there are actually any updates
-	fmt.Println("🔍 Checking for updates...")
-	hasUpdates, err := checkForUpdates()
-	if err != nil {
-		return fmt.Errorf("failed to check for updates: %w", err)
-	}
-
-	if !hasUpdates {
-		fmt.Println("✅ Already up to date! No updates available.")
-		return nil
-	}
-
-	fmt.Println("📦 Updates found!")
+	// Always rebuild after pulling latest changes to ensure binary is up to date
+	fmt.Println("🔍 Building latest version...")
 	
 	if dryRun {
-		fmt.Println("   (dry-run mode: would install new version)")
+		fmt.Println("   (dry-run mode: would rebuild and install binary)")
 		fmt.Println("🎯 Run without --dry-run to perform the actual update.")
 		return nil
 	}
 	
-	fmt.Println("   Installing new version...")
+	fmt.Println("   Building and installing new binary...")
 
 	// Check if install.sh exists
 	installScript := "./install.sh"
@@ -143,7 +135,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 
 	// Compare hashes
 	if currentHash == newHash {
-		fmt.Println("⚠️  Warning: Binary hash unchanged. Update may have failed or no changes were needed.")
+		fmt.Println("ℹ️  Binary hash unchanged - no code changes affected the compiled binary.")
 	} else {
 		fmt.Printf("✅ Update successful!\n")
 		fmt.Printf("   Old SHA256: %s\n", currentHash)
@@ -266,28 +258,3 @@ func pullLatestChanges() error {
 	return nil
 }
 
-// checkForUpdates checks if there are updates available
-func checkForUpdates() (bool, error) {
-	// Get current commit hash
-	currentCmd := exec.Command("git", "rev-parse", "HEAD")
-	currentOutput, err := currentCmd.Output()
-	if err != nil {
-		return false, fmt.Errorf("failed to get current commit: %w", err)
-	}
-	currentHash := strings.TrimSpace(string(currentOutput))
-
-	// Get remote commit hash
-	remoteCmd := exec.Command("git", "rev-parse", "origin/HEAD")
-	remoteOutput, err := remoteCmd.Output()
-	if err != nil {
-		// Try with main branch if origin/HEAD doesn't exist
-		remoteCmd = exec.Command("git", "rev-parse", "origin/main")
-		remoteOutput, err = remoteCmd.Output()
-		if err != nil {
-			return false, fmt.Errorf("failed to get remote commit: %w", err)
-		}
-	}
-	remoteHash := strings.TrimSpace(string(remoteOutput))
-
-	return currentHash != remoteHash, nil
-}

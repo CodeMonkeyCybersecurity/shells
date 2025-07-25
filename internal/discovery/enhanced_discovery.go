@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -11,8 +12,10 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/asn"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/cache"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/dns"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/external"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/ratelimit"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/search"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/web"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/whois"
@@ -33,6 +36,8 @@ type EnhancedDiscovery struct {
 	assetLock       sync.RWMutex
 	recursionDepth  int
 	maxRecursion    int
+	cache           *cache.APICache
+	rateLimiter     *ratelimit.RateLimiter
 }
 
 // NewEnhancedDiscovery creates enhanced discovery module
@@ -50,6 +55,17 @@ func NewEnhancedDiscovery(config *DiscoveryConfig, logger *logger.Logger, cfg *c
 		}
 	}
 
+	// Initialize cache directory
+	cacheDir := filepath.Join("/tmp", "shells_cache")
+	apiCache, err := cache.NewAPICache(cacheDir, 24*time.Hour, logger)
+	if err != nil {
+		logger.Error("Failed to initialize cache", "error", err)
+		apiCache = nil
+	}
+
+	// Initialize rate limiter
+	rateLimiter := ratelimit.GetGlobalRateLimiter(logger)
+
 	return &EnhancedDiscovery{
 		config:          config,
 		logger:          logger,
@@ -62,6 +78,8 @@ func NewEnhancedDiscovery(config *DiscoveryConfig, logger *logger.Logger, cfg *c
 		censysClient:    censysClient,
 		discoveredAssets: make(map[string]bool),
 		maxRecursion:    3,
+		cache:           apiCache,
+		rateLimiter:     rateLimiter,
 	}
 }
 

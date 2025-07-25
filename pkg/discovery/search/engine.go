@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -37,9 +38,10 @@ type MultiSearchEngine struct {
 func NewMultiSearchEngine(logger *logger.Logger) *MultiSearchEngine {
 	return &MultiSearchEngine{
 		engines: []SearchEngine{
-			NewGoogleDorkEngine(logger),
-			NewBingEngine(logger),
-			NewDuckDuckGoEngine(logger),
+			NewCommonCrawlEngine(logger), // Free and unrestricted
+			NewDuckDuckGoEngine(logger),   // Has API
+			NewBingEngine(logger),         // Requires API key
+			// Google disabled due to ToS restrictions
 		},
 		logger: logger,
 	}
@@ -89,31 +91,10 @@ func (g *GoogleDorkEngine) Name() string {
 }
 
 func (g *GoogleDorkEngine) Search(ctx context.Context, query string) ([]SearchResult, error) {
-	// Note: In production, this would use Google Custom Search API
-	// For now, we'll parse Google search results
-	
-	encodedQuery := url.QueryEscape(query)
-	searchURL := fmt.Sprintf("https://www.google.com/search?q=%s&num=100", encodedQuery)
-	
-	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	
-	// Set user agent to avoid blocking
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	
-	resp, err := g.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	
-	// Parse results (simplified - in production use proper HTML parsing)
-	var results []SearchResult
-	// This is a placeholder - actual implementation would parse HTML
-	
-	return results, nil
+	// Note: Google actively blocks automated searches. This is for educational purposes.
+	// In production, use Google Custom Search API with proper API key.
+	g.logger.Debug("Google search disabled to comply with ToS", "query", query)
+	return []SearchResult{}, nil
 }
 
 // BingEngine implements Bing search
@@ -190,7 +171,9 @@ func (b *BingEngine) Search(ctx context.Context, query string) ([]SearchResult, 
 }
 
 func (b *BingEngine) searchWithoutAPI(ctx context.Context, query string) ([]SearchResult, error) {
-	// Placeholder for web scraping implementation
+	// Note: Web scraping search engines may violate ToS
+	// This implementation is for educational purposes only
+	b.logger.Debug("Bing search requires API key", "query", query)
 	return []SearchResult{}, nil
 }
 
@@ -404,6 +387,91 @@ func extractCompanyName(domain string) string {
 		return name
 	}
 	return ""
+}
+
+// CommonCrawlEngine uses Common Crawl index for discovery
+type CommonCrawlEngine struct {
+	client *http.Client
+	logger *logger.Logger
+}
+
+// NewCommonCrawlEngine creates a new Common Crawl search engine
+func NewCommonCrawlEngine(logger *logger.Logger) *CommonCrawlEngine {
+	return &CommonCrawlEngine{
+		client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+		logger: logger,
+	}
+}
+
+func (c *CommonCrawlEngine) Name() string {
+	return "commoncrawl"
+}
+
+func (c *CommonCrawlEngine) Search(ctx context.Context, domain string) ([]SearchResult, error) {
+	// Use Common Crawl index API
+	indexURL := "https://index.commoncrawl.org/CC-MAIN-2024-10-index?url=*." + domain + "&output=json"
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", indexURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("common crawl returned status %d", resp.StatusCode)
+	}
+	
+	var results []SearchResult
+	seen := make(map[string]bool)
+	
+	// Read line by line (NDJSON format)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	
+	lines := strings.Split(string(body), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		var record struct {
+			URL      string `json:"url"`
+			MIME     string `json:"mime"`
+			Status   string `json:"status"`
+			Digest   string `json:"digest"`
+			Length   string `json:"length"`
+			Offset   string `json:"offset"`
+			Filename string `json:"filename"`
+		}
+		
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			continue
+		}
+		
+		if record.URL != "" && !seen[record.URL] {
+			seen[record.URL] = true
+			u, _ := url.Parse(record.URL)
+			if u != nil {
+				results = append(results, SearchResult{
+					Title:       u.Host,
+					URL:         record.URL,
+					Description: fmt.Sprintf("Found in Common Crawl: %s", record.MIME),
+					Domain:      u.Host,
+				})
+			}
+		}
+	}
+	
+	return results, nil
 }
 
 // SearchEngineDiscovery performs search engine discovery

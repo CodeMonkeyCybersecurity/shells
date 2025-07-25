@@ -3,7 +3,10 @@ package whois
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -288,18 +291,95 @@ func (w *WhoisClient) findRelatedDomains(result *WhoisResult, rawWhois string) [
 	return related
 }
 
-// searchDomainsByEmail searches for domains by email (placeholder)
+// searchDomainsByEmail searches for domains by email using ViewDNS.info
 func (w *WhoisClient) searchDomainsByEmail(email string) []string {
-	// In a real implementation, this would query reverse WHOIS services
-	// For now, return empty slice
-	return []string{}
+	// ViewDNS.info provides free reverse WHOIS lookups
+	// Note: This has rate limits - consider caching results
+	url := fmt.Sprintf("https://viewdns.info/reversewhois/?q=%s", strings.ReplaceAll(email, "@", "%40"))
+	
+	resp, err := http.Get(url)
+	if err != nil {
+		w.logger.Debug("Reverse WHOIS by email failed", "email", email, "error", err)
+		return []string{}
+	}
+	defer resp.Body.Close()
+	
+	body, _ := io.ReadAll(resp.Body)
+	domains := w.extractDomainsFromHTML(string(body))
+	
+	w.logger.Debug("Reverse WHOIS by email completed", "email", email, "found", len(domains))
+	return domains
 }
 
-// searchDomainsByOrg searches for domains by organization (placeholder)
+// searchDomainsByOrg searches for domains by organization
 func (w *WhoisClient) searchDomainsByOrg(org string) []string {
-	// In a real implementation, this would query reverse WHOIS services
-	// For now, return empty slice
-	return []string{}
+	// For organization search, we'll use a combination of techniques
+	var domains []string
+	
+	// Try ViewDNS reverse WHOIS
+	url := fmt.Sprintf("https://viewdns.info/reversewhois/?q=%s", url.QueryEscape(org))
+	
+	resp, err := http.Get(url)
+	if err != nil {
+		w.logger.Debug("Reverse WHOIS by org failed", "org", org, "error", err)
+		return domains
+	}
+	defer resp.Body.Close()
+	
+	body, _ := io.ReadAll(resp.Body)
+	domains = w.extractDomainsFromHTML(string(body))
+	
+	w.logger.Debug("Reverse WHOIS by org completed", "org", org, "found", len(domains))
+	return domains
+}
+
+// extractDomainsFromHTML extracts domains from ViewDNS HTML response
+func (w *WhoisClient) extractDomainsFromHTML(html string) []string {
+	var domains []string
+	seen := make(map[string]bool)
+	
+	// Look for domain patterns in the HTML
+	// ViewDNS returns results in a table format
+	domainPattern := regexp.MustCompile(`<td>([a-zA-Z0-9][a-zA-Z0-9-]{0,62}\.[a-zA-Z]{2,})</td>`)
+	matches := domainPattern.FindAllStringSubmatch(html, -1)
+	
+	for _, match := range matches {
+		if len(match) > 1 {
+			domain := strings.ToLower(match[1])
+			if !seen[domain] && w.isValidDomain(domain) {
+				seen[domain] = true
+				domains = append(domains, domain)
+			}
+		}
+	}
+	
+	return domains
+}
+
+// isValidDomain checks if a string is a valid domain
+func (w *WhoisClient) isValidDomain(domain string) bool {
+	// Basic validation
+	if len(domain) < 4 || len(domain) > 253 {
+		return false
+	}
+	
+	// Must have at least one dot
+	if !strings.Contains(domain, ".") {
+		return false
+	}
+	
+	// Check TLD is reasonable length
+	parts := strings.Split(domain, ".")
+	if len(parts) < 2 {
+		return false
+	}
+	
+	tld := parts[len(parts)-1]
+	if len(tld) < 2 || len(tld) > 63 {
+		return false
+	}
+	
+	return true
 }
 
 // parseIPWhois parses IP WHOIS data
@@ -448,14 +528,70 @@ type RegistrantInfo struct {
 
 // FindExpiredDomains finds recently expired domains from an organization
 func (w *WhoisClient) FindExpiredDomains(org string) []string {
-	// This would query domain drop lists and match against the organization
-	// Placeholder implementation
-	return []string{}
+	// Check ExpiredDomains.net for domains matching the organization
+	// Note: This is a simplified implementation
+	var domains []string
+	
+	// Search for the organization name in expired domains
+	searchURL := fmt.Sprintf("https://www.expireddomains.net/domain-name-search/?q=%s", url.QueryEscape(org))
+	
+	resp, err := http.Get(searchURL)
+	if err != nil {
+		w.logger.Debug("Expired domains search failed", "org", org, "error", err)
+		return domains
+	}
+	defer resp.Body.Close()
+	
+	body, _ := io.ReadAll(resp.Body)
+	
+	// Extract domain names from the response
+	domainPattern := regexp.MustCompile(`<td class="field_domain">.*?<a[^>]+>([^<]+)</a>`)
+	matches := domainPattern.FindAllStringSubmatch(string(body), -1)
+	
+	for _, match := range matches {
+		if len(match) > 1 {
+			domain := strings.TrimSpace(match[1])
+			if w.isValidDomain(domain) {
+				domains = append(domains, domain)
+			}
+		}
+	}
+	
+	w.logger.Debug("Expired domains search completed", "org", org, "found", len(domains))
+	return domains
 }
 
-// GetHistoricalWhois gets historical WHOIS data (placeholder)
+// GetHistoricalWhois gets historical WHOIS records from DomainTools-style services
 func (w *WhoisClient) GetHistoricalWhois(domain string) ([]WhoisResult, error) {
-	// This would query services that maintain historical WHOIS data
-	// Placeholder implementation
-	return []WhoisResult{}, nil
+	// Note: Most historical WHOIS services require paid access
+	// This is a simplified implementation that shows the concept
+	
+	// For now, just return current WHOIS as a single-item history
+	current, err := w.LookupDomain(context.Background(), domain)
+	if err != nil {
+		return nil, err
+	}
+	
+	return []WhoisResult{*current}, nil
+}
+
+// BulkWhoisLookup performs WHOIS lookups for multiple domains
+func (w *WhoisClient) BulkWhoisLookup(ctx context.Context, domains []string) map[string]*WhoisResult {
+	results := make(map[string]*WhoisResult)
+	
+	// Rate limit to avoid being blocked
+	for _, domain := range domains {
+		select {
+		case <-ctx.Done():
+			return results
+		default:
+			if result, err := w.LookupDomain(ctx, domain); err == nil {
+				results[domain] = result
+			}
+			// Rate limit
+			time.Sleep(2 * time.Second)
+		}
+	}
+	
+	return results
 }
