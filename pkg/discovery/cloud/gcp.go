@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
@@ -27,6 +28,250 @@ func NewGCPDiscovery(logger *logger.Logger) *GCPDiscovery {
 		},
 		logger: logger,
 	}
+}
+
+// GCPAssets represents all discovered GCP assets
+type GCPAssets struct {
+	ProjectIDs          []string
+	GCSBuckets          []GCSBucket
+	AppEngineApps       []AppEngineApp
+	CloudRunServices    []CloudRunService
+	CloudFunctions      []CloudFunction
+	FirebaseApps        []FirebaseApp
+	BigQueryDatasets    []BigQueryDataset
+	ComputeInstances    []ComputeInstance
+	GKEClusters         []GKECluster
+	PubSubTopics        []PubSubTopic
+	CloudSQLInstances   []CloudSQLInstance
+	CloudBuildConfigs   []CloudBuildConfig
+	SourceRepositories  []SourceRepository
+	MetadataExposures   []GCPMetadataExposure
+	APIEndpoints        []GCPAPIEndpoint
+	Secrets             []GCPSecret
+	ServiceAccounts     []ServiceAccount
+}
+
+// DiscoverAll performs comprehensive GCP asset discovery
+func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []string) (*GCPAssets, error) {
+	assets := &GCPAssets{}
+	
+	// Run all discovery functions concurrently
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	
+	// Discover GCS buckets
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if buckets, err := g.DiscoverGCSBuckets(ctx, domain); err == nil {
+			mu.Lock()
+			assets.GCSBuckets = buckets
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover App Engine apps
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if apps, err := g.DiscoverAppEngine(ctx, domain); err == nil {
+			mu.Lock()
+			assets.AppEngineApps = apps
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Cloud Run services
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if services, err := g.DiscoverCloudRun(ctx, domain); err == nil {
+			mu.Lock()
+			assets.CloudRunServices = services
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Cloud Functions
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if functions, err := g.DiscoverCloudFunctions(ctx, domain); err == nil {
+			mu.Lock()
+			assets.CloudFunctions = functions
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Firebase apps
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if apps, err := g.DiscoverFirebaseApps(ctx, domain); err == nil {
+			mu.Lock()
+			assets.FirebaseApps = apps
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover BigQuery datasets
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if datasets, err := g.DiscoverBigQueryDatasets(ctx, domain); err == nil {
+			mu.Lock()
+			assets.BigQueryDatasets = datasets
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Compute Engine instances
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if instances, err := g.DiscoverComputeEngine(ctx, domain); err == nil {
+			mu.Lock()
+			assets.ComputeInstances = instances
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover GKE clusters
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if clusters, err := g.DiscoverGKEClusters(ctx, domain); err == nil {
+			mu.Lock()
+			assets.GKEClusters = clusters
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Pub/Sub topics
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if topics, err := g.DiscoverPubSubTopics(ctx, domain); err == nil {
+			mu.Lock()
+			assets.PubSubTopics = topics
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Cloud SQL instances
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if instances, err := g.DiscoverCloudSQL(ctx, domain); err == nil {
+			mu.Lock()
+			assets.CloudSQLInstances = instances
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Cloud Build configs
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if configs, err := g.DiscoverCloudBuild(ctx, domain); err == nil {
+			mu.Lock()
+			assets.CloudBuildConfigs = configs
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover Source Repositories
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if repos, err := g.DiscoverSourceRepositories(ctx, domain); err == nil {
+			mu.Lock()
+			assets.SourceRepositories = repos
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover GCP APIs
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if endpoints, err := g.DiscoverGCPAPIs(ctx, domain); err == nil {
+			mu.Lock()
+			assets.APIEndpoints = endpoints
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover secrets
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if secrets, err := g.DiscoverGCPSecrets(ctx, domain); err == nil {
+			mu.Lock()
+			assets.Secrets = secrets
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover project IDs
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if projectIDs, err := g.DiscoverProjectIDs(ctx, domain); err == nil {
+			mu.Lock()
+			assets.ProjectIDs = projectIDs
+			mu.Unlock()
+		}
+	}()
+	
+	// Discover service accounts
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if accounts, err := g.DiscoverServiceAccounts(ctx, domain); err == nil {
+			mu.Lock()
+			assets.ServiceAccounts = accounts
+			mu.Unlock()
+		}
+	}()
+	
+	// Check for metadata exposure if URLs provided
+	if len(urls) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if exposures, err := g.DiscoverGCPMetadata(ctx, urls); err == nil {
+				mu.Lock()
+				assets.MetadataExposures = exposures
+				mu.Unlock()
+			}
+		}()
+	}
+	
+	wg.Wait()
+	
+	// Log summary
+	g.logger.Info("GCP discovery completed",
+		"domain", domain,
+		"project_ids", len(assets.ProjectIDs),
+		"gcs_buckets", len(assets.GCSBuckets),
+		"app_engine_apps", len(assets.AppEngineApps),
+		"cloud_run_services", len(assets.CloudRunServices),
+		"cloud_functions", len(assets.CloudFunctions),
+		"firebase_apps", len(assets.FirebaseApps),
+		"bigquery_datasets", len(assets.BigQueryDatasets),
+		"compute_instances", len(assets.ComputeInstances),
+		"gke_clusters", len(assets.GKEClusters),
+		"pubsub_topics", len(assets.PubSubTopics),
+		"cloud_sql_instances", len(assets.CloudSQLInstances),
+		"cloud_build_configs", len(assets.CloudBuildConfigs),
+		"source_repositories", len(assets.SourceRepositories),
+		"api_endpoints", len(assets.APIEndpoints),
+		"secrets", len(assets.Secrets),
+		"service_accounts", len(assets.ServiceAccounts),
+		"metadata_exposures", len(assets.MetadataExposures))
+	
+	return assets, nil
 }
 
 // GCSBucket represents a Google Cloud Storage bucket
@@ -571,10 +816,24 @@ func (g *GCPDiscovery) DiscoverBigQueryDatasets(ctx context.Context, domain stri
 		baseName + "_analytics",
 		baseName + "_logs",
 		baseName + "_events",
+		baseName + "_prod",
+		baseName + "_staging",
+		baseName + "_dev",
+		baseName + "_raw",
+		baseName + "_processed",
+		baseName + "_warehouse",
+		baseName + "_lake",
+		baseName + "_metrics",
+		baseName + "_reporting",
 		"data_" + baseName,
 		"analytics_" + baseName,
 		"logs_" + baseName,
 		"events_" + baseName,
+		"raw_" + baseName,
+		"processed_" + baseName,
+		"warehouse_" + baseName,
+		"dw_" + baseName,
+		"dl_" + baseName,
 	}
 
 	// Common project patterns
@@ -583,6 +842,19 @@ func (g *GCPDiscovery) DiscoverBigQueryDatasets(ctx context.Context, domain stri
 		baseName + "-project",
 		baseName + "-data",
 		baseName + "-analytics",
+		baseName + "-prod",
+		baseName + "-staging",
+		baseName + "-dev",
+		baseName + "-bigquery",
+		baseName + "-bq",
+		baseName + "-warehouse",
+		baseName + "-dw",
+		baseName + "-lake",
+		baseName + "-dl",
+		"data-" + baseName,
+		"analytics-" + baseName,
+		"bigquery-" + baseName,
+		"bq-" + baseName,
 	}
 
 	// Note: BigQuery doesn't have predictable public URLs
@@ -608,6 +880,689 @@ type BigQueryDataset struct {
 	DatasetID string
 }
 
+// DiscoverComputeEngine discovers Compute Engine instances
+func (g *GCPDiscovery) DiscoverComputeEngine(ctx context.Context, domain string) ([]ComputeInstance, error) {
+	var instances []ComputeInstance
+
+	// Note: Compute Engine instances don't have predictable public URLs
+	// This would require using the Compute Engine API with credentials
+	// We'll return common naming patterns for documentation
+
+	baseName := extractBaseName(domain)
+
+	// Common instance name patterns
+	instanceNames := []string{
+		baseName,
+		baseName + "-vm",
+		baseName + "-instance",
+		baseName + "-server",
+		baseName + "-web",
+		baseName + "-api",
+		baseName + "-db",
+		baseName + "-prod",
+		baseName + "-staging",
+		baseName + "-dev",
+		"vm-" + baseName,
+		"instance-" + baseName,
+		"server-" + baseName,
+	}
+
+	// Common zones
+	zones := []string{
+		"us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f",
+		"us-east1-b", "us-east1-c", "us-east1-d",
+		"us-west1-a", "us-west1-b", "us-west1-c",
+		"europe-west1-b", "europe-west1-c", "europe-west1-d",
+		"asia-east1-a", "asia-east1-b", "asia-east1-c",
+	}
+
+	for _, instanceName := range instanceNames {
+		for _, zone := range zones {
+			instances = append(instances, ComputeInstance{
+				Name: instanceName,
+				Zone: zone,
+			})
+		}
+	}
+
+	return instances, nil
+}
+
+// ComputeInstance represents a Compute Engine instance
+type ComputeInstance struct {
+	Name string
+	Zone string
+}
+
+// DiscoverGKEClusters discovers Google Kubernetes Engine clusters
+func (g *GCPDiscovery) DiscoverGKEClusters(ctx context.Context, domain string) ([]GKECluster, error) {
+	var clusters []GKECluster
+
+	baseName := extractBaseName(domain)
+
+	// Common GKE cluster names
+	clusterNames := []string{
+		baseName,
+		baseName + "-cluster",
+		baseName + "-gke",
+		baseName + "-k8s",
+		baseName + "-kube",
+		baseName + "-prod",
+		baseName + "-staging",
+		baseName + "-dev",
+		"gke-" + baseName,
+		"k8s-" + baseName,
+		"kube-" + baseName,
+		"cluster-" + baseName,
+	}
+
+	// Common regions/zones for GKE
+	locations := []string{
+		"us-central1", "us-east1", "us-west1",
+		"europe-west1", "europe-west2",
+		"asia-east1", "asia-southeast1",
+	}
+
+	for _, clusterName := range clusterNames {
+		for _, location := range locations {
+			clusters = append(clusters, GKECluster{
+				Name:     clusterName,
+				Location: location,
+			})
+		}
+	}
+
+	return clusters, nil
+}
+
+// GKECluster represents a Google Kubernetes Engine cluster
+type GKECluster struct {
+	Name     string
+	Location string
+}
+
+// DiscoverPubSubTopics discovers Pub/Sub topics
+func (g *GCPDiscovery) DiscoverPubSubTopics(ctx context.Context, domain string) ([]PubSubTopic, error) {
+	var topics []PubSubTopic
+
+	baseName := extractBaseName(domain)
+
+	// Common topic name patterns
+	topicNames := []string{
+		baseName,
+		baseName + "-events",
+		baseName + "-messages",
+		baseName + "-notifications",
+		baseName + "-updates",
+		baseName + "-logs",
+		baseName + "-audit",
+		baseName + "-analytics",
+		"events-" + baseName,
+		"messages-" + baseName,
+		"notifications-" + baseName,
+		"topic-" + baseName,
+	}
+
+	// Common project patterns
+	projectIDs := []string{
+		baseName,
+		baseName + "-project",
+		baseName + "-prod",
+		baseName + "-dev",
+	}
+
+	for _, projectID := range projectIDs {
+		for _, topicName := range topicNames {
+			topics = append(topics, PubSubTopic{
+				ProjectID: projectID,
+				TopicName: topicName,
+			})
+		}
+	}
+
+	return topics, nil
+}
+
+// PubSubTopic represents a Pub/Sub topic
+type PubSubTopic struct {
+	ProjectID string
+	TopicName string
+}
+
+// DiscoverCloudSQL discovers Cloud SQL instances
+func (g *GCPDiscovery) DiscoverCloudSQL(ctx context.Context, domain string) ([]CloudSQLInstance, error) {
+	var instances []CloudSQLInstance
+
+	baseName := extractBaseName(domain)
+
+	// Common Cloud SQL instance names
+	instanceNames := []string{
+		baseName,
+		baseName + "-db",
+		baseName + "-sql",
+		baseName + "-mysql",
+		baseName + "-postgres",
+		baseName + "-database",
+		baseName + "-prod",
+		baseName + "-staging",
+		baseName + "-dev",
+		"db-" + baseName,
+		"sql-" + baseName,
+		"mysql-" + baseName,
+		"postgres-" + baseName,
+	}
+
+	// Common project patterns
+	projectIDs := []string{
+		baseName,
+		baseName + "-project",
+		baseName + "-prod",
+		baseName + "-dev",
+	}
+
+	for _, projectID := range projectIDs {
+		for _, instanceName := range instanceNames {
+			instances = append(instances, CloudSQLInstance{
+				ProjectID:    projectID,
+				InstanceName: instanceName,
+			})
+		}
+	}
+
+	return instances, nil
+}
+
+// CloudSQLInstance represents a Cloud SQL instance
+type CloudSQLInstance struct {
+	ProjectID    string
+	InstanceName string
+}
+
+// DiscoverCloudBuild discovers Cloud Build configurations
+func (g *GCPDiscovery) DiscoverCloudBuild(ctx context.Context, domain string) ([]CloudBuildConfig, error) {
+	var configs []CloudBuildConfig
+
+	baseName := extractBaseName(domain)
+
+	// Check for Cloud Build configuration files in common GCS buckets
+	bucketNames := []string{
+		baseName + "-builds",
+		baseName + "-artifacts",
+		baseName + "-cloudbuild",
+		"builds-" + baseName,
+		"artifacts-" + baseName,
+		"cloudbuild-" + baseName,
+	}
+
+	for _, bucketName := range bucketNames {
+		bucket := g.checkGCSBucket(ctx, bucketName)
+		if bucket != nil && bucket.Exists {
+			configs = append(configs, CloudBuildConfig{
+				BucketName: bucketName,
+				URL:        bucket.URL,
+			})
+		}
+	}
+
+	return configs, nil
+}
+
+// CloudBuildConfig represents a Cloud Build configuration
+type CloudBuildConfig struct {
+	BucketName string
+	URL        string
+}
+
+// DiscoverSourceRepositories discovers Cloud Source Repositories
+func (g *GCPDiscovery) DiscoverSourceRepositories(ctx context.Context, domain string) ([]SourceRepository, error) {
+	var repos []SourceRepository
+
+	baseName := extractBaseName(domain)
+
+	// Common repository names
+	repoNames := []string{
+		baseName,
+		baseName + "-code",
+		baseName + "-repo",
+		baseName + "-source",
+		baseName + "-app",
+		baseName + "-api",
+		baseName + "-web",
+		baseName + "-backend",
+		baseName + "-frontend",
+	}
+
+	// Common project patterns
+	projectIDs := []string{
+		baseName,
+		baseName + "-project",
+		baseName + "-dev",
+		baseName + "-prod",
+	}
+
+	for _, projectID := range projectIDs {
+		for _, repoName := range repoNames {
+			repos = append(repos, SourceRepository{
+				ProjectID: projectID,
+				RepoName:  repoName,
+			})
+		}
+	}
+
+	return repos, nil
+}
+
+// SourceRepository represents a Cloud Source Repository
+type SourceRepository struct {
+	ProjectID string
+	RepoName  string
+}
+
+// DiscoverGCPMetadata attempts to find exposed GCP metadata
+func (g *GCPDiscovery) DiscoverGCPMetadata(ctx context.Context, urls []string) ([]GCPMetadataExposure, error) {
+	var exposures []GCPMetadataExposure
+
+	metadataPaths := []string{
+		"/computeMetadata/v1/",
+		"/computeMetadata/v1/project/project-id",
+		"/computeMetadata/v1/project/numeric-project-id",
+		"/computeMetadata/v1/project/attributes/",
+		"/computeMetadata/v1/instance/service-accounts/",
+		"/computeMetadata/v1/instance/service-accounts/default/token",
+		"/computeMetadata/v1/instance/hostname",
+		"/computeMetadata/v1/instance/id",
+		"/computeMetadata/v1/instance/zone",
+		"/computeMetadata/v1/instance/attributes/",
+	}
+
+	for _, baseURL := range urls {
+		for _, path := range metadataPaths {
+			exposure := g.checkMetadataEndpoint(ctx, baseURL, path)
+			if exposure != nil {
+				exposures = append(exposures, *exposure)
+			}
+		}
+	}
+
+	return exposures, nil
+}
+
+// GCPMetadataExposure represents exposed GCP metadata
+type GCPMetadataExposure struct {
+	URL          string
+	Path         string
+	IsExposed    bool
+	ResponseData string
+}
+
+// checkMetadataEndpoint checks for exposed GCP metadata
+func (g *GCPDiscovery) checkMetadataEndpoint(ctx context.Context, baseURL, path string) *GCPMetadataExposure {
+	// Common metadata URLs
+	metadataURLs := []string{
+		baseURL + path,
+		baseURL + "/169.254.169.254" + path,
+		baseURL + "/metadata.google.internal" + path,
+		baseURL + "/metadata" + path,
+	}
+
+	for _, url := range metadataURLs {
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			continue
+		}
+
+		// GCP metadata requires specific header
+		req.Header.Set("Metadata-Flavor", "Google")
+
+		resp, err := g.client.Do(req)
+		if err != nil {
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 200 {
+			// Read limited response
+			buf := make([]byte, 1024)
+			n, _ := resp.Body.Read(buf)
+
+			return &GCPMetadataExposure{
+				URL:          url,
+				Path:         path,
+				IsExposed:    true,
+				ResponseData: string(buf[:n]),
+			}
+		}
+	}
+
+	return nil
+}
+
+// DiscoverGCPAPIs attempts to discover exposed GCP APIs
+func (g *GCPDiscovery) DiscoverGCPAPIs(ctx context.Context, domain string) ([]GCPAPIEndpoint, error) {
+	var endpoints []GCPAPIEndpoint
+
+	baseName := extractBaseName(domain)
+
+	// Common API endpoint patterns
+	apiPatterns := []string{
+		"%s-dot-appspot.com",
+		"%s.googleapis.com",
+		"%s-uc.a.run.app",
+		"%s.cloudfunctions.net",
+		"%s.firebaseio.com",
+		"%s.web.app",
+		"%s.firebaseapp.com",
+	}
+
+	// Common API service names
+	serviceNames := []string{
+		baseName,
+		baseName + "-api",
+		baseName + "-service",
+		baseName + "-backend",
+		"api-" + baseName,
+		"service-" + baseName,
+		"backend-" + baseName,
+	}
+
+	for _, serviceName := range serviceNames {
+		for _, pattern := range apiPatterns {
+			apiURL := fmt.Sprintf("https://" + pattern, serviceName)
+			if g.checkAPIEndpoint(ctx, apiURL) {
+				endpoints = append(endpoints, GCPAPIEndpoint{
+					ServiceName: serviceName,
+					URL:         apiURL,
+					IsActive:    true,
+				})
+			}
+		}
+	}
+
+	return endpoints, nil
+}
+
+// GCPAPIEndpoint represents a GCP API endpoint
+type GCPAPIEndpoint struct {
+	ServiceName string
+	URL         string
+	IsActive    bool
+}
+
+// checkAPIEndpoint checks if an API endpoint is active
+func (g *GCPDiscovery) checkAPIEndpoint(ctx context.Context, url string) bool {
+	req, err := http.NewRequestWithContext(ctx, "HEAD", url, nil)
+	if err != nil {
+		return false
+	}
+
+	resp, err := g.client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	// API endpoints typically return 200, 401, 403, or custom responses
+	return resp.StatusCode != 404
+}
+
+// DiscoverGCPSecrets attempts to discover Secret Manager secrets
+func (g *GCPDiscovery) DiscoverGCPSecrets(ctx context.Context, domain string) ([]GCPSecret, error) {
+	var secrets []GCPSecret
+
+	baseName := extractBaseName(domain)
+
+	// Common secret name patterns
+	secretNames := []string{
+		baseName + "-api-key",
+		baseName + "-secret",
+		baseName + "-credentials",
+		baseName + "-password",
+		baseName + "-token",
+		baseName + "-config",
+		baseName + "-env",
+		"api-key-" + baseName,
+		"secret-" + baseName,
+		"credentials-" + baseName,
+		"password-" + baseName,
+		"token-" + baseName,
+	}
+
+	// Common project patterns
+	projectIDs := []string{
+		baseName,
+		baseName + "-project",
+		baseName + "-prod",
+		baseName + "-dev",
+	}
+
+	for _, projectID := range projectIDs {
+		for _, secretName := range secretNames {
+			secrets = append(secrets, GCPSecret{
+				ProjectID:  projectID,
+				SecretName: secretName,
+			})
+		}
+	}
+
+	return secrets, nil
+}
+
+// GCPSecret represents a Secret Manager secret
+type GCPSecret struct {
+	ProjectID  string
+	SecretName string
+}
+
+// DiscoverServiceAccounts attempts to discover GCP service accounts
+func (g *GCPDiscovery) DiscoverServiceAccounts(ctx context.Context, domain string) ([]ServiceAccount, error) {
+	var accounts []ServiceAccount
+
+	baseName := extractBaseName(domain)
+
+	// Common service account patterns
+	accountNames := []string{
+		baseName,
+		baseName + "-sa",
+		baseName + "-service",
+		baseName + "-svc",
+		baseName + "-app",
+		baseName + "-api",
+		baseName + "-worker",
+		baseName + "-admin",
+		baseName + "-deploy",
+		baseName + "-ci",
+		baseName + "-cd",
+		baseName + "-gke",
+		baseName + "-compute",
+		"service-" + baseName,
+		"sa-" + baseName,
+		"svc-" + baseName,
+		"app-" + baseName,
+		"api-" + baseName,
+	}
+
+	// Common project patterns
+	projectIDs := g.generateProjectIDs(baseName, domain)
+
+	for _, projectID := range projectIDs {
+		for _, accountName := range accountNames {
+			accounts = append(accounts, ServiceAccount{
+				Email:     fmt.Sprintf("%s@%s.iam.gserviceaccount.com", accountName, projectID),
+				ProjectID: projectID,
+				Name:      accountName,
+			})
+		}
+	}
+
+	return accounts, nil
+}
+
+// ServiceAccount represents a GCP service account
+type ServiceAccount struct {
+	Email     string
+	ProjectID string
+	Name      string
+}
+
+// DiscoverProjectIDs attempts to discover GCP project IDs through various methods
+func (g *GCPDiscovery) DiscoverProjectIDs(ctx context.Context, domain string) ([]string, error) {
+	baseName := extractBaseName(domain)
+	projectIDs := g.generateProjectIDs(baseName, domain)
+	
+	// Additional discovery through exposed endpoints
+	var discoveredIDs []string
+	
+	// Check common GCS buckets for project IDs
+	bucketNames := []string{
+		baseName,
+		baseName + "-backup",
+		baseName + "-logs",
+		baseName + "-artifacts",
+	}
+	
+	for _, bucketName := range bucketNames {
+		bucket := g.checkGCSBucket(ctx, bucketName)
+		if bucket != nil && bucket.Exists && bucket.HasListing {
+			// Sometimes project IDs are exposed in bucket listings
+			g.logger.Debug("Found accessible bucket, may contain project info", "bucket", bucketName)
+		}
+	}
+	
+	// Check Firebase config endpoints which often expose project IDs
+	firebaseConfigURL := fmt.Sprintf("https://%s.web.app/__/firebase/init.json", baseName)
+	if data := g.fetchURL(ctx, firebaseConfigURL); data != "" {
+		// Parse for project ID
+		if projectID := extractProjectIDFromJSON(data); projectID != "" {
+			discoveredIDs = append(discoveredIDs, projectID)
+		}
+	}
+	
+	// Combine generated and discovered IDs
+	allIDs := append(projectIDs, discoveredIDs...)
+	return deduplicateStrings(allIDs), nil
+}
+
+// generateProjectIDs generates potential GCP project IDs
+func (g *GCPDiscovery) generateProjectIDs(baseName, domain string) []string {
+	var projectIDs []string
+	
+	// GCP project ID patterns
+	patterns := []string{
+		"%s",
+		"%s-project",
+		"%s-prod",
+		"%s-production",
+		"%s-dev",
+		"%s-development",
+		"%s-staging",
+		"%s-stage",
+		"%s-test",
+		"%s-qa",
+		"%s-demo",
+		"%s-poc",
+		"%s-pilot",
+		"%s-sandbox",
+		"%s-lab",
+		"%s-experiment",
+		"%s-data",
+		"%s-analytics",
+		"%s-ml",
+		"%s-ai",
+		"%s-api",
+		"%s-app",
+		"%s-web",
+		"%s-mobile",
+		"%s-backend",
+		"%s-frontend",
+		"%s-infra",
+		"%s-infrastructure",
+		"%s-platform",
+		"%s-core",
+		"%s-main",
+		"%s-primary",
+		"%s-secondary",
+		"%s-backup",
+		"%s-dr",
+		"%s-recovery",
+		"%s-archive",
+		"%s-logs",
+		"%s-monitoring",
+		"%s-metrics",
+		"%s-billing",
+		"%s-finance",
+		"%s-ops",
+		"%s-operations",
+		"%s-security",
+		"%s-compliance",
+		"%s-audit",
+		"project-%s",
+		"gcp-%s",
+		"google-%s",
+		"g-%s",
+	}
+	
+	// Apply patterns
+	for _, pattern := range patterns {
+		projectID := fmt.Sprintf(pattern, baseName)
+		if isValidProjectID(projectID) {
+			projectIDs = append(projectIDs, projectID)
+		}
+	}
+	
+	// Add numeric suffixes
+	for i := 1; i <= 5; i++ {
+		projectID := fmt.Sprintf("%s-%d", baseName, i)
+		if isValidProjectID(projectID) {
+			projectIDs = append(projectIDs, projectID)
+		}
+	}
+	
+	// Add year-based variations
+	currentYear := time.Now().Year()
+	for year := currentYear - 3; year <= currentYear; year++ {
+		projectID := fmt.Sprintf("%s-%d", baseName, year)
+		if isValidProjectID(projectID) {
+			projectIDs = append(projectIDs, projectID)
+		}
+	}
+	
+	// Try with company variations
+	if strings.Contains(domain, ".") {
+		parts := strings.Split(domain, ".")
+		for _, part := range parts {
+			if part != "com" && part != "org" && part != "net" && part != "io" {
+				cleanPart := strings.ToLower(regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(part, "-"))
+				if isValidProjectID(cleanPart) {
+					projectIDs = append(projectIDs, cleanPart)
+				}
+			}
+		}
+	}
+	
+	return deduplicateStrings(projectIDs)
+}
+
+// fetchURL fetches content from a URL
+func (g *GCPDiscovery) fetchURL(ctx context.Context, url string) string {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	
+	resp, err := g.client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == 200 {
+		data, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024)) // Limit to 1MB
+		return string(data)
+	}
+	
+	return ""
+}
+
 // Helper functions
 
 func isValidGCSBucketName(name string) bool {
@@ -620,4 +1575,39 @@ func isValidGCSBucketName(name string) bool {
 	// Can contain lowercase letters, numbers, hyphens, underscores, periods
 	matched, _ := regexp.MatchString(`^[a-z0-9][a-z0-9._-]*[a-z0-9]$`, name)
 	return matched
+}
+
+func isValidProjectID(id string) bool {
+	// GCP project ID rules: 6-30 chars, lowercase letters, numbers, hyphens
+	if len(id) < 6 || len(id) > 30 {
+		return false
+	}
+	
+	// Must start with lowercase letter
+	// Can contain lowercase letters, numbers, and hyphens
+	// Cannot end with hyphen
+	matched, _ := regexp.MatchString(`^[a-z][a-z0-9-]*[a-z0-9]$`, id)
+	return matched
+}
+
+func extractProjectIDFromJSON(data string) string {
+	// Simple regex to extract project ID from Firebase config
+	re := regexp.MustCompile(`"projectId"\s*:\s*"([^"]+)"`)
+	matches := re.FindStringSubmatch(data)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+func deduplicateStrings(items []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+	for _, item := range items {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+	return result
 }

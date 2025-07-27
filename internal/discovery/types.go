@@ -79,8 +79,13 @@ const (
 	AssetTypeAuthentication AssetType = "authentication"
 	AssetTypeAuth           AssetType = "auth"
 	AssetTypeMailServer     AssetType = "mail_server"
-	AssetTypeAdminPanel     AssetType = "admin_panel"
-	AssetTypeOrganization   AssetType = "organization"
+	AssetTypeAdminPanel       AssetType = "admin_panel"
+	AssetTypeOrganization     AssetType = "organization"
+	AssetTypeCloudStorage     AssetType = "cloud_storage"
+	AssetTypeCDN              AssetType = "cdn"
+	AssetTypeWebApp           AssetType = "web_app"
+	AssetTypeContainerRegistry AssetType = "container_registry"
+	AssetTypeVulnerability  AssetType = "vulnerability"
 )
 
 // Relationship represents a relationship between assets
@@ -108,6 +113,7 @@ const (
 	RelationTypeHosting     RelationType = "hosting"
 	RelationTypeTechnology  RelationType = "technology"
 	RelationTypeNetwork     RelationType = "network"
+	RelationTypeVulnerability RelationType = "vulnerability"
 )
 
 // DiscoverySession represents a discovery session
