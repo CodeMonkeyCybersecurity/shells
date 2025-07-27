@@ -28,27 +28,27 @@ type OOBConfig struct {
 
 // InteractshClient handles communication with Interactsh server
 type InteractshClient struct {
-	serverURL    string
-	authToken    string
-	sessionToken string
+	serverURL     string
+	authToken     string
+	sessionToken  string
 	correlationID string
-	secretKey    string
-	pubKey       string
-	privKey      string
-	registered   bool
-	mu           sync.RWMutex
+	secretKey     string
+	pubKey        string
+	privKey       string
+	registered    bool
+	mu            sync.RWMutex
 }
 
 // InteractshInteraction represents an OOB interaction
 type InteractshInteraction struct {
-	Protocol         string    `json:"protocol"`
-	UniqueID         string    `json:"unique-id"`
-	FullID           string    `json:"full-id"`
-	QType            string    `json:"q-type,omitempty"`
-	RawRequest       string    `json:"raw-request"`
-	RawResponse      string    `json:"raw-response"`
-	RemoteAddress    string    `json:"remote-address"`
-	Timestamp        time.Time `json:"timestamp"`
+	Protocol      string    `json:"protocol"`
+	UniqueID      string    `json:"unique-id"`
+	FullID        string    `json:"full-id"`
+	QType         string    `json:"q-type,omitempty"`
+	RawRequest    string    `json:"raw-request"`
+	RawResponse   string    `json:"raw-response"`
+	RemoteAddress string    `json:"remote-address"`
+	Timestamp     time.Time `json:"timestamp"`
 }
 
 // RegistrationRequest for Interactsh
@@ -60,16 +60,16 @@ type RegistrationRequest struct {
 
 // RegistrationResponse from Interactsh
 type RegistrationResponse struct {
-	Success      bool   `json:"success"`
-	Message      string `json:"message"`
-	Error        string `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Error   string `json:"error,omitempty"`
 }
 
 // PollResponse from Interactsh
 type PollResponse struct {
-	Data        []InteractshInteraction `json:"data"`
-	Error       string                   `json:"error,omitempty"`
-	AesKey      string                   `json:"aes_key,omitempty"`
+	Data   []InteractshInteraction `json:"data"`
+	Error  string                  `json:"error,omitempty"`
+	AesKey string                  `json:"aes_key,omitempty"`
 }
 
 // interactshScanner implements OOB testing with identity validation focus
@@ -123,41 +123,41 @@ func (s *interactshScanner) Validate(target string) error {
 	if target == "" {
 		return fmt.Errorf("target cannot be empty")
 	}
-	
+
 	// Validate URL format
 	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
 		return fmt.Errorf("target must be a valid HTTP/HTTPS URL")
 	}
-	
+
 	return nil
 }
 
 func (s *interactshScanner) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
 	s.logger.Info("Starting OOB identity validation scan", "target", target)
-	
+
 	// Register with Interactsh server
 	if err := s.client.Register(ctx); err != nil {
 		return nil, fmt.Errorf("failed to register with Interactsh: %w", err)
 	}
 	defer s.client.Deregister(ctx)
-	
+
 	// Generate unique payloads for different identity validation tests
 	payloads := s.generateIdentityPayloads()
-	
+
 	// Inject payloads into various identity-related endpoints
 	injectionPoints := s.injectPayloads(ctx, target, payloads)
-	
+
 	// Start monitoring for interactions
 	interactions := make(chan InteractshInteraction, 100)
 	pollCtx, cancel := context.WithTimeout(ctx, s.config.PollDuration)
 	defer cancel()
-	
+
 	go s.client.Poll(pollCtx, interactions)
-	
+
 	// Collect and analyze interactions
 	var findings []types.Finding
 	interactionMap := make(map[string][]InteractshInteraction)
-	
+
 	for interaction := range interactions {
 		// Group interactions by payload ID
 		for payloadID := range payloads {
@@ -167,7 +167,7 @@ func (s *interactshScanner) Scan(ctx context.Context, target string, options map
 			}
 		}
 	}
-	
+
 	// Analyze interactions for identity-related vulnerabilities
 	for payloadID, payload := range payloads {
 		if interactions, found := interactionMap[payloadID]; found {
@@ -176,11 +176,11 @@ func (s *interactshScanner) Scan(ctx context.Context, target string, options map
 			}
 		}
 	}
-	
-	s.logger.Info("OOB identity validation scan completed", 
+
+	s.logger.Info("OOB identity validation scan completed",
 		"target", target,
 		"findings", len(findings))
-	
+
 	return findings, nil
 }
 
@@ -188,7 +188,7 @@ func (s *interactshScanner) Scan(ctx context.Context, target string, options map
 func (s *interactshScanner) generateIdentityPayloads() map[string]IdentityPayload {
 	subdomain := s.client.GetSubdomain()
 	payloads := make(map[string]IdentityPayload)
-	
+
 	// Generate unique IDs for each test type
 	testTypes := []string{
 		"saml-xxe",
@@ -202,15 +202,15 @@ func (s *interactshScanner) generateIdentityPayloads() map[string]IdentityPayloa
 		"xml-external-entity",
 		"user-enumeration",
 	}
-	
+
 	for _, testType := range testTypes {
 		payloadID := generateRandomID(8)
 		payload := IdentityPayload{
-			ID:       payloadID,
-			Type:     testType,
+			ID:        payloadID,
+			Type:      testType,
 			Subdomain: fmt.Sprintf("%s-%s", payloadID, subdomain),
 		}
-		
+
 		// Generate specific payloads based on test type
 		switch testType {
 		case "saml-xxe":
@@ -234,10 +234,10 @@ func (s *interactshScanner) generateIdentityPayloads() map[string]IdentityPayloa
 		case "user-enumeration":
 			payload.Content = s.generateUserEnumerationPayload(payload.Subdomain)
 		}
-		
+
 		payloads[payloadID] = payload
 	}
-	
+
 	return payloads
 }
 
@@ -260,13 +260,13 @@ type InjectionPoint struct {
 // injectPayloads injects OOB payloads into identity-related endpoints
 func (s *interactshScanner) injectPayloads(ctx context.Context, target string, payloads map[string]IdentityPayload) map[string][]InjectionPoint {
 	injectionPoints := make(map[string][]InjectionPoint)
-	
+
 	// Discover identity endpoints
 	endpoints := s.discoverIdentityEndpoints(ctx, target)
-	
+
 	for payloadID, payload := range payloads {
 		var points []InjectionPoint
-		
+
 		// Inject based on payload type
 		switch payload.Type {
 		case "saml-xxe":
@@ -288,17 +288,17 @@ func (s *interactshScanner) injectPayloads(ctx context.Context, target string, p
 		case "user-enumeration":
 			points = s.injectUserEnumerationPayload(ctx, endpoints, payload)
 		}
-		
+
 		injectionPoints[payloadID] = points
 	}
-	
+
 	return injectionPoints
 }
 
 // discoverIdentityEndpoints finds identity-related endpoints
 func (s *interactshScanner) discoverIdentityEndpoints(ctx context.Context, target string) []string {
 	endpoints := []string{}
-	
+
 	// Common identity endpoints
 	commonPaths := []string{
 		"/login",
@@ -328,7 +328,7 @@ func (s *interactshScanner) discoverIdentityEndpoints(ctx context.Context, targe
 		"/adfs/ls",
 		"/adfs/oauth2",
 	}
-	
+
 	baseURL, _ := url.Parse(target)
 	for _, path := range commonPaths {
 		endpoint := baseURL.String() + path
@@ -337,7 +337,7 @@ func (s *interactshScanner) discoverIdentityEndpoints(ctx context.Context, targe
 			endpoints = append(endpoints, endpoint)
 		}
 	}
-	
+
 	return endpoints
 }
 
@@ -347,23 +347,23 @@ func (s *interactshScanner) checkEndpoint(ctx context.Context, endpoint string) 
 	if err != nil {
 		return false
 	}
-	
+
 	client := &http.Client{
 		Timeout: 5 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
-	
+
 	// Consider 200, 401, 403, 302 as existing endpoints
-	return resp.StatusCode == 200 || resp.StatusCode == 401 || 
-	       resp.StatusCode == 403 || resp.StatusCode == 302
+	return resp.StatusCode == 200 || resp.StatusCode == 401 ||
+		resp.StatusCode == 403 || resp.StatusCode == 302
 }
 
 // analyzeIdentityInteraction analyzes OOB interactions for identity vulnerabilities
@@ -371,11 +371,11 @@ func (s *interactshScanner) analyzeIdentityInteraction(payload IdentityPayload, 
 	if len(interactions) == 0 {
 		return nil
 	}
-	
+
 	// Build evidence from interactions
 	var evidence strings.Builder
 	evidence.WriteString(fmt.Sprintf("Out-of-band interaction detected for %s test\n\n", payload.Type))
-	
+
 	for i, interaction := range interactions {
 		evidence.WriteString(fmt.Sprintf("Interaction %d:\n", i+1))
 		evidence.WriteString(fmt.Sprintf("- Protocol: %s\n", interaction.Protocol))
@@ -386,19 +386,19 @@ func (s *interactshScanner) analyzeIdentityInteraction(payload IdentityPayload, 
 		}
 		evidence.WriteString("\n")
 	}
-	
+
 	evidence.WriteString("Injection Points:\n")
 	for _, point := range injectionPoints {
-		evidence.WriteString(fmt.Sprintf("- %s %s (Location: %s, Field: %s)\n", 
+		evidence.WriteString(fmt.Sprintf("- %s %s (Location: %s, Field: %s)\n",
 			point.Method, point.URL, point.Location, point.Field))
 	}
-	
+
 	// Determine severity and create finding
 	severity := s.determineSeverity(payload.Type, interactions)
 	title := s.generateTitle(payload.Type)
 	description := s.generateDescription(payload.Type, interactions)
 	remediation := s.generateRemediation(payload.Type)
-	
+
 	finding := &types.Finding{
 		ID:          fmt.Sprintf("oob_%s_%s", payload.Type, payload.ID),
 		Type:        "OOB_IDENTITY_VALIDATION",
@@ -409,15 +409,15 @@ func (s *interactshScanner) analyzeIdentityInteraction(payload IdentityPayload, 
 		Solution:    remediation,
 		References:  s.getReferences(payload.Type),
 		Metadata: map[string]interface{}{
-			"target":           injectionPoints[0].URL,
-			"tags":             []string{"oob", "identity", payload.Type},
-			"payload_type":     payload.Type,
+			"target":            injectionPoints[0].URL,
+			"tags":              []string{"oob", "identity", payload.Type},
+			"payload_type":      payload.Type,
 			"interaction_count": len(interactions),
-			"injection_points": len(injectionPoints),
-			"subdomain":        payload.Subdomain,
+			"injection_points":  len(injectionPoints),
+			"subdomain":         payload.Subdomain,
 		},
 	}
-	
+
 	return finding
 }
 
@@ -485,7 +485,7 @@ func (s *interactshScanner) determineSeverity(payloadType string, interactions [
 			return types.SeverityCritical
 		}
 	}
-	
+
 	// High severity
 	highTypes := []string{"oauth-redirect", "ldap-injection", "oidc-issuer"}
 	for _, t := range highTypes {
@@ -493,7 +493,7 @@ func (s *interactshScanner) determineSeverity(payloadType string, interactions [
 			return types.SeverityHigh
 		}
 	}
-	
+
 	// Medium severity
 	mediumTypes := []string{"password-reset", "webhook-ssrf"}
 	for _, t := range mediumTypes {
@@ -501,7 +501,7 @@ func (s *interactshScanner) determineSeverity(payloadType string, interactions [
 			return types.SeverityMedium
 		}
 	}
-	
+
 	return types.SeverityLow
 }
 
@@ -519,7 +519,7 @@ func (s *interactshScanner) generateTitle(payloadType string) string {
 		"xml-external-entity": "XML External Entity Injection",
 		"user-enumeration":    "User Enumeration via Email Check",
 	}
-	
+
 	if title, ok := titles[payloadType]; ok {
 		return title
 	}
@@ -528,18 +528,18 @@ func (s *interactshScanner) generateTitle(payloadType string) string {
 
 func (s *interactshScanner) generateDescription(payloadType string, interactions []InteractshInteraction) string {
 	descriptions := map[string]string{
-		"saml-xxe": "The SAML endpoint is vulnerable to XML External Entity (XXE) injection. An attacker can exfiltrate sensitive data or perform SSRF attacks through malicious SAML assertions.",
-		"oauth-redirect": "The OAuth implementation accepts arbitrary redirect URIs, allowing attackers to steal authorization codes and access tokens.",
-		"jwt-jku": "The JWT validation accepts arbitrary JKU (JSON Web Key Set URL) headers, allowing attackers to specify their own public keys for token validation.",
-		"jwt-x5u": "The JWT validation accepts arbitrary X5U (X.509 Certificate URL) headers, enabling signature bypass attacks.",
-		"ldap-injection": "LDAP queries are constructed using untrusted input, allowing attackers to modify query logic and potentially extract sensitive information.",
-		"password-reset": "Password reset tokens or notifications can be sent to attacker-controlled email addresses, enabling account takeover.",
-		"webhook-ssrf": "The webhook functionality can be abused to perform Server-Side Request Forgery (SSRF) attacks against internal resources.",
-		"oidc-issuer": "The OIDC implementation accepts tokens from arbitrary issuers, potentially allowing authentication bypass.",
+		"saml-xxe":            "The SAML endpoint is vulnerable to XML External Entity (XXE) injection. An attacker can exfiltrate sensitive data or perform SSRF attacks through malicious SAML assertions.",
+		"oauth-redirect":      "The OAuth implementation accepts arbitrary redirect URIs, allowing attackers to steal authorization codes and access tokens.",
+		"jwt-jku":             "The JWT validation accepts arbitrary JKU (JSON Web Key Set URL) headers, allowing attackers to specify their own public keys for token validation.",
+		"jwt-x5u":             "The JWT validation accepts arbitrary X5U (X.509 Certificate URL) headers, enabling signature bypass attacks.",
+		"ldap-injection":      "LDAP queries are constructed using untrusted input, allowing attackers to modify query logic and potentially extract sensitive information.",
+		"password-reset":      "Password reset tokens or notifications can be sent to attacker-controlled email addresses, enabling account takeover.",
+		"webhook-ssrf":        "The webhook functionality can be abused to perform Server-Side Request Forgery (SSRF) attacks against internal resources.",
+		"oidc-issuer":         "The OIDC implementation accepts tokens from arbitrary issuers, potentially allowing authentication bypass.",
 		"xml-external-entity": "XML parsing is vulnerable to external entity injection, allowing file disclosure and SSRF attacks.",
-		"user-enumeration": "The application leaks information about valid usernames through differential responses or timing.",
+		"user-enumeration":    "The application leaks information about valid usernames through differential responses or timing.",
 	}
-	
+
 	base := descriptions[payloadType]
 	if base != "" {
 		return fmt.Sprintf("%s The application made %d out-of-band connection(s) to the attacker-controlled server, confirming the vulnerability.", base, len(interactions))
@@ -549,18 +549,18 @@ func (s *interactshScanner) generateDescription(payloadType string, interactions
 
 func (s *interactshScanner) generateRemediation(payloadType string) string {
 	remediations := map[string]string{
-		"saml-xxe": "Disable XML external entity processing in all XML parsers. Use defusedxml or similar libraries. Validate and sanitize all SAML assertions.",
-		"oauth-redirect": "Implement strict redirect URI validation using an allowlist. Require exact matching of redirect URIs. Use the state parameter for CSRF protection.",
-		"jwt-jku": "Never trust JKU headers from untrusted sources. Use a predefined set of trusted key sources. Implement proper key pinning.",
-		"jwt-x5u": "Disable X5U header processing or restrict it to a whitelist of trusted certificate URLs. Validate certificate chains properly.",
-		"ldap-injection": "Use parameterized LDAP queries. Escape special LDAP characters. Implement proper input validation and sanitization.",
-		"password-reset": "Validate email ownership before sending reset tokens. Use secure random tokens. Implement rate limiting on password reset requests.",
-		"webhook-ssrf": "Validate and restrict webhook URLs to external domains only. Implement URL parsing and validation. Block requests to internal IP ranges.",
-		"oidc-issuer": "Validate token issuers against a whitelist. Implement proper issuer verification. Use discovery documents from trusted sources only.",
+		"saml-xxe":            "Disable XML external entity processing in all XML parsers. Use defusedxml or similar libraries. Validate and sanitize all SAML assertions.",
+		"oauth-redirect":      "Implement strict redirect URI validation using an allowlist. Require exact matching of redirect URIs. Use the state parameter for CSRF protection.",
+		"jwt-jku":             "Never trust JKU headers from untrusted sources. Use a predefined set of trusted key sources. Implement proper key pinning.",
+		"jwt-x5u":             "Disable X5U header processing or restrict it to a whitelist of trusted certificate URLs. Validate certificate chains properly.",
+		"ldap-injection":      "Use parameterized LDAP queries. Escape special LDAP characters. Implement proper input validation and sanitization.",
+		"password-reset":      "Validate email ownership before sending reset tokens. Use secure random tokens. Implement rate limiting on password reset requests.",
+		"webhook-ssrf":        "Validate and restrict webhook URLs to external domains only. Implement URL parsing and validation. Block requests to internal IP ranges.",
+		"oidc-issuer":         "Validate token issuers against a whitelist. Implement proper issuer verification. Use discovery documents from trusted sources only.",
 		"xml-external-entity": "Disable DTD processing entirely. Use secure XML parser configurations. Validate and sanitize all XML input.",
-		"user-enumeration": "Implement consistent error messages and response times. Use generic error messages. Add CAPTCHAs to prevent automated enumeration.",
+		"user-enumeration":    "Implement consistent error messages and response times. Use generic error messages. Add CAPTCHAs to prevent automated enumeration.",
 	}
-	
+
 	if remediation, ok := remediations[payloadType]; ok {
 		return remediation
 	}
@@ -572,7 +572,7 @@ func (s *interactshScanner) getReferences(payloadType string) []string {
 		"https://portswigger.net/web-security/xxe",
 		"https://owasp.org/www-project-web-security-testing-guide/",
 	}
-	
+
 	specificRefs := map[string][]string{
 		"saml-xxe": {
 			"https://web-in-security.blogspot.com/2014/11/detecting-and-exploiting-xxe-in-saml.html",
@@ -591,7 +591,7 @@ func (s *interactshScanner) getReferences(payloadType string) []string {
 			"https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.5",
 		},
 	}
-	
+
 	if refs, ok := specificRefs[payloadType]; ok {
 		return append(baseRefs, refs...)
 	}
@@ -604,54 +604,54 @@ func (s *interactshScanner) getReferences(payloadType string) []string {
 func (c *InteractshClient) Register(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	if c.registered {
 		return nil
 	}
-	
+
 	// Generate correlation ID and keys
 	c.correlationID = generateRandomID(20)
 	c.secretKey = generateRandomID(32)
-	
+
 	// For now, use simple registration (in production, implement proper crypto)
 	req := RegistrationRequest{
 		PublicKey:     "dummy-public-key",
 		SecretKey:     c.secretKey,
 		CorrelationID: c.correlationID,
 	}
-	
+
 	data, err := json.Marshal(req)
 	if err != nil {
 		return err
 	}
-	
+
 	regURL := fmt.Sprintf("%s/register", c.serverURL)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", regURL, bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	
+
 	if c.authToken != "" {
 		httpReq.Header.Set("Authorization", "Bearer "+c.authToken)
 	}
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	
+
 	var regResp RegistrationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&regResp); err != nil {
 		return err
 	}
-	
+
 	if !regResp.Success {
 		return fmt.Errorf("registration failed: %s", regResp.Error)
 	}
-	
+
 	c.registered = true
 	return nil
 }
@@ -660,31 +660,31 @@ func (c *InteractshClient) Register(ctx context.Context) error {
 func (c *InteractshClient) Deregister(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	if !c.registered {
 		return nil
 	}
-	
+
 	// Send deregistration request
 	deregURL := fmt.Sprintf("%s/deregister", c.serverURL)
-	req, err := http.NewRequestWithContext(ctx, "POST", deregURL, 
+	req, err := http.NewRequestWithContext(ctx, "POST", deregURL,
 		strings.NewReader(fmt.Sprintf(`{"correlation-id":"%s","secret":"%s"}`, c.correlationID, c.secretKey)))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	if c.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.authToken)
 	}
-	
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	
+
 	c.registered = false
 	return nil
 }
@@ -693,7 +693,7 @@ func (c *InteractshClient) Deregister(ctx context.Context) error {
 func (c *InteractshClient) GetSubdomain() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	if c.correlationID != "" {
 		// Extract domain from server URL
 		u, _ := url.Parse(c.serverURL)
@@ -709,39 +709,39 @@ func (c *InteractshClient) GetSubdomain() string {
 // Poll polls for interactions
 func (c *InteractshClient) Poll(ctx context.Context, interactions chan<- InteractshInteraction) error {
 	defer close(interactions)
-	
+
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
 			pollURL := fmt.Sprintf("%s/poll?id=%s&secret=%s", c.serverURL, c.correlationID, c.secretKey)
-			
+
 			req, err := http.NewRequestWithContext(ctx, "GET", pollURL, nil)
 			if err != nil {
 				continue
 			}
-			
+
 			if c.authToken != "" {
 				req.Header.Set("Authorization", "Bearer "+c.authToken)
 			}
-			
+
 			client := &http.Client{Timeout: 10 * time.Second}
 			resp, err := client.Do(req)
 			if err != nil {
 				continue
 			}
-			
+
 			var pollResp PollResponse
 			if err := json.NewDecoder(resp.Body).Decode(&pollResp); err != nil {
 				resp.Body.Close()
 				continue
 			}
 			resp.Body.Close()
-			
+
 			for _, interaction := range pollResp.Data {
 				select {
 				case interactions <- interaction:
@@ -757,16 +757,16 @@ func (c *InteractshClient) Poll(ctx context.Context, interactions chan<- Interac
 
 func (s *interactshScanner) injectSAMLPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "saml") {
 			// Inject into SAML assertion
 			req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(payload.Content))
 			req.Header.Set("Content-Type", "application/xml")
-			
+
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "POST",
@@ -775,13 +775,13 @@ func (s *interactshScanner) injectSAMLPayload(ctx context.Context, endpoints []s
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectOAuthPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "oauth") || strings.Contains(endpoint, "authorize") {
 			// Inject as redirect_uri
@@ -791,7 +791,7 @@ func (s *interactshScanner) injectOAuthPayload(ctx context.Context, endpoints []
 			q.Set("response_type", "code")
 			q.Set("client_id", "test-client")
 			u.RawQuery = q.Encode()
-			
+
 			req, _ := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 			client := &http.Client{
 				Timeout: 5 * time.Second,
@@ -800,7 +800,7 @@ func (s *interactshScanner) injectOAuthPayload(ctx context.Context, endpoints []
 				},
 			}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "GET",
@@ -809,28 +809,28 @@ func (s *interactshScanner) injectOAuthPayload(ctx context.Context, endpoints []
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectJWTPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	// Create a malformed JWT with malicious jku/x5u
 	header := base64URLEncode([]byte(payload.Content))
 	payloadData := base64URLEncode([]byte(`{"sub":"test","iat":1234567890}`))
 	signature := base64URLEncode([]byte("fake-signature"))
 	maliciousJWT := fmt.Sprintf("%s.%s.%s", header, payloadData, signature)
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "api") || strings.Contains(endpoint, "auth") {
 			// Inject as Authorization header
 			req, _ := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 			req.Header.Set("Authorization", "Bearer "+maliciousJWT)
-			
+
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "GET",
@@ -839,13 +839,13 @@ func (s *interactshScanner) injectJWTPayload(ctx context.Context, endpoints []st
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectLDAPPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "login") || strings.Contains(endpoint, "auth") {
 			// Inject into username field
@@ -853,13 +853,13 @@ func (s *interactshScanner) injectLDAPPayload(ctx context.Context, endpoints []s
 				"username": {payload.Content},
 				"password": {"password123"},
 			}
-			
+
 			req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "POST",
@@ -868,26 +868,26 @@ func (s *interactshScanner) injectLDAPPayload(ctx context.Context, endpoints []s
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectPasswordResetPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "password") || strings.Contains(endpoint, "forgot") {
 			// Inject as email parameter
 			formData := url.Values{
 				"email": {payload.Content},
 			}
-			
+
 			req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "POST",
@@ -896,24 +896,24 @@ func (s *interactshScanner) injectPasswordResetPayload(ctx context.Context, endp
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectWebhookPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "account") || strings.Contains(endpoint, "profile") {
 			// Try to update webhook URL in profile
 			jsonData := fmt.Sprintf(`{"webhook_url":"%s"}`, payload.Content)
-			
+
 			req, _ := http.NewRequestWithContext(ctx, "PUT", endpoint, strings.NewReader(jsonData))
 			req.Header.Set("Content-Type", "application/json")
-			
+
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "PUT",
@@ -922,13 +922,13 @@ func (s *interactshScanner) injectWebhookPayload(ctx context.Context, endpoints 
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectOIDCPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "oidc") || strings.Contains(endpoint, "openid") {
 			// Inject as issuer parameter
@@ -936,11 +936,11 @@ func (s *interactshScanner) injectOIDCPayload(ctx context.Context, endpoints []s
 			q := u.Query()
 			q.Set("iss", payload.Content)
 			u.RawQuery = q.Encode()
-			
+
 			req, _ := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "GET",
@@ -949,22 +949,22 @@ func (s *interactshScanner) injectOIDCPayload(ctx context.Context, endpoints []s
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectXMLPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "api") {
 			// Try XML content type
 			req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(payload.Content))
 			req.Header.Set("Content-Type", "application/xml")
-			
+
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "POST",
@@ -973,27 +973,27 @@ func (s *interactshScanner) injectXMLPayload(ctx context.Context, endpoints []st
 			})
 		}
 	}
-	
+
 	return points
 }
 
 func (s *interactshScanner) injectUserEnumerationPayload(ctx context.Context, endpoints []string, payload IdentityPayload) []InjectionPoint {
 	var points []InjectionPoint
-	
+
 	for _, endpoint := range endpoints {
 		if strings.Contains(endpoint, "register") || strings.Contains(endpoint, "signup") {
 			// Check if email exists
 			formData := url.Values{
-				"email": {payload.Content},
+				"email":      {payload.Content},
 				"check_only": {"true"},
 			}
-			
+
 			req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, strings.NewReader(formData.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-			
+
 			client := &http.Client{Timeout: 5 * time.Second}
 			client.Do(req)
-			
+
 			points = append(points, InjectionPoint{
 				URL:      endpoint,
 				Method:   "POST",
@@ -1002,7 +1002,7 @@ func (s *interactshScanner) injectUserEnumerationPayload(ctx context.Context, en
 			})
 		}
 	}
-	
+
 	return points
 }
 

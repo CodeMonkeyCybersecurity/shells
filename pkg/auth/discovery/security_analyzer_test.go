@@ -17,7 +17,7 @@ func TestNewSecurityAnalyzer(t *testing.T) {
 	})
 	require.NoError(t, err)
 	analyzer := NewSecurityAnalyzer(logger)
-	
+
 	assert.NotNil(t, analyzer)
 	assert.Equal(t, logger, analyzer.logger)
 }
@@ -31,9 +31,9 @@ func TestSecurityAnalyzer_AnalyzeImplementation_OAuth2(t *testing.T) {
 	analyzer := NewSecurityAnalyzer(logger)
 
 	tests := []struct {
-		name                   string
-		impl                   *AuthImplementation
-		expectedFeatures       []string
+		name                    string
+		impl                    *AuthImplementation
+		expectedFeatures        []string
 		expectedVulnerabilities []string
 	}{
 		{
@@ -87,7 +87,7 @@ func TestSecurityAnalyzer_AnalyzeImplementation_OAuth2(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			features, vulns := analyzer.AnalyzeImplementation(tt.impl)
-			
+
 			for _, expectedFeature := range tt.expectedFeatures {
 				found := false
 				for _, feature := range features {
@@ -98,7 +98,7 @@ func TestSecurityAnalyzer_AnalyzeImplementation_OAuth2(t *testing.T) {
 				}
 				assert.True(t, found, "Expected feature '%s' not found", expectedFeature)
 			}
-			
+
 			for _, expectedVuln := range tt.expectedVulnerabilities {
 				found := false
 				for _, vuln := range vulns {
@@ -122,9 +122,9 @@ func TestSecurityAnalyzer_AnalyzeImplementation_SAML(t *testing.T) {
 	analyzer := NewSecurityAnalyzer(logger)
 
 	tests := []struct {
-		name                   string
-		impl                   *AuthImplementation
-		expectedFeatures       []string
+		name                    string
+		impl                    *AuthImplementation
+		expectedFeatures        []string
 		expectedVulnerabilities []string
 	}{
 		{
@@ -162,7 +162,7 @@ func TestSecurityAnalyzer_AnalyzeImplementation_SAML(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			features, vulns := analyzer.AnalyzeImplementation(tt.impl)
-			
+
 			for _, expectedFeature := range tt.expectedFeatures {
 				found := false
 				for _, feature := range features {
@@ -173,7 +173,7 @@ func TestSecurityAnalyzer_AnalyzeImplementation_SAML(t *testing.T) {
 				}
 				assert.True(t, found, "Expected feature '%s' not found in %v", expectedFeature, features)
 			}
-			
+
 			for _, expectedVuln := range tt.expectedVulnerabilities {
 				found := false
 				for _, vuln := range vulns {
@@ -197,9 +197,9 @@ func TestSecurityAnalyzer_AnalyzeImplementation_WebAuthn(t *testing.T) {
 	analyzer := NewSecurityAnalyzer(logger)
 
 	tests := []struct {
-		name                   string
-		impl                   *AuthImplementation
-		expectedFeatures       []string
+		name                    string
+		impl                    *AuthImplementation
+		expectedFeatures        []string
 		expectedVulnerabilities []string
 	}{
 		{
@@ -238,7 +238,7 @@ func TestSecurityAnalyzer_AnalyzeImplementation_WebAuthn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			features, vulns := analyzer.AnalyzeImplementation(tt.impl)
-			
+
 			for _, expectedFeature := range tt.expectedFeatures {
 				found := false
 				for _, feature := range features {
@@ -249,7 +249,7 @@ func TestSecurityAnalyzer_AnalyzeImplementation_WebAuthn(t *testing.T) {
 				}
 				assert.True(t, found, "Expected feature '%s' not found", expectedFeature)
 			}
-			
+
 			for _, expectedVuln := range tt.expectedVulnerabilities {
 				found := false
 				for _, vuln := range vulns {
@@ -277,17 +277,17 @@ func TestSecurityAnalyzer_AnalyzeImplementation_BasicAuth(t *testing.T) {
 	}
 
 	features, vulns := analyzer.AnalyzeImplementation(impl)
-	
+
 	// Basic auth should have many vulnerabilities and few features
 	assert.Empty(t, features) // No inherent security features
 	assert.NotEmpty(t, vulns)
-	
+
 	expectedVulns := []string{
 		"base64 encoding",
 		"credential theft",
 		"session management",
 	}
-	
+
 	for _, expectedVuln := range expectedVulns {
 		found := false
 		for _, vuln := range vulns {
@@ -355,7 +355,7 @@ func TestSecurityAnalyzer_AnalyzeJWT(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vulns, features := analyzer.analyzeJWT(tt.impl)
-			
+
 			for _, expectedFeature := range tt.expectedFeatures {
 				found := false
 				for _, feature := range features {
@@ -366,7 +366,7 @@ func TestSecurityAnalyzer_AnalyzeJWT(t *testing.T) {
 				}
 				assert.True(t, found, "Expected feature '%s' not found", expectedFeature)
 			}
-			
+
 			for _, expectedVuln := range tt.expectedVulns {
 				found := false
 				for _, vuln := range vulns {
@@ -401,7 +401,7 @@ func TestSecurityAnalyzer_AnalyzeGeneralSecurity(t *testing.T) {
 				Endpoints: []AuthEndpoint{
 					{
 						Headers: map[string]string{
-							"X-RateLimit-Limit":        "100",
+							"X-RateLimit-Limit":         "100",
 							"Strict-Transport-Security": "max-age=31536000",
 							"X-Frame-Options":           "DENY",
 						},
@@ -455,7 +455,7 @@ func TestSecurityAnalyzer_AnalyzeGeneralSecurity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			features, vulns := analyzer.analyzeGeneralSecurity(tt.impl)
-			
+
 			for _, expectedFeature := range tt.expectedFeatures {
 				found := false
 				for _, feature := range features {
@@ -466,7 +466,7 @@ func TestSecurityAnalyzer_AnalyzeGeneralSecurity(t *testing.T) {
 				}
 				assert.True(t, found, "Expected feature '%s' not found in %v", expectedFeature, features)
 			}
-			
+
 			for _, expectedVuln := range tt.expectedVulns {
 				found := false
 				for _, vuln := range vulns {
@@ -644,15 +644,15 @@ func FuzzSecurityAnalyzerAnalyzeImplementation(f *testing.F) {
 
 		// Should not panic regardless of auth type
 		features, vulns := analyzer.AnalyzeImplementation(impl)
-		
+
 		// Should always return valid slices
 		assert.NotNil(t, features)
 		assert.NotNil(t, vulns)
-		
+
 		// Features and vulnerabilities should be reasonable
 		assert.True(t, len(features) <= 50, "Too many features: %d", len(features))
 		assert.True(t, len(vulns) <= 50, "Too many vulnerabilities: %d", len(vulns))
-		
+
 		// All strings should be non-empty
 		for _, feature := range features {
 			assert.NotEmpty(t, feature)
@@ -673,7 +673,7 @@ func BenchmarkSecurityAnalyzer_AnalyzeImplementation(b *testing.B) {
 		b.Fatal(err)
 	}
 	analyzer := NewSecurityAnalyzer(logger)
-	
+
 	impl := &AuthImplementation{
 		Type:   AuthTypeOAuth2,
 		Domain: "example.com",

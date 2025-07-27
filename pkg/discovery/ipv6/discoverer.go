@@ -100,7 +100,7 @@ func (d *IPv6Discoverer) lookupAAAA(ctx context.Context, domain string) ([]IPv6A
 
 	// Use a resolver for context support
 	resolver := &net.Resolver{}
-	
+
 	// Perform AAAA lookup
 	ips, err := resolver.LookupIPAddr(ctx, domain)
 	if err != nil {
@@ -244,12 +244,12 @@ func (d *IPv6Discoverer) generateCommonIPv6Patterns(ipNet *net.IPNet) []string {
 
 		// Common patterns for the host part (last 64 bits)
 		hostPatterns := []string{
-			"::1",                                    // Router
-			"::2",                                    // Common server
-			"::10",                                   // Common server
-			"::100",                                  // Common server
-			"::1:1",                                  // Pattern
-			"::ffff:ffff:ffff:ffff",                  // All ones
+			"::1",                   // Router
+			"::2",                   // Common server
+			"::10",                  // Common server
+			"::100",                 // Common server
+			"::1:1",                 // Pattern
+			"::ffff:ffff:ffff:ffff", // All ones
 			"::" + strings.ToLower(ip.String()[len(ip.String())-4:]), // Based on last part of network
 		}
 
@@ -274,7 +274,7 @@ func (d *IPv6Discoverer) generateCommonIPv6Patterns(ipNet *net.IPNet) []string {
 	if prefixLen < 64 {
 		// Just try the network address and ::1
 		patterns = append(patterns, ip.String())
-		
+
 		// Try ::1 in the network
 		ip1 := make(net.IP, len(ip))
 		copy(ip1, ip)
@@ -316,7 +316,7 @@ func (d *IPv6Discoverer) generateSLAACPatterns(networkPrefix string) []string {
 func (d *IPv6Discoverer) macToEUI64(mac string) string {
 	// Remove colons and convert to lowercase
 	cleanMAC := strings.ReplaceAll(strings.ToLower(mac), ":", "")
-	
+
 	if len(cleanMAC) != 12 {
 		return ""
 	}
@@ -324,7 +324,7 @@ func (d *IPv6Discoverer) macToEUI64(mac string) string {
 	// Split into two halves and insert FFFE
 	firstHalf := cleanMAC[:6]
 	secondHalf := cleanMAC[6:]
-	
+
 	// Flip the universal/local bit (7th bit of first byte)
 	firstByteStr := cleanMAC[:2]
 	var firstByteInt int
@@ -377,11 +377,11 @@ func (d *IPv6Discoverer) pingIPv6(ctx context.Context, ipv6 string) bool {
 // testIPv6Port tests if a port is open on an IPv6 address
 func (d *IPv6Discoverer) testIPv6Port(ctx context.Context, ipv6 string, port int) bool {
 	target := fmt.Sprintf("[%s]:%d", ipv6, port)
-	
+
 	dialer := net.Dialer{
 		Timeout: 3 * time.Second,
 	}
-	
+
 	conn, err := dialer.DialContext(ctx, "tcp", target)
 	if err != nil {
 		return false
@@ -400,7 +400,7 @@ func (d *IPv6Discoverer) DiscoverIPv6FromIPv4(ctx context.Context, ipv4 string, 
 	}
 
 	// Common IPv6 transition mechanisms
-	
+
 	// 1. 6to4 (2002::/16)
 	sixto4 := d.generateSixToFour(ip)
 	if sixto4 != "" {
@@ -476,7 +476,7 @@ func (d *IPv6Discoverer) generateTeredo(ipv4 net.IP) string {
 // AnalyzeIPv6Address analyzes an IPv6 address for information
 func (d *IPv6Discoverer) AnalyzeIPv6Address(ipv6 string) map[string]string {
 	analysis := make(map[string]string)
-	
+
 	ip := net.ParseIP(ipv6)
 	if ip == nil {
 		analysis["error"] = "Invalid IPv6 address"
@@ -532,7 +532,7 @@ func (d *IPv6Discoverer) extract6to4IPv4(ipv6 string) string {
 	// 6to4 format: 2002:WWXX:YYZZ::/48
 	re := regexp.MustCompile(`^2002:([0-9a-f]{2})([0-9a-f]{2}):([0-9a-f]{2})([0-9a-f]{2})`)
 	matches := re.FindStringSubmatch(strings.ToLower(ipv6))
-	
+
 	if len(matches) == 5 {
 		var octets [4]int
 		for i := 1; i <= 4; i++ {
@@ -542,7 +542,7 @@ func (d *IPv6Discoverer) extract6to4IPv4(ipv6 string) string {
 		}
 		return fmt.Sprintf("%d.%d.%d.%d", octets[0], octets[1], octets[2], octets[3])
 	}
-	
+
 	return ""
 }
 
@@ -552,12 +552,12 @@ func (d *IPv6Discoverer) ReverseLookupIPv6(ctx context.Context, ipv6 string) ([]
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Clean up names (remove trailing dots)
 	var cleanNames []string
 	for _, name := range names {
 		cleanNames = append(cleanNames, strings.TrimSuffix(name, "."))
 	}
-	
+
 	return cleanNames, nil
 }

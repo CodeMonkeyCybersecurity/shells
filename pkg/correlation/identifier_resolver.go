@@ -15,11 +15,11 @@ import (
 
 // IdentifierInfo contains parsed identifier information
 type IdentifierInfo struct {
-	Type       IdentifierType
-	Value      string
-	Domain     string // Extracted domain if applicable
-	Company    string // Extracted company name if known
-	Metadata   map[string]string
+	Type     IdentifierType
+	Value    string
+	Domain   string // Extracted domain if applicable
+	Company  string // Extracted company name if known
+	Metadata map[string]string
 }
 
 // IdentifierResolver resolves various identifiers to organization information
@@ -35,7 +35,7 @@ func NewIdentifierResolver(logger *logger.Logger) *IdentifierResolver {
 // ParseIdentifier determines the type and extracts information from an identifier
 func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInfo, error) {
 	identifier = strings.TrimSpace(identifier)
-	
+
 	// Check email
 	if addr, err := mail.ParseAddress(identifier); err == nil {
 		parts := strings.Split(addr.Address, "@")
@@ -50,7 +50,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			}, nil
 		}
 	}
-	
+
 	// Check URL
 	if u, err := url.Parse(identifier); err == nil && u.Host != "" {
 		return &IdentifierInfo{
@@ -63,7 +63,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			},
 		}, nil
 	}
-	
+
 	// Check IP
 	if ip := net.ParseIP(identifier); ip != nil {
 		return &IdentifierInfo{
@@ -74,7 +74,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			},
 		}, nil
 	}
-	
+
 	// Check IP Range
 	if _, _, err := net.ParseCIDR(identifier); err == nil {
 		return &IdentifierInfo{
@@ -82,7 +82,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			Value: identifier,
 		}, nil
 	}
-	
+
 	// Check ASN
 	if strings.HasPrefix(strings.ToUpper(identifier), "AS") {
 		asnStr := strings.TrimPrefix(strings.ToUpper(identifier), "AS")
@@ -96,7 +96,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			}, nil
 		}
 	}
-	
+
 	// Check domain pattern
 	domainRegex := regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
 	if domainRegex.MatchString(identifier) {
@@ -106,7 +106,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			Domain: identifier,
 		}, nil
 	}
-	
+
 	// Check LinkedIn URL
 	if strings.Contains(identifier, "linkedin.com/company/") {
 		company := extractLinkedInCompany(identifier)
@@ -119,7 +119,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			},
 		}, nil
 	}
-	
+
 	// Check GitHub
 	if strings.Contains(identifier, "github.com/") {
 		org := extractGitHubOrg(identifier)
@@ -132,7 +132,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 			},
 		}, nil
 	}
-	
+
 	// Default to company name
 	return &IdentifierInfo{
 		Type:    TypeCompanyName,
@@ -146,7 +146,7 @@ func (ir *IdentifierResolver) ResolveToOrganization(ctx context.Context, info *I
 	ir.logger.Info("Resolving identifier to organization",
 		"type", info.Type,
 		"value", info.Value)
-	
+
 	switch info.Type {
 	case TypeEmail:
 		return ec.DiscoverFromEmail(ctx, info.Value)
@@ -168,4 +168,3 @@ func (ir *IdentifierResolver) ResolveToOrganization(ctx context.Context, info *I
 		return nil, fmt.Errorf("unsupported identifier type: %s", info.Type)
 	}
 }
-

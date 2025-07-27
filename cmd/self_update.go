@@ -96,13 +96,13 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 
 	// Always rebuild after pulling latest changes to ensure binary is up to date
 	fmt.Println("🔍 Building latest version...")
-	
+
 	if dryRun {
 		fmt.Println("   (dry-run mode: would rebuild and install binary)")
 		fmt.Println("🎯 Run without --dry-run to perform the actual update.")
 		return nil
 	}
-	
+
 	fmt.Println("   Building and installing new binary...")
 
 	// Check if install.sh exists
@@ -257,4 +257,3 @@ func pullLatestChanges() error {
 	fmt.Printf("Git output: %s\n", string(output))
 	return nil
 }
-

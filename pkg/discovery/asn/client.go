@@ -33,15 +33,15 @@ func NewASNClient(logger *logger.Logger) *ASNClient {
 
 // ASNInfo contains ASN information
 type ASNInfo struct {
-	ASN          int
-	Name         string
-	Organization string
-	Country      string
-	Registry     string
+	ASN           int
+	Name          string
+	Organization  string
+	Country       string
+	Registry      string
 	DateAllocated string
-	Prefixes     []string
-	IPv4Count    int
-	IPv6Count    int
+	Prefixes      []string
+	IPv4Count     int
+	IPv6Count     int
 }
 
 // IPInfo contains IP to ASN mapping
@@ -74,7 +74,7 @@ func (a *ASNClient) LookupIP(ctx context.Context, ip string) (*IPInfo, error) {
 // LookupASN gets detailed information about an ASN
 func (a *ASNClient) LookupASN(ctx context.Context, asn int) (*ASNInfo, error) {
 	asnStr := fmt.Sprintf("AS%d", asn)
-	
+
 	// Check cache
 	if cached, exists := a.cache[asnStr]; exists {
 		return cached, nil
@@ -126,11 +126,11 @@ func (a *ASNClient) ExpandASN(ctx context.Context, asn int) ([]IPRange, error) {
 		}
 
 		ranges = append(ranges, IPRange{
-			CIDR:      prefix,
-			StartIP:   ipnet.IP.String(),
-			EndIP:     a.getLastIP(ipnet).String(),
-			TotalIPs:  a.countIPs(ipnet),
-			IsIPv6:    ipnet.IP.To4() == nil,
+			CIDR:     prefix,
+			StartIP:  ipnet.IP.String(),
+			EndIP:    a.getLastIP(ipnet).String(),
+			TotalIPs: a.countIPs(ipnet),
+			IsIPv6:   ipnet.IP.To4() == nil,
 		})
 	}
 
@@ -194,7 +194,7 @@ func (a *ASNClient) queryTeamCymru(ip string) *IPInfo {
 // queryRIPEstat queries RIPEstat API
 func (a *ASNClient) queryRIPEstat(ctx context.Context, ip string) (*IPInfo, error) {
 	url := fmt.Sprintf("https://stat.ripe.net/data/prefix-overview/data.json?resource=%s", ip)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -235,7 +235,7 @@ func (a *ASNClient) queryRIPEstat(ctx context.Context, ip string) (*IPInfo, erro
 // queryASNInfo queries ASN information
 func (a *ASNClient) queryASNInfo(ctx context.Context, asn int) (*ASNInfo, error) {
 	url := fmt.Sprintf("https://stat.ripe.net/data/as-overview/data.json?resource=AS%d", asn)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -249,10 +249,10 @@ func (a *ASNClient) queryASNInfo(ctx context.Context, asn int) (*ASNInfo, error)
 
 	var result struct {
 		Data struct {
-			Holder       string `json:"holder"`
-			Country      string `json:"country"`
-			Announced    bool   `json:"announced"`
-			Description  string `json:"description"`
+			Holder      string `json:"holder"`
+			Country     string `json:"country"`
+			Announced   bool   `json:"announced"`
+			Description string `json:"description"`
 		} `json:"data"`
 	}
 
@@ -271,7 +271,7 @@ func (a *ASNClient) queryASNInfo(ctx context.Context, asn int) (*ASNInfo, error)
 // queryASNPrefixes queries prefixes announced by an ASN
 func (a *ASNClient) queryASNPrefixes(ctx context.Context, asn int) ([]string, error) {
 	url := fmt.Sprintf("https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS%d", asn)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -307,7 +307,7 @@ func (a *ASNClient) queryASNPrefixes(ctx context.Context, asn int) ([]string, er
 func (a *ASNClient) searchASNsByOrg(ctx context.Context, org string) ([]int, error) {
 	// Use BGPView API for searching
 	url := fmt.Sprintf("https://api.bgpview.io/search?query_term=%s", org)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -344,7 +344,7 @@ func (a *ASNClient) searchASNsByOrg(ctx context.Context, org string) ([]int, err
 // GetPeerASNs gets ASNs that peer with the given ASN
 func (a *ASNClient) GetPeerASNs(ctx context.Context, asn int) ([]int, error) {
 	url := fmt.Sprintf("https://api.bgpview.io/asn/%d/peers", asn)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -393,11 +393,11 @@ func (a *ASNClient) getLastIP(ipnet *net.IPNet) net.IP {
 	// Get the last IP in the range
 	ip := make(net.IP, len(ipnet.IP))
 	copy(ip, ipnet.IP)
-	
+
 	for i := range ip {
 		ip[i] |= ^ipnet.Mask[i]
 	}
-	
+
 	return ip
 }
 
@@ -457,7 +457,7 @@ type ASNEvent struct {
 // GetBGPRoutes gets current BGP routes for an ASN
 func (a *ASNClient) GetBGPRoutes(ctx context.Context, asn int) ([]BGPRoute, error) {
 	url := fmt.Sprintf("https://api.bgpview.io/asn/%d/prefixes", asn)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -491,7 +491,7 @@ func (a *ASNClient) GetBGPRoutes(ctx context.Context, asn int) ([]BGPRoute, erro
 	}
 
 	var routes []BGPRoute
-	
+
 	for _, p := range result.Data.IPv4Prefixes {
 		routes = append(routes, BGPRoute{
 			Prefix:      p.Prefix,
@@ -501,7 +501,7 @@ func (a *ASNClient) GetBGPRoutes(ctx context.Context, asn int) ([]BGPRoute, erro
 			IsIPv6:      false,
 		})
 	}
-	
+
 	for _, p := range result.Data.IPv6Prefixes {
 		routes = append(routes, BGPRoute{
 			Prefix:      p.Prefix,

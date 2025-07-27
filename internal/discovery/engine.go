@@ -17,13 +17,13 @@ import (
 
 // Engine is the main discovery engine
 type Engine struct {
-	parser        *TargetParser
-	classifier    *discoverypkg.IdentifierClassifier
-	modules       map[string]DiscoveryModule
-	config        *DiscoveryConfig
-	sessions      map[string]*DiscoverySession
-	mutex         sync.RWMutex
-	logger        *logger.Logger // Enhanced structured logger
+	parser         *TargetParser
+	classifier     *discoverypkg.IdentifierClassifier
+	modules        map[string]DiscoveryModule
+	config         *DiscoveryConfig
+	sessions       map[string]*DiscoverySession
+	mutex          sync.RWMutex
+	logger         *logger.Logger // Enhanced structured logger
 	scopeValidator *ScopeValidator
 }
 
@@ -43,10 +43,10 @@ func NewEngine(discoveryConfig *DiscoveryConfig, structLog *logger.Logger) *Engi
 // NewEngineWithConfig creates a new discovery engine with full config
 func NewEngineWithConfig(discoveryConfig *DiscoveryConfig, structLog *logger.Logger, cfg *config.Config) *Engine {
 	engine := NewEngineWithScopeValidator(discoveryConfig, structLog, nil)
-	
+
 	// Register enhanced discovery module with config
 	engine.RegisterModule(NewEnhancedDiscovery(discoveryConfig, structLog, cfg))
-	
+
 	return engine
 }
 
@@ -69,12 +69,12 @@ func NewEngineWithScopeValidator(discoveryConfig *DiscoveryConfig, structLog *lo
 	structLog = structLog.WithComponent("discovery")
 
 	engine := &Engine{
-		parser:        NewTargetParser(),
-		classifier:    discoverypkg.NewIdentifierClassifier(),
-		modules:       make(map[string]DiscoveryModule),
-		config:        discoveryConfig,
-		sessions:      make(map[string]*DiscoverySession),
-		logger:        structLog,
+		parser:         NewTargetParser(),
+		classifier:     discoverypkg.NewIdentifierClassifier(),
+		modules:        make(map[string]DiscoveryModule),
+		config:         discoveryConfig,
+		sessions:       make(map[string]*DiscoverySession),
+		logger:         structLog,
 		scopeValidator: scopeValidator,
 	}
 
@@ -419,6 +419,9 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 
 	// Post-process assets
 	e.postProcessAssets(session)
+
+	// Run identity vulnerability chain analysis
+	e.runIdentityChainAnalysis(ctx, session)
 
 	// Update session status before returning
 	e.mutex.Lock()
@@ -1059,4 +1062,75 @@ func (e *Engine) findOriginServer(asset *Asset, session *DiscoverySession) strin
 func (e *Engine) verifyDomain(domain string) bool {
 	// In real implementation, perform DNS lookup
 	return false
+}
+
+// runIdentityChainAnalysis runs identity vulnerability chain analysis on discovered assets
+func (e *Engine) runIdentityChainAnalysis(ctx context.Context, session *DiscoverySession) {
+	// Only run if we have enough assets to analyze
+	if len(session.Assets) < 2 {
+		return
+	}
+
+	start := time.Now()
+	
+	e.logger.WithContext(ctx).Infow("Starting identity vulnerability chain analysis",
+		"session_id", session.ID,
+		"total_assets", len(session.Assets),
+	)
+
+	// Create identity chain analyzer
+	config := DefaultIdentityChainConfig()
+	analyzer := NewIdentityChainAnalyzer(config, e.logger.WithComponent("identity-chains"))
+
+	// Run analysis
+	chains, err := analyzer.AnalyzeIdentityChains(ctx, session)
+	if err != nil {
+		e.logger.LogError(ctx, err, "identity_chain_analysis_failed",
+			"session_id", session.ID,
+		)
+		return
+	}
+
+	// Log results
+	duration := time.Since(start)
+	e.logger.WithContext(ctx).Infow("Identity chain analysis completed",
+		"session_id", session.ID,
+		"chains_discovered", len(chains),
+		"critical_chains", countChainsBySeverity(chains, SeverityCritical),
+		"high_chains", countChainsBySeverity(chains, SeverityHigh),
+		"analysis_duration_ms", duration.Milliseconds(),
+	)
+
+	// Store chains in session metadata for later access
+	if session.Metadata == nil {
+		session.Metadata = make(map[string]interface{})
+	}
+	session.Metadata["identity_chains"] = chains
+
+	// Log summary of high-impact chains
+	for _, chain := range chains {
+		if chain.Severity == SeverityCritical || chain.Severity == SeverityHigh {
+			e.logger.WithContext(ctx).Infow("High-impact identity chain discovered",
+				"session_id", session.ID,
+				"chain_id", chain.ID,
+				"chain_name", chain.Name,
+				"severity", string(chain.Severity),
+				"impact_score", chain.ImpactScore,
+				"exploit_difficulty", string(chain.ExploitDifficulty),
+				"affected_assets", len(chain.AffectedAssets),
+				"steps", len(chain.Steps),
+			)
+		}
+	}
+}
+
+// countChainsBySeverity helper function to count chains by severity
+func countChainsBySeverity(chains []*VulnerabilityChain, severity VulnChainSeverity) int {
+	count := 0
+	for _, chain := range chains {
+		if chain.Severity == severity {
+			count++
+		}
+	}
+	return count
 }

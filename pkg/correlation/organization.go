@@ -98,36 +98,7 @@ type CorrelatorConfig struct {
 	MaxWorkers      int
 }
 
-// Client interfaces
-type WhoisClient interface {
-	LookupDomain(domain string) (*WhoisInfo, error)
-	LookupIP(ip string) (*WhoisInfo, error)
-}
-
-type CertificateClient interface {
-	GetCertificates(domain string) ([]Certificate, error)
-	GetCertificateByFingerprint(fingerprint string) (*Certificate, error)
-}
-
-type ASNClient interface {
-	LookupASN(asn string) (*ASNInfo, error)
-	GetASNsByOrg(org string) ([]string, error)
-	LookupIP(ip string) (*ASNInfo, error)
-}
-
-type TrademarkClient interface {
-	SearchTrademarks(company string) ([]TrademarkInfo, error)
-}
-
-type LinkedInClient interface {
-	SearchEmployees(company string) ([]Employee, error)
-	GetCompanyInfo(company string) (*LinkedInCompany, error)
-}
-
-type GitHubClient interface {
-	SearchOrganizations(company string) ([]string, error)
-	GetOrgDetails(org string) (*GitHubOrg, error)
-}
+// Client interfaces are defined in clients.go
 
 type CloudClient interface {
 	FindAWSAccounts(org string) ([]CloudAccount, error)
@@ -342,23 +313,31 @@ func (oc *OrganizationCorrelator) correlateDomain(ctx context.Context, domain st
 
 	// WHOIS lookup
 	if oc.config.EnableWhois && oc.whoisClient != nil {
-		if whois, err := oc.whoisClient.LookupDomain(domain); err == nil && whois != nil {
+		if whois, err := oc.whoisClient.Lookup(context.Background(), domain); err == nil && whois != nil {
 			if whois.Organization != "" && org.Name == "" {
 				org.Name = whois.Organization
 			}
-			if whois.Email != "" {
-				org.Metadata["registrant_email"] = whois.Email
+			if whois.RegistrantEmail != "" {
+				org.Metadata["registrant_email"] = whois.RegistrantEmail
 			}
 		}
 	}
 
 	// Certificate lookup
 	if oc.config.EnableCerts && oc.certClient != nil {
-		if certs, err := oc.certClient.GetCertificates(domain); err == nil {
-			org.Certificates = append(org.Certificates, certs...)
+		if certInfos, err := oc.certClient.GetCertificates(context.Background(), domain); err == nil {
+			// Convert CertificateInfo to Certificate
+			for _, certInfo := range certInfos {
+				cert := Certificate{
+					Subject:     certInfo.Subject,
+					Issuer:      certInfo.Issuer,
+					NotBefore:   certInfo.NotBefore,
+					NotAfter:    certInfo.NotAfter,
+					SANs:        certInfo.SANs,
+					Fingerprint: certInfo.Fingerprint,
+				}
+				org.Certificates = append(org.Certificates, cert)
 
-			// Extract organization from certificates
-			for _, cert := range certs {
 				if orgName := extractOrgFromCert(cert); orgName != "" && org.Name == "" {
 					org.Name = orgName
 				}
@@ -378,12 +357,13 @@ func (oc *OrganizationCorrelator) correlateDomain(ctx context.Context, domain st
 func (oc *OrganizationCorrelator) correlateIP(ctx context.Context, ip string, org *Organization) {
 	org.Sources = appendUnique(org.Sources, "ip")
 
-	// WHOIS lookup
-	if oc.config.EnableWhois && oc.whoisClient != nil {
-		if whois, err := oc.whoisClient.LookupIP(ip); err == nil && whois != nil {
-			if whois.Organization != "" && org.Name == "" {
-				org.Name = whois.Organization
+	// ASN lookup for IP
+	if oc.config.EnableASN && oc.asnClient != nil {
+		if asnData, err := oc.asnClient.LookupIP(context.Background(), ip); err == nil && asnData != nil {
+			if asnData.Organization != "" && org.Name == "" {
+				org.Name = asnData.Organization
 			}
+			org.ASNs = appendUnique(org.ASNs, fmt.Sprintf("AS%d", asnData.Number))
 		}
 	}
 
@@ -407,9 +387,9 @@ func (oc *OrganizationCorrelator) correlateCompanyName(ctx context.Context, comp
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if marks, err := oc.trademarkClient.SearchTrademarks(company); err == nil {
-				for _, mark := range marks {
-					org.Metadata[fmt.Sprintf("trademark_%s", mark.Registration)] = mark
+			if trademarkData, err := oc.trademarkClient.Search(context.Background(), company); err == nil && trademarkData != nil {
+				for _, mark := range trademarkData.Trademarks {
+					org.Metadata[fmt.Sprintf("trademark_%s", mark.Number)] = mark
 				}
 			}
 		}()
@@ -422,23 +402,37 @@ func (oc *OrganizationCorrelator) correlateCompanyName(ctx context.Context, comp
 			defer wg.Done()
 
 			// Get company info
-			if info, err := oc.linkedinClient.GetCompanyInfo(company); err == nil && info != nil {
-				if info.Website != "" {
-					org.Domains = appendUnique(org.Domains, cleanDomain(info.Website))
-				}
-				org.Metadata["linkedin_info"] = info
+			if linkedinData, err := oc.linkedinClient.SearchCompany(context.Background(), company); err == nil && linkedinData != nil {
+				org.Metadata["linkedin_info"] = linkedinData
+				org.Metadata["linkedin_employee_count"] = linkedinData.EmployeeCount
 			}
 
-			// Search employees
-			if employees, err := oc.linkedinClient.SearchEmployees(company); err == nil {
-				org.Employees = append(org.Employees, employees...)
+			// Search employees - need a domain for this
+			// Try to get a domain from existing data
+			domain := ""
+			if len(org.Domains) > 0 {
+				domain = org.Domains[0]
+			}
 
-				// Extract email domains
-				for _, emp := range employees {
-					if emp.Email != "" && strings.Contains(emp.Email, "@") {
-						parts := strings.Split(emp.Email, "@")
-						if len(parts) == 2 {
-							org.Domains = appendUnique(org.Domains, parts[1])
+			if domain != "" {
+				if employees, err := oc.linkedinClient.SearchEmployees(context.Background(), company, domain); err == nil {
+					// Convert EmployeeInfo to Employee
+					for _, empInfo := range employees {
+						emp := Employee{
+							Email: empInfo.Email,
+							Name:  empInfo.Name,
+							Title: empInfo.Title,
+						}
+						org.Employees = append(org.Employees, emp)
+					}
+
+					// Extract email domains
+					for _, emp := range employees {
+						if emp.Email != "" && strings.Contains(emp.Email, "@") {
+							parts := strings.Split(emp.Email, "@")
+							if len(parts) == 2 {
+								org.Domains = appendUnique(org.Domains, parts[1])
+							}
 						}
 					}
 				}
@@ -451,23 +445,19 @@ func (oc *OrganizationCorrelator) correlateCompanyName(ctx context.Context, comp
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if orgs, err := oc.githubClient.SearchOrganizations(company); err == nil {
-				org.GitHubOrgs = append(org.GitHubOrgs, orgs...)
-
-				// Get details for each org
-				for _, ghOrg := range orgs {
-					if details, err := oc.githubClient.GetOrgDetails(ghOrg); err == nil && details != nil {
-						if details.Blog != "" {
-							org.Domains = appendUnique(org.Domains, cleanDomain(details.Blog))
-						}
-						if details.Email != "" && strings.Contains(details.Email, "@") {
-							parts := strings.Split(details.Email, "@")
-							if len(parts) == 2 {
-								org.Domains = appendUnique(org.Domains, parts[1])
-							}
-						}
-					}
+			if githubData, err := oc.githubClient.SearchOrganization(context.Background(), company); err == nil && githubData != nil {
+				if githubData.OrganizationName != "" {
+					org.GitHubOrgs = append(org.GitHubOrgs, githubData.OrganizationName)
 				}
+
+				// Add domains found in GitHub
+				for _, domain := range githubData.Domains {
+					org.Domains = appendUnique(org.Domains, domain)
+				}
+
+				// Store metadata
+				org.Metadata["github_repo_count"] = githubData.RepositoryCount
+				org.Metadata["github_technologies"] = githubData.Technologies
 			}
 		}()
 	}
@@ -504,11 +494,21 @@ func (oc *OrganizationCorrelator) correlateASN(ctx context.Context, asn string, 
 	org.Sources = appendUnique(org.Sources, "asn")
 
 	if oc.config.EnableASN && oc.asnClient != nil {
-		if info, err := oc.asnClient.LookupASN(asn); err == nil && info != nil {
-			if info.Organization != "" && org.Name == "" {
-				org.Name = info.Organization
+		// Parse ASN number
+		asnNum := 0
+		if strings.HasPrefix(asn, "AS") {
+			fmt.Sscanf(asn[2:], "%d", &asnNum)
+		} else {
+			fmt.Sscanf(asn, "%d", &asnNum)
+		}
+
+		if asnNum > 0 {
+			if info, err := oc.asnClient.GetASNDetails(context.Background(), asnNum); err == nil && info != nil {
+				if info.Organization != "" && org.Name == "" {
+					org.Name = info.Organization
+				}
+				org.IPRanges = append(org.IPRanges, info.IPRanges...)
 			}
-			org.IPRanges = append(org.IPRanges, info.IPRanges...)
 		}
 	}
 }
@@ -517,23 +517,9 @@ func (oc *OrganizationCorrelator) correlateASN(ctx context.Context, asn string, 
 func (oc *OrganizationCorrelator) correlateCertificate(ctx context.Context, fingerprint string, org *Organization) {
 	org.Sources = appendUnique(org.Sources, "certificate")
 
-	if oc.config.EnableCerts && oc.certClient != nil {
-		if cert, err := oc.certClient.GetCertificateByFingerprint(fingerprint); err == nil && cert != nil {
-			org.Certificates = append(org.Certificates, *cert)
-
-			// Extract organization
-			if orgName := extractOrgFromCert(*cert); orgName != "" && org.Name == "" {
-				org.Name = orgName
-			}
-
-			// Add SANs as domains
-			for _, san := range cert.SANs {
-				if !strings.HasPrefix(san, "*.") {
-					org.Domains = appendUnique(org.Domains, san)
-				}
-			}
-		}
-	}
+	// TODO: Certificate by fingerprint lookup not available in current interface
+	// Would need to implement this method in CertificateClient or find certificates
+	// through domain lookups
 }
 
 // correlateFromDomain is a helper that creates an org from a domain
@@ -558,14 +544,8 @@ func (oc *OrganizationCorrelator) secondPassCorrelation(ctx context.Context, org
 	if org.Name != "" {
 		oc.correlateCompanyName(ctx, org.Name, org)
 
-		// Search for ASNs by organization
-		if oc.config.EnableASN && oc.asnClient != nil {
-			if asns, err := oc.asnClient.GetASNsByOrg(org.Name); err == nil {
-				for _, asn := range asns {
-					oc.correlateASN(ctx, asn, org)
-				}
-			}
-		}
+		// TODO: ASN search by organization not available in current interface
+		// Would need to implement this method in ASNClient
 	}
 
 	// Correlate from discovered domains

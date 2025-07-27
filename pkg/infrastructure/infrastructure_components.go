@@ -38,9 +38,9 @@ func NewDNSResolver(logger *logger.Logger, config *DiscoveryConfig) *DNSResolver
 // EnumerateSubdomains performs subdomain enumeration
 func (d *DNSResolver) EnumerateSubdomains(ctx context.Context, domain string) *DNSResults {
 	d.logger.Debug("Starting subdomain enumeration", "domain", domain)
-	
+
 	subdomains := []string{}
-	
+
 	// Common subdomains to check
 	commonSubdomains := []string{
 		"www", "mail", "ftp", "admin", "api", "app", "blog", "dev", "test",
@@ -51,24 +51,24 @@ func (d *DNSResolver) EnumerateSubdomains(ctx context.Context, domain string) *D
 		"dashboard", "panel", "cpanel", "webmail", "email", "smtp",
 		"pop", "imap", "ns1", "ns2", "dns", "mx", "mx1", "mx2",
 	}
-	
+
 	// Add custom subdomains from wordlist if provided
 	if d.config.SubdomainWordlist != "" {
 		// In a real implementation, load from file
 		d.logger.Debug("Loading custom subdomain wordlist", "file", d.config.SubdomainWordlist)
 	}
-	
+
 	for _, sub := range commonSubdomains {
 		subdomain := sub + "." + domain
 		if d.resolveExists(ctx, subdomain) {
 			subdomains = append(subdomains, subdomain)
 		}
 	}
-	
-	d.logger.Debug("Subdomain enumeration completed", 
-		"domain", domain, 
+
+	d.logger.Debug("Subdomain enumeration completed",
+		"domain", domain,
 		"subdomains_found", len(subdomains))
-	
+
 	return &DNSResults{
 		Subdomains: subdomains,
 		Confidence: 0.8,
@@ -78,7 +78,7 @@ func (d *DNSResolver) EnumerateSubdomains(ctx context.Context, domain string) *D
 // ResolveDomain resolves a domain to IP addresses
 func (d *DNSResolver) ResolveDomain(ctx context.Context, domain string) []string {
 	ips := []string{}
-	
+
 	// Resolve A records
 	if addrs, err := net.LookupHost(domain); err == nil {
 		for _, addr := range addrs {
@@ -87,7 +87,7 @@ func (d *DNSResolver) ResolveDomain(ctx context.Context, domain string) []string
 			}
 		}
 	}
-	
+
 	return ips
 }
 
@@ -114,22 +114,22 @@ func NewPortScanner(logger *logger.Logger, config *DiscoveryConfig) *PortScanner
 // ScanPorts scans common ports on a target IP
 func (p *PortScanner) ScanPorts(ctx context.Context, ip string) []PortInfo {
 	ports := []PortInfo{}
-	
+
 	// Common ports to scan
 	commonPorts := []int{21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995, 3389, 5432, 3306}
-	
+
 	// Add custom ports from config
 	if len(p.config.CustomPorts) > 0 {
 		commonPorts = append(commonPorts, p.config.CustomPorts...)
 	}
-	
+
 	for _, port := range commonPorts {
 		select {
 		case <-ctx.Done():
 			return ports
 		default:
 		}
-		
+
 		if p.isPortOpen(ctx, ip, port) {
 			portInfo := PortInfo{
 				Port:     port,
@@ -140,7 +140,7 @@ func (p *PortScanner) ScanPorts(ctx context.Context, ip string) []PortInfo {
 			ports = append(ports, portInfo)
 		}
 	}
-	
+
 	return ports
 }
 
@@ -173,7 +173,7 @@ func (p *PortScanner) guessService(port int) string {
 		5432: "postgresql",
 		3306: "mysql",
 	}
-	
+
 	if service, exists := services[port]; exists {
 		return service
 	}
@@ -200,7 +200,7 @@ func (s *SSLAnalyzer) AnalyzeSSL(ctx context.Context, target string) *SSLInfo {
 	if !strings.HasPrefix(target, "https://") && !strings.Contains(target, "://") {
 		target = "https://" + target
 	}
-	
+
 	// Create HTTP client with custom TLS config to capture certificate details
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -210,45 +210,45 @@ func (s *SSLAnalyzer) AnalyzeSSL(ctx context.Context, target string) *SSLInfo {
 			},
 		},
 	}
-	
+
 	resp, err := client.Get(target)
 	if err != nil {
 		s.logger.Debug("SSL analysis failed", "target", target, "error", err)
 		return nil
 	}
 	defer resp.Body.Close()
-	
+
 	// Get TLS connection state
 	if resp.TLS == nil {
 		return nil
 	}
-	
+
 	// Analyze the certificate chain
 	if len(resp.TLS.PeerCertificates) == 0 {
 		return nil
 	}
-	
+
 	cert := resp.TLS.PeerCertificates[0]
-	
+
 	sslInfo := &SSLInfo{
-		Subject:       cert.Subject.String(),
-		Issuer:        cert.Issuer.String(),
-		SerialNumber:  cert.SerialNumber.String(),
-		NotBefore:     cert.NotBefore,
-		NotAfter:      cert.NotAfter,
-		SANs:          cert.DNSNames,
-		Algorithm:     cert.SignatureAlgorithm.String(),
-		KeySize:       s.getKeySize(cert),
-		Expired:       time.Now().After(cert.NotAfter),
-		SelfSigned:    cert.Issuer.String() == cert.Subject.String(),
-		Wildcard:      s.hasWildcardSAN(cert.DNSNames),
-		TrustChain:    []string{},
-		CTLogs:        []CTLogEntry{},
+		Subject:      cert.Subject.String(),
+		Issuer:       cert.Issuer.String(),
+		SerialNumber: cert.SerialNumber.String(),
+		NotBefore:    cert.NotBefore,
+		NotAfter:     cert.NotAfter,
+		SANs:         cert.DNSNames,
+		Algorithm:    cert.SignatureAlgorithm.String(),
+		KeySize:      s.getKeySize(cert),
+		Expired:      time.Now().After(cert.NotAfter),
+		SelfSigned:   cert.Issuer.String() == cert.Subject.String(),
+		Wildcard:     s.hasWildcardSAN(cert.DNSNames),
+		TrustChain:   []string{},
+		CTLogs:       []CTLogEntry{},
 	}
-	
+
 	// Check for vulnerabilities
 	sslInfo.Vulnerabilities = s.checkSSLVulnerabilities(resp.TLS)
-	
+
 	// Build trust chain
 	for i, chainCert := range resp.TLS.PeerCertificates {
 		if i == 0 {
@@ -256,13 +256,13 @@ func (s *SSLAnalyzer) AnalyzeSSL(ctx context.Context, target string) *SSLInfo {
 		}
 		sslInfo.TrustChain = append(sslInfo.TrustChain, chainCert.Subject.String())
 	}
-	
-	s.logger.Debug("SSL analysis completed", 
+
+	s.logger.Debug("SSL analysis completed",
 		"target", target,
 		"subject", sslInfo.Subject,
 		"sans", len(sslInfo.SANs),
 		"expired", sslInfo.Expired)
-	
+
 	return sslInfo
 }
 
@@ -291,7 +291,7 @@ func (s *SSLAnalyzer) hasWildcardSAN(sans []string) bool {
 // checkSSLVulnerabilities checks for SSL/TLS vulnerabilities
 func (s *SSLAnalyzer) checkSSLVulnerabilities(tlsState *tls.ConnectionState) []string {
 	vulns := []string{}
-	
+
 	// Check TLS version
 	switch tlsState.Version {
 	case tls.VersionSSL30:
@@ -301,7 +301,7 @@ func (s *SSLAnalyzer) checkSSLVulnerabilities(tlsState *tls.ConnectionState) []s
 	case tls.VersionTLS11:
 		vulns = append(vulns, "TLS 1.1 (deprecated)")
 	}
-	
+
 	// Check cipher suites
 	cipher := tls.CipherSuiteName(tlsState.CipherSuite)
 	if strings.Contains(cipher, "RC4") {
@@ -310,7 +310,7 @@ func (s *SSLAnalyzer) checkSSLVulnerabilities(tlsState *tls.ConnectionState) []s
 	if strings.Contains(cipher, "DES") {
 		vulns = append(vulns, "DES cipher (insecure)")
 	}
-	
+
 	return vulns
 }
 
@@ -333,39 +333,39 @@ func (c *CDNDetector) DetectCDN(ctx context.Context, target string) *CDNInfo {
 	if !strings.HasPrefix(target, "http") {
 		target = "http://" + target
 	}
-	
+
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse // Don't follow redirects
 		},
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 	if err != nil {
 		return nil
 	}
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil
 	}
 	defer resp.Body.Close()
-	
+
 	cdnInfo := &CDNInfo{
 		Headers: []string{},
 	}
-	
+
 	// Check for CDN-specific headers
 	cdnHeaders := map[string]string{
-		"cf-ray":           "Cloudflare",
-		"x-cache":          "Generic CDN",
-		"x-served-by":      "Fastly",
-		"x-amz-cf-id":      "CloudFront",
-		"x-cdn":            "Generic CDN",
-		"x-edge-location":  "Generic CDN",
+		"cf-ray":          "Cloudflare",
+		"x-cache":         "Generic CDN",
+		"x-served-by":     "Fastly",
+		"x-amz-cf-id":     "CloudFront",
+		"x-cdn":           "Generic CDN",
+		"x-edge-location": "Generic CDN",
 	}
-	
+
 	for header, provider := range cdnHeaders {
 		if value := resp.Header.Get(header); value != "" {
 			cdnInfo.Provider = provider
@@ -373,7 +373,7 @@ func (c *CDNDetector) DetectCDN(ctx context.Context, target string) *CDNInfo {
 			break
 		}
 	}
-	
+
 	// Check for CDN-specific response patterns
 	if cdnInfo.Provider == "" {
 		if server := resp.Header.Get("Server"); server != "" {
@@ -384,12 +384,12 @@ func (c *CDNDetector) DetectCDN(ctx context.Context, target string) *CDNInfo {
 			}
 		}
 	}
-	
+
 	if cdnInfo.Provider != "" {
 		c.logger.Debug("CDN detected", "target", target, "provider", cdnInfo.Provider)
 		return cdnInfo
 	}
-	
+
 	return nil
 }
 
@@ -422,7 +422,7 @@ func (a *ASNAnalyzer) GetASNInfo(ctx context.Context, ip string) *ASNInfo {
 	// - ipapi.com
 	// - BGP.he.net
 	// - RIPE NCC APIs
-	
+
 	// For now, return basic mock data
 	return &ASNInfo{
 		ASN:      64512, // Private ASN for example
@@ -436,7 +436,7 @@ func (a *ASNAnalyzer) GetASNInfo(ctx context.Context, ip string) *ASNInfo {
 func (a *ASNAnalyzer) FindRelatedIPs(ctx context.Context, asn int) []string {
 	// This would query BGP routing tables and ASN databases
 	// to find all IP ranges allocated to the ASN
-	
+
 	return []string{} // Placeholder
 }
 
@@ -444,13 +444,13 @@ func (a *ASNAnalyzer) FindRelatedIPs(ctx context.Context, asn int) []string {
 func (a *ASNAnalyzer) GetNetworkInfo(ctx context.Context, ip string) *NetworkInfo {
 	// Mock implementation - would use real network intelligence APIs
 	return &NetworkInfo{
-		ASN:         64512,
-		ASNName:     "Example ASN",
-		IPRange:     "192.0.2.0/24",
-		ISP:         "Example ISP",
+		ASN:          64512,
+		ASNName:      "Example ASN",
+		IPRange:      "192.0.2.0/24",
+		ISP:          "Example ISP",
 		Organization: "Example Organization",
-		OpenPorts:   []PortInfo{},
-		Services:    []ServiceInfo{},
+		OpenPorts:    []PortInfo{},
+		Services:     []ServiceInfo{},
 	}
 }
 
@@ -473,24 +473,24 @@ func (t *TechDetector) DetectTechnologies(ctx context.Context, target string) []
 	if !strings.HasPrefix(target, "http") {
 		target = "http://" + target
 	}
-	
+
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 	if err != nil {
 		return []Technology{}
 	}
-	
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return []Technology{}
 	}
 	defer resp.Body.Close()
-	
+
 	technologies := []Technology{}
-	
+
 	// Analyze response headers
 	if server := resp.Header.Get("Server"); server != "" {
 		tech := Technology{
@@ -501,7 +501,7 @@ func (t *TechDetector) DetectTechnologies(ctx context.Context, target string) []
 		}
 		technologies = append(technologies, tech)
 	}
-	
+
 	if xPoweredBy := resp.Header.Get("X-Powered-By"); xPoweredBy != "" {
 		tech := Technology{
 			Name:       xPoweredBy,
@@ -511,13 +511,13 @@ func (t *TechDetector) DetectTechnologies(ctx context.Context, target string) []
 		}
 		technologies = append(technologies, tech)
 	}
-	
+
 	// This would be expanded to include:
 	// - HTML/CSS/JS analysis
 	// - Framework fingerprinting
 	// - CMS detection
 	// - Library version detection
-	
+
 	return technologies
 }
 
@@ -543,7 +543,7 @@ func (t *ThreatIntelCollector) CollectIntelligence(ctx context.Context, assets [
 	// - ThreatCrowd
 	// - PassiveTotal
 	// - Shodan
-	
+
 	intel := &ThreatIntelligence{
 		Reputation: ReputationInfo{
 			Score:      75.0,
@@ -559,7 +559,7 @@ func (t *ThreatIntelCollector) CollectIntelligence(ctx context.Context, assets [
 		IOCs:        []IOC{},
 		LastUpdated: time.Now(),
 	}
-	
+
 	return intel
 }
 
@@ -612,4 +612,3 @@ func (c *DiscoveryCache) Get(key string) (interface{}, bool) {
 func (c *DiscoveryCache) Set(key string, value interface{}) {
 	c.cache[key] = value
 }
-

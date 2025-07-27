@@ -16,11 +16,11 @@ import (
 
 // PassiveDNSClient queries passive DNS databases
 type PassiveDNSClient struct {
-	client   *http.Client
-	logger   *logger.Logger
-	sources  []PassiveDNSSource
-	apiKeys  map[string]string
-	mu       sync.RWMutex
+	client  *http.Client
+	logger  *logger.Logger
+	sources []PassiveDNSSource
+	apiKeys map[string]string
+	mu      sync.RWMutex
 }
 
 // PassiveDNSSource represents a passive DNS data source
@@ -325,7 +325,7 @@ func (p *PassiveDNSClient) queryPassiveTotal(ctx context.Context, domain string)
 	// PassiveTotal requires username:API key authentication
 	apiKey := p.apiKeys["PassiveTotal"]
 	username := p.apiKeys["PassiveTotalUsername"]
-	
+
 	if apiKey == "" || username == "" {
 		return nil, fmt.Errorf("PassiveTotal credentials not provided")
 	}
@@ -384,7 +384,7 @@ func (p *PassiveDNSClient) queryPassiveTotal(ctx context.Context, domain string)
 	for _, record := range ptResponse.Results {
 		firstSeen, _ := time.Parse("2006-01-02 15:04:05", record.FirstSeen)
 		lastSeen, _ := time.Parse("2006-01-02 15:04:05", record.LastSeen)
-		
+
 		dnsRecord := DNSRecord{
 			Query:     record.Resolve,
 			Answer:    record.Value,
@@ -427,7 +427,7 @@ func (p *PassiveDNSClient) queryCIRCL(ctx context.Context, domain string) (*DNSQ
 
 	// CIRCL returns JSONL format (one JSON object per line)
 	lines := strings.Split(string(body), "\n")
-	
+
 	result := &DNSQueryResult{
 		Domain: domain,
 		Source: "CIRCL",
@@ -547,7 +547,7 @@ func (p *PassiveDNSClient) DiscoverSubdomains(ctx context.Context, domain string
 	}
 
 	subdomainMap := make(map[string]bool)
-	
+
 	for _, result := range results {
 		for _, record := range result.Records {
 			// Extract subdomains from various record types
@@ -581,7 +581,7 @@ func (p *PassiveDNSClient) DiscoverIPHistory(ctx context.Context, domain string)
 	}
 
 	ipMap := make(map[string]bool)
-	
+
 	for _, result := range results {
 		for _, record := range result.Records {
 			if record.Type == "A" && record.Query == domain {
@@ -607,7 +607,7 @@ func (p *PassiveDNSClient) GetDNSTimeline(ctx context.Context, domain string) ([
 	}
 
 	var timeline []*DNSRecord
-	
+
 	for _, result := range results {
 		for i := range result.Records {
 			record := &result.Records[i]

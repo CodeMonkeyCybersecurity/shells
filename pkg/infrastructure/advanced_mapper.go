@@ -14,11 +14,11 @@ import (
 
 // AdvancedInfrastructureMapper provides comprehensive infrastructure discovery
 type AdvancedInfrastructureMapper struct {
-	logger      *logger.Logger
-	config      *DiscoveryConfig
-	dnsResolver *DNSResolver
-	portScanner *PortScanner
-	sslAnalyzer *SSLAnalyzer
+	logger         *logger.Logger
+	config         *DiscoveryConfig
+	dnsResolver    *DNSResolver
+	portScanner    *PortScanner
+	sslAnalyzer    *SSLAnalyzer
 	cloudDetectors map[CloudProvider]CloudDetector
 	cdnDetector    *CDNDetector
 	asnAnalyzer    *ASNAnalyzer
@@ -61,8 +61,8 @@ func NewAdvancedInfrastructureMapper(logger *logger.Logger, config *DiscoveryCon
 // DiscoverInfrastructure performs comprehensive infrastructure discovery
 func (m *AdvancedInfrastructureMapper) DiscoverInfrastructure(ctx context.Context, target string) (*InfrastructureReport, error) {
 	startTime := time.Now()
-	
-	m.logger.Info("Starting advanced infrastructure discovery", 
+
+	m.logger.Info("Starting advanced infrastructure discovery",
 		"target", target,
 		"max_depth", m.config.MaxDepth,
 		"max_assets", m.config.MaxAssets)
@@ -79,7 +79,7 @@ func (m *AdvancedInfrastructureMapper) DiscoverInfrastructure(ctx context.Contex
 	// Create worker pool for parallel discovery
 	workChan := make(chan discoveryTask, m.config.Workers*2)
 	resultsChan := make(chan discoveryResult, m.config.Workers*2)
-	
+
 	var wg sync.WaitGroup
 	var resultsMutex sync.RWMutex
 
@@ -114,7 +114,7 @@ func (m *AdvancedInfrastructureMapper) DiscoverInfrastructure(ctx context.Contex
 	// Phase 1: Initial target analysis
 	m.logger.Info("Phase 1: Analyzing initial target")
 	initialAssets := m.analyzeInitialTarget(ctx, target)
-	
+
 	for _, asset := range initialAssets {
 		workChan <- discoveryTask{
 			taskType: "full_analysis",
@@ -263,7 +263,7 @@ func (m *AdvancedInfrastructureMapper) analyzeInitialTarget(ctx context.Context,
 
 	// Determine target type and create initial asset
 	targetType := m.determineTargetType(target)
-	
+
 	baseAsset := InfrastructureAsset{
 		ID:           generateAssetID(targetType, target),
 		Type:         targetType,
@@ -280,7 +280,7 @@ func (m *AdvancedInfrastructureMapper) analyzeInitialTarget(ctx context.Context,
 	if targetType == AssetTypeDomain {
 		// Add the domain asset
 		assets = append(assets, baseAsset)
-		
+
 		// Add URL variants
 		httpAsset := baseAsset
 		httpAsset.ID = generateAssetID(AssetTypeURL, "http://"+target)
@@ -335,11 +335,11 @@ func (m *AdvancedInfrastructureMapper) performFullAssetAnalysis(ctx context.Cont
 	// SSL analysis for HTTPS URLs and domains
 	if asset.Type == AssetTypeURL && strings.HasPrefix(asset.Value, "https://") ||
 		asset.Type == AssetTypeDomain {
-		
+
 		if sslInfo := m.analyzeSSL(ctx, asset.Value); sslInfo != nil {
 			asset.SSLInfo = sslInfo
 			asset.Tags = append(asset.Tags, "ssl_enabled")
-			
+
 			// Extract additional domains from SSL certificate
 			for _, san := range sslInfo.SANs {
 				if san != asset.Value && !strings.HasPrefix(san, "*.") {
@@ -354,7 +354,7 @@ func (m *AdvancedInfrastructureMapper) performFullAssetAnalysis(ctx context.Cont
 						Metadata:     make(map[string]interface{}),
 						DiscoveredAt: time.Now(),
 					}
-					
+
 					relationships = append(relationships, AssetRelationship{
 						SourceAssetID: asset.ID,
 						TargetAssetID: sanAsset.ID,
@@ -372,7 +372,7 @@ func (m *AdvancedInfrastructureMapper) performFullAssetAnalysis(ctx context.Cont
 		if cdnInfo := m.detectCDN(ctx, asset.Value); cdnInfo != nil {
 			asset.CDNInfo = cdnInfo
 			asset.Tags = append(asset.Tags, "cdn_protected")
-			
+
 			// If origin server is discovered, add as related asset
 			if cdnInfo.OriginServer != "" {
 				originAsset := InfrastructureAsset{
@@ -386,7 +386,7 @@ func (m *AdvancedInfrastructureMapper) performFullAssetAnalysis(ctx context.Cont
 					Metadata:     make(map[string]interface{}),
 					DiscoveredAt: time.Now(),
 				}
-				
+
 				relationships = append(relationships, AssetRelationship{
 					SourceAssetID: asset.ID,
 					TargetAssetID: originAsset.ID,
@@ -402,7 +402,7 @@ func (m *AdvancedInfrastructureMapper) performFullAssetAnalysis(ctx context.Cont
 	if m.config.EnableTechDetection && (asset.Type == AssetTypeURL || asset.Type == AssetTypeDomain) {
 		technologies := m.detectTechnologies(ctx, asset.Value)
 		asset.Technologies = technologies
-		
+
 		// Tag based on detected technologies
 		for _, tech := range technologies {
 			if isHighValueTech(tech.Name) {
@@ -438,7 +438,7 @@ func (m *AdvancedInfrastructureMapper) performDNSEnumeration(ctx context.Context
 
 	// DNS enumeration
 	dnsResults := m.dnsResolver.EnumerateSubdomains(ctx, domain)
-	
+
 	for _, subdomain := range dnsResults.Subdomains {
 		subAsset := InfrastructureAsset{
 			ID:           generateAssetID(AssetTypeSubdomain, subdomain),
@@ -466,9 +466,9 @@ func (m *AdvancedInfrastructureMapper) performDNSEnumeration(ctx context.Context
 					Metadata:     make(map[string]interface{}),
 					DiscoveredAt: time.Now(),
 				}
-				
+
 				assets = append(assets, ipAsset)
-				
+
 				relationships = append(relationships, AssetRelationship{
 					SourceAssetID: subAsset.ID,
 					TargetAssetID: ipAsset.ID,
@@ -480,7 +480,7 @@ func (m *AdvancedInfrastructureMapper) performDNSEnumeration(ctx context.Context
 		}
 
 		assets = append(assets, subAsset)
-		
+
 		relationships = append(relationships, AssetRelationship{
 			SourceAssetID: generateAssetID(AssetTypeDomain, domain),
 			TargetAssetID: subAsset.ID,
@@ -504,7 +504,7 @@ func (m *AdvancedInfrastructureMapper) performDNSEnumeration(ctx context.Context
 // performASNAnalysis performs ASN and BGP analysis
 func (m *AdvancedInfrastructureMapper) performASNAnalysis(ctx context.Context, task discoveryTask) discoveryResult {
 	target := task.target
-	
+
 	// Get target IP if it's a domain
 	var targetIP string
 	if net.ParseIP(target) != nil {
@@ -526,18 +526,18 @@ func (m *AdvancedInfrastructureMapper) performASNAnalysis(ctx context.Context, t
 
 	// Create organization info
 	org := &OrganizationInfo{
-		Name:           asnInfo.ASNName,
-		ASN:            asnInfo.ASN,
-		IPRanges:       asnInfo.IPRanges,
-		Confidence:     0.8,
-		Source:         "asn_analysis",
-		Metadata:       make(map[string]string),
+		Name:       asnInfo.ASNName,
+		ASN:        asnInfo.ASN,
+		IPRanges:   asnInfo.IPRanges,
+		Confidence: 0.8,
+		Source:     "asn_analysis",
+		Metadata:   make(map[string]string),
 	}
 
 	// Find related IP addresses in the same ASN
 	relationships := []AssetRelationship{}
 	relatedIPs := m.asnAnalyzer.FindRelatedIPs(ctx, asnInfo.ASN)
-	
+
 	for _, ip := range relatedIPs {
 		if ip != targetIP {
 			ipAsset := InfrastructureAsset{
@@ -631,16 +631,16 @@ func (m *AdvancedInfrastructureMapper) getNetworkInfo(ctx context.Context, ip st
 // analyzeRelationships analyzes relationships between discovered assets
 func (m *AdvancedInfrastructureMapper) analyzeRelationships(assets []InfrastructureAsset) []AssetRelationship {
 	relationships := []AssetRelationship{}
-	
+
 	// Analyze shared technologies
 	techGroups := make(map[string][]string) // technology -> asset IDs
-	
+
 	for _, asset := range assets {
 		for _, tech := range asset.Technologies {
 			techGroups[tech.Name] = append(techGroups[tech.Name], asset.ID)
 		}
 	}
-	
+
 	// Create relationships for shared technologies
 	for tech, assetIDs := range techGroups {
 		if len(assetIDs) > 1 {
@@ -657,7 +657,7 @@ func (m *AdvancedInfrastructureMapper) analyzeRelationships(assets []Infrastruct
 			}
 		}
 	}
-	
+
 	return relationships
 }
 
@@ -689,7 +689,7 @@ func (m *AdvancedInfrastructureMapper) analyzeWebAssetSupplyChain(ctx context.Co
 	// - Retire.js for JavaScript library analysis
 	// - Wappalyzer for technology detection
 	// - Custom parsers for third-party APIs
-	
+
 	// For now, implement basic analysis based on technologies
 	for _, tech := range asset.Technologies {
 		if isJavaScriptFramework(tech.Name) {
@@ -700,7 +700,7 @@ func (m *AdvancedInfrastructureMapper) analyzeWebAssetSupplyChain(ctx context.Co
 			}
 			supplyChain.JavaScript = append(supplyChain.JavaScript, jsLib)
 		}
-		
+
 		if isCDNService(tech.Name) {
 			cdnService := CDNService{
 				Provider: tech.Name,
@@ -719,8 +719,8 @@ func (m *AdvancedInfrastructureMapper) collectThreatIntelligence(ctx context.Con
 // calculateStatistics calculates comprehensive statistics
 func (m *AdvancedInfrastructureMapper) calculateStatistics(report *InfrastructureReport) InfrastructureStats {
 	stats := InfrastructureStats{
-		TotalAssets:   len(report.Assets),
-		AssetsByType:  make(map[string]int),
+		TotalAssets:  len(report.Assets),
+		AssetsByType: make(map[string]int),
 	}
 
 	uniqueIPs := make(map[string]bool)
@@ -735,7 +735,7 @@ func (m *AdvancedInfrastructureMapper) calculateStatistics(report *Infrastructur
 
 	for _, asset := range report.Assets {
 		stats.AssetsByType[string(asset.Type)]++
-		
+
 		if asset.Type == AssetTypeIP {
 			uniqueIPs[asset.Value] = true
 		}
@@ -802,7 +802,7 @@ func isHighValueTech(techName string) bool {
 		"grafana", "kibana", "jenkins", "gitlab", "jira",
 		"confluence", "sonarqube", "nexus", "artifactory",
 	}
-	
+
 	techLower := strings.ToLower(techName)
 	for _, hvt := range highValueTechs {
 		if strings.Contains(techLower, hvt) {
@@ -817,7 +817,7 @@ func isJavaScriptFramework(techName string) bool {
 		"react", "angular", "vue", "jquery", "bootstrap",
 		"lodash", "moment", "axios", "express", "webpack",
 	}
-	
+
 	techLower := strings.ToLower(techName)
 	for _, framework := range jsFrameworks {
 		if strings.Contains(techLower, framework) {
@@ -832,7 +832,7 @@ func isCDNService(techName string) bool {
 		"cloudflare", "fastly", "cloudfront", "akamai",
 		"maxcdn", "jsdelivr", "unpkg", "cdnjs",
 	}
-	
+
 	techLower := strings.ToLower(techName)
 	for _, cdn := range cdnServices {
 		if strings.Contains(techLower, cdn) {

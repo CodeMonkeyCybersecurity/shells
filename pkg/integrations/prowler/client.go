@@ -53,9 +53,9 @@ func NewClient(config Config, logger *logger.Logger) (*ProwlerClient, error) {
 	}
 
 	client := &ProwlerClient{
-		config:     config,
-		logger:     logger,
-		jobTracker: make(map[string]*ProwlerJob),
+		config:      config,
+		logger:      logger,
+		jobTracker:  make(map[string]*ProwlerJob),
 		prowlerPath: prowlerPath,
 	}
 
@@ -94,7 +94,7 @@ func findProwlerInstallation() (string, error) {
 // RunAllChecks runs all Prowler checks for the given AWS profile
 func (p *ProwlerClient) RunAllChecks(ctx context.Context, profile string) ([]types.Finding, error) {
 	jobID := uuid.New().String()
-	
+
 	// Create scan configuration
 	prowlerConfig := ProwlerConfig{
 		Profile:  profile,
@@ -123,7 +123,7 @@ func (p *ProwlerClient) RunAllChecks(ctx context.Context, profile string) ([]typ
 // RunChecksByGroup runs Prowler checks for specific groups
 func (p *ProwlerClient) RunChecksByGroup(ctx context.Context, profile string, groups []string) ([]types.Finding, error) {
 	jobID := uuid.New().String()
-	
+
 	prowlerConfig := ProwlerConfig{
 		Profile:  profile,
 		Groups:   groups,
@@ -137,7 +137,7 @@ func (p *ProwlerClient) RunChecksByGroup(ctx context.Context, profile string, gr
 // RunSpecificChecks runs specific Prowler checks
 func (p *ProwlerClient) RunSpecificChecks(ctx context.Context, profile string, checkIDs []string) ([]types.Finding, error) {
 	jobID := uuid.New().String()
-	
+
 	prowlerConfig := ProwlerConfig{
 		Profile:  profile,
 		Checks:   checkIDs,
@@ -152,7 +152,7 @@ func (p *ProwlerClient) RunSpecificChecks(ctx context.Context, profile string, c
 func (p *ProwlerClient) runProwlerScan(ctx context.Context, jobID string, config ProwlerConfig, groups []string) ([]types.Finding, error) {
 	// Create a cancellable context
 	scanCtx, cancel := context.WithCancel(ctx)
-	
+
 	// Create job entry
 	job := &ProwlerJob{
 		ID:        jobID,
@@ -162,18 +162,18 @@ func (p *ProwlerClient) runProwlerScan(ctx context.Context, jobID string, config
 		Progress:  0,
 		Cancel:    cancel,
 	}
-	
+
 	// Track the job
 	p.jobMutex.Lock()
 	p.jobTracker[jobID] = job
 	p.jobMutex.Unlock()
-	
+
 	defer func() {
 		p.jobMutex.Lock()
 		delete(p.jobTracker, jobID)
 		p.jobMutex.Unlock()
 	}()
-	
+
 	// Build Prowler command
 	cmd, outputPath, err := p.buildProwlerCommand(scanCtx, config, groups)
 	if err != nil {
@@ -181,37 +181,37 @@ func (p *ProwlerClient) runProwlerScan(ctx context.Context, jobID string, config
 		job.Error = err
 		return nil, err
 	}
-	
+
 	// Execute Prowler
 	p.logger.Info("Starting Prowler scan",
 		"job_id", jobID,
 		"profile", config.Profile,
 		"groups", groups)
-	
+
 	// Create output buffer for real-time progress monitoring
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	
+
 	// Start the command
 	if err := cmd.Start(); err != nil {
 		job.Status = "failed"
 		job.Error = fmt.Errorf("failed to start Prowler: %w", err)
 		return nil, job.Error
 	}
-	
+
 	// Wait for completion
 	cmdErr := cmd.Wait()
-	
+
 	// Update job status
 	if cmdErr != nil {
 		job.Status = "failed"
 		job.Error = fmt.Errorf("prowler execution failed: %w, stderr: %s", cmdErr, stderr.String())
 		return nil, job.Error
 	}
-	
+
 	job.Status = "completed"
 	job.Progress = 100
-	
+
 	// Parse results
 	findings, err := p.parseProwlerOutput(outputPath)
 	if err != nil {
@@ -219,7 +219,7 @@ func (p *ProwlerClient) runProwlerScan(ctx context.Context, jobID string, config
 		job.Error = fmt.Errorf("failed to parse Prowler output: %w", err)
 		return nil, job.Error
 	}
-	
+
 	// Convert to internal findings format
 	return p.convertToFindings(findings), nil
 }
@@ -230,9 +230,9 @@ func (p *ProwlerClient) buildProwlerCommand(ctx context.Context, config ProwlerC
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return nil, "", fmt.Errorf("failed to create output directory: %w", err)
 	}
-	
+
 	var args []string
-	
+
 	// If using Docker
 	if p.prowlerPath == "docker" {
 		args = append(args, "run", "--rm",
@@ -241,40 +241,40 @@ func (p *ProwlerClient) buildProwlerCommand(ctx context.Context, config ProwlerC
 			p.config.DockerImage,
 		)
 	}
-	
+
 	// Base Prowler arguments
 	args = append(args, "aws")
-	
+
 	// Add profile
 	if config.Profile != "" {
 		args = append(args, "--profile", config.Profile)
 	}
-	
+
 	// Add groups
 	if len(groups) > 0 {
 		args = append(args, "-g", strings.Join(groups, ","))
 	}
-	
+
 	// Add specific checks
 	if len(config.Checks) > 0 {
 		args = append(args, "-c", strings.Join(config.Checks, ","))
 	}
-	
+
 	// Add output format
 	args = append(args, "-M", "json", "-o", outputDir)
-	
+
 	// Add parallel execution
 	if config.Parallel > 0 {
 		args = append(args, "-p", fmt.Sprintf("%d", config.Parallel))
 	}
-	
+
 	// Add quiet mode
 	if config.Quiet {
 		args = append(args, "-q")
 	}
-	
+
 	cmd := exec.CommandContext(ctx, p.prowlerPath, args...)
-	
+
 	// Set environment variables
 	if config.Environment != nil {
 		cmd.Env = os.Environ()
@@ -282,7 +282,7 @@ func (p *ProwlerClient) buildProwlerCommand(ctx context.Context, config ProwlerC
 			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 		}
 	}
-	
+
 	return cmd, filepath.Join(outputDir, "prowler-output.json"), nil
 }
 
@@ -293,10 +293,10 @@ func (p *ProwlerClient) parseProwlerOutput(outputPath string) ([]ProwlerFinding,
 		return nil, fmt.Errorf("failed to open output file: %w", err)
 	}
 	defer file.Close()
-	
+
 	var findings []ProwlerFinding
 	scanner := bufio.NewScanner(file)
-	
+
 	// Prowler outputs NDJSON (newline-delimited JSON)
 	for scanner.Scan() {
 		var finding ProwlerFinding
@@ -304,24 +304,24 @@ func (p *ProwlerClient) parseProwlerOutput(outputPath string) ([]ProwlerFinding,
 			p.logger.Error("Failed to parse finding", "error", err)
 			continue
 		}
-		
+
 		// Only include failed checks
 		if finding.Status == "FAIL" {
 			findings = append(findings, finding)
 		}
 	}
-	
+
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading output file: %w", err)
 	}
-	
+
 	return findings, nil
 }
 
 // convertToFindings converts Prowler findings to internal format
 func (p *ProwlerClient) convertToFindings(prowlerFindings []ProwlerFinding) []types.Finding {
 	var findings []types.Finding
-	
+
 	for _, pf := range prowlerFindings {
 		finding := types.Finding{
 			ID:          fmt.Sprintf("prowler_%s_%s", pf.CheckID, pf.ResourceUID),
@@ -329,12 +329,12 @@ func (p *ProwlerClient) convertToFindings(prowlerFindings []ProwlerFinding) []ty
 			Title:       pf.CheckTitle,
 			Description: pf.Description,
 			Severity:    p.mapSeverity(pf.Severity),
-			Target:      pf.ResourceArn,
 			Evidence:    p.buildEvidence(pf),
-			Remediation: pf.Remediation,
+			Solution:    pf.Remediation,
 			References:  p.extractReferences(pf),
-			Tags:        p.buildTags(pf),
 			Metadata: map[string]interface{}{
+				"target":        pf.ResourceArn,
+				"tags":          p.buildTags(pf),
 				"check_id":      pf.CheckID,
 				"service":       pf.ServiceName,
 				"region":        pf.Region,
@@ -343,46 +343,46 @@ func (p *ProwlerClient) convertToFindings(prowlerFindings []ProwlerFinding) []ty
 				"categories":    pf.Categories,
 			},
 		}
-		
+
 		findings = append(findings, finding)
 	}
-	
+
 	return findings
 }
 
 // buildEvidence constructs evidence from Prowler finding
 func (p *ProwlerClient) buildEvidence(finding ProwlerFinding) string {
 	var evidence strings.Builder
-	
+
 	evidence.WriteString(fmt.Sprintf("Resource: %s\n", finding.ResourceArn))
 	evidence.WriteString(fmt.Sprintf("Region: %s\n", finding.Region))
 	evidence.WriteString(fmt.Sprintf("Service: %s\n", finding.ServiceName))
-	
+
 	if finding.Risk != "" {
 		evidence.WriteString(fmt.Sprintf("\nRisk: %s\n", finding.Risk))
 	}
-	
+
 	if finding.Description != "" {
 		evidence.WriteString(fmt.Sprintf("\nDetails: %s\n", finding.Description))
 	}
-	
+
 	return evidence.String()
 }
 
 // extractReferences extracts references from compliance data
 func (p *ProwlerClient) extractReferences(finding ProwlerFinding) []string {
 	var refs []string
-	
+
 	// Add compliance framework references
 	for framework, controls := range finding.Compliance {
 		for _, control := range controls {
 			refs = append(refs, fmt.Sprintf("%s: %s", framework, control))
 		}
 	}
-	
+
 	// Add AWS documentation reference
 	refs = append(refs, fmt.Sprintf("https://docs.aws.amazon.com/service/%s", strings.ToLower(finding.ServiceName)))
-	
+
 	return refs
 }
 
@@ -394,20 +394,20 @@ func (p *ProwlerClient) buildTags(finding ProwlerFinding) []string {
 		finding.ServiceName,
 		finding.Region,
 	}
-	
+
 	// Add categories as tags
 	tags = append(tags, finding.Categories...)
-	
+
 	// Add compliance frameworks as tags
 	for framework := range finding.Compliance {
 		tags = append(tags, framework)
 	}
-	
+
 	// Add identity-specific tags
 	if p.isIdentityRelated(finding) {
 		tags = append(tags, "identity", "iam")
 	}
-	
+
 	return tags
 }
 
@@ -417,14 +417,14 @@ func (p *ProwlerClient) isIdentityRelated(finding ProwlerFinding) bool {
 		"iam", "sts", "sso", "organizations", "cognito",
 		"identitystore", "accessanalyzer", "ram",
 	}
-	
+
 	service := strings.ToLower(finding.ServiceName)
 	for _, idService := range identityServices {
 		if strings.Contains(service, idService) {
 			return true
 		}
 	}
-	
+
 	// Check if the check itself is identity-related
 	checkID := strings.ToLower(finding.CheckID)
 	identityKeywords := []string{
@@ -432,13 +432,13 @@ func (p *ProwlerClient) isIdentityRelated(finding ProwlerFinding) bool {
 		"credential", "key", "mfa", "password", "authentication",
 		"authorization", "identity", "principal", "assume",
 	}
-	
+
 	for _, keyword := range identityKeywords {
 		if strings.Contains(checkID, keyword) || strings.Contains(strings.ToLower(finding.CheckTitle), keyword) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -456,16 +456,16 @@ func (p *ProwlerClient) getIdentityFocusedChecks() []Check {
 		{ID: "iam_user_hardware_mfa_enabled", Description: "Ensure hardware MFA is enabled for privileged users", Service: "iam", Severity: "high", Categories: []string{"identity", "authentication"}},
 		{ID: "iam_user_accesskey_unused", Description: "Ensure access keys are rotated regularly", Service: "iam", Severity: "medium", Categories: []string{"identity", "credentials"}},
 		{ID: "iam_user_console_access_unused", Description: "Ensure unused console access is removed", Service: "iam", Severity: "medium", Categories: []string{"identity", "access"}},
-		
+
 		// IAM Policy checks
 		{ID: "iam_policy_no_administrative_privileges", Description: "Ensure no policies grant full administrative privileges", Service: "iam", Severity: "critical", Categories: []string{"identity", "authorization"}},
 		{ID: "iam_policy_attached_only_to_group_or_roles", Description: "Ensure policies are attached to groups or roles", Service: "iam", Severity: "medium", Categories: []string{"identity", "authorization"}},
-		
+
 		// Root account checks
 		{ID: "iam_root_mfa_enabled", Description: "Ensure MFA is enabled for root account", Service: "iam", Severity: "critical", Categories: []string{"identity", "authentication"}},
 		{ID: "iam_root_access_key_exists", Description: "Ensure root account has no access keys", Service: "iam", Severity: "critical", Categories: []string{"identity", "credentials"}},
 		{ID: "iam_root_signing_certificates", Description: "Ensure root account has no signing certificates", Service: "iam", Severity: "high", Categories: []string{"identity", "credentials"}},
-		
+
 		// Password policy checks
 		{ID: "iam_password_policy_minimum_length_14", Description: "Ensure password policy requires minimum length", Service: "iam", Severity: "medium", Categories: []string{"identity", "authentication"}},
 		{ID: "iam_password_policy_symbol", Description: "Ensure password policy requires symbols", Service: "iam", Severity: "low", Categories: []string{"identity", "authentication"}},
@@ -474,23 +474,23 @@ func (p *ProwlerClient) getIdentityFocusedChecks() []Check {
 		{ID: "iam_password_policy_lowercase", Description: "Ensure password policy requires lowercase", Service: "iam", Severity: "low", Categories: []string{"identity", "authentication"}},
 		{ID: "iam_password_policy_expires_passwords_within_90_days", Description: "Ensure passwords expire within 90 days", Service: "iam", Severity: "medium", Categories: []string{"identity", "authentication"}},
 		{ID: "iam_password_policy_reuse_24", Description: "Ensure password reuse is prevented", Service: "iam", Severity: "medium", Categories: []string{"identity", "authentication"}},
-		
+
 		// Role and trust checks
 		{ID: "iam_role_cross_account_readonlyaccess_policy", Description: "Check cross-account role trust policies", Service: "iam", Severity: "high", Categories: []string{"identity", "trust"}},
 		{ID: "iam_role_administratoraccess_policy", Description: "Ensure roles don't have administrative access", Service: "iam", Severity: "high", Categories: []string{"identity", "authorization"}},
-		
+
 		// SSO and federation checks
 		{ID: "sso_permissionset_inlinepolicy_attached", Description: "Check SSO permission sets for inline policies", Service: "sso", Severity: "medium", Categories: []string{"identity", "federation"}},
 		{ID: "organizations_scp_check_deny_regions", Description: "Ensure SCPs restrict region access", Service: "organizations", Severity: "medium", Categories: []string{"identity", "governance"}},
-		
+
 		// Access Analyzer checks
 		{ID: "accessanalyzer_enabled", Description: "Ensure Access Analyzer is enabled", Service: "accessanalyzer", Severity: "high", Categories: []string{"identity", "monitoring"}},
 		{ID: "accessanalyzer_findings_resolved", Description: "Ensure Access Analyzer findings are resolved", Service: "accessanalyzer", Severity: "high", Categories: []string{"identity", "compliance"}},
-		
+
 		// CloudTrail checks for identity monitoring
 		{ID: "cloudtrail_multi_region_enabled", Description: "Ensure CloudTrail is enabled in all regions", Service: "cloudtrail", Severity: "high", Categories: []string{"identity", "audit"}},
 		{ID: "cloudtrail_kms_encryption_enabled", Description: "Ensure CloudTrail logs are encrypted", Service: "cloudtrail", Severity: "high", Categories: []string{"identity", "audit"}},
-		
+
 		// GuardDuty checks for identity threats
 		{ID: "guardduty_is_enabled", Description: "Ensure GuardDuty is enabled", Service: "guardduty", Severity: "high", Categories: []string{"identity", "threat-detection"}},
 		{ID: "guardduty_no_high_severity_findings", Description: "Ensure no high severity findings exist", Service: "guardduty", Severity: "high", Categories: []string{"identity", "threat-detection"}},
@@ -558,7 +558,7 @@ func (p *ProwlerClient) GetCheckGroups(ctx context.Context) ([]CheckGroup, error
 			},
 		},
 	}
-	
+
 	// Also include default groups
 	for name, checks := range DefaultCheckGroups {
 		groups = append(groups, CheckGroup{
@@ -569,7 +569,7 @@ func (p *ProwlerClient) GetCheckGroups(ctx context.Context) ([]CheckGroup, error
 			Categories:  []string{name},
 		})
 	}
-	
+
 	return groups, nil
 }
 
@@ -639,22 +639,22 @@ func (p *ProwlerClient) GetJobStatus(ctx context.Context, jobID string) (*Prowle
 	p.jobMutex.RLock()
 	job, exists := p.jobTracker[jobID]
 	p.jobMutex.RUnlock()
-	
+
 	if !exists {
 		return nil, fmt.Errorf("job not found: %s", jobID)
 	}
-	
+
 	status := &ProwlerJobStatus{
 		JobID:     job.ID,
 		Status:    job.Status,
 		StartTime: job.StartTime,
 		Progress:  job.Progress,
 	}
-	
+
 	if job.Error != nil {
 		status.Error = job.Error.Error()
 	}
-	
+
 	return status, nil
 }
 
@@ -663,17 +663,17 @@ func (p *ProwlerClient) CancelJob(ctx context.Context, jobID string) error {
 	p.jobMutex.RLock()
 	job, exists := p.jobTracker[jobID]
 	p.jobMutex.RUnlock()
-	
+
 	if !exists {
 		return fmt.Errorf("job not found: %s", jobID)
 	}
-	
+
 	if job.Cancel != nil {
 		job.Cancel()
 		job.Status = "cancelled"
 		return nil
 	}
-	
+
 	return fmt.Errorf("job cannot be cancelled")
 }
 
@@ -682,18 +682,18 @@ func (p *ProwlerClient) Health(ctx context.Context) error {
 	// Check if Prowler is accessible
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	
+
 	var cmd *exec.Cmd
 	if p.prowlerPath == "docker" {
 		cmd = exec.CommandContext(ctx, "docker", "images", p.config.DockerImage)
 	} else {
 		cmd = exec.CommandContext(ctx, p.prowlerPath, "--version")
 	}
-	
+
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("prowler health check failed: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -701,19 +701,19 @@ func (p *ProwlerClient) Health(ctx context.Context) error {
 func (p *ProwlerClient) Version(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	
+
 	var cmd *exec.Cmd
 	if p.prowlerPath == "docker" {
 		cmd = exec.CommandContext(ctx, "docker", "run", "--rm", p.config.DockerImage, "--version")
 	} else {
 		cmd = exec.CommandContext(ctx, p.prowlerPath, "--version")
 	}
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get Prowler version: %w", err)
 	}
-	
+
 	return strings.TrimSpace(string(output)), nil
 }
 

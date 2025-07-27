@@ -563,13 +563,13 @@ func (t *TechFingerprinter) processExcludes(detectedTech map[string]*Technology)
 // FingerprintHeaders fingerprints technologies from headers only
 func (t *TechFingerprinter) FingerprintHeaders(headers http.Header) []Technology {
 	var technologies []Technology
-	
+
 	// Common header-based detections
 	headerDetections := map[string]map[string]string{
 		"Server": {
-			"nginx":     "Nginx",
-			"apache":    "Apache",
-			"iis":       "Microsoft IIS",
+			"nginx":      "Nginx",
+			"apache":     "Apache",
+			"iis":        "Microsoft IIS",
 			"cloudflare": "Cloudflare",
 		},
 		"X-Powered-By": {
@@ -589,13 +589,13 @@ func (t *TechFingerprinter) FingerprintHeaders(headers http.Header) []Technology
 						Confidence: 0.9,
 						Evidence:   []string{fmt.Sprintf("Header %s: %s", header, value)},
 					}
-					
+
 					// Extract version if present
 					versionRegex := regexp.MustCompile(`/(\d+\.\d+(?:\.\d+)?)`)
 					if matches := versionRegex.FindStringSubmatch(value); len(matches) > 1 {
 						tech.Version = matches[1]
 					}
-					
+
 					technologies = append(technologies, tech)
 				}
 			}

@@ -7,34 +7,34 @@ import (
 
 // InfrastructureReport represents the complete infrastructure analysis
 type InfrastructureReport struct {
-	Target           string                    `json:"target"`
-	Assets           []InfrastructureAsset     `json:"assets"`
-	Organizations    []OrganizationInfo        `json:"organizations"`
-	Relationships    []AssetRelationship       `json:"relationships"`
-	SupplyChain      *SupplyChainInfo          `json:"supply_chain,omitempty"`
-	ThreatIntel      *ThreatIntelligence       `json:"threat_intel,omitempty"`
-	Statistics       InfrastructureStats       `json:"statistics"`
-	DiscoveryTime    time.Duration             `json:"discovery_time"`
-	DiscoveredAt     time.Time                 `json:"discovered_at"`
+	Target        string                `json:"target"`
+	Assets        []InfrastructureAsset `json:"assets"`
+	Organizations []OrganizationInfo    `json:"organizations"`
+	Relationships []AssetRelationship   `json:"relationships"`
+	SupplyChain   *SupplyChainInfo      `json:"supply_chain,omitempty"`
+	ThreatIntel   *ThreatIntelligence   `json:"threat_intel,omitempty"`
+	Statistics    InfrastructureStats   `json:"statistics"`
+	DiscoveryTime time.Duration         `json:"discovery_time"`
+	DiscoveredAt  time.Time             `json:"discovered_at"`
 }
 
 // InfrastructureAsset represents a discovered infrastructure component
 type InfrastructureAsset struct {
-	ID               string                 `json:"id"`
-	Type             AssetType              `json:"type"`
-	Value            string                 `json:"value"`
-	Source           string                 `json:"source"`
-	Confidence       float64                `json:"confidence"`
-	Priority         int                    `json:"priority"`
-	Tags             []string               `json:"tags"`
-	Technologies     []Technology           `json:"technologies"`
-	Metadata         map[string]interface{} `json:"metadata"`
-	CloudInfo        *CloudInfo             `json:"cloud_info,omitempty"`
-	CDNInfo          *CDNInfo               `json:"cdn_info,omitempty"`
-	SSLInfo          *SSLInfo               `json:"ssl_info,omitempty"`
-	NetworkInfo      *NetworkInfo           `json:"network_info,omitempty"`
-	Location         *GeographicLocation    `json:"location,omitempty"`
-	DiscoveredAt     time.Time              `json:"discovered_at"`
+	ID           string                 `json:"id"`
+	Type         AssetType              `json:"type"`
+	Value        string                 `json:"value"`
+	Source       string                 `json:"source"`
+	Confidence   float64                `json:"confidence"`
+	Priority     int                    `json:"priority"`
+	Tags         []string               `json:"tags"`
+	Technologies []Technology           `json:"technologies"`
+	Metadata     map[string]interface{} `json:"metadata"`
+	CloudInfo    *CloudInfo             `json:"cloud_info,omitempty"`
+	CDNInfo      *CDNInfo               `json:"cdn_info,omitempty"`
+	SSLInfo      *SSLInfo               `json:"ssl_info,omitempty"`
+	NetworkInfo  *NetworkInfo           `json:"network_info,omitempty"`
+	Location     *GeographicLocation    `json:"location,omitempty"`
+	DiscoveredAt time.Time              `json:"discovered_at"`
 }
 
 // AssetType represents different types of infrastructure assets
@@ -60,25 +60,25 @@ const (
 
 // OrganizationInfo represents information about related organizations
 type OrganizationInfo struct {
-	Name            string            `json:"name"`
-	Domain          string            `json:"domain"`
-	ASN             int               `json:"asn"`
-	IPRanges        []string          `json:"ip_ranges"`
-	Subsidiaries    []string          `json:"subsidiaries"`
-	RelatedDomains  []string          `json:"related_domains"`
-	Confidence      float64           `json:"confidence"`
-	Source          string            `json:"source"`
-	Metadata        map[string]string `json:"metadata"`
+	Name           string            `json:"name"`
+	Domain         string            `json:"domain"`
+	ASN            int               `json:"asn"`
+	IPRanges       []string          `json:"ip_ranges"`
+	Subsidiaries   []string          `json:"subsidiaries"`
+	RelatedDomains []string          `json:"related_domains"`
+	Confidence     float64           `json:"confidence"`
+	Source         string            `json:"source"`
+	Metadata       map[string]string `json:"metadata"`
 }
 
 // AssetRelationship represents relationships between assets
 type AssetRelationship struct {
-	SourceAssetID   string            `json:"source_asset_id"`
-	TargetAssetID   string            `json:"target_asset_id"`
-	RelationType    RelationType      `json:"relation_type"`
-	Confidence      float64           `json:"confidence"`
-	Evidence        []string          `json:"evidence"`
-	Metadata        map[string]string `json:"metadata"`
+	SourceAssetID string            `json:"source_asset_id"`
+	TargetAssetID string            `json:"target_asset_id"`
+	RelationType  RelationType      `json:"relation_type"`
+	Confidence    float64           `json:"confidence"`
+	Evidence      []string          `json:"evidence"`
+	Metadata      map[string]string `json:"metadata"`
 }
 
 // RelationType represents different types of asset relationships
@@ -109,27 +109,27 @@ type Technology struct {
 
 // CloudInfo represents cloud-specific information
 type CloudInfo struct {
-	Provider      CloudProvider      `json:"provider"`
-	Service       string            `json:"service"`
-	Region        string            `json:"region,omitempty"`
-	Account       string            `json:"account,omitempty"`
-	ResourceID    string            `json:"resource_id,omitempty"`
-	PublicAccess  bool              `json:"public_access"`
-	Permissions   []CloudPermission `json:"permissions,omitempty"`
-	Tags          map[string]string `json:"tags,omitempty"`
-	Metadata      map[string]string `json:"metadata,omitempty"`
+	Provider     CloudProvider     `json:"provider"`
+	Service      string            `json:"service"`
+	Region       string            `json:"region,omitempty"`
+	Account      string            `json:"account,omitempty"`
+	ResourceID   string            `json:"resource_id,omitempty"`
+	PublicAccess bool              `json:"public_access"`
+	Permissions  []CloudPermission `json:"permissions,omitempty"`
+	Tags         map[string]string `json:"tags,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
 }
 
 // CloudProvider represents different cloud providers
 type CloudProvider string
 
 const (
-	CloudProviderAWS        CloudProvider = "aws"
-	CloudProviderAzure      CloudProvider = "azure"
-	CloudProviderGCP        CloudProvider = "gcp"
-	CloudProviderCloudflare CloudProvider = "cloudflare"
+	CloudProviderAWS          CloudProvider = "aws"
+	CloudProviderAzure        CloudProvider = "azure"
+	CloudProviderGCP          CloudProvider = "gcp"
+	CloudProviderCloudflare   CloudProvider = "cloudflare"
 	CloudProviderDigitalOcean CloudProvider = "digitalocean"
-	CloudProviderUnknown    CloudProvider = "unknown"
+	CloudProviderUnknown      CloudProvider = "unknown"
 )
 
 // CloudPermission represents cloud resource permissions
@@ -153,21 +153,21 @@ type CDNInfo struct {
 
 // SSLInfo represents SSL/TLS certificate information
 type SSLInfo struct {
-	Subject           string       `json:"subject"`
-	Issuer            string       `json:"issuer"`
-	SerialNumber      string       `json:"serial_number"`
-	NotBefore         time.Time    `json:"not_before"`
-	NotAfter          time.Time    `json:"not_after"`
-	SANs              []string     `json:"sans"`
-	Fingerprint       string       `json:"fingerprint"`
-	Algorithm         string       `json:"algorithm"`
-	KeySize           int          `json:"key_size"`
-	Vulnerabilities   []string     `json:"vulnerabilities,omitempty"`
-	TrustChain        []string     `json:"trust_chain,omitempty"`
-	CTLogs            []CTLogEntry `json:"ct_logs,omitempty"`
-	Expired           bool         `json:"expired"`
-	SelfSigned        bool         `json:"self_signed"`
-	Wildcard          bool         `json:"wildcard"`
+	Subject         string       `json:"subject"`
+	Issuer          string       `json:"issuer"`
+	SerialNumber    string       `json:"serial_number"`
+	NotBefore       time.Time    `json:"not_before"`
+	NotAfter        time.Time    `json:"not_after"`
+	SANs            []string     `json:"sans"`
+	Fingerprint     string       `json:"fingerprint"`
+	Algorithm       string       `json:"algorithm"`
+	KeySize         int          `json:"key_size"`
+	Vulnerabilities []string     `json:"vulnerabilities,omitempty"`
+	TrustChain      []string     `json:"trust_chain,omitempty"`
+	CTLogs          []CTLogEntry `json:"ct_logs,omitempty"`
+	Expired         bool         `json:"expired"`
+	SelfSigned      bool         `json:"self_signed"`
+	Wildcard        bool         `json:"wildcard"`
 }
 
 // CTLogEntry represents Certificate Transparency log entry
@@ -195,12 +195,12 @@ type NetworkInfo struct {
 
 // BGPPeer represents BGP peering information
 type BGPPeer struct {
-	ASN        int    `json:"asn"`
-	Name       string `json:"name"`
-	PeerType   string `json:"peer_type"`
-	Country    string `json:"country,omitempty"`
-	IPv4       bool   `json:"ipv4"`
-	IPv6       bool   `json:"ipv6"`
+	ASN      int    `json:"asn"`
+	Name     string `json:"name"`
+	PeerType string `json:"peer_type"`
+	Country  string `json:"country,omitempty"`
+	IPv4     bool   `json:"ipv4"`
+	IPv6     bool   `json:"ipv6"`
 }
 
 // Geolocation represents geographic location data
@@ -254,13 +254,13 @@ type ServiceInfo struct {
 
 // SupplyChainInfo represents supply chain analysis
 type SupplyChainInfo struct {
-	JavaScript    []JSLibrary         `json:"javascript"`
-	APIs          []ThirdPartyAPI     `json:"apis"`
-	CDNs          []CDNService        `json:"cdns"`
-	Analytics     []AnalyticsService  `json:"analytics"`
-	CloudServices []CloudService      `json:"cloud_services"`
-	Dependencies  []Dependency        `json:"dependencies"`
-	Risks         []SupplyChainRisk   `json:"risks"`
+	JavaScript    []JSLibrary        `json:"javascript"`
+	APIs          []ThirdPartyAPI    `json:"apis"`
+	CDNs          []CDNService       `json:"cdns"`
+	Analytics     []AnalyticsService `json:"analytics"`
+	CloudServices []CloudService     `json:"cloud_services"`
+	Dependencies  []Dependency       `json:"dependencies"`
+	Risks         []SupplyChainRisk  `json:"risks"`
 }
 
 // JSLibrary represents JavaScript library information
@@ -330,13 +330,13 @@ type SupplyChainRisk struct {
 
 // ThreatIntelligence represents threat intelligence data
 type ThreatIntelligence struct {
-	Reputation     ReputationInfo   `json:"reputation"`
-	Malware        []MalwareInfo    `json:"malware,omitempty"`
-	Blacklists     []BlacklistInfo  `json:"blacklists,omitempty"`
-	Incidents      []SecurityIncident `json:"incidents,omitempty"`
-	Attribution    []Attribution    `json:"attribution,omitempty"`
-	IOCs           []IOC            `json:"iocs,omitempty"`
-	LastUpdated    time.Time        `json:"last_updated"`
+	Reputation  ReputationInfo     `json:"reputation"`
+	Malware     []MalwareInfo      `json:"malware,omitempty"`
+	Blacklists  []BlacklistInfo    `json:"blacklists,omitempty"`
+	Incidents   []SecurityIncident `json:"incidents,omitempty"`
+	Attribution []Attribution      `json:"attribution,omitempty"`
+	IOCs        []IOC              `json:"iocs,omitempty"`
+	LastUpdated time.Time          `json:"last_updated"`
 }
 
 // ReputationInfo represents reputation scoring
@@ -383,13 +383,13 @@ type SecurityIncident struct {
 
 // Attribution represents threat attribution
 type Attribution struct {
-	Actor       string   `json:"actor"`
-	Group       string   `json:"group,omitempty"`
-	Country     string   `json:"country,omitempty"`
-	Motivation  string   `json:"motivation"`
-	TTPs        []string `json:"ttps"` // Tactics, Techniques, Procedures
-	Confidence  float64  `json:"confidence"`
-	Source      string   `json:"source"`
+	Actor      string   `json:"actor"`
+	Group      string   `json:"group,omitempty"`
+	Country    string   `json:"country,omitempty"`
+	Motivation string   `json:"motivation"`
+	TTPs       []string `json:"ttps"` // Tactics, Techniques, Procedures
+	Confidence float64  `json:"confidence"`
+	Source     string   `json:"source"`
 }
 
 // IOC represents Indicators of Compromise
@@ -405,19 +405,19 @@ type IOC struct {
 
 // InfrastructureStats represents statistics about the infrastructure
 type InfrastructureStats struct {
-	TotalAssets        int            `json:"total_assets"`
-	AssetsByType       map[string]int `json:"assets_by_type"`
-	UniqueIPs          int            `json:"unique_ips"`
-	UniqueDomains      int            `json:"unique_domains"`
-	CloudAssets        int            `json:"cloud_assets"`
-	CDNProtected       int            `json:"cdn_protected"`
-	SSLCertificates    int            `json:"ssl_certificates"`
-	OpenPorts          int            `json:"open_ports"`
-	Technologies       int            `json:"technologies"`
-	Organizations      int            `json:"organizations"`
-	SupplyChainRisks   int            `json:"supply_chain_risks"`
-	HighRiskAssets     int            `json:"high_risk_assets"`
-	ExposedServices    int            `json:"exposed_services"`
+	TotalAssets      int            `json:"total_assets"`
+	AssetsByType     map[string]int `json:"assets_by_type"`
+	UniqueIPs        int            `json:"unique_ips"`
+	UniqueDomains    int            `json:"unique_domains"`
+	CloudAssets      int            `json:"cloud_assets"`
+	CDNProtected     int            `json:"cdn_protected"`
+	SSLCertificates  int            `json:"ssl_certificates"`
+	OpenPorts        int            `json:"open_ports"`
+	Technologies     int            `json:"technologies"`
+	Organizations    int            `json:"organizations"`
+	SupplyChainRisks int            `json:"supply_chain_risks"`
+	HighRiskAssets   int            `json:"high_risk_assets"`
+	ExposedServices  int            `json:"exposed_services"`
 }
 
 // DiscoveryConfig represents configuration for infrastructure discovery
@@ -428,19 +428,19 @@ type DiscoveryConfig struct {
 	Timeout            time.Duration `json:"timeout"`
 	Workers            int           `json:"workers"`
 	RateLimitPerSecond int           `json:"rate_limit_per_second"`
-	
+
 	// Discovery modules
-	EnableDNSEnumeration    bool `json:"enable_dns_enumeration"`
-	EnableSubdomainBrute    bool `json:"enable_subdomain_brute"`
-	EnablePortScanning      bool `json:"enable_port_scanning"`
-	EnableSSLAnalysis       bool `json:"enable_ssl_analysis"`
-	EnableCloudDiscovery    bool `json:"enable_cloud_discovery"`
-	EnableCDNDetection      bool `json:"enable_cdn_detection"`
-	EnableASNAnalysis       bool `json:"enable_asn_analysis"`
-	EnableTechDetection     bool `json:"enable_tech_detection"`
+	EnableDNSEnumeration      bool `json:"enable_dns_enumeration"`
+	EnableSubdomainBrute      bool `json:"enable_subdomain_brute"`
+	EnablePortScanning        bool `json:"enable_port_scanning"`
+	EnableSSLAnalysis         bool `json:"enable_ssl_analysis"`
+	EnableCloudDiscovery      bool `json:"enable_cloud_discovery"`
+	EnableCDNDetection        bool `json:"enable_cdn_detection"`
+	EnableASNAnalysis         bool `json:"enable_asn_analysis"`
+	EnableTechDetection       bool `json:"enable_tech_detection"`
 	EnableSupplyChainAnalysis bool `json:"enable_supply_chain_analysis"`
-	EnableThreatIntel       bool `json:"enable_threat_intel"`
-	
+	EnableThreatIntel         bool `json:"enable_threat_intel"`
+
 	// API configurations
 	ShodanAPIKey      string `json:"shodan_api_key,omitempty"`
 	CensysAPIKey      string `json:"censys_api_key,omitempty"`
@@ -449,14 +449,14 @@ type DiscoveryConfig struct {
 	SecurityTrailsKey string `json:"security_trails_key,omitempty"`
 	BinaryEdgeKey     string `json:"binary_edge_key,omitempty"`
 	PassiveTotalKey   string `json:"passive_total_key,omitempty"`
-	
+
 	// Cloud credentials
-	AWSAccessKey    string `json:"aws_access_key,omitempty"`
-	AWSSecretKey    string `json:"aws_secret_key,omitempty"`
-	AzureClientID   string `json:"azure_client_id,omitempty"`
-	AzureSecret     string `json:"azure_secret,omitempty"`
-	GCPCredentials  string `json:"gcp_credentials,omitempty"`
-	
+	AWSAccessKey   string `json:"aws_access_key,omitempty"`
+	AWSSecretKey   string `json:"aws_secret_key,omitempty"`
+	AzureClientID  string `json:"azure_client_id,omitempty"`
+	AzureSecret    string `json:"azure_secret,omitempty"`
+	GCPCredentials string `json:"gcp_credentials,omitempty"`
+
 	// Custom wordlists and patterns
 	SubdomainWordlist string   `json:"subdomain_wordlist,omitempty"`
 	S3BucketPatterns  []string `json:"s3_bucket_patterns,omitempty"`
@@ -484,9 +484,9 @@ const (
 
 // Network represents an IP network range
 type Network struct {
-	CIDR     string    `json:"cidr"`
-	Network  *net.IPNet `json:"-"`
-	ASN      int       `json:"asn"`
-	ASNName  string    `json:"asn_name"`
-	Country  string    `json:"country"`
+	CIDR    string     `json:"cidr"`
+	Network *net.IPNet `json:"-"`
+	ASN     int        `json:"asn"`
+	ASNName string     `json:"asn_name"`
+	Country string     `json:"country"`
 }

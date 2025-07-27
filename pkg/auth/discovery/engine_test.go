@@ -20,7 +20,7 @@ func TestNewEngine(t *testing.T) {
 		Format: "console",
 	})
 	require.NoError(t, err)
-	
+
 	tests := []struct {
 		name   string
 		config *Config
@@ -77,7 +77,7 @@ func TestNewEngine(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			engine := NewEngine(logger, tt.config)
-			
+
 			assert.NotNil(t, engine)
 			assert.Equal(t, logger, engine.logger)
 			assert.Equal(t, tt.want.config.MaxDepth, engine.config.MaxDepth)
@@ -98,7 +98,7 @@ func TestEngine_Discover(t *testing.T) {
 		Format: "console",
 	})
 	require.NoError(t, err)
-	
+
 	// Create test server with various auth endpoints
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -172,15 +172,15 @@ func TestEngine_Discover(t *testing.T) {
 	ctx := context.Background()
 
 	result, err := engine.Discover(ctx, server.URL)
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	
+
 	assert.Equal(t, server.URL, result.Target)
 	assert.Greater(t, result.TotalEndpoints, 0)
 	assert.NotEmpty(t, result.Implementations)
 	assert.Greater(t, result.DiscoveryTime, time.Duration(0))
-	
+
 	// Should find form-based auth
 	foundFormAuth := false
 	for _, impl := range result.Implementations {
@@ -214,7 +214,7 @@ func TestEngine_DiscoverInvalidTarget(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := engine.Discover(ctx, tt.target)
-			
+
 			if err != nil {
 				assert.Error(t, err)
 			} else {
@@ -232,7 +232,7 @@ func TestEngine_ContextCancellation(t *testing.T) {
 		Format: "console",
 	})
 	require.NoError(t, err)
-	
+
 	// Create a slow server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second)
@@ -241,7 +241,7 @@ func TestEngine_ContextCancellation(t *testing.T) {
 	defer server.Close()
 
 	engine := NewEngine(logger, &Config{Timeout: 10 * time.Second})
-	
+
 	// Create context that cancels quickly
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
@@ -290,7 +290,7 @@ func FuzzEngineDiscover(f *testing.F) {
 
 		// Should not panic or crash, regardless of input
 		result, err := engine.Discover(ctx, target)
-		
+
 		// Either succeed or fail gracefully
 		if err == nil {
 			assert.NotNil(t, result)
@@ -363,7 +363,7 @@ func TestEngine_CalculateRiskScore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			score := engine.calculateRiskScore(tt.implementations)
-			
+
 			assert.GreaterOrEqual(t, score, tt.expectedRange[0])
 			assert.LessOrEqual(t, score, tt.expectedRange[1])
 			assert.GreaterOrEqual(t, score, 0.0)
@@ -381,8 +381,8 @@ func TestEngine_GenerateRecommendations(t *testing.T) {
 	engine := NewEngine(logger, nil)
 
 	tests := []struct {
-		name            string
-		implementations []AuthImplementation
+		name             string
+		implementations  []AuthImplementation
 		expectedContains []string
 	}{
 		{
@@ -434,7 +434,7 @@ func TestEngine_GenerateRecommendations(t *testing.T) {
 			}
 
 			recommendations := engine.generateRecommendations(tt.implementations)
-			
+
 			for _, expectedText := range tt.expectedContains {
 				found := false
 				for _, rec := range recommendations {
@@ -468,7 +468,7 @@ func BenchmarkEngine_Discover(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html><body><form action="/login" method="post">
 			<input name="username" type="text">
@@ -481,7 +481,7 @@ func BenchmarkEngine_Discover(b *testing.B) {
 		MaxDepth: 1,
 		Timeout:  5 * time.Second,
 	})
-	
+
 	ctx := context.Background()
 
 	b.ResetTimer()
@@ -502,7 +502,7 @@ func BenchmarkEngine_CalculateRiskScore(b *testing.B) {
 		b.Fatal(err)
 	}
 	engine := NewEngine(logger, nil)
-	
+
 	implementations := []AuthImplementation{
 		{Type: AuthTypeOAuth2, SecurityFeatures: []string{"PKCE"}, Vulnerabilities: []string{"redirect"}},
 		{Type: AuthTypeBasicAuth, SecurityFeatures: []string{}, Vulnerabilities: []string{"plaintext", "replay"}},

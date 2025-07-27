@@ -34,20 +34,20 @@ func NewWhoisClient(logger *logger.Logger) *WhoisClient {
 
 // WhoisResult contains parsed WHOIS data
 type WhoisResult struct {
-	Domain           string
-	Registrar        string
-	RegistrantOrg    string
-	RegistrantEmail  string
-	AdminEmail       string
-	TechEmail        string
-	NameServers      []string
-	CreatedDate      string
-	ExpiresDate      string
-	UpdatedDate      string
-	Status           []string
-	RelatedDomains   []string
-	RelatedEmails    []string
-	RegistrantASN    string
+	Domain            string
+	Registrar         string
+	RegistrantOrg     string
+	RegistrantEmail   string
+	AdminEmail        string
+	TechEmail         string
+	NameServers       []string
+	CreatedDate       string
+	ExpiresDate       string
+	UpdatedDate       string
+	Status            []string
+	RelatedDomains    []string
+	RelatedEmails     []string
+	RegistrantASN     string
 	RegistrantCountry string
 }
 
@@ -77,7 +77,7 @@ func (w *WhoisClient) LookupDomain(ctx context.Context, domain string) (*WhoisRe
 	// Cache result
 	w.cache[domain] = result
 
-	w.logger.Info("WHOIS lookup completed", 
+	w.logger.Info("WHOIS lookup completed",
 		"domain", domain,
 		"registrar", result.Registrar,
 		"org", result.RegistrantOrg,
@@ -94,7 +94,7 @@ func (w *WhoisClient) LookupIP(ctx context.Context, ip string) (*IPWhoisResult, 
 	}
 
 	result := w.parseIPWhois(ip, rawWhois)
-	
+
 	w.logger.Info("IP WHOIS lookup completed",
 		"ip", ip,
 		"org", result.Organization,
@@ -270,14 +270,14 @@ func (w *WhoisClient) findRelatedDomains(result *WhoisResult, rawWhois string) [
 	// Extract domains from raw WHOIS
 	domainPattern := regexp.MustCompile(`\b([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b`)
 	matches := domainPattern.FindAllString(rawWhois, -1)
-	
+
 	for _, match := range matches {
 		// Filter out common non-domain matches
-		if !strings.Contains(match, "whois.") && 
-		   !strings.Contains(match, "nic.") &&
-		   !strings.Contains(match, "registry.") &&
-		   !strings.HasSuffix(match, ".arpa") &&
-		   match != result.Domain {
+		if !strings.Contains(match, "whois.") &&
+			!strings.Contains(match, "nic.") &&
+			!strings.Contains(match, "registry.") &&
+			!strings.HasSuffix(match, ".arpa") &&
+			match != result.Domain {
 			relatedMap[match] = true
 		}
 	}
@@ -296,17 +296,17 @@ func (w *WhoisClient) searchDomainsByEmail(email string) []string {
 	// ViewDNS.info provides free reverse WHOIS lookups
 	// Note: This has rate limits - consider caching results
 	url := fmt.Sprintf("https://viewdns.info/reversewhois/?q=%s", strings.ReplaceAll(email, "@", "%40"))
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		w.logger.Debug("Reverse WHOIS by email failed", "email", email, "error", err)
 		return []string{}
 	}
 	defer resp.Body.Close()
-	
+
 	body, _ := io.ReadAll(resp.Body)
 	domains := w.extractDomainsFromHTML(string(body))
-	
+
 	w.logger.Debug("Reverse WHOIS by email completed", "email", email, "found", len(domains))
 	return domains
 }
@@ -315,20 +315,20 @@ func (w *WhoisClient) searchDomainsByEmail(email string) []string {
 func (w *WhoisClient) searchDomainsByOrg(org string) []string {
 	// For organization search, we'll use a combination of techniques
 	var domains []string
-	
+
 	// Try ViewDNS reverse WHOIS
 	url := fmt.Sprintf("https://viewdns.info/reversewhois/?q=%s", url.QueryEscape(org))
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		w.logger.Debug("Reverse WHOIS by org failed", "org", org, "error", err)
 		return domains
 	}
 	defer resp.Body.Close()
-	
+
 	body, _ := io.ReadAll(resp.Body)
 	domains = w.extractDomainsFromHTML(string(body))
-	
+
 	w.logger.Debug("Reverse WHOIS by org completed", "org", org, "found", len(domains))
 	return domains
 }
@@ -337,12 +337,12 @@ func (w *WhoisClient) searchDomainsByOrg(org string) []string {
 func (w *WhoisClient) extractDomainsFromHTML(html string) []string {
 	var domains []string
 	seen := make(map[string]bool)
-	
+
 	// Look for domain patterns in the HTML
 	// ViewDNS returns results in a table format
 	domainPattern := regexp.MustCompile(`<td>([a-zA-Z0-9][a-zA-Z0-9-]{0,62}\.[a-zA-Z]{2,})</td>`)
 	matches := domainPattern.FindAllStringSubmatch(html, -1)
-	
+
 	for _, match := range matches {
 		if len(match) > 1 {
 			domain := strings.ToLower(match[1])
@@ -352,7 +352,7 @@ func (w *WhoisClient) extractDomainsFromHTML(html string) []string {
 			}
 		}
 	}
-	
+
 	return domains
 }
 
@@ -362,23 +362,23 @@ func (w *WhoisClient) isValidDomain(domain string) bool {
 	if len(domain) < 4 || len(domain) > 253 {
 		return false
 	}
-	
+
 	// Must have at least one dot
 	if !strings.Contains(domain, ".") {
 		return false
 	}
-	
+
 	// Check TLD is reasonable length
 	parts := strings.Split(domain, ".")
 	if len(parts) < 2 {
 		return false
 	}
-	
+
 	tld := parts[len(parts)-1]
 	if len(tld) < 2 || len(tld) > 63 {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -389,7 +389,7 @@ func (w *WhoisClient) parseIPWhois(ip, raw string) *IPWhoisResult {
 	}
 
 	lines := strings.Split(raw, "\n")
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		lower := strings.ToLower(line)
@@ -478,11 +478,11 @@ func (w *WhoisClient) extractCIDRFromRange(raw string) string {
 	// Look for patterns like "192.168.0.0 - 192.168.255.255"
 	rangePattern := regexp.MustCompile(`(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*-\s*(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})`)
 	matches := rangePattern.FindStringSubmatch(raw)
-	
+
 	if len(matches) == 3 {
 		startIP := net.ParseIP(matches[1])
 		endIP := net.ParseIP(matches[2])
-		
+
 		if startIP != nil && endIP != nil {
 			// Calculate CIDR (simplified - assumes contiguous block)
 			return w.calculateCIDR(startIP, endIP)
@@ -496,12 +496,12 @@ func (w *WhoisClient) extractCIDRFromRange(raw string) string {
 func (w *WhoisClient) calculateCIDR(start, end net.IP) string {
 	// This is a simplified implementation
 	// In production, use a proper IP range to CIDR converter
-	
+
 	// For now, just return the start IP with /24
 	if start.To4() != nil {
 		return start.String() + "/24"
 	}
-	
+
 	return ""
 }
 
@@ -531,23 +531,23 @@ func (w *WhoisClient) FindExpiredDomains(org string) []string {
 	// Check ExpiredDomains.net for domains matching the organization
 	// Note: This is a simplified implementation
 	var domains []string
-	
+
 	// Search for the organization name in expired domains
 	searchURL := fmt.Sprintf("https://www.expireddomains.net/domain-name-search/?q=%s", url.QueryEscape(org))
-	
+
 	resp, err := http.Get(searchURL)
 	if err != nil {
 		w.logger.Debug("Expired domains search failed", "org", org, "error", err)
 		return domains
 	}
 	defer resp.Body.Close()
-	
+
 	body, _ := io.ReadAll(resp.Body)
-	
+
 	// Extract domain names from the response
 	domainPattern := regexp.MustCompile(`<td class="field_domain">.*?<a[^>]+>([^<]+)</a>`)
 	matches := domainPattern.FindAllStringSubmatch(string(body), -1)
-	
+
 	for _, match := range matches {
 		if len(match) > 1 {
 			domain := strings.TrimSpace(match[1])
@@ -556,7 +556,7 @@ func (w *WhoisClient) FindExpiredDomains(org string) []string {
 			}
 		}
 	}
-	
+
 	w.logger.Debug("Expired domains search completed", "org", org, "found", len(domains))
 	return domains
 }
@@ -565,20 +565,20 @@ func (w *WhoisClient) FindExpiredDomains(org string) []string {
 func (w *WhoisClient) GetHistoricalWhois(domain string) ([]WhoisResult, error) {
 	// Note: Most historical WHOIS services require paid access
 	// This is a simplified implementation that shows the concept
-	
+
 	// For now, just return current WHOIS as a single-item history
 	current, err := w.LookupDomain(context.Background(), domain)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return []WhoisResult{*current}, nil
 }
 
 // BulkWhoisLookup performs WHOIS lookups for multiple domains
 func (w *WhoisClient) BulkWhoisLookup(ctx context.Context, domains []string) map[string]*WhoisResult {
 	results := make(map[string]*WhoisResult)
-	
+
 	// Rate limit to avoid being blocked
 	for _, domain := range domains {
 		select {
@@ -592,6 +592,6 @@ func (w *WhoisClient) BulkWhoisLookup(ctx context.Context, domains []string) map
 			time.Sleep(2 * time.Second)
 		}
 	}
-	
+
 	return results
 }

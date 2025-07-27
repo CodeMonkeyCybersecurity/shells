@@ -30,22 +30,22 @@ func NewShodanClient(apiKey string, logger *logger.Logger) *ShodanClient {
 
 // ShodanHost represents a host from Shodan
 type ShodanHost struct {
-	IP          string   `json:"ip_str"`
-	Port        int      `json:"port"`
-	Hostnames   []string `json:"hostnames"`
-	Domains     []string `json:"domains"`
-	OS          string   `json:"os"`
-	Transport   string   `json:"transport"`
-	Product     string   `json:"product"`
-	Version     string   `json:"version"`
-	Data        string   `json:"data"`
-	ASN         string   `json:"asn"`
-	ISP         string   `json:"isp"`
-	Org         string   `json:"org"`
-	Country     string   `json:"country_name"`
-	City        string   `json:"city"`
-	Vulns       []string `json:"vulns"`
-	LastUpdate  string   `json:"timestamp"`
+	IP         string   `json:"ip_str"`
+	Port       int      `json:"port"`
+	Hostnames  []string `json:"hostnames"`
+	Domains    []string `json:"domains"`
+	OS         string   `json:"os"`
+	Transport  string   `json:"transport"`
+	Product    string   `json:"product"`
+	Version    string   `json:"version"`
+	Data       string   `json:"data"`
+	ASN        string   `json:"asn"`
+	ISP        string   `json:"isp"`
+	Org        string   `json:"org"`
+	Country    string   `json:"country_name"`
+	City       string   `json:"city"`
+	Vulns      []string `json:"vulns"`
+	LastUpdate string   `json:"timestamp"`
 }
 
 // ShodanSearchResult represents search results
@@ -97,7 +97,7 @@ func (s *ShodanClient) SearchIP(ctx context.Context, ip string) (*ShodanHost, er
 	}
 
 	url := fmt.Sprintf("https://api.shodan.io/shodan/host/%s?key=%s", ip, s.apiKey)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -114,16 +114,16 @@ func (s *ShodanClient) SearchIP(ctx context.Context, ip string) (*ShodanHost, er
 	}
 
 	var hostInfo struct {
-		IP        string `json:"ip_str"`
+		IP        string   `json:"ip_str"`
 		Hostnames []string `json:"hostnames"`
 		Domains   []string `json:"domains"`
-		OS        string `json:"os"`
-		ASN       string `json:"asn"`
-		ISP       string `json:"isp"`
-		Org       string `json:"org"`
-		Country   string `json:"country_name"`
-		City      string `json:"city"`
-		Ports     []int  `json:"ports"`
+		OS        string   `json:"os"`
+		ASN       string   `json:"asn"`
+		ISP       string   `json:"isp"`
+		Org       string   `json:"org"`
+		Country   string   `json:"country_name"`
+		City      string   `json:"city"`
+		Ports     []int    `json:"ports"`
 		Vulns     []string `json:"vulns"`
 		Data      []struct {
 			Port      int    `json:"port"`
@@ -177,7 +177,7 @@ func (s *ShodanClient) GetExploits(ctx context.Context, query string) ([]Exploit
 	}
 
 	url := fmt.Sprintf("https://exploits.shodan.io/api/search?query=%s&key=%s", query, s.apiKey)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -218,7 +218,7 @@ type Exploit struct {
 // search performs a generic Shodan search
 func (s *ShodanClient) search(ctx context.Context, query string) ([]ShodanHost, error) {
 	url := fmt.Sprintf("https://api.shodan.io/shodan/host/search?key=%s&query=%s&facets=port,country", s.apiKey, query)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -249,7 +249,7 @@ func (s *ShodanClient) GetAPIInfo(ctx context.Context) (map[string]interface{}, 
 	}
 
 	url := fmt.Sprintf("https://api.shodan.io/api-info?key=%s", s.apiKey)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func (s *ShodanClient) SearchFacets(ctx context.Context, query string, facets []
 	}
 
 	url := fmt.Sprintf("https://api.shodan.io/shodan/host/search?key=%s&query=%s&facets=%s", s.apiKey, query, facetStr)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -328,7 +328,7 @@ func (s *ShodanClient) GetDNSResolve(ctx context.Context, hostnames []string) (m
 	}
 
 	url := fmt.Sprintf("https://api.shodan.io/dns/resolve?hostnames=%s&key=%s", hostnameList, s.apiKey)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -363,7 +363,7 @@ func (s *ShodanClient) GetDNSReverse(ctx context.Context, ips []string) (map[str
 	}
 
 	url := fmt.Sprintf("https://api.shodan.io/dns/reverse?ips=%s&key=%s", ipList, s.apiKey)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err

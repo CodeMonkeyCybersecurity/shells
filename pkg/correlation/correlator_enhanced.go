@@ -36,7 +36,7 @@ func (ec *EnhancedOrganizationCorrelator) ResolveIdentifier(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse identifier: %w", err)
 	}
-	
+
 	// Handle each type
 	switch info.Type {
 	case TypeEmail:
@@ -66,21 +66,21 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromEmail(ctx context.Context,
 	if cached := ec.cache.GetByEmail(email); cached != nil {
 		return cached, nil
 	}
-	
+
 	// Extract domain
 	parts := strings.Split(email, "@")
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid email format")
 	}
-	
+
 	domain := parts[1]
-	
+
 	// Use domain discovery
 	org, err := ec.DiscoverFromDomain(ctx, domain)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Add email pattern metadata
 	if org.Metadata == nil {
 		org.Metadata = make(map[string]interface{})
@@ -91,24 +91,30 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromEmail(ctx context.Context,
 		emailPatterns = append(emailPatterns, pattern)
 		org.Metadata["email_patterns"] = emailPatterns
 	}
-	
+
 	// Search for employees if LinkedIn is enabled
 	if ec.config.EnableLinkedIn && ec.linkedinClient != nil {
-		if employees, err := ec.linkedinClient.SearchEmployees(org.Name); err == nil {
+		if employees, err := ec.linkedinClient.SearchEmployees(context.Background(), org.Name, domain); err == nil {
 			// Merge employees
 			existingEmails := make(map[string]bool)
 			for _, emp := range org.Employees {
 				existingEmails[emp.Email] = true
 			}
-			
-			for _, emp := range employees {
-				if !existingEmails[emp.Email] {
+
+			for _, empInfo := range employees {
+				if !existingEmails[empInfo.Email] {
+					// Convert EmployeeInfo to Employee
+					emp := Employee{
+						Email: empInfo.Email,
+						Name:  empInfo.Name,
+						Title: empInfo.Title,
+					}
 					org.Employees = append(org.Employees, emp)
 				}
 			}
 		}
 	}
-	
+
 	// Cache and return
 	ec.cache.Store(org)
 	return org, nil
@@ -118,15 +124,15 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromEmail(ctx context.Context,
 func (ec *EnhancedOrganizationCorrelator) DiscoverFromDomain(ctx context.Context, domain string) (*Organization, error) {
 	// Use the base correlator's methods
 	org := &Organization{
-		Domains:      []string{domain},
-		LastUpdated:  time.Now(),
-		Metadata:     make(map[string]interface{}),
+		Domains:     []string{domain},
+		LastUpdated: time.Now(),
+		Metadata:    make(map[string]interface{}),
 	}
-	
+
 	ec.correlateDomain(ctx, domain, org)
 	ec.secondPassCorrelation(ctx, org)
 	org.Confidence = ec.calculateConfidence(org)
-	
+
 	// Cache and return
 	ec.cache.Store(org)
 	return org, nil
@@ -138,11 +144,11 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromIP(ctx context.Context, ip
 		LastUpdated: time.Now(),
 		Metadata:    make(map[string]interface{}),
 	}
-	
+
 	ec.correlateIP(ctx, ip, org)
 	ec.secondPassCorrelation(ctx, org)
 	org.Confidence = ec.calculateConfidence(org)
-	
+
 	// Cache and return
 	ec.cache.Store(org)
 	return org, nil
@@ -155,11 +161,11 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromCompanyName(ctx context.Co
 		LastUpdated: time.Now(),
 		Metadata:    make(map[string]interface{}),
 	}
-	
+
 	ec.correlateCompanyName(ctx, companyName, org)
 	ec.secondPassCorrelation(ctx, org)
 	org.Confidence = ec.calculateConfidence(org)
-	
+
 	// Cache and return
 	ec.cache.Store(org)
 	return org, nil
@@ -168,31 +174,31 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromCompanyName(ctx context.Co
 // DiscoverFromIPRange discovers organization from IP range
 func (ec *EnhancedOrganizationCorrelator) DiscoverFromIPRange(ctx context.Context, ipRange string) (*Organization, error) {
 	ec.logger.Infow("Discovering organization from IP range", "ip_range", ipRange)
-	
+
 	// Parse CIDR
 	_, ipnet, err := net.ParseCIDR(ipRange)
 	if err != nil {
 		return nil, fmt.Errorf("invalid IP range: %w", err)
 	}
-	
+
 	org := &Organization{
 		Name:        fmt.Sprintf("Organization for %s", ipRange),
 		IPRanges:    []string{ipRange},
 		LastUpdated: time.Now(),
 		Metadata:    make(map[string]interface{}),
 	}
-	
+
 	// Try to get ASN info for the range
 	if ec.asnClient != nil && ec.config.EnableASN {
 		// Get first IP in range
 		firstIP := ipnet.IP.String()
-		if whoisInfo, err := ec.whoisClient.LookupIP(firstIP); err == nil {
-			if whoisInfo.Organization != "" {
-				org.Name = whoisInfo.Organization
+		if asnInfo, err := ec.asnClient.LookupIP(context.Background(), firstIP); err == nil {
+			if asnInfo.Organization != "" {
+				org.Name = asnInfo.Organization
 			}
 		}
 	}
-	
+
 	// Try reverse DNS for some IPs
 	ips, _ := expandIPRange(ipRange)
 	for i, ip := range ips {
@@ -208,43 +214,53 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromIPRange(ctx context.Contex
 			}
 		}
 	}
-	
+
 	return org, nil
 }
 
 // DiscoverFromASN discovers organization from ASN
 func (ec *EnhancedOrganizationCorrelator) DiscoverFromASN(ctx context.Context, asn string) (*Organization, error) {
 	ec.logger.Infow("Discovering organization from ASN", "asn", asn)
-	
+
 	org := &Organization{
 		Name:        fmt.Sprintf("Organization for %s", asn),
 		ASNs:        []string{asn},
 		LastUpdated: time.Now(),
 		Metadata:    make(map[string]interface{}),
 	}
-	
+
 	// Get ASN details
 	if ec.asnClient != nil && ec.config.EnableASN {
-		if asnInfo, err := ec.asnClient.LookupASN(asn); err == nil {
-			if asnInfo.Organization != "" {
-				org.Name = asnInfo.Organization
+		// Parse ASN number
+		asnNum := 0
+		if strings.HasPrefix(asn, "AS") {
+			fmt.Sscanf(asn[2:], "%d", &asnNum)
+		} else {
+			fmt.Sscanf(asn, "%d", &asnNum)
+		}
+
+		if asnNum > 0 {
+			if asnInfo, err := ec.asnClient.GetASNDetails(context.Background(), asnNum); err == nil {
+				if asnInfo.Organization != "" {
+					org.Name = asnInfo.Organization
+				}
+				org.IPRanges = append(org.IPRanges, asnInfo.IPRanges...)
 			}
-			org.IPRanges = append(org.IPRanges, asnInfo.IPRanges...)
 		}
 	}
-	
+
 	return org, nil
 }
 
 // DiscoverFromLinkedIn discovers organization from LinkedIn URL
 func (ec *EnhancedOrganizationCorrelator) DiscoverFromLinkedIn(ctx context.Context, linkedinURL string) (*Organization, error) {
 	ec.logger.Infow("Discovering organization from LinkedIn", "url", linkedinURL)
-	
+
 	companyName := extractLinkedInCompany(linkedinURL)
 	if companyName == "" {
 		return nil, fmt.Errorf("could not extract company from LinkedIn URL")
 	}
-	
+
 	// Use company name discovery
 	return ec.DiscoverFromCompanyName(ctx, companyName)
 }
@@ -252,40 +268,40 @@ func (ec *EnhancedOrganizationCorrelator) DiscoverFromLinkedIn(ctx context.Conte
 // DiscoverFromGitHub discovers organization from GitHub URL
 func (ec *EnhancedOrganizationCorrelator) DiscoverFromGitHub(ctx context.Context, githubURL string) (*Organization, error) {
 	ec.logger.Infow("Discovering organization from GitHub", "url", githubURL)
-	
+
 	orgName := extractGitHubOrg(githubURL)
 	if orgName == "" {
 		return nil, fmt.Errorf("could not extract organization from GitHub URL")
 	}
-	
+
 	org := &Organization{
 		Name:        orgName,
 		GitHubOrgs:  []string{orgName},
 		LastUpdated: time.Now(),
 		Metadata:    make(map[string]interface{}),
 	}
-	
+
 	// Get GitHub organization details
 	if ec.githubClient != nil && ec.config.EnableGitHub {
-		if githubOrg, err := ec.githubClient.GetOrgDetails(orgName); err == nil {
-			if githubOrg.Name != "" {
-				org.Name = githubOrg.Name
+		if githubData, err := ec.githubClient.SearchOrganization(context.Background(), orgName); err == nil {
+			if githubData.OrganizationName != "" {
+				org.Name = githubData.OrganizationName
 			}
-			
-			// Add repositories as metadata
-			org.Metadata["github_repos"] = githubOrg.Repositories
-			if githubOrg.Location != "" {
-				org.Metadata["github_location"] = githubOrg.Location
-			}
+
+			// Add metadata
+			org.Metadata["github_org_url"] = githubData.OrganizationURL
+			org.Metadata["github_repo_count"] = githubData.RepositoryCount
+			org.Metadata["github_technologies"] = githubData.Technologies
+			org.Metadata["github_domains"] = githubData.Domains
 		}
 	}
-	
+
 	return org, nil
 }
 
 // EnhancedCache provides caching with multiple lookup methods
 type EnhancedCache struct {
-	cache    sync.Map
+	cache       sync.Map
 	domainIndex sync.Map
 	emailIndex  sync.Map
 	ipIndex     sync.Map
@@ -297,28 +313,28 @@ func NewEnhancedCache(ttl time.Duration) *EnhancedCache {
 	cache := &EnhancedCache{
 		ttl: ttl,
 	}
-	
+
 	// Start cleanup routine
 	go cache.cleanup()
-	
+
 	return cache
 }
 
 // Store stores an organization in the cache
 func (c *EnhancedCache) Store(org *Organization) {
 	key := generateOrgID(org.Name)
-	
+
 	// Store with timestamp
 	c.cache.Store(key, &cacheEntry{
 		org:       org,
 		timestamp: time.Now(),
 	})
-	
+
 	// Update indices
 	for _, domain := range org.Domains {
 		c.domainIndex.Store(domain, key)
 	}
-	
+
 	// Store email patterns
 	if patterns, ok := org.Metadata["email_patterns"].([]string); ok {
 		for _, pattern := range patterns {
@@ -327,7 +343,7 @@ func (c *EnhancedCache) Store(org *Organization) {
 			}
 		}
 	}
-	
+
 	// Store IP ranges
 	for _, ipRange := range org.IPRanges {
 		c.ipIndex.Store(ipRange, key)
@@ -340,13 +356,13 @@ func (c *EnhancedCache) GetByEmail(email string) *Organization {
 	if domain == "" {
 		return nil
 	}
-	
+
 	if keyInterface, ok := c.emailIndex.Load(domain); ok {
 		if key, ok := keyInterface.(string); ok {
 			return c.getByKey(key)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -366,10 +382,10 @@ func (c *EnhancedCache) getByKey(key string) *Organization {
 func (c *EnhancedCache) cleanup() {
 	ticker := time.NewTicker(c.ttl / 2)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		var expiredKeys []string
-		
+
 		// Find expired entries
 		c.cache.Range(func(key, value interface{}) bool {
 			if entry, ok := value.(*cacheEntry); ok {
@@ -379,7 +395,7 @@ func (c *EnhancedCache) cleanup() {
 			}
 			return true
 		})
-		
+
 		// Remove expired entries and their indices
 		for _, key := range expiredKeys {
 			if entryInterface, ok := c.cache.Load(key); ok {

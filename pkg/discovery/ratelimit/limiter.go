@@ -42,31 +42,31 @@ func NewRateLimiter(logger *logger.Logger) *RateLimiter {
 // configureDefaults sets up default rate limits for known services
 func (r *RateLimiter) configureDefaults() {
 	// Search engines
-	r.AddService("google", 1.0, 2)        // 1 request per second, burst of 2
-	r.AddService("bing", 2.0, 5)          // 2 requests per second, burst of 5
-	r.AddService("duckduckgo", 2.0, 5)    // 2 requests per second, burst of 5
-	r.AddService("commoncrawl", 5.0, 10)  // 5 requests per second, burst of 10
+	r.AddService("google", 1.0, 2)       // 1 request per second, burst of 2
+	r.AddService("bing", 2.0, 5)         // 2 requests per second, burst of 5
+	r.AddService("duckduckgo", 2.0, 5)   // 2 requests per second, burst of 5
+	r.AddService("commoncrawl", 5.0, 10) // 5 requests per second, burst of 10
 
 	// External APIs
-	r.AddService("shodan", 1.0, 1)        // 1 request per second (free tier)
-	r.AddService("censys", 0.5, 1)        // 1 request per 2 seconds (free tier)
-	r.AddService("virustotal", 0.25, 1)   // 4 requests per minute (free tier)
+	r.AddService("shodan", 1.0, 1)         // 1 request per second (free tier)
+	r.AddService("censys", 0.5, 1)         // 1 request per 2 seconds (free tier)
+	r.AddService("virustotal", 0.25, 1)    // 4 requests per minute (free tier)
 	r.AddService("securitytrails", 0.5, 1) // 1 request per 2 seconds
 
 	// WHOIS services
-	r.AddService("whois", 0.5, 2)         // 1 request per 2 seconds
-	r.AddService("viewdns", 0.33, 1)      // 1 request per 3 seconds
+	r.AddService("whois", 0.5, 2)    // 1 request per 2 seconds
+	r.AddService("viewdns", 0.33, 1) // 1 request per 3 seconds
 
 	// Cloud providers
-	r.AddService("aws", 10.0, 20)         // 10 requests per second
-	r.AddService("azure", 10.0, 20)       // 10 requests per second
-	r.AddService("gcp", 10.0, 20)         // 10 requests per second
+	r.AddService("aws", 10.0, 20)   // 10 requests per second
+	r.AddService("azure", 10.0, 20) // 10 requests per second
+	r.AddService("gcp", 10.0, 20)   // 10 requests per second
 
 	// DNS queries
-	r.AddService("dns", 50.0, 100)        // 50 requests per second
+	r.AddService("dns", 50.0, 100) // 50 requests per second
 
 	// Default for unknown services
-	r.AddService("default", 1.0, 5)       // 1 request per second, burst of 5
+	r.AddService("default", 1.0, 5) // 1 request per second, burst of 5
 }
 
 // AddService adds a new service with rate limiting
@@ -81,23 +81,23 @@ func (r *RateLimiter) AddService(name string, ratePerSec float64, burst int) {
 		ratePerSec: ratePerSec,
 	}
 
-	r.logger.Debug("Rate limiter configured", 
-		"service", name, 
-		"rate_per_sec", ratePerSec, 
+	r.logger.Debug("Rate limiter configured",
+		"service", name,
+		"rate_per_sec", ratePerSec,
 		"burst", burst)
 }
 
 // Wait blocks until the service is allowed to proceed
 func (r *RateLimiter) Wait(ctx context.Context, service string) error {
 	limiter := r.getLimiter(service)
-	
+
 	start := time.Now()
 	err := limiter.limiter.Wait(ctx)
 	waited := time.Since(start)
 
 	if waited > 100*time.Millisecond {
-		r.logger.Debug("Rate limit wait", 
-			"service", service, 
+		r.logger.Debug("Rate limit wait",
+			"service", service,
 			"waited", waited.String())
 	}
 
@@ -130,7 +130,7 @@ func (r *RateLimiter) getLimiter(service string) *ServiceLimiter {
 		r.mu.RLock()
 		limiter = r.limiters["default"]
 		r.mu.RUnlock()
-		
+
 		r.logger.Debug("Using default rate limiter", "service", service)
 	}
 
@@ -190,7 +190,7 @@ func (m *MultiServiceLimiter) ExecuteWithLimit(ctx context.Context, service stri
 // ExecuteWithRetry executes with rate limiting and retry on rate limit errors
 func (m *MultiServiceLimiter) ExecuteWithRetry(ctx context.Context, service string, maxRetries int, fn func() error) error {
 	var lastErr error
-	
+
 	for i := 0; i <= maxRetries; i++ {
 		// Wait for rate limit
 		if err := m.limiter.Wait(ctx, service); err != nil {
@@ -205,17 +205,17 @@ func (m *MultiServiceLimiter) ExecuteWithRetry(ctx context.Context, service stri
 
 		// Check if it's a rate limit error
 		if isRateLimitError(err) {
-			m.logger.Debug("Rate limit error, backing off", 
-				"service", service, 
+			m.logger.Debug("Rate limit error, backing off",
+				"service", service,
 				"attempt", i+1,
 				"error", err)
-			
+
 			// Exponential backoff
 			backoff := time.Duration(1<<uint(i)) * time.Second
 			if backoff > 60*time.Second {
 				backoff = 60 * time.Second
 			}
-			
+
 			select {
 			case <-time.After(backoff):
 				// Continue to next retry
@@ -226,7 +226,7 @@ func (m *MultiServiceLimiter) ExecuteWithRetry(ctx context.Context, service stri
 			// Not a rate limit error, return immediately
 			return err
 		}
-		
+
 		lastErr = err
 	}
 

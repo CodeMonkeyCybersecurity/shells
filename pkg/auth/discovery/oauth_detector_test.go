@@ -20,9 +20,9 @@ func TestNewOAuthDetector(t *testing.T) {
 		Format: "console",
 	})
 	require.NoError(t, err)
-	
+
 	detector := NewOAuthDetector(logger)
-	
+
 	assert.NotNil(t, detector)
 	assert.NotNil(t, detector.logger)
 	assert.NotNil(t, detector.httpClient)
@@ -79,10 +79,10 @@ func TestOAuthDetector_DetectOAuth(t *testing.T) {
 	ctx := context.Background()
 
 	discovery, err := detector.DetectOAuth(ctx, server.URL)
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, discovery)
-	
+
 	assert.True(t, discovery.OpenIDConnect)
 	assert.Equal(t, server.URL, discovery.Issuer)
 	assert.Equal(t, server.URL+"/oauth/authorize", discovery.AuthorizationEndpoint)
@@ -110,7 +110,7 @@ func TestOAuthDetector_DetectOAuth_NoOAuth(t *testing.T) {
 	ctx := context.Background()
 
 	discovery, err := detector.DetectOAuth(ctx, server.URL)
-	
+
 	assert.NoError(t, err)
 	assert.Nil(t, discovery) // Should return nil when confidence is too low
 }
@@ -125,18 +125,18 @@ func TestOAuthDetector_AnalyzeOAuthSecurity(t *testing.T) {
 	detector := NewOAuthDetector(logger)
 
 	tests := []struct {
-		name                  string
-		discovery             *OAuth2Discovery
-		expectedFeatures      []string
-		expectedVulns         []string
+		name             string
+		discovery        *OAuth2Discovery
+		expectedFeatures []string
+		expectedVulns    []string
 	}{
 		{
 			name: "secure OAuth configuration",
 			discovery: &OAuth2Discovery{
-				PKCESupported:              true,
-				JWKSUri:                   "https://example.com/.well-known/jwks.json",
-				SigningAlgValues:          []string{"RS256", "ES256"},
-				TokenEndpointAuthMethods:  []string{"client_secret_jwt", "private_key_jwt"},
+				PKCESupported:            true,
+				JWKSUri:                  "https://example.com/.well-known/jwks.json",
+				SigningAlgValues:         []string{"RS256", "ES256"},
+				TokenEndpointAuthMethods: []string{"client_secret_jwt", "private_key_jwt"},
 			},
 			expectedFeatures: []string{"PKCE Protection", "JWT Key Rotation", "Signed ID Tokens"},
 			expectedVulns:    []string{},
@@ -144,10 +144,10 @@ func TestOAuthDetector_AnalyzeOAuthSecurity(t *testing.T) {
 		{
 			name: "insecure OAuth configuration",
 			discovery: &OAuth2Discovery{
-				PKCESupported:              false,
-				SigningAlgValues:          []string{"none"},
-				TokenEndpointAuthMethods:  []string{"none"},
-				ResponseTypesSupported:    []string{"code"},
+				PKCESupported:            false,
+				SigningAlgValues:         []string{"none"},
+				TokenEndpointAuthMethods: []string{"none"},
+				ResponseTypesSupported:   []string{"code"},
 			},
 			expectedFeatures: []string{},
 			expectedVulns:    []string{"PKCE not supported", "Unsigned tokens allowed", "Weak client authentication"},
@@ -157,7 +157,7 @@ func TestOAuthDetector_AnalyzeOAuthSecurity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			detector.analyzeOAuthSecurity(tt.discovery)
-			
+
 			for _, expectedFeature := range tt.expectedFeatures {
 				found := false
 				for _, feature := range tt.discovery.SecurityFeatures {
@@ -168,7 +168,7 @@ func TestOAuthDetector_AnalyzeOAuthSecurity(t *testing.T) {
 				}
 				assert.True(t, found, "Expected security feature '%s' not found", expectedFeature)
 			}
-			
+
 			for _, expectedVuln := range tt.expectedVulns {
 				found := false
 				for _, vuln := range tt.discovery.Vulnerabilities {
@@ -217,7 +217,7 @@ func FuzzOAuthDetector_DetectOAuth(f *testing.F) {
 
 		// Should not panic regardless of input
 		discovery, err := detector.DetectOAuth(ctx, target)
-		
+
 		// Either succeed or fail gracefully
 		if err == nil && discovery != nil {
 			assert.GreaterOrEqual(t, discovery.Confidence, 0.0)
@@ -266,7 +266,7 @@ func TestOAuthDetector_GenerateOAuthPaths(t *testing.T) {
 
 	detector := NewOAuthDetector(logger)
 	paths := detector.generateOAuthPaths("https://example.com")
-	
+
 	assert.NotEmpty(t, paths)
 	assert.Contains(t, paths, "https://example.com/oauth/authorize")
 	assert.Contains(t, paths, "https://example.com/oauth2/token")

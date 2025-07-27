@@ -146,26 +146,26 @@ func (j *JavaScriptAnalyzer) FindAuthInJavaScript(ctx context.Context, baseURL s
 // findScriptURLs finds all JavaScript URLs from a page
 func (j *JavaScriptAnalyzer) findScriptURLs(ctx context.Context, baseURL string) []string {
 	var scripts []string
-	
+
 	resp, err := j.httpClient.Get(baseURL)
 	if err != nil {
 		return scripts
 	}
 	defer resp.Body.Close()
-	
+
 	// Parse HTML to find script tags
 	// This is a simplified implementation - in production you'd use goquery
 	body, _ := io.ReadAll(resp.Body)
 	scriptPattern := regexp.MustCompile(`<script[^>]+src=["']([^"']+)["']`)
 	matches := scriptPattern.FindAllStringSubmatch(string(body), -1)
-	
+
 	for _, match := range matches {
 		if len(match) > 1 {
 			scriptURL := j.resolveURL(baseURL, match[1])
 			scripts = append(scripts, scriptURL)
 		}
 	}
-	
+
 	return scripts
 }
 
@@ -176,13 +176,13 @@ func (j *JavaScriptAnalyzer) analyzeInlineScripts(ctx context.Context, url strin
 		return nil
 	}
 	defer resp.Body.Close()
-	
+
 	body, _ := io.ReadAll(resp.Body)
-	
+
 	// Extract inline scripts
 	scriptPattern := regexp.MustCompile(`<script[^>]*>([^<]+)</script>`)
 	matches := scriptPattern.FindAllStringSubmatch(string(body), -1)
-	
+
 	for _, match := range matches {
 		if len(match) > 1 {
 			if discovery := j.analyzeJavaScriptCode(match[1], url); discovery != nil {
@@ -190,7 +190,7 @@ func (j *JavaScriptAnalyzer) analyzeInlineScripts(ctx context.Context, url strin
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -199,7 +199,7 @@ func (j *JavaScriptAnalyzer) mergeDiscoveries(discoveries []JSAuthDiscovery) []J
 	// Simple deduplication based on type and endpoints
 	seen := make(map[string]bool)
 	var merged []JSAuthDiscovery
-	
+
 	for _, d := range discoveries {
 		key := d.Type + strings.Join(d.Endpoints, ",")
 		if !seen[key] {
@@ -207,7 +207,7 @@ func (j *JavaScriptAnalyzer) mergeDiscoveries(discoveries []JSAuthDiscovery) []J
 			merged = append(merged, d)
 		}
 	}
-	
+
 	return merged
 }
 
@@ -216,17 +216,17 @@ func (j *JavaScriptAnalyzer) resolveURL(baseURL, relativeURL string) string {
 	if strings.HasPrefix(relativeURL, "http://") || strings.HasPrefix(relativeURL, "https://") {
 		return relativeURL
 	}
-	
+
 	base, err := url.Parse(baseURL)
 	if err != nil {
 		return relativeURL
 	}
-	
+
 	relative, err := url.Parse(relativeURL)
 	if err != nil {
 		return relativeURL
 	}
-	
+
 	return base.ResolveReference(relative).String()
 }
 
@@ -385,32 +385,32 @@ func (j *JavaScriptAnalyzer) extractOAuthConfig(code string) *OAuthDiscovery {
 // extractWebAuthnConfig extracts WebAuthn configuration from JavaScript
 func (j *JavaScriptAnalyzer) extractWebAuthnConfig(code string) *WebAuthnDiscovery {
 	webauthn := &WebAuthnDiscovery{}
-	
+
 	// Look for RP ID
 	rpIDPattern := regexp.MustCompile(`rpId['"]\s*:\s*['"]([^'"]+)['"]`)
 	if match := rpIDPattern.FindStringSubmatch(code); len(match) > 1 {
 		webauthn.RPID = match[1]
 	}
-	
+
 	// Look for RP Name
 	rpNamePattern := regexp.MustCompile(`rpName['"]\s*:\s*['"]([^'"]+)['"]`)
 	if match := rpNamePattern.FindStringSubmatch(code); len(match) > 1 {
 		webauthn.RPName = match[1]
 	}
-	
+
 	// Look for attestation
 	attestationPattern := regexp.MustCompile(`attestation['"]\s*:\s*['"]([^'"]+)['"]`)
 	if match := attestationPattern.FindStringSubmatch(code); len(match) > 1 {
 		webauthn.Attestation = match[1]
 	}
-	
+
 	return webauthn
 }
 
 // inferStoragePurpose infers the purpose of storage based on key name
 func (j *JavaScriptAnalyzer) inferStoragePurpose(key string) string {
 	key = strings.ToLower(key)
-	
+
 	switch {
 	case strings.Contains(key, "token"):
 		return "auth_token"
@@ -430,32 +430,32 @@ func (j *JavaScriptAnalyzer) inferStoragePurpose(key string) string {
 // calculateConfidence calculates confidence score for discovery
 func (j *JavaScriptAnalyzer) calculateConfidence(discovery *JSAuthDiscovery) float64 {
 	confidence := 0.0
-	
+
 	// Base confidence from endpoints
 	if len(discovery.Endpoints) > 0 {
 		confidence += 0.3
 	}
-	
+
 	// OAuth configuration
 	if discovery.OAuth != nil && discovery.OAuth.AuthURL != "" {
 		confidence += 0.2
 	}
-	
+
 	// WebAuthn configuration
 	if discovery.WebAuthn != nil && discovery.WebAuthn.RPID != "" {
 		confidence += 0.2
 	}
-	
+
 	// JWT tokens
 	if len(discovery.Tokens) > 0 {
 		confidence += 0.2
 	}
-	
+
 	// Storage usage
 	if len(discovery.Storage) > 0 {
 		confidence += 0.1
 	}
-	
+
 	return confidence
 }
 
@@ -466,7 +466,7 @@ func (j *JavaScriptAnalyzer) analyzeJavaScriptCode(code string, sourceURL string
 		Endpoints: []string{},
 		Headers:   make(map[string]string),
 	}
-	
+
 	// Find API endpoints
 	if matches := j.patterns["api_endpoint"].FindAllStringSubmatch(code, -1); matches != nil {
 		for _, match := range matches {
@@ -480,24 +480,24 @@ func (j *JavaScriptAnalyzer) analyzeJavaScriptCode(code string, sourceURL string
 			}
 		}
 	}
-	
+
 	// Find OAuth configuration
 	if j.patterns["oauth"].MatchString(code) {
 		discovery.OAuth = j.extractOAuthConfig(code)
 	}
-	
+
 	// Find WebAuthn usage
 	if j.patterns["webauthn"].MatchString(code) {
 		discovery.WebAuthn = j.extractWebAuthnConfig(code)
 	}
-	
+
 	// Calculate confidence
 	discovery.Confidence = j.calculateConfidence(discovery)
-	
+
 	if discovery.Confidence < 0.3 {
 		return nil // Not enough evidence
 	}
-	
+
 	return discovery
 }
 
@@ -566,17 +566,17 @@ func (j *JavaScriptAnalyzer) isPlaceholder(value string) bool {
 		"xxx", "123", "abc", "key", "secret", "token",
 		"replace", "changeme", "dummy", "sample",
 	}
-	
+
 	for _, placeholder := range placeholders {
 		if strings.Contains(value, placeholder) {
 			return true
 		}
 	}
-	
+
 	// Check for patterns like YOUR_KEY, EXAMPLE_TOKEN etc
 	if strings.Contains(value, "_") && strings.ToUpper(value) == value {
 		return true
 	}
-	
+
 	return false
 }

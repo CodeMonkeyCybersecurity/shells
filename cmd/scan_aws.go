@@ -131,7 +131,7 @@ func runAWSScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Initialize Prowler client
-	client, err := prowler.NewClient(config)
+	client, err := prowler.NewClient(config, log)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Prowler client: %w", err)
 	}
@@ -205,7 +205,7 @@ func runAWSList(cmd *cobra.Command, args []string) error {
 		Timeout:     5 * time.Minute,
 	}
 
-	client, err := prowler.NewClient(config)
+	client, err := prowler.NewClient(config, log)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Prowler client: %w", err)
 	}
@@ -249,7 +249,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 		Timeout:     2 * time.Minute,
 	}
 
-	client, err := prowler.NewClient(config)
+	client, err := prowler.NewClient(config, log)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Prowler client: %w", err)
 	}

@@ -32,33 +32,33 @@ func NewGCPDiscovery(logger *logger.Logger) *GCPDiscovery {
 
 // GCPAssets represents all discovered GCP assets
 type GCPAssets struct {
-	ProjectIDs          []string
-	GCSBuckets          []GCSBucket
-	AppEngineApps       []AppEngineApp
-	CloudRunServices    []CloudRunService
-	CloudFunctions      []CloudFunction
-	FirebaseApps        []FirebaseApp
-	BigQueryDatasets    []BigQueryDataset
-	ComputeInstances    []ComputeInstance
-	GKEClusters         []GKECluster
-	PubSubTopics        []PubSubTopic
-	CloudSQLInstances   []CloudSQLInstance
-	CloudBuildConfigs   []CloudBuildConfig
-	SourceRepositories  []SourceRepository
-	MetadataExposures   []GCPMetadataExposure
-	APIEndpoints        []GCPAPIEndpoint
-	Secrets             []GCPSecret
-	ServiceAccounts     []ServiceAccount
+	ProjectIDs         []string
+	GCSBuckets         []GCSBucket
+	AppEngineApps      []AppEngineApp
+	CloudRunServices   []CloudRunService
+	CloudFunctions     []CloudFunction
+	FirebaseApps       []FirebaseApp
+	BigQueryDatasets   []BigQueryDataset
+	ComputeInstances   []ComputeInstance
+	GKEClusters        []GKECluster
+	PubSubTopics       []PubSubTopic
+	CloudSQLInstances  []CloudSQLInstance
+	CloudBuildConfigs  []CloudBuildConfig
+	SourceRepositories []SourceRepository
+	MetadataExposures  []GCPMetadataExposure
+	APIEndpoints       []GCPAPIEndpoint
+	Secrets            []GCPSecret
+	ServiceAccounts    []ServiceAccount
 }
 
 // DiscoverAll performs comprehensive GCP asset discovery
 func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []string) (*GCPAssets, error) {
 	assets := &GCPAssets{}
-	
+
 	// Run all discovery functions concurrently
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	
+
 	// Discover GCS buckets
 	wg.Add(1)
 	go func() {
@@ -69,7 +69,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover App Engine apps
 	wg.Add(1)
 	go func() {
@@ -80,7 +80,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Cloud Run services
 	wg.Add(1)
 	go func() {
@@ -91,7 +91,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Cloud Functions
 	wg.Add(1)
 	go func() {
@@ -102,7 +102,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Firebase apps
 	wg.Add(1)
 	go func() {
@@ -113,7 +113,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover BigQuery datasets
 	wg.Add(1)
 	go func() {
@@ -124,7 +124,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Compute Engine instances
 	wg.Add(1)
 	go func() {
@@ -135,7 +135,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover GKE clusters
 	wg.Add(1)
 	go func() {
@@ -146,7 +146,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Pub/Sub topics
 	wg.Add(1)
 	go func() {
@@ -157,7 +157,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Cloud SQL instances
 	wg.Add(1)
 	go func() {
@@ -168,7 +168,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Cloud Build configs
 	wg.Add(1)
 	go func() {
@@ -179,7 +179,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover Source Repositories
 	wg.Add(1)
 	go func() {
@@ -190,7 +190,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover GCP APIs
 	wg.Add(1)
 	go func() {
@@ -201,7 +201,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover secrets
 	wg.Add(1)
 	go func() {
@@ -212,7 +212,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover project IDs
 	wg.Add(1)
 	go func() {
@@ -223,7 +223,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Discover service accounts
 	wg.Add(1)
 	go func() {
@@ -234,7 +234,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			mu.Unlock()
 		}
 	}()
-	
+
 	// Check for metadata exposure if URLs provided
 	if len(urls) > 0 {
 		wg.Add(1)
@@ -247,9 +247,9 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 			}
 		}()
 	}
-	
+
 	wg.Wait()
-	
+
 	// Log summary
 	g.logger.Info("GCP discovery completed",
 		"domain", domain,
@@ -270,7 +270,7 @@ func (g *GCPDiscovery) DiscoverAll(ctx context.Context, domain string, urls []st
 		"secrets", len(assets.Secrets),
 		"service_accounts", len(assets.ServiceAccounts),
 		"metadata_exposures", len(assets.MetadataExposures))
-	
+
 	return assets, nil
 }
 
@@ -1267,7 +1267,7 @@ func (g *GCPDiscovery) DiscoverGCPAPIs(ctx context.Context, domain string) ([]GC
 
 	for _, serviceName := range serviceNames {
 		for _, pattern := range apiPatterns {
-			apiURL := fmt.Sprintf("https://" + pattern, serviceName)
+			apiURL := fmt.Sprintf("https://"+pattern, serviceName)
 			if g.checkAPIEndpoint(ctx, apiURL) {
 				endpoints = append(endpoints, GCPAPIEndpoint{
 					ServiceName: serviceName,
@@ -1408,10 +1408,10 @@ type ServiceAccount struct {
 func (g *GCPDiscovery) DiscoverProjectIDs(ctx context.Context, domain string) ([]string, error) {
 	baseName := extractBaseName(domain)
 	projectIDs := g.generateProjectIDs(baseName, domain)
-	
+
 	// Additional discovery through exposed endpoints
 	var discoveredIDs []string
-	
+
 	// Check common GCS buckets for project IDs
 	bucketNames := []string{
 		baseName,
@@ -1419,7 +1419,7 @@ func (g *GCPDiscovery) DiscoverProjectIDs(ctx context.Context, domain string) ([
 		baseName + "-logs",
 		baseName + "-artifacts",
 	}
-	
+
 	for _, bucketName := range bucketNames {
 		bucket := g.checkGCSBucket(ctx, bucketName)
 		if bucket != nil && bucket.Exists && bucket.HasListing {
@@ -1427,7 +1427,7 @@ func (g *GCPDiscovery) DiscoverProjectIDs(ctx context.Context, domain string) ([
 			g.logger.Debug("Found accessible bucket, may contain project info", "bucket", bucketName)
 		}
 	}
-	
+
 	// Check Firebase config endpoints which often expose project IDs
 	firebaseConfigURL := fmt.Sprintf("https://%s.web.app/__/firebase/init.json", baseName)
 	if data := g.fetchURL(ctx, firebaseConfigURL); data != "" {
@@ -1436,7 +1436,7 @@ func (g *GCPDiscovery) DiscoverProjectIDs(ctx context.Context, domain string) ([
 			discoveredIDs = append(discoveredIDs, projectID)
 		}
 	}
-	
+
 	// Combine generated and discovered IDs
 	allIDs := append(projectIDs, discoveredIDs...)
 	return deduplicateStrings(allIDs), nil
@@ -1445,7 +1445,7 @@ func (g *GCPDiscovery) DiscoverProjectIDs(ctx context.Context, domain string) ([
 // generateProjectIDs generates potential GCP project IDs
 func (g *GCPDiscovery) generateProjectIDs(baseName, domain string) []string {
 	var projectIDs []string
-	
+
 	// GCP project ID patterns
 	patterns := []string{
 		"%s",
@@ -1500,7 +1500,7 @@ func (g *GCPDiscovery) generateProjectIDs(baseName, domain string) []string {
 		"google-%s",
 		"g-%s",
 	}
-	
+
 	// Apply patterns
 	for _, pattern := range patterns {
 		projectID := fmt.Sprintf(pattern, baseName)
@@ -1508,7 +1508,7 @@ func (g *GCPDiscovery) generateProjectIDs(baseName, domain string) []string {
 			projectIDs = append(projectIDs, projectID)
 		}
 	}
-	
+
 	// Add numeric suffixes
 	for i := 1; i <= 5; i++ {
 		projectID := fmt.Sprintf("%s-%d", baseName, i)
@@ -1516,7 +1516,7 @@ func (g *GCPDiscovery) generateProjectIDs(baseName, domain string) []string {
 			projectIDs = append(projectIDs, projectID)
 		}
 	}
-	
+
 	// Add year-based variations
 	currentYear := time.Now().Year()
 	for year := currentYear - 3; year <= currentYear; year++ {
@@ -1525,7 +1525,7 @@ func (g *GCPDiscovery) generateProjectIDs(baseName, domain string) []string {
 			projectIDs = append(projectIDs, projectID)
 		}
 	}
-	
+
 	// Try with company variations
 	if strings.Contains(domain, ".") {
 		parts := strings.Split(domain, ".")
@@ -1538,7 +1538,7 @@ func (g *GCPDiscovery) generateProjectIDs(baseName, domain string) []string {
 			}
 		}
 	}
-	
+
 	return deduplicateStrings(projectIDs)
 }
 
@@ -1548,18 +1548,18 @@ func (g *GCPDiscovery) fetchURL(ctx context.Context, url string) string {
 	if err != nil {
 		return ""
 	}
-	
+
 	resp, err := g.client.Do(req)
 	if err != nil {
 		return ""
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode == 200 {
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024)) // Limit to 1MB
 		return string(data)
 	}
-	
+
 	return ""
 }
 
@@ -1582,7 +1582,7 @@ func isValidProjectID(id string) bool {
 	if len(id) < 6 || len(id) > 30 {
 		return false
 	}
-	
+
 	// Must start with lowercase letter
 	// Can contain lowercase letters, numbers, and hyphens
 	// Cannot end with hyphen

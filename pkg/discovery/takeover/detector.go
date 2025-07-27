@@ -21,12 +21,12 @@ type TakeoverDetector struct {
 
 // TakeoverSignature defines patterns for detecting takeover vulnerabilities
 type TakeoverSignature struct {
-	Service        string
-	CNAMEPatterns  []string
-	HTTPPatterns   []string
-	Fingerprints   []string
-	Documentation  string
-	Severity       string
+	Service       string
+	CNAMEPatterns []string
+	HTTPPatterns  []string
+	Fingerprints  []string
+	Documentation string
+	Severity      string
 }
 
 // TakeoverResult represents a potential takeover vulnerability
@@ -294,17 +294,17 @@ func (t *TakeoverDetector) CheckSubdomain(ctx context.Context, subdomain string)
 				result.Service = signature.Service
 				result.Severity = signature.Severity
 				result.Documentation = signature.Documentation
-				result.Evidence = append(result.Evidence, 
+				result.Evidence = append(result.Evidence,
 					fmt.Sprintf("CNAME points to %s", cname),
 					fmt.Sprintf("Service identified as %s", signature.Service),
 					"HTTP response indicates unclaimed service")
-				
+
 				t.logger.Info("Subdomain takeover vulnerability detected",
 					"subdomain", subdomain,
 					"service", signature.Service,
 					"cname", cname,
 					"severity", signature.Severity)
-				
+
 				return result, nil
 			}
 		}
@@ -317,7 +317,7 @@ func (t *TakeoverDetector) CheckSubdomain(ctx context.Context, subdomain string)
 		result.Evidence = append(result.Evidence,
 			fmt.Sprintf("CNAME points to non-existent domain: %s", cname),
 			"Dangling CNAME detected")
-		
+
 		t.logger.Info("Dangling CNAME detected",
 			"subdomain", subdomain,
 			"cname", cname)
@@ -356,10 +356,10 @@ func (t *TakeoverDetector) matchesCNAME(cname string, patterns []string) bool {
 func (t *TakeoverDetector) checkHTTPResponse(ctx context.Context, domain string, signature TakeoverSignature) bool {
 	// Try both HTTP and HTTPS
 	protocols := []string{"https://", "http://"}
-	
+
 	for _, protocol := range protocols {
 		url := protocol + domain
-		
+
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			continue
@@ -410,7 +410,7 @@ func (t *TakeoverDetector) isDanglingCNAME(cname string) bool {
 // BulkCheck checks multiple subdomains for takeover vulnerabilities
 func (t *TakeoverDetector) BulkCheck(ctx context.Context, subdomains []string) ([]*TakeoverResult, error) {
 	var results []*TakeoverResult
-	
+
 	for _, subdomain := range subdomains {
 		select {
 		case <-ctx.Done():
@@ -421,13 +421,13 @@ func (t *TakeoverDetector) BulkCheck(ctx context.Context, subdomains []string) (
 				t.logger.Error("Failed to check subdomain", "subdomain", subdomain, "error", err)
 				continue
 			}
-			
+
 			if result.Vulnerable {
 				results = append(results, result)
 			}
 		}
 	}
-	
+
 	return results, nil
 }
 

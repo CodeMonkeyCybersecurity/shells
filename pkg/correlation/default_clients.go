@@ -10,7 +10,6 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/likexian/whois"
 	whoisparser "github.com/likexian/whois-parser"
-	pkgcorrelation "github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 )
 
 // DefaultWhoisClient implements WhoisClient using public WHOIS
@@ -27,14 +26,14 @@ func (c *DefaultWhoisClient) Lookup(ctx context.Context, domain string) (*WhoisD
 	if err != nil {
 		return nil, fmt.Errorf("whois lookup failed: %w", err)
 	}
-	
+
 	parsed, err := whoisparser.Parse(result)
 	if err != nil {
 		// Try to extract basic info even if parsing fails
 		data := &WhoisData{
 			Domain: domain,
 		}
-		
+
 		// Simple extraction for common patterns
 		lines := strings.Split(result, "\n")
 		for _, line := range lines {
@@ -47,10 +46,10 @@ func (c *DefaultWhoisClient) Lookup(ctx context.Context, domain string) (*WhoisD
 				data.RegistrantEmail = strings.TrimSpace(strings.TrimPrefix(line, "Registrant Email:"))
 			}
 		}
-		
+
 		return data, nil
 	}
-	
+
 	// Convert parsed data
 	data := &WhoisData{
 		Domain:          domain,
@@ -58,12 +57,12 @@ func (c *DefaultWhoisClient) Lookup(ctx context.Context, domain string) (*WhoisD
 		RegistrantName:  parsed.Registrant.Name,
 		RegistrantEmail: parsed.Registrant.Email,
 	}
-	
+
 	// Extract name servers
 	if parsed.Domain.NameServers != nil {
 		data.NameServers = parsed.Domain.NameServers
 	}
-	
+
 	return data, nil
 }
 
@@ -76,15 +75,15 @@ func NewDefaultCertificateClient(logger *logger.Logger) CertificateClient {
 	return &DefaultCertificateClient{logger: logger}
 }
 
-func (c *DefaultCertificateClient) GetCertificates(ctx context.Context, domain string) ([]pkgcorrelation.CertificateInfo, error) {
+func (c *DefaultCertificateClient) GetCertificates(ctx context.Context, domain string) ([]CertificateInfo, error) {
 	// TODO: Implement certificate transparency lookup
-	return []pkgcorrelation.CertificateInfo{}, nil
+	return []CertificateInfo{}, nil
 }
 
-func (c *DefaultCertificateClient) SearchByOrganization(ctx context.Context, org string) ([]pkgcorrelation.CertificateInfo, error) {
+func (c *DefaultCertificateClient) SearchByOrganization(ctx context.Context, org string) ([]CertificateInfo, error) {
 	// This would require crt.sh API or similar
 	// For now, return empty
-	return []pkgcorrelation.CertificateInfo{}, nil
+	return []CertificateInfo{}, nil
 }
 
 // DefaultASNClient implements basic ASN lookups
@@ -99,7 +98,7 @@ func NewDefaultASNClient(logger *logger.Logger) ASNClient {
 func (c *DefaultASNClient) LookupIP(ctx context.Context, ip string) (*ASNData, error) {
 	// This is a simplified implementation
 	// In production, you'd use Team Cymru, RIPE, or similar services
-	
+
 	// For now, return empty data
 	return &ASNData{}, nil
 }
@@ -110,11 +109,11 @@ func (c *DefaultASNClient) LookupDomain(ctx context.Context, domain string) (*AS
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(ips) > 0 {
 		return c.LookupIP(ctx, ips[0].String())
 	}
-	
+
 	return &ASNData{}, nil
 }
 
@@ -124,6 +123,7 @@ func (c *DefaultASNClient) GetASNDetails(ctx context.Context, asn int) (*ASNData
 
 // Stub implementations for other clients
 type DefaultTrademarkClient struct{ logger *logger.Logger }
+
 func NewDefaultTrademarkClient(logger *logger.Logger) TrademarkClient {
 	return &DefaultTrademarkClient{logger: logger}
 }
@@ -132,17 +132,19 @@ func (c *DefaultTrademarkClient) Search(ctx context.Context, query string) (*Tra
 }
 
 type DefaultLinkedInClient struct{ logger *logger.Logger }
+
 func NewDefaultLinkedInClient(logger *logger.Logger) LinkedInClient {
 	return &DefaultLinkedInClient{logger: logger}
 }
 func (c *DefaultLinkedInClient) SearchCompany(ctx context.Context, name string) (*LinkedInData, error) {
 	return &LinkedInData{}, nil
 }
-func (c *DefaultLinkedInClient) SearchEmployees(ctx context.Context, company, domain string) ([]pkgcorrelation.EmployeeInfo, error) {
-	return []pkgcorrelation.EmployeeInfo{}, nil
+func (c *DefaultLinkedInClient) SearchEmployees(ctx context.Context, company, domain string) ([]EmployeeInfo, error) {
+	return []EmployeeInfo{}, nil
 }
 
 type DefaultGitHubClient struct{ logger *logger.Logger }
+
 func NewDefaultGitHubClient(logger *logger.Logger) GitHubClient {
 	return &DefaultGitHubClient{logger: logger}
 }
@@ -155,16 +157,36 @@ func (c *DefaultGitHubClient) GetOrganizationMembers(ctx context.Context, org st
 }
 
 type DefaultCloudAssetClient struct{ logger *logger.Logger }
+
 func NewDefaultCloudAssetClient(logger *logger.Logger) CloudAssetClient {
 	return &DefaultCloudAssetClient{logger: logger}
 }
-func (c *DefaultCloudAssetClient) DiscoverAWS(ctx context.Context, profile *pkgcorrelation.OrganizationProfile) ([]string, error) {
+func (c *DefaultCloudAssetClient) DiscoverAWS(ctx context.Context, profile *OrganizationProfile) ([]string, error) {
 	// Would implement S3 bucket enumeration, public snapshot search, etc.
 	return []string{}, nil
 }
-func (c *DefaultCloudAssetClient) DiscoverAzure(ctx context.Context, profile *pkgcorrelation.OrganizationProfile) ([]string, error) {
+func (c *DefaultCloudAssetClient) DiscoverAzure(ctx context.Context, profile *OrganizationProfile) ([]string, error) {
 	return []string{}, nil
 }
-func (c *DefaultCloudAssetClient) DiscoverGCP(ctx context.Context, profile *pkgcorrelation.OrganizationProfile) ([]string, error) {
+func (c *DefaultCloudAssetClient) DiscoverGCP(ctx context.Context, profile *OrganizationProfile) ([]string, error) {
 	return []string{}, nil
+}
+
+// DefaultCloudClient implements CloudClient interface
+type DefaultCloudClient struct{ logger *logger.Logger }
+
+func NewDefaultCloudClient(logger *logger.Logger) CloudClient {
+	return &DefaultCloudClient{logger: logger}
+}
+
+func (c *DefaultCloudClient) FindAWSAccounts(org string) ([]CloudAccount, error) {
+	return []CloudAccount{}, nil
+}
+
+func (c *DefaultCloudClient) FindGCPProjects(org string) ([]CloudAccount, error) {
+	return []CloudAccount{}, nil
+}
+
+func (c *DefaultCloudClient) FindAzureSubscriptions(org string) ([]CloudAccount, error) {
+	return []CloudAccount{}, nil
 }

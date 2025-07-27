@@ -58,7 +58,7 @@ func runEnhancedDiscovery(cmd *cobra.Command, args []string, log *logger.Logger,
 	// Phase 3: Execute the existing comprehensive scanning from root.go
 	log.Info("🔐 Phase 3: Running existing comprehensive scans")
 	discoveredAssets := convertInfraToDiscoveryAssets(infraReport)
-	
+
 	// Use the existing executeComprehensiveScans function with a mock session
 	session := createMockSession(target, discoveredAssets)
 	if err := executeComprehensiveScans(session); err != nil {
@@ -117,9 +117,9 @@ func buildOrganizationContext(ctx context.Context, target string, infraReport *i
 		CacheTTL:        24 * time.Hour,
 		MaxWorkers:      5,
 	}
-	
+
 	correlator := correlation.NewEnhancedOrganizationCorrelator(correlatorConfig, log)
-	
+
 	// Use existing organization context builder
 	contextBuilder := discovery.NewOrganizationContextBuilder(correlator, log)
 	orgContext, err := contextBuilder.BuildContext(ctx, target)
@@ -127,26 +127,26 @@ func buildOrganizationContext(ctx context.Context, target string, infraReport *i
 		log.Warn("Organization context building failed", "error", err)
 		return nil
 	}
-	
+
 	return orgContext
 }
 
 // convertInfraToDiscoveryAssets converts infrastructure assets to discovery assets
 func convertInfraToDiscoveryAssets(infraReport *infrastructure.InfrastructureReport) []discovery.Asset {
 	assets := make([]discovery.Asset, 0, len(infraReport.Assets))
-	
+
 	for _, infraAsset := range infraReport.Assets {
 		asset := discovery.Asset{
-			ID:         infraAsset.ID,
-			Type:       convertToDiscoveryAssetType(infraAsset.Type),
-			Value:      infraAsset.Value,
-			Source:     infraAsset.Source,
-			Confidence: infraAsset.Confidence,
-			Priority:   infraAsset.Priority,
-			Metadata:   make(map[string]string),
+			ID:           infraAsset.ID,
+			Type:         convertToDiscoveryAssetType(infraAsset.Type),
+			Value:        infraAsset.Value,
+			Source:       infraAsset.Source,
+			Confidence:   infraAsset.Confidence,
+			Priority:     infraAsset.Priority,
+			Metadata:     make(map[string]string),
 			DiscoveredAt: infraAsset.DiscoveredAt,
 		}
-		
+
 		// Convert metadata
 		for k, v := range infraAsset.Metadata {
 			if str, ok := v.(string); ok {
@@ -155,14 +155,14 @@ func convertInfraToDiscoveryAssets(infraReport *infrastructure.InfrastructureRep
 				asset.Metadata[k] = fmt.Sprintf("%v", v)
 			}
 		}
-		
+
 		// Set domain and IP fields based on asset type
 		if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeSubdomain {
 			asset.Domain = infraAsset.Value
 		} else if asset.Type == discovery.AssetTypeIP {
 			asset.IP = infraAsset.Value
 		}
-		
+
 		// Set technologies
 		if len(infraAsset.Technologies) > 0 {
 			techNames := make([]string, len(infraAsset.Technologies))
@@ -171,10 +171,10 @@ func convertInfraToDiscoveryAssets(infraReport *infrastructure.InfrastructureRep
 			}
 			asset.Technology = techNames
 		}
-		
+
 		assets = append(assets, asset)
 	}
-	
+
 	return assets
 }
 
@@ -203,15 +203,15 @@ func convertToDiscoveryAssetType(infraType infrastructure.AssetType) discovery.A
 // createMockSession creates a mock discovery session for the existing executeComprehensiveScans
 func createMockSession(target string, assets []discovery.Asset) *discovery.DiscoverySession {
 	return &discovery.DiscoverySession{
-		ID:               fmt.Sprintf("enhanced-%d", time.Now().Unix()),
-		Target:           discovery.Target{Raw: target, Type: discovery.TargetTypeDomain, Value: target},
-		Status:           discovery.StatusCompleted,
-		Progress:         1.0,
-		Assets:           convertAssetsToMap(assets),
-		TotalDiscovered:  len(assets),
-		HighValueAssets:  countHighValueAssets(assets),
-		Relationships:    make(map[string]*discovery.Relationship),
-		StartedAt:        time.Now(),
+		ID:              fmt.Sprintf("enhanced-%d", time.Now().Unix()),
+		Target:          discovery.Target{Raw: target, Type: discovery.TargetTypeDomain, Value: target},
+		Status:          discovery.StatusCompleted,
+		Progress:        1.0,
+		Assets:          convertAssetsToMap(assets),
+		TotalDiscovered: len(assets),
+		HighValueAssets: countHighValueAssets(assets),
+		Relationships:   make(map[string]*discovery.Relationship),
+		StartedAt:       time.Now(),
 		Errors:          []string{},
 	}
 }
@@ -244,13 +244,13 @@ func printInfrastructureSummary(report *infrastructure.InfrastructureReport) {
 	fmt.Printf("   Discovery Time: %v\n", report.DiscoveryTime)
 	fmt.Printf("   Organizations: %d\n", len(report.Organizations))
 	fmt.Printf("   Relationships: %d\n\n", len(report.Relationships))
-	
+
 	// Asset breakdown
 	fmt.Printf("📊 Asset Breakdown:\n")
 	for assetType, count := range report.Statistics.AssetsByType {
 		fmt.Printf("   %s: %d\n", assetType, count)
 	}
-	
+
 	// High-priority assets
 	highPriorityAssets := 0
 	criticalAssets := 0
@@ -262,14 +262,14 @@ func printInfrastructureSummary(report *infrastructure.InfrastructureReport) {
 			criticalAssets++
 		}
 	}
-	
+
 	fmt.Printf("\n🎯 Priority Assets:\n")
 	fmt.Printf("   High Priority: %d\n", highPriorityAssets)
 	fmt.Printf("   Critical: %d\n", criticalAssets)
 	fmt.Printf("   Cloud Assets: %d\n", report.Statistics.CloudAssets)
 	fmt.Printf("   CDN Protected: %d\n", report.Statistics.CDNProtected)
 	fmt.Printf("   SSL Certificates: %d\n\n", report.Statistics.SSLCertificates)
-	
+
 	// Show some example high-priority assets
 	fmt.Printf("🔍 Notable High-Priority Assets:\n")
 	count := 0

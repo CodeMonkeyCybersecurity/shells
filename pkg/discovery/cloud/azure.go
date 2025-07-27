@@ -51,19 +51,19 @@ type BlobItem struct {
 // DiscoverBlobContainers discovers Azure Blob Storage containers
 func (a *AzureDiscovery) DiscoverBlobContainers(ctx context.Context, domain string) ([]BlobContainer, error) {
 	var containers []BlobContainer
-	
+
 	baseName := extractBaseName(domain)
-	
+
 	// Generate potential storage account names
 	accountNames := a.generateStorageAccountNames(baseName, domain)
-	
+
 	// Common container names
 	containerNames := []string{
 		"$root", "$web", "backup", "backups", "data", "files", "uploads",
 		"images", "media", "documents", "public", "private", "static",
 		"assets", "content", "archive", "logs", "temp", "cache",
 	}
-	
+
 	// Check each combination
 	for _, accountName := range accountNames {
 		for _, containerName := range containerNames {
@@ -73,25 +73,25 @@ func (a *AzureDiscovery) DiscoverBlobContainers(ctx context.Context, domain stri
 			}
 		}
 	}
-	
+
 	a.logger.Info("Azure Blob container discovery completed",
 		"domain", domain,
 		"accounts_checked", len(accountNames),
 		"containers_found", len(containers))
-	
+
 	return containers, nil
 }
 
 // generateStorageAccountNames generates potential Azure storage account names
 func (a *AzureDiscovery) generateStorageAccountNames(baseName, domain string) []string {
 	var names []string
-	
+
 	// Azure storage account names must be 3-24 chars, lowercase alphanumeric only
 	cleanBase := strings.ToLower(regexp.MustCompile(`[^a-z0-9]`).ReplaceAllString(baseName, ""))
 	if len(cleanBase) > 20 {
 		cleanBase = cleanBase[:20]
 	}
-	
+
 	patterns := []string{
 		"%s",
 		"%sstorage",
@@ -118,14 +118,14 @@ func (a *AzureDiscovery) generateStorageAccountNames(baseName, domain string) []
 		"files%s",
 		"backup%s",
 	}
-	
+
 	for _, pattern := range patterns {
 		name := fmt.Sprintf(pattern, cleanBase)
 		if isValidStorageAccountName(name) {
 			names = append(names, name)
 		}
 	}
-	
+
 	// Try with numbers
 	for i := 1; i <= 5; i++ {
 		name := fmt.Sprintf("%s%d", cleanBase, i)
@@ -133,7 +133,7 @@ func (a *AzureDiscovery) generateStorageAccountNames(baseName, domain string) []
 			names = append(names, name)
 		}
 	}
-	
+
 	// Remove duplicates
 	uniqueNames := make(map[string]bool)
 	var result []string
@@ -143,7 +143,7 @@ func (a *AzureDiscovery) generateStorageAccountNames(baseName, domain string) []
 			result = append(result, name)
 		}
 	}
-	
+
 	return result
 }
 
@@ -154,27 +154,27 @@ func (a *AzureDiscovery) checkBlobContainer(ctx context.Context, accountName, co
 		ContainerName: containerName,
 		URL:           fmt.Sprintf("https://%s.blob.core.windows.net/%s", accountName, containerName),
 	}
-	
+
 	// Try to list blobs in the container
 	listURL := fmt.Sprintf("%s?restype=container&comp=list", container.URL)
 	req, err := http.NewRequestWithContext(ctx, "GET", listURL, nil)
 	if err != nil {
 		return container
 	}
-	
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return container
 	}
 	defer resp.Body.Close()
-	
+
 	switch resp.StatusCode {
 	case 200:
 		// Container exists and is publicly accessible
 		container.Exists = true
 		container.IsPublic = true
 		container.HasListing = true
-		
+
 		// Parse blob listing
 		var enumeration blobEnumerationResults
 		if err := xml.NewDecoder(resp.Body).Decode(&enumeration); err == nil {
@@ -187,12 +187,12 @@ func (a *AzureDiscovery) checkBlobContainer(ctx context.Context, accountName, co
 				})
 			}
 		}
-		
+
 	case 403:
 		// Container exists but is private
 		container.Exists = true
 		container.IsPublic = false
-		
+
 	case 404:
 		// Try without list permissions (check if container exists)
 		headReq, _ := http.NewRequestWithContext(ctx, "HEAD", container.URL, nil)
@@ -204,7 +204,7 @@ func (a *AzureDiscovery) checkBlobContainer(ctx context.Context, accountName, co
 			}
 		}
 	}
-	
+
 	return container
 }
 
@@ -214,9 +214,9 @@ type blobEnumerationResults struct {
 	Blobs   []struct {
 		Name       string `xml:"Name"`
 		Properties struct {
-			LastModified   time.Time `xml:"Last-Modified"`
-			ContentLength  int64     `xml:"Content-Length"`
-			ContentType    string    `xml:"Content-Type"`
+			LastModified  time.Time `xml:"Last-Modified"`
+			ContentLength int64     `xml:"Content-Length"`
+			ContentType   string    `xml:"Content-Type"`
 		} `xml:"Properties"`
 	} `xml:"Blobs>Blob"`
 }
@@ -224,9 +224,9 @@ type blobEnumerationResults struct {
 // DiscoverAzureApps discovers Azure App Service applications
 func (a *AzureDiscovery) DiscoverAzureApps(ctx context.Context, domain string) ([]AzureApp, error) {
 	var apps []AzureApp
-	
+
 	baseName := extractBaseName(domain)
-	
+
 	// Azure App Service URL patterns
 	appNames := []string{
 		baseName,
@@ -240,7 +240,7 @@ func (a *AzureDiscovery) DiscoverAzureApps(ctx context.Context, domain string) (
 		"api-" + baseName,
 		"web-" + baseName,
 	}
-	
+
 	for _, appName := range appNames {
 		// Check .azurewebsites.net
 		azureURL := fmt.Sprintf("https://%s.azurewebsites.net", appName)
@@ -251,7 +251,7 @@ func (a *AzureDiscovery) DiscoverAzureApps(ctx context.Context, domain string) (
 				Type: "App Service",
 			})
 		}
-		
+
 		// Check .azurefd.net (Azure Front Door)
 		afdURL := fmt.Sprintf("https://%s.azurefd.net", appName)
 		if a.checkAzureApp(ctx, afdURL) {
@@ -261,7 +261,7 @@ func (a *AzureDiscovery) DiscoverAzureApps(ctx context.Context, domain string) (
 				Type: "Front Door",
 			})
 		}
-		
+
 		// Check .azureedge.net (Azure CDN)
 		cdnURL := fmt.Sprintf("https://%s.azureedge.net", appName)
 		if a.checkAzureApp(ctx, cdnURL) {
@@ -272,7 +272,7 @@ func (a *AzureDiscovery) DiscoverAzureApps(ctx context.Context, domain string) (
 			})
 		}
 	}
-	
+
 	return apps, nil
 }
 
@@ -289,23 +289,23 @@ func (a *AzureDiscovery) checkAzureApp(ctx context.Context, url string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
-	
+
 	return resp.StatusCode != 404
 }
 
 // DiscoverAzureContainerRegistry discovers Azure Container Registry repositories
 func (a *AzureDiscovery) DiscoverAzureContainerRegistry(ctx context.Context, domain string) ([]ContainerRegistry, error) {
 	var registries []ContainerRegistry
-	
+
 	baseName := extractBaseName(domain)
 	cleanBase := strings.ToLower(regexp.MustCompile(`[^a-z0-9]`).ReplaceAllString(baseName, ""))
-	
+
 	// ACR names
 	registryNames := []string{
 		cleanBase,
@@ -316,7 +316,7 @@ func (a *AzureDiscovery) DiscoverAzureContainerRegistry(ctx context.Context, dom
 		"registry" + cleanBase,
 		"cr" + cleanBase,
 	}
-	
+
 	for _, regName := range registryNames {
 		if isValidACRName(regName) {
 			registry := a.checkContainerRegistry(ctx, regName)
@@ -325,7 +325,7 @@ func (a *AzureDiscovery) DiscoverAzureContainerRegistry(ctx context.Context, dom
 			}
 		}
 	}
-	
+
 	return registries, nil
 }
 
@@ -344,26 +344,26 @@ func (a *AzureDiscovery) checkContainerRegistry(ctx context.Context, registryNam
 		Name: registryName,
 		URL:  fmt.Sprintf("https://%s.azurecr.io", registryName),
 	}
-	
+
 	// Check v2 API
 	catalogURL := fmt.Sprintf("%s/v2/_catalog", registry.URL)
 	req, err := http.NewRequestWithContext(ctx, "GET", catalogURL, nil)
 	if err != nil {
 		return registry
 	}
-	
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return registry
 	}
 	defer resp.Body.Close()
-	
+
 	switch resp.StatusCode {
 	case 200:
 		// Registry exists and is public
 		registry.Exists = true
 		registry.IsPublic = true
-		
+
 		// Parse repository list
 		var catalog struct {
 			Repositories []string `json:"repositories"`
@@ -371,12 +371,12 @@ func (a *AzureDiscovery) checkContainerRegistry(ctx context.Context, registryNam
 		if err := json.NewDecoder(resp.Body).Decode(&catalog); err == nil {
 			registry.Repositories = catalog.Repositories
 		}
-		
+
 	case 401, 403:
 		// Registry exists but requires authentication
 		registry.Exists = true
 		registry.IsPublic = false
-		
+
 	case 404:
 		// Check if registry exists at all
 		baseReq, _ := http.NewRequestWithContext(ctx, "HEAD", registry.URL, nil)
@@ -385,16 +385,16 @@ func (a *AzureDiscovery) checkContainerRegistry(ctx context.Context, registryNam
 			registry.Exists = baseResp.StatusCode != 404
 		}
 	}
-	
+
 	return registry
 }
 
 // DiscoverAzureFunctions discovers Azure Functions
 func (a *AzureDiscovery) DiscoverAzureFunctions(ctx context.Context, domain string) ([]AzureFunction, error) {
 	var functions []AzureFunction
-	
+
 	baseName := extractBaseName(domain)
-	
+
 	// Function app names
 	funcNames := []string{
 		baseName,
@@ -406,7 +406,7 @@ func (a *AzureDiscovery) DiscoverAzureFunctions(ctx context.Context, domain stri
 		"function-" + baseName,
 		"fn-" + baseName,
 	}
-	
+
 	for _, funcName := range funcNames {
 		funcURL := fmt.Sprintf("https://%s.azurewebsites.net", funcName)
 		if a.checkAzureFunction(ctx, funcURL) {
@@ -416,7 +416,7 @@ func (a *AzureDiscovery) DiscoverAzureFunctions(ctx context.Context, domain stri
 			})
 		}
 	}
-	
+
 	return functions, nil
 }
 
@@ -434,13 +434,13 @@ func (a *AzureDiscovery) checkAzureFunction(ctx context.Context, url string) boo
 	if err != nil {
 		return false
 	}
-	
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
-	
+
 	// Functions typically return 401 or custom response, not 404
 	return resp.StatusCode != 404
 }
@@ -448,10 +448,10 @@ func (a *AzureDiscovery) checkAzureFunction(ctx context.Context, url string) boo
 // DiscoverKeyVaults attempts to discover Azure Key Vaults
 func (a *AzureDiscovery) DiscoverKeyVaults(ctx context.Context, domain string) ([]KeyVault, error) {
 	var vaults []KeyVault
-	
+
 	baseName := extractBaseName(domain)
 	cleanBase := strings.ToLower(regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(baseName, ""))
-	
+
 	// Key Vault names
 	vaultNames := []string{
 		cleanBase,
@@ -462,7 +462,7 @@ func (a *AzureDiscovery) DiscoverKeyVaults(ctx context.Context, domain string) (
 		"vault-" + cleanBase,
 		"keyvault-" + cleanBase,
 	}
-	
+
 	for _, vaultName := range vaultNames {
 		if isValidKeyVaultName(vaultName) {
 			vault := a.checkKeyVault(ctx, vaultName)
@@ -471,7 +471,7 @@ func (a *AzureDiscovery) DiscoverKeyVaults(ctx context.Context, domain string) (
 			}
 		}
 	}
-	
+
 	return vaults, nil
 }
 
@@ -488,21 +488,21 @@ func (a *AzureDiscovery) checkKeyVault(ctx context.Context, vaultName string) *K
 		Name: vaultName,
 		URL:  fmt.Sprintf("https://%s.vault.azure.net", vaultName),
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", vault.URL, nil)
 	if err != nil {
 		return vault
 	}
-	
+
 	resp, err := a.client.Do(req)
 	if err != nil {
 		return vault
 	}
 	defer resp.Body.Close()
-	
+
 	// Key Vaults return 401/403 if they exist
 	vault.Exists = resp.StatusCode == 401 || resp.StatusCode == 403
-	
+
 	return vault
 }
 
@@ -513,7 +513,7 @@ func isValidStorageAccountName(name string) bool {
 	if len(name) < 3 || len(name) > 24 {
 		return false
 	}
-	
+
 	// Must be lowercase alphanumeric only
 	matched, _ := regexp.MatchString(`^[a-z0-9]+$`, name)
 	return matched
@@ -524,7 +524,7 @@ func isValidACRName(name string) bool {
 	if len(name) < 5 || len(name) > 50 {
 		return false
 	}
-	
+
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9]+$`, name)
 	return matched
 }
@@ -534,7 +534,7 @@ func isValidKeyVaultName(name string) bool {
 	if len(name) < 3 || len(name) > 24 {
 		return false
 	}
-	
+
 	matched, _ := regexp.MatchString(`^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$`, name)
 	return matched
 }

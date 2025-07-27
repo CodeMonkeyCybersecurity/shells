@@ -70,14 +70,14 @@ func (c *HackerOneClient) GetProgram(ctx context.Context, handle string) (*Progr
 			ID         string `json:"id"`
 			Type       string `json:"type"`
 			Attributes struct {
-				Handle           string  `json:"handle"`
-				Name             string  `json:"name"`
-				SubmissionState  string  `json:"submission_state"`
-				TriageActive     bool    `json:"triage_active"`
-				OffersSwag       bool    `json:"offers_swag"`
-				OffersBounties   bool    `json:"offers_bounties"`
-				PolicyHTML       string  `json:"policy_html"`
-				MaxBountyAmount  float64 `json:"maximum_bounty_amount"`
+				Handle          string  `json:"handle"`
+				Name            string  `json:"name"`
+				SubmissionState string  `json:"submission_state"`
+				TriageActive    bool    `json:"triage_active"`
+				OffersSwag      bool    `json:"offers_swag"`
+				OffersBounties  bool    `json:"offers_bounties"`
+				PolicyHTML      string  `json:"policy_html"`
+				MaxBountyAmount float64 `json:"maximum_bounty_amount"`
 			} `json:"attributes"`
 			Relationships struct {
 				StructuredScopes struct {

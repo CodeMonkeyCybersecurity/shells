@@ -73,7 +73,7 @@ Point-and-Click Mode:
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)
 		}
-		
+
 		return runMainDiscovery(cmd, args, log, db)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -81,7 +81,7 @@ Point-and-Click Mode:
 		if cmd.Name() == "self-update" {
 			return nil
 		}
-		
+
 		if err := initConfig(); err != nil {
 			return fmt.Errorf("failed to initialize config: %w", err)
 		}
@@ -183,7 +183,7 @@ func runIntelligentDiscovery(target string) error {
 	discoveryConfig.EnableWebCrawl = true
 	discoveryConfig.EnableTechStack = true
 	discoveryConfig.Timeout = 60 * time.Minute
-	
+
 	discoveryEngine := discovery.NewEngineWithConfig(discoveryConfig, log.WithComponent("discovery"), cfg)
 
 	// Start discovery
@@ -2207,7 +2207,7 @@ func createBasicNomadFinding(scanType types.ScanType, target, scanID, message st
 
 func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db core.ResultStore) error {
 	target := args[0]
-	
+
 	// Initialize organization correlator
 	correlatorConfig := correlation.CorrelatorConfig{
 		EnableWhois:     true,
@@ -2220,9 +2220,9 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		CacheTTL:        24 * time.Hour,
 		MaxWorkers:      5,
 	}
-	
+
 	baseCorrelator := correlation.NewOrganizationCorrelator(correlatorConfig, log)
-	
+
 	// Set up clients
 	baseCorrelator.SetClients(
 		correlation.NewDefaultWhoisClient(log),
@@ -2231,12 +2231,12 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		correlation.NewDefaultTrademarkClient(log),
 		correlation.NewDefaultLinkedInClient(log),
 		correlation.NewDefaultGitHubClient(log),
-		correlation.NewDefaultCloudAssetClient(log),
+		correlation.NewDefaultCloudClient(log),
 	)
-	
+
 	// Create enhanced correlator
 	correlator := correlation.NewEnhancedOrganizationCorrelator(correlatorConfig, log)
-	
+
 	// Build organization context
 	log.Info("Building organization context for target", "target", target)
 	contextBuilder := discovery.NewOrganizationContextBuilder(correlator, log)
@@ -2251,7 +2251,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 			"organization", orgContext.OrgName,
 			"domains", len(orgContext.KnownDomains),
 			"subsidiaries", len(orgContext.Subsidiaries))
-		
+
 		// Print organization summary
 		fmt.Printf("\n🏢 Organization Profile:\n")
 		fmt.Printf("   Name: %s\n", orgContext.OrgName)
@@ -2265,7 +2265,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	// Initialize scope management
 	fmt.Println("🔐 Initializing scope management...")
 	scopeManager := createScopeManager()
-	
+
 	// Check if we have any programs configured
 	programs, err := scopeManager.ListPrograms()
 	if err != nil {
@@ -2278,28 +2278,28 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		fmt.Printf("✅ Loaded %d bug bounty programs for scope validation\n", len(programs))
 		for _, program := range programs {
 			if program.Active {
-				fmt.Printf("   • %s (%s) - %d in scope, %d out of scope\n", 
+				fmt.Printf("   • %s (%s) - %d in scope, %d out of scope\n",
 					program.Name, program.Platform, len(program.Scope), len(program.OutOfScope))
 			}
 		}
 		fmt.Println()
 	}
-	
+
 	// Start comprehensive discovery
 	fmt.Println("🔍 Starting comprehensive asset discovery and scanning...")
-	
+
 	// Create discovery config with all features enabled
 	discoveryConfig := discovery.DefaultDiscoveryConfig()
-	discoveryConfig.MaxDepth = 5          // Increased for recursive discovery
-	discoveryConfig.MaxAssets = 10000     // Increased for comprehensive spidering
+	discoveryConfig.MaxDepth = 5      // Increased for recursive discovery
+	discoveryConfig.MaxAssets = 10000 // Increased for comprehensive spidering
 	discoveryConfig.EnableDNS = true
 	discoveryConfig.EnableCertLog = true
-	discoveryConfig.EnableSearch = true   // Search engines enabled
+	discoveryConfig.EnableSearch = true // Search engines enabled
 	discoveryConfig.EnablePortScan = true
 	discoveryConfig.EnableWebCrawl = true // Web spidering enabled
 	discoveryConfig.EnableTechStack = true
 	discoveryConfig.Timeout = 60 * time.Minute // Increased timeout for thorough discovery
-	
+
 	// Create scope validator if we have programs configured
 	var scopeValidator *discovery.ScopeValidator
 	if len(programs) > 0 {
@@ -2308,31 +2308,31 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	} else {
 		fmt.Printf("⚠️  Scope validation disabled - all discovered assets will be processed\n\n")
 	}
-	
+
 	// Initialize discovery engine with enhanced discovery and scope validation
 	engine := discovery.NewEngineWithScopeValidator(discoveryConfig, log, scopeValidator)
-	
+
 	// Register enhanced discovery module
 	engine.RegisterModule(discovery.NewEnhancedDiscovery(discoveryConfig, log, cfg))
-	
+
 	// Start discovery with the target
 	session, err := engine.StartDiscovery(target)
 	if err != nil {
 		return fmt.Errorf("failed to start discovery: %w", err)
 	}
 	log.Info("Discovery session started", "session_id", session.ID, "target", target)
-	
+
 	// Wait for discovery to complete and collect discovered assets
 	log.Info("Waiting for discovery to complete...", "session_id", session.ID)
 	fmt.Println("⏳ Discovery in progress...")
-	
+
 	var discoveredAssets []*discovery.Asset
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-	
+
 	timeout := time.After(30 * time.Minute) // Maximum discovery time
 	var lastProgress float64 = 0
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -2341,14 +2341,14 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 			if err != nil {
 				return fmt.Errorf("failed to get session: %w", err)
 			}
-			
+
 			// Update progress if changed
 			if session.Progress > lastProgress {
-				fmt.Printf("\r🔍 Discovery progress: %.0f%% | Assets found: %d | High-value: %d", 
+				fmt.Printf("\r🔍 Discovery progress: %.0f%% | Assets found: %d | High-value: %d",
 					session.Progress, session.TotalDiscovered, session.HighValueAssets)
 				lastProgress = session.Progress
 			}
-			
+
 			if session.Status == discovery.StatusCompleted {
 				fmt.Println("\n✅ Discovery completed!")
 				// Collect all discovered assets
@@ -2365,7 +2365,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 				}
 				return fmt.Errorf("discovery failed")
 			}
-			
+
 		case <-timeout:
 			fmt.Println("\n⚠️ Discovery timeout reached")
 			log.Warn("Discovery timeout", "session_id", session.ID)
@@ -2376,45 +2376,45 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 			goto discoveryComplete
 		}
 	}
-	
+
 discoveryComplete:
 	// Log discovered assets
-	log.Info("Discovery complete", 
+	log.Info("Discovery complete",
 		"session_id", session.ID,
 		"total_assets", len(discoveredAssets),
 		"high_value_assets", session.HighValueAssets)
-	
+
 	// Group assets by type for summary
 	assetsByType := make(map[discovery.AssetType]int)
 	for _, asset := range discoveredAssets {
 		assetsByType[asset.Type]++
 	}
-	
+
 	// Run comprehensive auth discovery if we have organization context
 	if orgContext != nil {
 		log.Info("Running comprehensive authentication discovery",
 			"org", orgContext.OrgName,
 			"domains", len(orgContext.KnownDomains))
-		
+
 		// Create comprehensive auth discovery
 		authDiscovery := authdiscovery.NewComprehensiveAuthDiscovery(log)
-		
+
 		// Discover authentication for each domain
 		for _, domain := range orgContext.KnownDomains {
 			log.Info("Discovering authentication methods for domain", "domain", domain)
-			
+
 			authInventory, err := authDiscovery.DiscoverAll(ctx, domain)
 			if err != nil {
 				log.Error("Failed to discover auth for domain", "domain", domain, "error", err)
 				continue
 			}
-			
+
 			// Store auth findings in database
 			findings := convertAuthInventoryToFindings(authInventory, domain, session.ID)
 			if err := db.SaveFindings(ctx, findings); err != nil {
 				log.Error("Failed to save auth findings", "error", err)
 			}
-			
+
 			log.Info("Discovered authentication methods",
 				"domain", domain,
 				"network_auth", getNetworkAuthCount(authInventory.NetworkAuth),
@@ -2423,7 +2423,7 @@ discoveryComplete:
 				"custom_auth", len(authInventory.CustomAuth))
 		}
 	}
-	
+
 	// Print discovery summary
 	fmt.Printf("\n📊 Discovery Summary:\n")
 	fmt.Printf("   Session ID: %s\n", session.ID)
@@ -2438,32 +2438,32 @@ discoveryComplete:
 		fmt.Printf("   IP Ranges: %d\n", len(orgContext.KnownIPRanges))
 	}
 	fmt.Printf("\n")
-	
+
 	// Run comprehensive auth discovery on ALL discovered assets
 	if len(discoveredAssets) > 0 {
 		log.Info("Running comprehensive authentication discovery on discovered assets",
 			"asset_count", len(discoveredAssets))
-		
+
 		// Create comprehensive auth discovery
 		authDiscovery := authdiscovery.NewComprehensiveAuthDiscovery(log)
-		
+
 		// Process each discovered domain/URL asset
 		for _, asset := range discoveredAssets {
 			if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeURL || asset.Type == discovery.AssetTypeSubdomain {
 				log.Info("Discovering authentication methods for asset", "asset", asset.Value)
-				
+
 				authInventory, err := authDiscovery.DiscoverAll(ctx, asset.Value)
 				if err != nil {
 					log.Error("Failed to discover auth for asset", "asset", asset.Value, "error", err)
 					continue
 				}
-				
+
 				// Store auth findings in database
 				findings := convertAuthInventoryToFindings(authInventory, asset.Value, session.ID)
 				if err := db.SaveFindings(ctx, findings); err != nil {
 					log.Error("Failed to save auth findings", "error", err)
 				}
-				
+
 				log.Info("Discovered authentication methods",
 					"asset", asset.Value,
 					"network_auth", getNetworkAuthCount(authInventory.NetworkAuth),
@@ -2473,26 +2473,26 @@ discoveryComplete:
 			}
 		}
 	}
-	
+
 	// Run all available scanners
 	fmt.Println("🚀 Running comprehensive security scans on all discovered assets...")
-	
+
 	// Run comprehensive scanning on discovered assets
 	if err := runComprehensiveScanning(ctx, session, orgContext, log, store); err != nil {
 		log.Error("Failed to run comprehensive scanning", "error", err)
 		return fmt.Errorf("comprehensive scanning failed: %w", err)
 	}
-	
+
 	fmt.Println("✅ Comprehensive scanning completed!")
 	fmt.Printf("📈 View results with: shells results query --scan-id %s\n", session.ID)
-	
+
 	return nil
 }
 
 // convertAuthInventoryToFindings converts auth inventory to findings for storage
 func convertAuthInventoryToFindings(inventory *authdiscovery.AuthInventory, domain string, sessionID string) []types.Finding {
 	var findings []types.Finding
-	
+
 	// Convert network auth methods
 	if inventory.NetworkAuth != nil {
 		// LDAP
@@ -2508,7 +2508,7 @@ func convertAuthInventoryToFindings(inventory *authdiscovery.AuthInventory, doma
 		}
 		// Add other network auth types as needed
 	}
-	
+
 	// Convert web auth methods
 	if inventory.WebAuth != nil {
 		// Form-based auth
@@ -2524,7 +2524,7 @@ func convertAuthInventoryToFindings(inventory *authdiscovery.AuthInventory, doma
 		}
 		// Add other web auth types as needed
 	}
-	
+
 	// Convert API auth methods
 	if inventory.APIAuth != nil {
 		// REST API auth
@@ -2540,7 +2540,7 @@ func convertAuthInventoryToFindings(inventory *authdiscovery.AuthInventory, doma
 		}
 		// Add other API auth types as needed
 	}
-	
+
 	// Convert custom auth methods
 	for _, method := range inventory.CustomAuth {
 		findings = append(findings, types.Finding{
@@ -2552,7 +2552,7 @@ func convertAuthInventoryToFindings(inventory *authdiscovery.AuthInventory, doma
 			Evidence:    fmt.Sprintf("Type: %s\nDescription: %s\nIndicators: %v", method.Type, method.Description, method.Indicators),
 		})
 	}
-	
+
 	return findings
 }
 
@@ -2561,19 +2561,19 @@ func getNetworkAuthCount(networkAuth *authdiscovery.NetworkAuthMethods) int {
 	if networkAuth == nil {
 		return 0
 	}
-	return len(networkAuth.LDAP) + len(networkAuth.Kerberos) + len(networkAuth.RADIUS) + 
-		   len(networkAuth.SMB) + len(networkAuth.RDP) + len(networkAuth.SSH) +
-		   len(networkAuth.SMTP) + len(networkAuth.IMAP) + len(networkAuth.Database)
+	return len(networkAuth.LDAP) + len(networkAuth.Kerberos) + len(networkAuth.RADIUS) +
+		len(networkAuth.SMB) + len(networkAuth.RDP) + len(networkAuth.SSH) +
+		len(networkAuth.SMTP) + len(networkAuth.IMAP) + len(networkAuth.Database)
 }
 
 func getWebAuthCount(webAuth *authdiscovery.WebAuthMethods) int {
 	if webAuth == nil {
 		return 0
 	}
-	return len(webAuth.BasicAuth) + len(webAuth.FormLogin) + len(webAuth.SAML) + 
-		   len(webAuth.OAuth2) + len(webAuth.OIDC) + len(webAuth.WebAuthn) +
-		   len(webAuth.CAS) + len(webAuth.JWT) + len(webAuth.NTLM) +
-		   len(webAuth.Cookies) + len(webAuth.Headers)
+	return len(webAuth.BasicAuth) + len(webAuth.FormLogin) + len(webAuth.SAML) +
+		len(webAuth.OAuth2) + len(webAuth.OIDC) + len(webAuth.WebAuthn) +
+		len(webAuth.CAS) + len(webAuth.JWT) + len(webAuth.NTLM) +
+		len(webAuth.Cookies) + len(webAuth.Headers)
 }
 
 func getAPIAuthCount(apiAuth *authdiscovery.APIAuthMethods) int {
@@ -2589,7 +2589,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 
 	// Initialize Nomad client
 	nomadClient := nomad.NewClient("")
-	
+
 	// Check if Nomad is available
 	if !nomadClient.IsAvailable() {
 		log.Warn("Nomad is not available, running scans locally")
@@ -2601,7 +2601,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 	// Collect all targets for scanning from discovered assets
 	var targets []string
 	seen := make(map[string]bool)
-	
+
 	// Add all discovered assets
 	for _, asset := range session.Assets {
 		if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeURL {
@@ -2611,7 +2611,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 			}
 		}
 	}
-	
+
 	// Add organization domains if no assets discovered
 	if len(targets) == 0 && orgContext != nil {
 		for _, domain := range orgContext.KnownDomains {
@@ -2621,17 +2621,17 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 			}
 		}
 	}
-	
+
 	// Fallback to original target if nothing found
 	if len(targets) == 0 {
 		targets = append(targets, session.Target.Value)
 	}
-	
+
 	log.Info("Collected scanning targets", "count", len(targets), "targets", targets)
 
 	// Submit scanner jobs to Nomad
 	var submittedJobs []string
-	
+
 	// Submit SCIM scanning jobs
 	log.Info("Submitting SCIM vulnerability scan jobs to Nomad")
 	for _, target := range targets {
@@ -2681,7 +2681,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 		}
 	}
 
-	log.Info("All scan jobs submitted to Nomad", 
+	log.Info("All scan jobs submitted to Nomad",
 		"total_jobs", len(submittedJobs),
 		"session_id", session.ID,
 		"job_ids", submittedJobs)
@@ -2705,7 +2705,7 @@ func runComprehensiveScanningLocal(ctx context.Context, session *discovery.Disco
 	// Collect all targets for scanning from discovered assets
 	var targets []string
 	seen := make(map[string]bool)
-	
+
 	// Add all discovered assets
 	for _, asset := range session.Assets {
 		if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeURL {
@@ -2715,7 +2715,7 @@ func runComprehensiveScanningLocal(ctx context.Context, session *discovery.Disco
 			}
 		}
 	}
-	
+
 	// Add organization domains if no assets discovered
 	if len(targets) == 0 && orgContext != nil {
 		for _, domain := range orgContext.KnownDomains {
@@ -2725,12 +2725,12 @@ func runComprehensiveScanningLocal(ctx context.Context, session *discovery.Disco
 			}
 		}
 	}
-	
+
 	// Fallback to original target if nothing found
 	if len(targets) == 0 {
 		targets = append(targets, session.Target.Value)
 	}
-	
+
 	log.Info("Collected scanning targets", "count", len(targets), "targets", targets)
 
 	// Run SCIM scanning locally
@@ -2779,10 +2779,10 @@ func runComprehensiveScanningLocal(ctx context.Context, session *discovery.Disco
 // runSCIMScan executes SCIM vulnerability scanning
 func runSCIMScan(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
 	log.Info("Starting SCIM scan", "target", target)
-	
+
 	// Create SCIM scanner
 	scanner := scim.NewScanner()
-	
+
 	// Run SCIM discovery and testing
 	findings, err := scanner.Scan(ctx, target, map[string]string{
 		"test_all": "true",
@@ -2807,15 +2807,15 @@ func runSCIMScan(ctx context.Context, target, scanID string, log *logger.Logger,
 // runSmugglingDetection executes HTTP Request Smuggling detection
 func runSmugglingDetection(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
 	log.Info("Starting HTTP Request Smuggling detection", "target", target)
-	
+
 	// Ensure target has http/https prefix
 	if !strings.HasPrefix(target, "http") {
 		target = "https://" + target
 	}
-	
+
 	// Create smuggling scanner
 	scanner := smuggling.NewScanner()
-	
+
 	// Run smuggling detection
 	findings, err := scanner.Scan(ctx, target, map[string]string{
 		"techniques": "cl.te,te.cl,te.te",
@@ -2840,10 +2840,10 @@ func runSmugglingDetection(ctx context.Context, target, scanID string, log *logg
 // runComprehensiveBusinessLogicTests executes business logic vulnerability testing
 func runComprehensiveBusinessLogicTests(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
 	log.Info("Starting business logic testing", "target", target)
-	
+
 	// Note: This would integrate with the business logic testing framework
 	// For now, we'll create a placeholder that would be replaced with actual implementation
-	
+
 	findings := []types.Finding{
 		{
 			ID:          fmt.Sprintf("logic-placeholder-%s", target),
@@ -2872,21 +2872,21 @@ func runComprehensiveBusinessLogicTests(ctx context.Context, target, scanID stri
 // runComprehensiveAuthenticationTests executes comprehensive authentication testing
 func runComprehensiveAuthenticationTests(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
 	log.Info("Starting authentication testing", "target", target)
-	
+
 	// Ensure target has http/https prefix
 	if !strings.HasPrefix(target, "http") {
 		target = "https://" + target
 	}
-	
+
 	// Create authentication scanner using the existing discovery
 	authDiscovery := authdiscovery.NewComprehensiveAuthDiscovery(log.WithTool("auth"))
-	
+
 	// Run comprehensive authentication testing
 	authInventory, err := authDiscovery.DiscoverAll(ctx, target)
 	if err != nil {
 		return fmt.Errorf("auth discovery failed: %w", err)
 	}
-	
+
 	// Convert to findings
 	findings := convertAuthInventoryToFindings(authInventory, target, scanID)
 	if err != nil {

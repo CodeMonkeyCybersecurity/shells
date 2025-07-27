@@ -215,9 +215,9 @@ func (a *AuthDiscoveryIntegrationModule) convertToAssets(inventory *AuthInventor
 				"custom_type": custom.Type,
 				"confidence":  fmt.Sprintf("%.2f", custom.Confidence),
 			},
-			Source:      a.Name(),
-			Confidence:  custom.Confidence,
-			Priority:    int(discovery.PriorityMedium),
+			Source:     a.Name(),
+			Confidence: custom.Confidence,
+			Priority:   int(discovery.PriorityMedium),
 		}
 
 		// Add indicators as tags
@@ -248,10 +248,10 @@ func (a *AuthDiscoveryIntegrationModule) extractRelationships(inventory *AuthInv
 			domain := a.extractDomain(oauth.AuthorizeURL)
 			if saml, exists := samlDomains[domain]; exists {
 				rel := &discovery.Relationship{
-					Type:     discovery.RelationType("federated_auth"),
-					Source:   oauth.AuthorizeURL,
-					Target:   saml.MetadataURL,
-					Weight:   0.8,
+					Type:   discovery.RelationType("federated_auth"),
+					Source: oauth.AuthorizeURL,
+					Target: saml.MetadataURL,
+					Weight: 0.8,
 					Metadata: map[string]string{
 						"description": "OAuth2 and SAML on same domain - likely federated",
 					},
@@ -268,10 +268,10 @@ func (a *AuthDiscoveryIntegrationModule) extractRelationships(inventory *AuthInv
 			for _, oauth := range inventory.WebAuth.OAuth2 {
 				if a.extractDomain(oauth.AuthorizeURL) == formDomain {
 					rel := &discovery.Relationship{
-						Type:     discovery.RelationType("alternative_auth"),
-						Source:   form.URL,
-						Target:   oauth.AuthorizeURL,
-						Weight:   0.7,
+						Type:   discovery.RelationType("alternative_auth"),
+						Source: form.URL,
+						Target: oauth.AuthorizeURL,
+						Weight: 0.7,
 						Metadata: map[string]string{
 							"description": "Form login and OAuth2 available",
 						},
@@ -290,10 +290,10 @@ func (a *AuthDiscoveryIntegrationModule) extractRelationships(inventory *AuthInv
 				// Simple heuristic: if they're on the same network
 				if a.sameNetwork(ldap.Host, a.extractHost(form.URL)) {
 					rel := &discovery.Relationship{
-						Type:     discovery.RelationType("backend_auth"),
-						Source:   form.URL,
-						Target:   fmt.Sprintf("ldap://%s:%d", ldap.Host, ldap.Port),
-						Weight:   0.6,
+						Type:   discovery.RelationType("backend_auth"),
+						Source: form.URL,
+						Target: fmt.Sprintf("ldap://%s:%d", ldap.Host, ldap.Port),
+						Weight: 0.6,
 						Metadata: map[string]string{
 							"description": "Form login likely uses LDAP backend",
 						},
@@ -411,7 +411,7 @@ func (a *AuthDiscoveryModule) checkEndpointExists(url string) bool {
 		return false
 	}
 	defer resp.Body.Close()
-	
+
 	// Consider 200-399 as success
 	return resp.StatusCode >= 200 && resp.StatusCode < 400
 }

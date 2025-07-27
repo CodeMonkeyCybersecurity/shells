@@ -61,7 +61,7 @@ func NewCTLogClient(logger *logger.Logger) *CTLogClient {
 		logger:     logger,
 		logServers: getDefaultCTLogServers(),
 	}
-	
+
 	return client
 }
 
@@ -106,7 +106,7 @@ func (c *CTLogClient) SearchDomain(ctx context.Context, domain string) ([]Certif
 	var allCerts []Certificate
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	
+
 	// Use crt.sh as primary source (aggregates multiple CT logs)
 	crtshCerts, err := c.searchCrtSh(ctx, domain)
 	if err != nil {
@@ -114,41 +114,41 @@ func (c *CTLogClient) SearchDomain(ctx context.Context, domain string) ([]Certif
 	} else {
 		allCerts = append(allCerts, crtshCerts...)
 	}
-	
+
 	// Also search individual CT logs for more recent entries
 	for _, server := range c.logServers {
 		if !server.Active {
 			continue
 		}
-		
+
 		wg.Add(1)
 		go func(srv CTLogServer) {
 			defer wg.Done()
-			
+
 			certs, err := c.searchCTLog(ctx, srv, domain)
 			if err != nil {
-				c.logger.Error("Failed to search CT log", 
-					"server", srv.Name, 
+				c.logger.Error("Failed to search CT log",
+					"server", srv.Name,
 					"error", err)
 				return
 			}
-			
+
 			mu.Lock()
 			allCerts = append(allCerts, certs...)
 			mu.Unlock()
 		}(server)
 	}
-	
+
 	wg.Wait()
-	
+
 	// Deduplicate certificates by serial number
 	uniqueCerts := c.deduplicateCerts(allCerts)
-	
+
 	c.logger.Info("CT log search completed",
 		"domain", domain,
 		"total_certs", len(allCerts),
 		"unique_certs", len(uniqueCerts))
-	
+
 	return uniqueCerts, nil
 }
 
@@ -156,27 +156,27 @@ func (c *CTLogClient) SearchDomain(ctx context.Context, domain string) ([]Certif
 func (c *CTLogClient) searchCrtSh(ctx context.Context, domain string) ([]Certificate, error) {
 	// crt.sh provides a simple JSON API
 	apiURL := fmt.Sprintf("https://crt.sh/?q=%s&output=json", url.QueryEscape(domain))
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("crt.sh returned status %d", resp.StatusCode)
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Parse crt.sh response
 	var crtshEntries []struct {
 		IssuerCaID     int    `json:"issuer_ca_id"`
@@ -189,21 +189,21 @@ func (c *CTLogClient) searchCrtSh(ctx context.Context, domain string) ([]Certifi
 		NotAfter       string `json:"not_after"`
 		SerialNumber   string `json:"serial_number"`
 	}
-	
+
 	if err := json.Unmarshal(body, &crtshEntries); err != nil {
 		return nil, fmt.Errorf("failed to parse crt.sh response: %w", err)
 	}
-	
+
 	var certificates []Certificate
 	for _, entry := range crtshEntries {
 		// Parse timestamps
 		notBefore, _ := time.Parse("2006-01-02T15:04:05", entry.NotBefore)
 		notAfter, _ := time.Parse("2006-01-02T15:04:05", entry.NotAfter)
 		entryTime, _ := time.Parse("2006-01-02T15:04:05", entry.EntryTimestamp)
-		
+
 		// Extract SANs from name_value (contains all names separated by newlines)
 		sans := strings.Split(entry.NameValue, "\n")
-		
+
 		cert := Certificate{
 			Domain:       domain,
 			SubjectCN:    entry.CommonName,
@@ -218,10 +218,10 @@ func (c *CTLogClient) searchCrtSh(ctx context.Context, domain string) ([]Certifi
 				DiscoveredAt: time.Now(),
 			},
 		}
-		
+
 		certificates = append(certificates, cert)
 	}
-	
+
 	return certificates, nil
 }
 
@@ -230,10 +230,10 @@ func (c *CTLogClient) searchCTLog(ctx context.Context, server CTLogServer, domai
 	// Most CT logs don't provide direct search APIs
 	// This is a placeholder for future implementation with specific CT log APIs
 	// For now, we rely on crt.sh which aggregates multiple logs
-	
+
 	// Some CT logs like Google's provide get-entries endpoint
 	// but require iterating through all entries which is impractical
-	
+
 	return []Certificate{}, nil
 }
 
@@ -241,7 +241,7 @@ func (c *CTLogClient) searchCTLog(ctx context.Context, server CTLogServer, domai
 func (c *CTLogClient) deduplicateCerts(certs []Certificate) []Certificate {
 	seen := make(map[string]bool)
 	unique := []Certificate{}
-	
+
 	for _, cert := range certs {
 		key := cert.SerialNumber + cert.Issuer
 		if !seen[key] {
@@ -249,7 +249,7 @@ func (c *CTLogClient) deduplicateCerts(certs []Certificate) []Certificate {
 			unique = append(unique, cert)
 		}
 	}
-	
+
 	return unique
 }
 
@@ -259,13 +259,13 @@ func (c *CTLogClient) DiscoverSubdomains(ctx context.Context, domain string) ([]
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Extract unique subdomains
 	subdomainMap := make(map[string]bool)
-	
+
 	// Look for wildcard pattern
 	wildcardPattern := fmt.Sprintf(".%s", domain)
-	
+
 	for _, cert := range certificates {
 		// Check Subject CN
 		if strings.HasSuffix(cert.SubjectCN, wildcardPattern) || cert.SubjectCN == domain {
@@ -274,12 +274,12 @@ func (c *CTLogClient) DiscoverSubdomains(ctx context.Context, domain string) ([]
 				subdomainMap[subdomain] = true
 			}
 		}
-		
+
 		// Check SANs
 		for _, san := range cert.SANs {
 			san = strings.TrimSpace(san)
 			san = strings.TrimPrefix(san, "*.")
-			
+
 			if strings.HasSuffix(san, wildcardPattern) || san == domain {
 				if isValidSubdomain(san, domain) {
 					subdomainMap[san] = true
@@ -287,13 +287,13 @@ func (c *CTLogClient) DiscoverSubdomains(ctx context.Context, domain string) ([]
 			}
 		}
 	}
-	
+
 	// Convert map to slice
 	var subdomains []string
 	for subdomain := range subdomainMap {
 		subdomains = append(subdomains, subdomain)
 	}
-	
+
 	return subdomains, nil
 }
 
@@ -303,12 +303,12 @@ func isValidSubdomain(subdomain, parentDomain string) bool {
 	if !strings.HasSuffix(subdomain, parentDomain) {
 		return false
 	}
-	
+
 	// Ensure it's not just the parent domain
 	if subdomain == parentDomain {
 		return true
 	}
-	
+
 	// Check if there's at least one subdomain level
 	prefix := strings.TrimSuffix(subdomain, "."+parentDomain)
 	return len(prefix) > 0 && !strings.Contains(prefix, " ")
@@ -320,10 +320,10 @@ func (c *CTLogClient) GetCertificateTimeline(ctx context.Context, domain string)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sort by NotBefore date (newest first)
 	sortCertsByDate(certs)
-	
+
 	return certs, nil
 }
 
@@ -346,7 +346,7 @@ func (c *CTLogClient) FindWildcardCerts(ctx context.Context, domain string) ([]C
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var wildcardCerts []Certificate
 	for _, cert := range allCerts {
 		// Check if Subject CN is wildcard
@@ -354,7 +354,7 @@ func (c *CTLogClient) FindWildcardCerts(ctx context.Context, domain string) ([]C
 			wildcardCerts = append(wildcardCerts, cert)
 			continue
 		}
-		
+
 		// Check SANs for wildcards
 		for _, san := range cert.SANs {
 			if strings.HasPrefix(san, "*.") {
@@ -363,7 +363,7 @@ func (c *CTLogClient) FindWildcardCerts(ctx context.Context, domain string) ([]C
 			}
 		}
 	}
-	
+
 	return wildcardCerts, nil
 }
 
@@ -373,49 +373,49 @@ func (c *CTLogClient) AnalyzeCertificateHistory(ctx context.Context, domain stri
 	if err != nil {
 		return nil, err
 	}
-	
+
 	analysis := &CertHistoryAnalysis{
-		Domain:          domain,
-		TotalCerts:      len(certs),
-		UniqueIssuers:   make(map[string]int),
-		CertFrequency:   make(map[string]int),
-		AnalyzedAt:      time.Now(),
+		Domain:        domain,
+		TotalCerts:    len(certs),
+		UniqueIssuers: make(map[string]int),
+		CertFrequency: make(map[string]int),
+		AnalyzedAt:    time.Now(),
 	}
-	
+
 	if len(certs) == 0 {
 		return analysis, nil
 	}
-	
+
 	// Analyze certificates
 	now := time.Now()
 	var activeCerts []Certificate
 	var expiredCerts []Certificate
-	
+
 	for _, cert := range certs {
 		// Count issuers
 		analysis.UniqueIssuers[cert.Issuer]++
-		
+
 		// Check if active
 		if cert.NotBefore.Before(now) && cert.NotAfter.After(now) {
 			activeCerts = append(activeCerts, cert)
 		} else if cert.NotAfter.Before(now) {
 			expiredCerts = append(expiredCerts, cert)
 		}
-		
+
 		// Certificate issuance frequency by year
 		year := cert.NotBefore.Format("2006")
 		analysis.CertFrequency[year]++
 	}
-	
+
 	analysis.ActiveCerts = len(activeCerts)
 	analysis.ExpiredCerts = len(expiredCerts)
-	
+
 	// Find most recent cert
 	if len(certs) > 0 {
 		analysis.MostRecentCert = &certs[0]
 		analysis.OldestCert = &certs[len(certs)-1]
 	}
-	
+
 	return analysis, nil
 }
 

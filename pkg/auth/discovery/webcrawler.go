@@ -150,12 +150,12 @@ func (w *WebCrawler) generateCommonAuthPaths(baseURL string) []string {
 		"/portal", "/portal/login", "/customer/login",
 		"/secure", "/secure/login", "/security/login",
 	}
-	
+
 	var fullPaths []string
 	for _, path := range commonPaths {
 		fullPaths = append(fullPaths, baseURL+path)
 	}
-	
+
 	return fullPaths
 }
 
@@ -413,15 +413,15 @@ func (w *WebCrawler) shouldVisit(urlStr string) bool {
 func (w *WebCrawler) CrawlForAuth(ctx context.Context, url string, maxDepth int) ([]WebPage, error) {
 	w.maxDepth = maxDepth
 	var allPages []WebPage
-	
+
 	// Reset visited state for this crawl
 	w.visitedMutex.Lock()
 	w.visited = make(map[string]bool)
 	w.visitedMutex.Unlock()
-	
+
 	// Find auth pages using existing discovery logic
 	authPages := w.FindAuthPages(ctx, url)
-	
+
 	// Convert CrawlResult to WebPage
 	for _, page := range authPages {
 		// Fetch the actual content for each auth page
@@ -430,14 +430,14 @@ func (w *WebCrawler) CrawlForAuth(ctx context.Context, url string, maxDepth int)
 			w.logger.Debug("Failed to fetch page content", "url", page.URL, "error", err)
 			continue
 		}
-		
+
 		webPage := WebPage{
 			URL:     page.URL,
 			Content: content,
 		}
 		allPages = append(allPages, webPage)
 	}
-	
+
 	// Also fetch the main page content
 	if mainContent, err := w.fetchPageContent(ctx, url); err == nil {
 		mainPage := WebPage{
@@ -446,7 +446,7 @@ func (w *WebCrawler) CrawlForAuth(ctx context.Context, url string, maxDepth int)
 		}
 		allPages = append(allPages, mainPage)
 	}
-	
+
 	return allPages, nil
 }
 
@@ -456,25 +456,25 @@ func (w *WebCrawler) fetchPageContent(ctx context.Context, url string) (string, 
 	if err != nil {
 		return "", err
 	}
-	
+
 	resp, err := w.httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	
+
 	// Only process HTML content
 	contentType := resp.Header.Get("Content-Type")
 	if !strings.Contains(contentType, "html") {
 		return "", fmt.Errorf("not HTML content")
 	}
-	
+
 	// Read the body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return string(bodyBytes), nil
 }
 

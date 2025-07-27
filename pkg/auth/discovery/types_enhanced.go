@@ -18,12 +18,12 @@ const (
 	AuthTypeJWT      AuthType = "jwt"
 
 	// Traditional authentication types
-	AuthTypeBasicAuth   AuthType = "basic"
-	AuthTypeDigestAuth  AuthType = "digest"
-	AuthTypeFormLogin   AuthType = "form"
-	AuthTypeCookie      AuthType = "cookie"
-	AuthTypeAPIKey      AuthType = "apikey"
-	AuthTypeCustom      AuthType = "custom"
+	AuthTypeBasicAuth  AuthType = "basic"
+	AuthTypeDigestAuth AuthType = "digest"
+	AuthTypeFormLogin  AuthType = "form"
+	AuthTypeCookie     AuthType = "cookie"
+	AuthTypeAPIKey     AuthType = "apikey"
+	AuthTypeCustom     AuthType = "custom"
 
 	// Directory services
 	AuthTypeLDAP      AuthType = "ldap"
@@ -39,7 +39,7 @@ const (
 
 	// JavaScript-based authentication
 	AuthTypeJavaScript AuthType = "javascript"
-	
+
 	// Unknown/unidentified
 	AuthTypeUnknown AuthType = "unknown"
 )
@@ -87,17 +87,17 @@ type AuthParameter struct {
 
 // AuthFlow represents an authentication flow (login process)
 type AuthFlow struct {
-	ID           string                 `json:"id"`
-	Name         string                 `json:"name"`
-	Type         string                 `json:"type"`
-	Steps        []AuthFlowStep         `json:"steps"`
-	TotalSteps   int                    `json:"total_steps"`
-	RequiresMFA  bool                   `json:"requires_mfa"`
-	Metadata     map[string]interface{} `json:"metadata"`
-	Description  string                 `json:"description,omitempty"`
-	StartURL     string                 `json:"start_url,omitempty"`
-	CompleteURL  string                 `json:"complete_url,omitempty"`
-	ErrorHandling string                `json:"error_handling,omitempty"`
+	ID            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	Type          string                 `json:"type"`
+	Steps         []AuthFlowStep         `json:"steps"`
+	TotalSteps    int                    `json:"total_steps"`
+	RequiresMFA   bool                   `json:"requires_mfa"`
+	Metadata      map[string]interface{} `json:"metadata"`
+	Description   string                 `json:"description,omitempty"`
+	StartURL      string                 `json:"start_url,omitempty"`
+	CompleteURL   string                 `json:"complete_url,omitempty"`
+	ErrorHandling string                 `json:"error_handling,omitempty"`
 }
 
 // AuthFlowStep represents a step in an authentication flow
@@ -148,15 +148,15 @@ type AuthEndpointPattern struct {
 
 // DiscoveryResult represents the result of authentication discovery
 type DiscoveryResult struct {
-	Target              string                `json:"target"`
-	DiscoveryTime       time.Duration         `json:"discovery_time"`
-	TotalEndpoints      int                   `json:"total_endpoints"`
-	Implementations     []AuthImplementation  `json:"implementations"`
-	Technologies        []AuthTechnology      `json:"technologies"`
-	RiskScore          float64               `json:"risk_score"`
-	Recommendations    []string              `json:"recommendations"`
-	Metadata           map[string]interface{} `json:"metadata"`
-	DiscoveredAt       time.Time             `json:"discovered_at"`
+	Target          string                 `json:"target"`
+	DiscoveryTime   time.Duration          `json:"discovery_time"`
+	TotalEndpoints  int                    `json:"total_endpoints"`
+	Implementations []AuthImplementation   `json:"implementations"`
+	Technologies    []AuthTechnology       `json:"technologies"`
+	RiskScore       float64                `json:"risk_score"`
+	Recommendations []string               `json:"recommendations"`
+	Metadata        map[string]interface{} `json:"metadata"`
+	DiscoveredAt    time.Time              `json:"discovered_at"`
 }
 
 // Config represents configuration for authentication discovery
@@ -175,18 +175,18 @@ type Config struct {
 
 // OrgAuthReport represents organization-wide authentication report
 type OrgAuthReport struct {
-	Organization         string                        `json:"organization"`
-	AllImplementations   []AuthImplementation          `json:"all_implementations"`
-	UniqueAuthTypes      []AuthType                    `json:"unique_auth_types"`
-	AuthTypeDistribution map[AuthType]int              `json:"auth_type_distribution"`
-	DomainsByAuthType    map[AuthType][]string         `json:"domains_by_auth_type"`
-	HighRiskFindings     []string                      `json:"high_risk_findings"`
-	Recommendations      []string                      `json:"recommendations"`
-	TotalDomains         int                           `json:"total_domains"`
-	DomainsWithAuth      int                           `json:"domains_with_auth"`
-	RiskScore            float64                       `json:"risk_score"`
-	GeneratedAt          time.Time                     `json:"generated_at"`
-	Metadata             map[string]interface{}        `json:"metadata"`
+	Organization         string                 `json:"organization"`
+	AllImplementations   []AuthImplementation   `json:"all_implementations"`
+	UniqueAuthTypes      []AuthType             `json:"unique_auth_types"`
+	AuthTypeDistribution map[AuthType]int       `json:"auth_type_distribution"`
+	DomainsByAuthType    map[AuthType][]string  `json:"domains_by_auth_type"`
+	HighRiskFindings     []string               `json:"high_risk_findings"`
+	Recommendations      []string               `json:"recommendations"`
+	TotalDomains         int                    `json:"total_domains"`
+	DomainsWithAuth      int                    `json:"domains_with_auth"`
+	RiskScore            float64                `json:"risk_score"`
+	GeneratedAt          time.Time              `json:"generated_at"`
+	Metadata             map[string]interface{} `json:"metadata"`
 }
 
 // Helper function to deduplicate strings

@@ -33,14 +33,12 @@ func extractDomainFromPattern(pattern string) string {
 	return ""
 }
 
-// normalizeCompanyName is already defined in classifier.go
-
 func isDomainValid(domain string) bool {
 	// Basic domain validation
 	if domain == "" || len(domain) > 253 {
 		return false
 	}
-	
+
 	// Check for valid characters and structure
 	domainRegex := regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
 	return domainRegex.MatchString(domain)
@@ -53,12 +51,12 @@ func isRelatedDomain(domain string, knownDomains []string) bool {
 		if extractSLD(domain) == extractSLD(known) {
 			return true
 		}
-		
+
 		// Subdomain of known domain
 		if strings.HasSuffix(domain, "."+known) {
 			return true
 		}
-		
+
 		// Known domain is subdomain
 		if strings.HasSuffix(known, "."+domain) {
 			return true
@@ -80,12 +78,12 @@ func isLikelySubsidiary(companyName, parentName string) bool {
 	// Simple heuristic for subsidiary detection
 	normalized := normalizeCompanyName(companyName)
 	parentNormalized := normalizeCompanyName(parentName)
-	
+
 	// Check if parent name is contained in company name
 	if strings.Contains(normalized, parentNormalized) {
 		return true
 	}
-	
+
 	// Check common subsidiary patterns
 	subsidiaryPatterns := []string{
 		parentNormalized + "labs",
@@ -96,13 +94,13 @@ func isLikelySubsidiary(companyName, parentName string) bool {
 		parentNormalized + "international",
 		parentNormalized + "global",
 	}
-	
+
 	for _, pattern := range subsidiaryPatterns {
 		if strings.Contains(normalized, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -127,28 +125,28 @@ func containsInt(slice []int, item int) bool {
 func deduplicateStrings(slice []string) []string {
 	seen := make(map[string]bool)
 	result := []string{}
-	
+
 	for _, item := range slice {
 		if !seen[item] {
 			seen[item] = true
 			result = append(result, item)
 		}
 	}
-	
+
 	return result
 }
 
 func deduplicateInts(slice []int) []int {
 	seen := make(map[int]bool)
 	result := []int{}
-	
+
 	for _, item := range slice {
 		if !seen[item] {
 			seen[item] = true
 			result = append(result, item)
 		}
 	}
-	
+
 	return result
 }
 
@@ -201,16 +199,16 @@ func expandIPRange(cidr string) ([]string, error) {
 		}
 		return nil, err
 	}
-	
+
 	var ips []string
-	
+
 	// Limit expansion to /24 or smaller to avoid memory issues
 	ones, bits := ipnet.Mask.Size()
 	if bits-ones > 8 {
 		// Too large, just return the CIDR
 		return []string{cidr}, nil
 	}
-	
+
 	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
 		ips = append(ips, ip.String())
 		if len(ips) > 256 {
@@ -218,7 +216,7 @@ func expandIPRange(cidr string) ([]string, error) {
 			break
 		}
 	}
-	
+
 	return ips, nil
 }
 
@@ -238,11 +236,11 @@ func ipInRange(ip, cidr string) bool {
 		// Not a CIDR, check exact match
 		return ip == cidr
 	}
-	
+
 	parsedIP := net.ParseIP(ip)
 	if parsedIP == nil {
 		return false
 	}
-	
+
 	return ipnet.Contains(parsedIP)
 }

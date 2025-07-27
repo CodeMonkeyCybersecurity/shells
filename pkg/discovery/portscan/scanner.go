@@ -12,11 +12,11 @@ import (
 
 // PortScanner performs TCP port scanning
 type PortScanner struct {
-	timeout      time.Duration
-	concurrency  int
-	logger       *logger.Logger
-	commonPorts  []int
-	webPorts     []int
+	timeout     time.Duration
+	concurrency int
+	logger      *logger.Logger
+	commonPorts []int
+	webPorts    []int
 }
 
 // ScanResult represents a port scan result
@@ -69,7 +69,7 @@ func (p *PortScanner) ScanHost(ctx context.Context, host string) (*HostScanResul
 
 	// Channel for results
 	resultChan := make(chan ScanResult, len(p.commonPorts))
-	
+
 	// Semaphore for concurrency control
 	sem := make(chan struct{}, p.concurrency)
 	var wg sync.WaitGroup
@@ -79,7 +79,7 @@ func (p *PortScanner) ScanHost(ctx context.Context, host string) (*HostScanResul
 		wg.Add(1)
 		go func(port int) {
 			defer wg.Done()
-			
+
 			select {
 			case <-ctx.Done():
 				return
@@ -94,12 +94,12 @@ func (p *PortScanner) ScanHost(ctx context.Context, host string) (*HostScanResul
 					Open:    true,
 					Service: p.guessService(port),
 				}
-				
+
 				// Try to grab banner for some services
 				if p.shouldGrabBanner(port) {
 					scanResult.Banner = p.grabBanner(targetIP, port)
 				}
-				
+
 				resultChan <- scanResult
 			}
 		}(port)
@@ -117,7 +117,7 @@ func (p *PortScanner) ScanHost(ctx context.Context, host string) (*HostScanResul
 	}
 
 	result.ScanTime = time.Since(start)
-	
+
 	p.logger.Info("Port scan completed",
 		"host", host,
 		"open_ports", len(result.OpenPorts),
@@ -139,7 +139,7 @@ func (p *PortScanner) ScanHosts(ctx context.Context, hosts []string) ([]*HostSca
 		wg.Add(1)
 		go func(h string) {
 			defer wg.Done()
-			
+
 			select {
 			case <-ctx.Done():
 				return
@@ -176,11 +176,11 @@ func (p *PortScanner) QuickScan(ctx context.Context, host string) (*HostScanResu
 // isPortOpen checks if a port is open
 func (p *PortScanner) isPortOpen(ctx context.Context, host string, port int) bool {
 	target := fmt.Sprintf("%s:%d", host, port)
-	
+
 	dialer := net.Dialer{
 		Timeout: p.timeout,
 	}
-	
+
 	conn, err := dialer.DialContext(ctx, "tcp", target)
 	if err != nil {
 		return false
@@ -192,7 +192,7 @@ func (p *PortScanner) isPortOpen(ctx context.Context, host string, port int) boo
 // grabBanner attempts to grab a service banner
 func (p *PortScanner) grabBanner(host string, port int) string {
 	target := fmt.Sprintf("%s:%d", host, port)
-	
+
 	conn, err := net.DialTimeout("tcp", target, p.timeout)
 	if err != nil {
 		return ""
@@ -224,7 +224,7 @@ func (p *PortScanner) grabBanner(host string, port int) string {
 	if len(banner) > 100 {
 		banner = banner[:100] + "..."
 	}
-	
+
 	return banner
 }
 
@@ -245,7 +245,7 @@ func (p *PortScanner) shouldGrabBanner(port int) bool {
 		8080: true, // HTTP Alt
 		8443: true, // HTTPS Alt
 	}
-	
+
 	return bannerPorts[port]
 }
 
@@ -257,7 +257,7 @@ func (p *PortScanner) requiresHandshake(port int) bool {
 		8080: true,
 		8443: true,
 	}
-	
+
 	return handshakePorts[port]
 }
 
@@ -290,11 +290,11 @@ func (p *PortScanner) guessService(port int) string {
 		8443:  "https-alt",
 		27017: "mongodb",
 	}
-	
+
 	if service, ok := services[port]; ok {
 		return service
 	}
-	
+
 	return fmt.Sprintf("unknown-%d", port)
 }
 
@@ -369,17 +369,17 @@ func getWebPorts() []int {
 func (p *PortScanner) ScanIPRange(ctx context.Context, startIP, endIP string) ([]*HostScanResult, error) {
 	start := net.ParseIP(startIP)
 	end := net.ParseIP(endIP)
-	
+
 	if start == nil || end == nil {
 		return nil, fmt.Errorf("invalid IP range")
 	}
-	
+
 	var ips []string
 	for ip := start; !ip.Equal(end); incrementIP(ip) {
 		ips = append(ips, ip.String())
 	}
 	ips = append(ips, end.String())
-	
+
 	return p.ScanHosts(ctx, ips)
 }
 

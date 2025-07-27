@@ -40,7 +40,7 @@ func TestGCPDiscovery(t *testing.T) {
 				if len(names) == 0 {
 					t.Error("Expected bucket names to be generated")
 				}
-				
+
 				// Check some expected patterns
 				expectedPatterns := []string{
 					"example",
@@ -48,12 +48,12 @@ func TestGCPDiscovery(t *testing.T) {
 					"example-logs",
 					"example-static",
 				}
-				
+
 				nameMap := make(map[string]bool)
 				for _, name := range names {
 					nameMap[name] = true
 				}
-				
+
 				for _, expected := range expectedPatterns {
 					if !nameMap[expected] {
 						t.Errorf("Expected bucket name %s not found", expected)
@@ -69,7 +69,7 @@ func TestGCPDiscovery(t *testing.T) {
 				if len(projectIDs) == 0 {
 					t.Error("Expected project IDs to be generated")
 				}
-				
+
 				// Check for valid project IDs
 				for _, id := range projectIDs {
 					if !isValidProjectID(id) {
@@ -86,7 +86,7 @@ func TestGCPDiscovery(t *testing.T) {
 				if err != nil {
 					t.Errorf("DiscoverFirebaseApps failed: %v", err)
 				}
-				
+
 				// Check that URLs are properly formatted
 				for _, app := range apps {
 					if app.URL == "" {
@@ -106,12 +106,12 @@ func TestGCPDiscovery(t *testing.T) {
 				if err != nil {
 					t.Errorf("DiscoverAll failed: %v", err)
 				}
-				
+
 				// Check that discovery attempted various services
 				if assets == nil {
 					t.Error("Expected assets to be returned")
 				}
-				
+
 				// Log summary for debugging
 				t.Logf("Discovery summary for %s:", "google.com")
 				t.Logf("  Project IDs: %d", len(assets.ProjectIDs))

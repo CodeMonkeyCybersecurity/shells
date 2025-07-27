@@ -762,9 +762,9 @@ func (c *ComprehensiveAuthDiscovery) checkOAuth2Endpoint(url string) AuthMethod 
 		n, _ := resp.Body.Read(body)
 		if n > 0 {
 			bodyStr := string(body[:n])
-			if strings.Contains(bodyStr, "client_id") || 
-			   strings.Contains(bodyStr, "grant_type") ||
-			   strings.Contains(bodyStr, "redirect_uri") {
+			if strings.Contains(bodyStr, "client_id") ||
+				strings.Contains(bodyStr, "grant_type") ||
+				strings.Contains(bodyStr, "redirect_uri") {
 				return &OAuth2Method{
 					URL:  url,
 					Type: "oauth2",
@@ -796,7 +796,7 @@ func (c *ComprehensiveAuthDiscovery) checkSAMLMetadata(url string) AuthMethod {
 		if n > 0 {
 			bodyStr := string(body[:n])
 			if strings.Contains(bodyStr, "EntityDescriptor") ||
-			   strings.Contains(bodyStr, "urn:oasis:names:tc:SAML") {
+				strings.Contains(bodyStr, "urn:oasis:names:tc:SAML") {
 				return &SAMLMethod{
 					URL:  url,
 					Type: "saml",
@@ -819,7 +819,7 @@ func (c *ComprehensiveAuthDiscovery) checkSAMLEndpoint(url string) AuthMethod {
 	if resp.StatusCode == 302 || resp.StatusCode == 200 {
 		// Check headers for SAML indicators
 		if resp.Header.Get("SAMLRequest") != "" ||
-		   resp.Header.Get("SAMLResponse") != "" {
+			resp.Header.Get("SAMLResponse") != "" {
 			return &SAMLMethod{
 				URL:  url,
 				Type: "saml",
@@ -832,8 +832,8 @@ func (c *ComprehensiveAuthDiscovery) checkSAMLEndpoint(url string) AuthMethod {
 		if n > 0 {
 			bodyStr := string(body[:n])
 			if strings.Contains(bodyStr, "SAMLRequest") ||
-			   strings.Contains(bodyStr, "SAMLResponse") ||
-			   strings.Contains(bodyStr, "RelayState") {
+				strings.Contains(bodyStr, "SAMLResponse") ||
+				strings.Contains(bodyStr, "RelayState") {
 				return &SAMLMethod{
 					URL:  url,
 					Type: "saml",
@@ -856,7 +856,7 @@ func (c *ComprehensiveAuthDiscovery) checkShibboleth(url string) AuthMethod {
 	if resp.StatusCode == 200 {
 		// Check for Shibboleth headers
 		if resp.Header.Get("Shib-Session-ID") != "" ||
-		   resp.Header.Get("Shib-Identity-Provider") != "" {
+			resp.Header.Get("Shib-Identity-Provider") != "" {
 			return &ShibbolethMethod{
 				URL:  url,
 				Type: "shibboleth",
@@ -895,8 +895,8 @@ func (c *ComprehensiveAuthDiscovery) checkCASEndpoint(url string) AuthMethod {
 			bodyStr := string(body[:n])
 			// Look for CAS-specific elements
 			if strings.Contains(bodyStr, "cas:serviceResponse") ||
-			   strings.Contains(bodyStr, "login-form") && strings.Contains(bodyStr, "lt") ||
-			   strings.Contains(bodyStr, "execution") && strings.Contains(bodyStr, "_eventId") {
+				strings.Contains(bodyStr, "login-form") && strings.Contains(bodyStr, "lt") ||
+				strings.Contains(bodyStr, "execution") && strings.Contains(bodyStr, "_eventId") {
 				return &CASMethod{
 					URL:  url,
 					Type: "cas",
@@ -962,9 +962,9 @@ func (c *ComprehensiveAuthDiscovery) checkWordPressLogin(url string) AuthMethod 
 		bodyStr := string(body[:n])
 		// WordPress login page indicators
 		if strings.Contains(bodyStr, "wp-login.php") ||
-		   strings.Contains(bodyStr, "wordpress") ||
-		   strings.Contains(bodyStr, "wp-submit") ||
-		   strings.Contains(bodyStr, "user_login") && strings.Contains(bodyStr, "user_pass") {
+			strings.Contains(bodyStr, "wordpress") ||
+			strings.Contains(bodyStr, "wp-submit") ||
+			strings.Contains(bodyStr, "user_login") && strings.Contains(bodyStr, "user_pass") {
 			return &WordPressMethod{
 				URL:  url,
 				Type: "wordpress",
@@ -978,7 +978,7 @@ func (c *ComprehensiveAuthDiscovery) checkWordPressLogin(url string) AuthMethod 
 func (c *ComprehensiveAuthDiscovery) checkAPIAuth(url string) AuthMethod {
 	// Try common API authentication patterns
 	req, _ := http.NewRequest("GET", url, nil)
-	
+
 	// Test without auth first
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -1004,8 +1004,8 @@ func (c *ComprehensiveAuthDiscovery) checkAPIAuth(url string) AuthMethod {
 		if n > 0 {
 			bodyStr := string(body[:n])
 			if strings.Contains(bodyStr, "api_key") ||
-			   strings.Contains(bodyStr, "access_token") ||
-			   strings.Contains(bodyStr, "authorization") {
+				strings.Contains(bodyStr, "access_token") ||
+				strings.Contains(bodyStr, "authorization") {
 				return &APIAuthMethod{
 					URL:  url,
 					Type: "api_auth",
@@ -1021,7 +1021,7 @@ func (c *ComprehensiveAuthDiscovery) checkWebAuthnEndpoint(url string) AuthMetho
 	// WebAuthn endpoints typically accept POST requests
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil
@@ -1037,9 +1037,9 @@ func (c *ComprehensiveAuthDiscovery) checkWebAuthnEndpoint(url string) AuthMetho
 			bodyStr := string(body[:n])
 			// Look for WebAuthn/FIDO2 specific fields
 			if strings.Contains(bodyStr, "challenge") ||
-			   strings.Contains(bodyStr, "publicKey") ||
-			   strings.Contains(bodyStr, "credentialId") ||
-			   strings.Contains(bodyStr, "authenticator") {
+				strings.Contains(bodyStr, "publicKey") ||
+				strings.Contains(bodyStr, "credentialId") ||
+				strings.Contains(bodyStr, "authenticator") {
 				return &WebAuthnMethod{
 					URL:  url,
 					Type: "webauthn",

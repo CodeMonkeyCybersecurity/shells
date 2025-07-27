@@ -33,13 +33,13 @@ func NewCensysClient(apiID, apiSecret string, logger *logger.Logger) *CensysClie
 
 // CensysHost represents a host from Censys
 type CensysHost struct {
-	IP              string                 `json:"ip"`
-	LastUpdated     string                 `json:"last_updated_at"`
-	Services        []CensysService        `json:"services"`
-	Location        CensysLocation         `json:"location"`
-	AutonomousSystem CensysAS              `json:"autonomous_system"`
-	OperatingSystem map[string]interface{} `json:"operating_system"`
-	DNS             CensysDNS              `json:"dns"`
+	IP               string                 `json:"ip"`
+	LastUpdated      string                 `json:"last_updated_at"`
+	Services         []CensysService        `json:"services"`
+	Location         CensysLocation         `json:"location"`
+	AutonomousSystem CensysAS               `json:"autonomous_system"`
+	OperatingSystem  map[string]interface{} `json:"operating_system"`
+	DNS              CensysDNS              `json:"dns"`
 }
 
 // CensysService represents a service on a host
@@ -86,19 +86,19 @@ type CensysSearchResult struct {
 
 // CensysResult contains the actual results
 type CensysResult struct {
-	Query      string        `json:"query"`
-	Total      int           `json:"total"`
-	Duration   int           `json:"duration"`
-	Hits       []CensysHit   `json:"hits"`
+	Query    string      `json:"query"`
+	Total    int         `json:"total"`
+	Duration int         `json:"duration"`
+	Hits     []CensysHit `json:"hits"`
 }
 
 // CensysHit represents a search hit
 type CensysHit struct {
-	IP              string         `json:"ip"`
-	Services        []CensysService `json:"services"`
-	Location        CensysLocation  `json:"location"`
-	LastUpdated     string         `json:"last_updated_at"`
-	AutonomousSystem CensysAS      `json:"autonomous_system"`
+	IP               string          `json:"ip"`
+	Services         []CensysService `json:"services"`
+	Location         CensysLocation  `json:"location"`
+	LastUpdated      string          `json:"last_updated_at"`
+	AutonomousSystem CensysAS        `json:"autonomous_system"`
 }
 
 // SearchHosts searches for hosts using Censys
@@ -108,8 +108,8 @@ func (c *CensysClient) SearchHosts(ctx context.Context, query string, limit int)
 	}
 
 	searchReq := map[string]interface{}{
-		"query": query,
-		"per_page": limit,
+		"query":         query,
+		"per_page":      limit,
 		"virtual_hosts": "INCLUDE",
 	}
 
@@ -151,7 +151,7 @@ func (c *CensysClient) SearchCertificates(ctx context.Context, query string, lim
 	}
 
 	searchReq := map[string]interface{}{
-		"query": query,
+		"query":    query,
 		"per_page": limit,
 	}
 
@@ -177,12 +177,12 @@ func (c *CensysClient) SearchCertificates(ctx context.Context, query string, lim
 	var result struct {
 		Status  string `json:"status"`
 		Results []struct {
-			ParsedFingerprint256 string `json:"parsed.fingerprint_sha256"`
-			ParsedNames          []string `json:"parsed.names"`
+			ParsedFingerprint256 string                 `json:"parsed.fingerprint_sha256"`
+			ParsedNames          []string               `json:"parsed.names"`
 			ParsedSubject        map[string]interface{} `json:"parsed.subject"`
 			ParsedIssuer         map[string]interface{} `json:"parsed.issuer"`
-			ParsedValidityStart  string `json:"parsed.validity.start"`
-			ParsedValidityEnd    string `json:"parsed.validity.end"`
+			ParsedValidityStart  string                 `json:"parsed.validity.start"`
+			ParsedValidityEnd    string                 `json:"parsed.validity.end"`
 		} `json:"results"`
 	}
 
@@ -222,7 +222,7 @@ func (c *CensysClient) GetHost(ctx context.Context, ip string) (*CensysHost, err
 	}
 
 	url := fmt.Sprintf("https://search.censys.io/api/v2/hosts/%s", ip)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err

@@ -20,9 +20,9 @@ func TestNewWebAuthnDetector(t *testing.T) {
 		Format: "console",
 	})
 	require.NoError(t, err)
-	
+
 	detector := NewWebAuthnDetector(logger)
-	
+
 	assert.NotNil(t, detector)
 	assert.NotNil(t, detector.logger)
 	assert.NotNil(t, detector.httpClient)
@@ -108,10 +108,10 @@ func TestWebAuthnDetector_DetectWebAuthn(t *testing.T) {
 	ctx := context.Background()
 
 	discovery, err := detector.DetectWebAuthn(ctx, server.URL)
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, discovery)
-	
+
 	assert.Equal(t, "example.com", discovery.RPID)
 	assert.Equal(t, "Example Corp", discovery.RPName)
 	assert.Equal(t, "required", discovery.UserVerification)
@@ -139,7 +139,7 @@ func TestWebAuthnDetector_DetectWebAuthn_NoWebAuthn(t *testing.T) {
 	ctx := context.Background()
 
 	discovery, err := detector.DetectWebAuthn(ctx, server.URL)
-	
+
 	assert.NoError(t, err)
 	assert.Nil(t, discovery) // Should return nil when confidence is too low
 }
@@ -154,20 +154,20 @@ func TestWebAuthnDetector_AnalyzeWebAuthnSecurity(t *testing.T) {
 	detector := NewWebAuthnDetector(logger)
 
 	tests := []struct {
-		name              string
-		discovery         *WebAuthn2Discovery
-		expectedFeatures  []string
-		expectedVulns     []string
+		name             string
+		discovery        *WebAuthn2Discovery
+		expectedFeatures []string
+		expectedVulns    []string
 	}{
 		{
 			name: "secure WebAuthn configuration",
 			discovery: &WebAuthn2Discovery{
-				RPID:                  "example.com",
-				UserVerification:      "required",
-				ResidentKeys:          "required",
-				Algorithms:            []Algorithm{{Name: "ES256", ID: -7}},
-				TransportMethods:      []string{"internal", "usb"},
-				JSImplementation:      &JSWebAuthnImpl{HasNavigatorCredentials: true, ErrorHandling: []string{"WebAuthn Error Handling"}},
+				RPID:             "example.com",
+				UserVerification: "required",
+				ResidentKeys:     "required",
+				Algorithms:       []Algorithm{{Name: "ES256", ID: -7}},
+				TransportMethods: []string{"internal", "usb"},
+				JSImplementation: &JSWebAuthnImpl{HasNavigatorCredentials: true, ErrorHandling: []string{"WebAuthn Error Handling"}},
 			},
 			expectedFeatures: []string{"Strong User Verification", "Resident Keys", "Cryptographic Algorithms"},
 			expectedVulns:    []string{},
@@ -175,10 +175,10 @@ func TestWebAuthnDetector_AnalyzeWebAuthnSecurity(t *testing.T) {
 		{
 			name: "insecure WebAuthn configuration",
 			discovery: &WebAuthn2Discovery{
-				RPID:                  "",
-				UserVerification:      "discouraged",
-				TransportMethods:      []string{"nfc", "ble"},
-				JSImplementation:      &JSWebAuthnImpl{HasNavigatorCredentials: false, ErrorHandling: []string{}},
+				RPID:             "",
+				UserVerification: "discouraged",
+				TransportMethods: []string{"nfc", "ble"},
+				JSImplementation: &JSWebAuthnImpl{HasNavigatorCredentials: false, ErrorHandling: []string{}},
 			},
 			expectedFeatures: []string{},
 			expectedVulns:    []string{"User verification discouraged", "Missing RP ID", "Only wireless transports", "Missing navigator.credentials", "Insufficient error handling"},
@@ -188,7 +188,7 @@ func TestWebAuthnDetector_AnalyzeWebAuthnSecurity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			detector.analyzeWebAuthnSecurity(tt.discovery)
-			
+
 			for _, expectedFeature := range tt.expectedFeatures {
 				found := false
 				for _, feature := range tt.discovery.SecurityFeatures {
@@ -199,7 +199,7 @@ func TestWebAuthnDetector_AnalyzeWebAuthnSecurity(t *testing.T) {
 				}
 				assert.True(t, found, "Expected security feature '%s' not found", expectedFeature)
 			}
-			
+
 			for _, expectedVuln := range tt.expectedVulns {
 				found := false
 				for _, vuln := range tt.discovery.Vulnerabilities {
@@ -223,7 +223,7 @@ func TestWebAuthnDetector_GenerateWebAuthnPaths(t *testing.T) {
 
 	detector := NewWebAuthnDetector(logger)
 	paths := detector.generateWebAuthnPaths("https://example.com")
-	
+
 	assert.NotEmpty(t, paths)
 	assert.Contains(t, paths, "https://example.com/webauthn")
 	assert.Contains(t, paths, "https://example.com/webauthn/register")
@@ -264,7 +264,7 @@ func FuzzWebAuthnDetector_DetectWebAuthn(f *testing.F) {
 
 		// Should not panic regardless of input
 		discovery, err := detector.DetectWebAuthn(ctx, target)
-		
+
 		// Either succeed or fail gracefully
 		if err == nil && discovery != nil {
 			assert.GreaterOrEqual(t, discovery.Confidence, 0.0)
@@ -382,7 +382,7 @@ func TestWebAuthnDetector_AnalyzeJavaScriptImplementation(t *testing.T) {
 
 	detector := NewWebAuthnDetector(logger)
 	jsImpl := detector.analyzeJavaScriptImplementation(context.Background(), server.URL)
-	
+
 	require.NotNil(t, jsImpl)
 	assert.True(t, jsImpl.HasNavigatorCredentials)
 	assert.True(t, jsImpl.HasPublicKeyCredential)

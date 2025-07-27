@@ -166,7 +166,7 @@ func (c *Cache) cleanupExpired() {
 
 	for range ticker.C {
 		c.logger.Debug("Running cache cleanup")
-		
+
 		files, err := filepath.Glob(filepath.Join(c.dir, "*.json"))
 		if err != nil {
 			c.logger.Error("Cache cleanup failed", "error", err)
@@ -191,7 +191,7 @@ func (c *Cache) cleanupExpired() {
 			if time.Since(entry.Timestamp) >= c.ttl {
 				os.Remove(file)
 				expired++
-				
+
 				// Also remove from memory cache
 				c.mu.Lock()
 				delete(c.memCache, entry.Key)
@@ -276,7 +276,7 @@ func NewCachedHTTPClient(cacheDir string, ttl time.Duration, logger *logger.Logg
 // Get performs a cached GET request
 func (c *CachedHTTPClient) Get(url string) ([]byte, error) {
 	key := c.cache.CacheKey("http", "GET", url)
-	
+
 	var result []byte
 	err := c.cache.GetOrFetch(key, func() (interface{}, error) {
 		resp, err := c.client.Get(url)

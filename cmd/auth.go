@@ -104,7 +104,7 @@ Examples:
 
 		// Create combined result
 		result := struct {
-			Target               string                                 `json:"target"`
+			Target               string                                `json:"target"`
 			ComprehensiveResults *discovery.DiscoveryResult            `json:"comprehensive_results"`
 			LegacyProtocols      []common.AuthProtocol                 `json:"legacy_protocols,omitempty"`
 			LegacyEndpoints      []common.AuthEndpoint                 `json:"legacy_endpoints,omitempty"`
@@ -668,7 +668,7 @@ func saveAuthResultsToDatabase(target string, report *common.AuthReport, scanTyp
 }
 
 func printComprehensiveDiscoveryResults(result struct {
-	Target               string                                 `json:"target"`
+	Target               string                                `json:"target"`
 	ComprehensiveResults *discovery.DiscoveryResult            `json:"comprehensive_results"`
 	LegacyProtocols      []common.AuthProtocol                 `json:"legacy_protocols,omitempty"`
 	LegacyEndpoints      []common.AuthEndpoint                 `json:"legacy_endpoints,omitempty"`
@@ -698,11 +698,11 @@ func printComprehensiveDiscoveryResults(result struct {
 			fmt.Printf("     Type: %s\n", impl.Type)
 			fmt.Printf("     Domain: %s\n", impl.Domain)
 			fmt.Printf("     Endpoints: %d\n", len(impl.Endpoints))
-			
+
 			if len(impl.SecurityFeatures) > 0 {
 				fmt.Printf("     ✅ Features: %s\n", strings.Join(impl.SecurityFeatures[:min(3, len(impl.SecurityFeatures))], ", "))
 			}
-			
+
 			if len(impl.Vulnerabilities) > 0 {
 				fmt.Printf("     ⚠️  Vulnerabilities: %d found\n", len(impl.Vulnerabilities))
 			}
@@ -741,12 +741,11 @@ func printComprehensiveDiscoveryResults(result struct {
 	// Print federation details if available
 	if result.Federation != nil && result.Federation.TotalFound > 0 {
 		fmt.Printf("🏢 Federation Providers:\n")
-		for provider, details := range result.Federation.Providers {
-			fmt.Printf("  • %s: %d endpoints\n", provider, len(details.Endpoints))
+		for _, provider := range result.Federation.Providers {
+			fmt.Printf("  • %s: %d endpoints\n", provider.Name, len(provider.Endpoints))
 		}
 	}
 }
-
 
 func contains(slice []common.AuthProtocol, item common.AuthProtocol) bool {
 	for _, s := range slice {

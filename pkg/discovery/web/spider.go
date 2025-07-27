@@ -49,17 +49,17 @@ func NewWebSpider(logger *logger.Logger) *WebSpider {
 
 // CrawlResult represents a discovered asset from crawling
 type CrawlResult struct {
-	URL         string
-	Title       string
-	StatusCode  int
-	Headers     http.Header
-	Links       []string
-	Forms       []FormInfo
-	Scripts     []string
-	APIs        []string
-	Emails      []string
-	Comments    []string
-	Subdomains  []string
+	URL          string
+	Title        string
+	StatusCode   int
+	Headers      http.Header
+	Links        []string
+	Forms        []FormInfo
+	Scripts      []string
+	APIs         []string
+	Emails       []string
+	Comments     []string
+	Subdomains   []string
 	Technologies []string
 }
 
@@ -84,9 +84,9 @@ func (s *WebSpider) Crawl(ctx context.Context, startURL string) ([]CrawlResult, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	s.scope = []string{u.Host}
-	
+
 	// Add variations to scope
 	if strings.HasPrefix(u.Host, "www.") {
 		s.scope = append(s.scope, strings.TrimPrefix(u.Host, "www."))
@@ -96,7 +96,7 @@ func (s *WebSpider) Crawl(ctx context.Context, startURL string) ([]CrawlResult, 
 
 	results := make([]CrawlResult, 0)
 	resultsChan := make(chan CrawlResult, 100)
-	
+
 	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, s.concurrency)
 
@@ -114,7 +114,7 @@ func (s *WebSpider) Crawl(ctx context.Context, startURL string) ([]CrawlResult, 
 		results = append(results, result)
 	}
 
-	s.logger.Info("Web crawling completed", 
+	s.logger.Info("Web crawling completed",
 		"start_url", startURL,
 		"pages_crawled", len(results),
 		"unique_urls", len(s.visited))
@@ -155,7 +155,7 @@ func (s *WebSpider) crawlURL(ctx context.Context, urlStr string, depth int, wg *
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	
+
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return
@@ -170,7 +170,7 @@ func (s *WebSpider) crawlURL(ctx context.Context, urlStr string, depth int, wg *
 
 	// Parse the page
 	result := s.parsePage(urlStr, resp, body)
-	
+
 	select {
 	case results <- result:
 	case <-ctx.Done():
@@ -189,16 +189,16 @@ func (s *WebSpider) crawlURL(ctx context.Context, urlStr string, depth int, wg *
 // parsePage parses HTML and extracts information
 func (s *WebSpider) parsePage(urlStr string, resp *http.Response, body []byte) CrawlResult {
 	result := CrawlResult{
-		URL:        urlStr,
-		StatusCode: resp.StatusCode,
-		Headers:    resp.Header,
-		Links:      []string{},
-		Forms:      []FormInfo{},
-		Scripts:    []string{},
-		APIs:       []string{},
-		Emails:     []string{},
-		Comments:   []string{},
-		Subdomains: []string{},
+		URL:          urlStr,
+		StatusCode:   resp.StatusCode,
+		Headers:      resp.Header,
+		Links:        []string{},
+		Forms:        []FormInfo{},
+		Scripts:      []string{},
+		APIs:         []string{},
+		Emails:       []string{},
+		Comments:     []string{},
+		Subdomains:   []string{},
 		Technologies: []string{},
 	}
 
@@ -225,11 +225,11 @@ func (s *WebSpider) parsePage(urlStr string, resp *http.Response, body []byte) C
 		form := FormInfo{
 			Inputs: []InputInfo{},
 		}
-		
+
 		if action, exists := sel.Attr("action"); exists {
 			form.Action = s.resolveURL(urlStr, action)
 		}
-		
+
 		if method, exists := sel.Attr("method"); exists {
 			form.Method = strings.ToUpper(method)
 		} else {
@@ -319,7 +319,7 @@ func (s *WebSpider) extractFromJS(body string, result *CrawlResult) {
 func (s *WebSpider) extractEmails(body string) []string {
 	emailPattern := regexp.MustCompile(`[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`)
 	emails := emailPattern.FindAllString(body, -1)
-	
+
 	uniqueEmails := make(map[string]bool)
 	for _, email := range emails {
 		uniqueEmails[strings.ToLower(email)] = true
@@ -337,7 +337,7 @@ func (s *WebSpider) extractEmails(body string) []string {
 func (s *WebSpider) extractComments(body string) []string {
 	commentPattern := regexp.MustCompile(`<!--\s*([^-]+)\s*-->`)
 	matches := commentPattern.FindAllStringSubmatch(body, -1)
-	
+
 	var comments []string
 	for _, match := range matches {
 		if len(match) > 1 {
@@ -360,9 +360,9 @@ func (s *WebSpider) extractSubdomains(body string, baseURL string) []string {
 
 	baseDomain := s.getBaseDomain(u.Host)
 	subdomainPattern := regexp.MustCompile(`\b([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+` + regexp.QuoteMeta(baseDomain) + `\b`)
-	
+
 	matches := subdomainPattern.FindAllString(body, -1)
-	
+
 	uniqueSubs := make(map[string]bool)
 	for _, match := range matches {
 		if match != baseDomain && match != "www."+baseDomain {
@@ -381,33 +381,33 @@ func (s *WebSpider) extractSubdomains(body string, baseURL string) []string {
 // detectTechnologies detects technologies from headers and content
 func (s *WebSpider) detectTechnologies(headers http.Header, body string) []string {
 	var technologies []string
-	
+
 	// Check headers
 	if server := headers.Get("Server"); server != "" {
 		technologies = append(technologies, s.parseServerHeader(server)...)
 	}
-	
+
 	if powered := headers.Get("X-Powered-By"); powered != "" {
 		technologies = append(technologies, powered)
 	}
-	
+
 	// Check for frameworks in HTML
 	frameworks := map[string][]string{
-		"WordPress": {`<meta name="generator" content="WordPress`, `/wp-content/`, `/wp-includes/`},
-		"Drupal": {`<meta name="Generator" content="Drupal`, `/sites/default/`, `drupal.js`},
-		"Joomla": {`<meta name="generator" content="Joomla`, `/components/com_`, `/templates/`},
-		"Angular": {`ng-app=`, `angular.js`, `angular.min.js`},
-		"React": {`react.js`, `react.min.js`, `_react`, `React.createElement`},
-		"Vue.js": {`vue.js`, `vue.min.js`, `new Vue({`},
-		"jQuery": {`jquery.js`, `jquery.min.js`, `jQuery(`, `$(document).ready`},
-		"Bootstrap": {`bootstrap.css`, `bootstrap.min.css`, `bootstrap.js`},
-		"Laravel": {`laravel_session`, `csrf-token`},
-		"Django": {`django`, `csrfmiddlewaretoken`},
+		"WordPress":     {`<meta name="generator" content="WordPress`, `/wp-content/`, `/wp-includes/`},
+		"Drupal":        {`<meta name="Generator" content="Drupal`, `/sites/default/`, `drupal.js`},
+		"Joomla":        {`<meta name="generator" content="Joomla`, `/components/com_`, `/templates/`},
+		"Angular":       {`ng-app=`, `angular.js`, `angular.min.js`},
+		"React":         {`react.js`, `react.min.js`, `_react`, `React.createElement`},
+		"Vue.js":        {`vue.js`, `vue.min.js`, `new Vue({`},
+		"jQuery":        {`jquery.js`, `jquery.min.js`, `jQuery(`, `$(document).ready`},
+		"Bootstrap":     {`bootstrap.css`, `bootstrap.min.css`, `bootstrap.js`},
+		"Laravel":       {`laravel_session`, `csrf-token`},
+		"Django":        {`django`, `csrfmiddlewaretoken`},
 		"Ruby on Rails": {`<meta name="csrf-param"`, `X-CSRF-Token`},
-		"ASP.NET": {`ASP.NET`, `__VIEWSTATE`, `.aspx`},
-		"Spring": {`spring`, `JSESSIONID`},
+		"ASP.NET":       {`ASP.NET`, `__VIEWSTATE`, `.aspx`},
+		"Spring":        {`spring`, `JSESSIONID`},
 	}
-	
+
 	for tech, patterns := range frameworks {
 		for _, pattern := range patterns {
 			if strings.Contains(body, pattern) {
@@ -416,18 +416,18 @@ func (s *WebSpider) detectTechnologies(headers http.Header, body string) []strin
 			}
 		}
 	}
-	
+
 	// Remove duplicates
 	uniqueTech := make(map[string]bool)
 	for _, tech := range technologies {
 		uniqueTech[tech] = true
 	}
-	
+
 	result := make([]string, 0, len(uniqueTech))
 	for tech := range uniqueTech {
 		result = append(result, tech)
 	}
-	
+
 	return result
 }
 
@@ -438,12 +438,12 @@ func (s *WebSpider) resolveURL(base, href string) string {
 	if err != nil {
 		return ""
 	}
-	
+
 	hrefURL, err := url.Parse(href)
 	if err != nil {
 		return ""
 	}
-	
+
 	return baseURL.ResolveReference(hrefURL).String()
 }
 
@@ -452,13 +452,13 @@ func (s *WebSpider) isInScope(urlStr string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	for _, scopeHost := range s.scope {
 		if u.Host == scopeHost || strings.HasSuffix(u.Host, "."+scopeHost) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -475,46 +475,46 @@ func (s *WebSpider) getBaseDomain(host string) string {
 	if idx := strings.Index(host, ":"); idx != -1 {
 		host = host[:idx]
 	}
-	
+
 	// Remove subdomains (simplified)
 	parts := strings.Split(host, ".")
 	if len(parts) >= 2 {
 		return strings.Join(parts[len(parts)-2:], ".")
 	}
-	
+
 	return host
 }
 
 func (s *WebSpider) parseServerHeader(server string) []string {
 	var technologies []string
-	
+
 	// Common server technologies
 	servers := map[string][]string{
-		"nginx": {"nginx"},
-		"Apache": {"Apache"},
-		"IIS": {"Microsoft-IIS", "IIS"},
-		"Tomcat": {"Tomcat"},
-		"Jetty": {"Jetty"},
-		"WebLogic": {"WebLogic"},
+		"nginx":     {"nginx"},
+		"Apache":    {"Apache"},
+		"IIS":       {"Microsoft-IIS", "IIS"},
+		"Tomcat":    {"Tomcat"},
+		"Jetty":     {"Jetty"},
+		"WebLogic":  {"WebLogic"},
 		"WebSphere": {"WebSphere"},
-		"JBoss": {"JBoss"},
+		"JBoss":     {"JBoss"},
 		"GlassFish": {"GlassFish"},
-		"Kestrel": {"Kestrel"},
-		"Gunicorn": {"gunicorn"},
-		"uWSGI": {"uWSGI"},
-		"Caddy": {"Caddy"},
+		"Kestrel":   {"Kestrel"},
+		"Gunicorn":  {"gunicorn"},
+		"uWSGI":     {"uWSGI"},
+		"Caddy":     {"Caddy"},
 		"LiteSpeed": {"LiteSpeed"},
 		"OpenResty": {"openresty"},
-		"Tengine": {"Tengine"},
-		"Cowboy": {"Cowboy"},
-		"Puma": {"Puma"},
-		"Thin": {"Thin"},
-		"Unicorn": {"Unicorn"},
+		"Tengine":   {"Tengine"},
+		"Cowboy":    {"Cowboy"},
+		"Puma":      {"Puma"},
+		"Thin":      {"Thin"},
+		"Unicorn":   {"Unicorn"},
 		"Passenger": {"Phusion Passenger", "Passenger"},
-		"Express": {"Express"},
-		"Werkzeug": {"Werkzeug"},
+		"Express":   {"Express"},
+		"Werkzeug":  {"Werkzeug"},
 	}
-	
+
 	lowerServer := strings.ToLower(server)
 	for tech, patterns := range servers {
 		for _, pattern := range patterns {
@@ -524,7 +524,7 @@ func (s *WebSpider) parseServerHeader(server string) []string {
 			}
 		}
 	}
-	
+
 	return technologies
 }
 

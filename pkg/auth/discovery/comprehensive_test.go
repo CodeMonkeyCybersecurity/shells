@@ -119,14 +119,14 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 					</body>
 				</html>
 			`))
-		
+
 		case "/login":
 			w.Header().Set("X-RateLimit-Limit", "100")
 			w.Header().Set("X-Frame-Options", "DENY")
 			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error": "Invalid credentials"}`))
-		
+
 		// OAuth2/OIDC endpoints
 		case "/.well-known/openid_configuration":
 			w.Header().Set("Content-Type", "application/json")
@@ -144,16 +144,16 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 				"code_challenge_methods_supported": ["S256"],
 				"claims_supported": ["sub", "iss", "aud", "exp", "iat", "name", "email"]
 			}`))
-		
+
 		case "/oauth/authorize":
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"error": "invalid_request", "error_description": "Missing required parameter"}`))
-		
+
 		case "/oauth/token":
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error": "invalid_client"}`))
-		
+
 		// WebAuthn endpoints
 		case "/webauthn/register":
 			w.Header().Set("Content-Type", "application/json")
@@ -173,7 +173,7 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 				"attestation": "direct",
 				"timeout": 60000
 			}`))
-		
+
 		case "/webauthn/authenticate":
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{
@@ -182,7 +182,7 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 				"userVerification": "required",
 				"timeout": 60000
 			}`))
-		
+
 		// SAML endpoints
 		case "/saml/metadata":
 			w.Header().Set("Content-Type", "application/xml")
@@ -198,17 +198,17 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 							Location="` + server.URL + `/saml/acs" index="1"/>
 					</md:SPSSODescriptor>
 				</md:EntityDescriptor>`))
-		
+
 		case "/saml/sso":
 			w.WriteHeader(http.StatusFound)
 			w.Header().Set("Location", "/login")
-		
+
 		// API endpoints
 		case "/api/v1/users":
 			w.Header().Set("WWW-Authenticate", "Bearer realm=\"API\"")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error": "Authentication required"}`))
-		
+
 		case "/api/v1/auth":
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{
@@ -218,7 +218,7 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 					"refresh": "/api/v1/refresh"
 				}
 			}`))
-		
+
 		case "/api/docs":
 			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(`<html><body><h1>API Documentation</h1>
@@ -226,11 +226,11 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 				<p>API Key can be sent in header: X-API-Key</p>
 				<p>Bearer tokens expire after 1 hour</p>
 			</body></html>`))
-		
+
 		// Health/status endpoints
 		case "/health":
 			w.Write([]byte(`{"status": "ok", "auth": "enabled"}`))
-		
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte("Not Found"))
@@ -252,7 +252,7 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 	ctx := context.Background()
 
 	result, err := engine.Discover(ctx, server.URL)
-	
+
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
@@ -261,20 +261,20 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 	assert.Greater(t, result.TotalEndpoints, 5) // Should find multiple endpoints
 	assert.NotEmpty(t, result.Implementations)
 	assert.Greater(t, result.DiscoveryTime, time.Duration(0))
-	
+
 	// Check for multiple authentication types discovered
 	authTypes := make(map[AuthType]bool)
 	for _, impl := range result.Implementations {
 		authTypes[impl.Type] = true
 	}
-	
+
 	// Should discover form-based auth at minimum
 	assert.True(t, authTypes[AuthTypeFormLogin], "Should discover form-based authentication")
-	
+
 	// Check security analysis
 	hasSecurityFeatures := false
 	hasVulnerabilities := false
-	
+
 	for _, impl := range result.Implementations {
 		if len(impl.SecurityFeatures) > 0 {
 			hasSecurityFeatures = true
@@ -283,14 +283,14 @@ func TestComprehensiveDiscovery_FullStack(t *testing.T) {
 			hasVulnerabilities = true
 		}
 	}
-	
+
 	assert.True(t, hasSecurityFeatures, "Should identify security features")
 	assert.True(t, hasVulnerabilities, "Should identify vulnerabilities")
-	
+
 	// Verify risk score calculation
 	assert.GreaterOrEqual(t, result.RiskScore, 0.0)
 	assert.LessOrEqual(t, result.RiskScore, 10.0)
-	
+
 	// Verify recommendations
 	assert.NotEmpty(t, result.Recommendations)
 }
@@ -314,7 +314,7 @@ func TestComprehensiveDiscovery_ParallelProcessing(t *testing.T) {
 			</form></body></html>`))
 		}))
 	}
-	
+
 	defer func() {
 		for _, server := range servers {
 			server.Close()
@@ -333,7 +333,7 @@ func TestComprehensiveDiscovery_ParallelProcessing(t *testing.T) {
 	// Test parallel discovery
 	start := time.Now()
 	results := make([]*DiscoveryResult, len(servers))
-	
+
 	for i, srv := range servers {
 		go func(i int, serverURL string) {
 			result, err := engine.Discover(ctx, serverURL)
@@ -341,7 +341,7 @@ func TestComprehensiveDiscovery_ParallelProcessing(t *testing.T) {
 			results[i] = result
 		}(i, srv.URL)
 	}
-	
+
 	// Wait for all to complete (with timeout)
 	for {
 		completed := 0
@@ -358,13 +358,13 @@ func TestComprehensiveDiscovery_ParallelProcessing(t *testing.T) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	
+
 	duration := time.Since(start)
-	
+
 	// Should complete faster than sequential processing
 	// (3 servers * 50ms delay = 150ms minimum sequential time)
 	assert.Less(t, duration, 500*time.Millisecond, "Parallel processing should be faster")
-	
+
 	// Verify all discoveries succeeded
 	for i, result := range results {
 		assert.NotNil(t, result, "Server %d should have results", i)
@@ -445,7 +445,7 @@ func TestComprehensiveDiscovery_StressTest(t *testing.T) {
 	assert.Greater(t, successCount, numRequests/2, "At least half should succeed")
 	assert.Less(t, duration, 10*time.Second, "Should complete within reasonable time")
 
-	t.Logf("Stress test completed: %d successful, %d errors, duration: %v", 
+	t.Logf("Stress test completed: %d successful, %d errors, duration: %v",
 		successCount, errorCount, duration)
 }
 
@@ -465,14 +465,14 @@ func TestComprehensiveDiscovery_MemoryUsage(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Generate large HTML response
 		w.Write([]byte(`<html><head><title>Large Page</title></head><body>`))
-		
+
 		// Add large form
 		w.Write([]byte(`<form action="/login" method="post">`))
 		for i := 0; i < 1000; i++ {
 			w.Write([]byte(`<input name="field` + strings.Repeat("x", 100) + `" type="text">`))
 		}
 		w.Write([]byte(`</form>`))
-		
+
 		// Add large script
 		w.Write([]byte(`<script>`))
 		for i := 0; i < 100; i++ {
@@ -496,7 +496,7 @@ func TestComprehensiveDiscovery_MemoryUsage(t *testing.T) {
 		result, err := engine.Discover(ctx, server.URL)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		
+
 		// Force garbage collection
 		//runtime.GC()
 		//runtime.GC()

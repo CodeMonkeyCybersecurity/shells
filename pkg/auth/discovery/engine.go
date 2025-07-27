@@ -71,7 +71,7 @@ func NewEngine(logger *logger.Logger, config *Config) *Engine {
 // Discover performs comprehensive authentication discovery on a target
 func (e *Engine) Discover(ctx context.Context, target string) (*DiscoveryResult, error) {
 	startTime := time.Now()
-	
+
 	e.logger.Info("Starting authentication discovery",
 		"target", target,
 		"max_depth", e.config.MaxDepth,
@@ -368,7 +368,7 @@ func (e *Engine) calculateRiskScore(implementations []AuthImplementation) float6
 	}
 
 	avgScore := totalScore / float64(len(implementations))
-	
+
 	// Normalize to 0-10 scale
 	if avgScore > 10.0 {
 		avgScore = 10.0
@@ -382,7 +382,7 @@ func (e *Engine) calculateRiskScore(implementations []AuthImplementation) float6
 
 func (e *Engine) generateRecommendations(implementations []AuthImplementation) []string {
 	var recommendations []string
-	
+
 	hasWeakAuth := false
 	hasModernAuth := false
 	hasMFA := false
@@ -428,7 +428,7 @@ func (e *Engine) deduplicateImplementations(implementations []AuthImplementation
 
 	for _, impl := range implementations {
 		key := fmt.Sprintf("%s:%s", impl.Domain, impl.Type)
-		
+
 		if existing, exists := seen[key]; exists {
 			// Merge implementations
 			existing.Endpoints = append(existing.Endpoints, impl.Endpoints...)
@@ -445,57 +445,57 @@ func (e *Engine) deduplicateImplementations(implementations []AuthImplementation
 // findLoginForms extracts login forms from HTML content
 func (e *Engine) findLoginForms(content string) []LoginForm {
 	var forms []LoginForm
-	
+
 	// Pattern to match form tags with their content
 	formPattern := regexp.MustCompile(`(?s)<form[^>]*>(.*?)</form>`)
 	formMatches := formPattern.FindAllStringSubmatch(content, -1)
-	
+
 	for _, formMatch := range formMatches {
 		if len(formMatch) < 2 {
 			continue
 		}
-		
+
 		formHTML := formMatch[0]
 		formContent := formMatch[1]
-		
+
 		// Extract form attributes
 		form := LoginForm{
 			Method: "GET",
 			Fields: []AuthFormField{},
 		}
-		
+
 		// Extract action attribute
 		if actionMatch := regexp.MustCompile(`action=['"](.*?)['"]`).FindStringSubmatch(formHTML); len(actionMatch) > 1 {
 			form.Action = actionMatch[1]
 		}
-		
+
 		// Extract method attribute
 		if methodMatch := regexp.MustCompile(`method=['"](.*?)['"]`).FindStringSubmatch(formHTML); len(methodMatch) > 1 {
 			form.Method = strings.ToUpper(methodMatch[1])
 		}
-		
+
 		// Extract input fields
 		inputPattern := regexp.MustCompile(`<input[^>]*>`)
 		inputs := inputPattern.FindAllString(formContent, -1)
-		
+
 		hasPasswordField := false
 		hasUsernameField := false
-		
+
 		for _, input := range inputs {
 			field := AuthFormField{}
-			
+
 			if nameMatch := regexp.MustCompile(`name=['"](.*?)['"]`).FindStringSubmatch(input); len(nameMatch) > 1 {
 				field.Name = nameMatch[1]
 			}
-			
+
 			if typeMatch := regexp.MustCompile(`type=['"](.*?)['"]`).FindStringSubmatch(input); len(typeMatch) > 1 {
 				field.Type = typeMatch[1]
 			} else {
 				field.Type = "text" // default type
 			}
-			
+
 			form.Fields = append(form.Fields, field)
-			
+
 			// Check for auth-related fields
 			lowerName := strings.ToLower(field.Name)
 			if field.Type == "password" || strings.Contains(lowerName, "pass") {
@@ -505,20 +505,20 @@ func (e *Engine) findLoginForms(content string) []LoginForm {
 				hasUsernameField = true
 			}
 		}
-		
+
 		// Only include forms that look like login forms
 		if hasPasswordField && (hasUsernameField || len(form.Fields) >= 2) {
 			forms = append(forms, form)
 		}
 	}
-	
+
 	return forms
 }
 
 // findOAuthSignals detects OAuth/OIDC patterns in content
 func (e *Engine) findOAuthSignals(content string) []OAuthSignal {
 	var signals []OAuthSignal
-	
+
 	// OAuth indicators
 	oauthPatterns := []string{
 		`oauth2?[\w\-/]*authorize`,
@@ -532,7 +532,7 @@ func (e *Engine) findOAuthSignals(content string) []OAuthSignal {
 		`pkce`,
 		`code_challenge`,
 	}
-	
+
 	for _, patternStr := range oauthPatterns {
 		pattern := regexp.MustCompile(`(?i)` + patternStr)
 		if matches := pattern.FindAllString(content, -1); len(matches) > 0 {
@@ -541,7 +541,7 @@ func (e *Engine) findOAuthSignals(content string) []OAuthSignal {
 			}
 		}
 	}
-	
+
 	return signals
 }
 
@@ -550,7 +550,7 @@ func (e *Engine) analyzeAPIEndpointForAuth(endpoint string) *AuthImplementation 
 	// Check if endpoint looks like auth-related
 	lowerEndpoint := strings.ToLower(endpoint)
 	authKeywords := []string{"auth", "login", "token", "oauth", "saml", "sso", "signin"}
-	
+
 	isAuthEndpoint := false
 	for _, keyword := range authKeywords {
 		if strings.Contains(lowerEndpoint, keyword) {
@@ -558,15 +558,15 @@ func (e *Engine) analyzeAPIEndpointForAuth(endpoint string) *AuthImplementation 
 			break
 		}
 	}
-	
+
 	if !isAuthEndpoint {
 		return nil
 	}
-	
+
 	// Determine auth type based on endpoint patterns
 	var authType AuthType = AuthTypeAPIKey
 	var name string = "API Authentication"
-	
+
 	if strings.Contains(lowerEndpoint, "oauth") {
 		authType = AuthTypeOAuth2
 		name = "OAuth2 API Authentication"
@@ -577,7 +577,7 @@ func (e *Engine) analyzeAPIEndpointForAuth(endpoint string) *AuthImplementation 
 		authType = AuthTypeJWT
 		name = "JWT API Authentication"
 	}
-	
+
 	impl := &AuthImplementation{
 		ID:           generateImplementationID(endpoint, string(authType)),
 		Name:         name,
@@ -590,7 +590,7 @@ func (e *Engine) analyzeAPIEndpointForAuth(endpoint string) *AuthImplementation 
 		LastSeen:     time.Now(),
 		Metadata:     make(map[string]interface{}),
 	}
-	
+
 	// Create endpoint
 	authEndpoint := AuthEndpoint{
 		ID:         generateEndpointID(endpoint),
@@ -600,9 +600,9 @@ func (e *Engine) analyzeAPIEndpointForAuth(endpoint string) *AuthImplementation 
 		Parameters: []AuthParameter{},
 		Confidence: 0.7,
 	}
-	
+
 	impl.Endpoints = append(impl.Endpoints, authEndpoint)
-	
+
 	return impl
 }
 
@@ -613,16 +613,16 @@ func (e *Engine) convertJSResultToImplementation(result interface{}) *AuthImplem
 	if !ok {
 		return nil
 	}
-	
+
 	if jsResult.Confidence < 0.5 {
 		return nil
 	}
-	
+
 	// Determine auth type from JS discovery
 	var authType AuthType = AuthTypeJavaScript
 	var name string = "JavaScript Authentication"
 	var technologies []string = []string{"JavaScript"}
-	
+
 	if jsResult.OAuth != nil {
 		authType = AuthTypeOAuth2
 		name = "OAuth2 JavaScript Authentication"
@@ -636,7 +636,7 @@ func (e *Engine) convertJSResultToImplementation(result interface{}) *AuthImplem
 		name = "JWT JavaScript Authentication"
 		technologies = append(technologies, "JWT")
 	}
-	
+
 	impl := &AuthImplementation{
 		ID:           generateImplementationID(jsResult.Type, string(authType)),
 		Name:         name,
@@ -649,7 +649,7 @@ func (e *Engine) convertJSResultToImplementation(result interface{}) *AuthImplem
 		LastSeen:     time.Now(),
 		Metadata:     make(map[string]interface{}),
 	}
-	
+
 	// Convert endpoints
 	for _, endpoint := range jsResult.Endpoints {
 		authEndpoint := AuthEndpoint{
@@ -662,7 +662,7 @@ func (e *Engine) convertJSResultToImplementation(result interface{}) *AuthImplem
 		}
 		impl.Endpoints = append(impl.Endpoints, authEndpoint)
 	}
-	
+
 	// Store additional metadata
 	impl.Metadata["js_discovery"] = jsResult
 	if jsResult.OAuth != nil {
@@ -671,7 +671,7 @@ func (e *Engine) convertJSResultToImplementation(result interface{}) *AuthImplem
 	if jsResult.WebAuthn != nil {
 		impl.Metadata["webauthn_config"] = jsResult.WebAuthn
 	}
-	
+
 	return impl
 }
 
@@ -689,7 +689,7 @@ func (e *Engine) createPatternBasedImplementation(page WebPage, pattern AuthEndp
 		LastSeen:     time.Now(),
 		Metadata:     make(map[string]interface{}),
 	}
-	
+
 	// Add pattern-specific technologies
 	switch pattern.Type {
 	case AuthTypeBasicAuth:
@@ -703,7 +703,7 @@ func (e *Engine) createPatternBasedImplementation(page WebPage, pattern AuthEndp
 	case AuthTypeFormLogin:
 		impl.Technologies = []string{"HTML Forms"}
 	}
-	
+
 	// Create endpoint based on pattern match
 	endpoint := AuthEndpoint{
 		ID:         generateEndpointID(page.URL),
@@ -713,10 +713,10 @@ func (e *Engine) createPatternBasedImplementation(page WebPage, pattern AuthEndp
 		Parameters: []AuthParameter{},
 		Confidence: 0.6,
 	}
-	
+
 	impl.Endpoints = append(impl.Endpoints, endpoint)
 	impl.Metadata["pattern_match"] = pattern.PatternStr
-	
+
 	return impl
 }
 
@@ -783,7 +783,7 @@ func extractDomainFromEndpoints(endpoints []string) string {
 	if len(endpoints) == 0 {
 		return ""
 	}
-	
+
 	// Extract domain from the first endpoint
 	return extractDomain(endpoints[0])
 }

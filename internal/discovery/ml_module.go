@@ -222,6 +222,6 @@ func (s *simpleHistoryStore) GetPredictionAccuracy(predictionID string) (float64
 
 // Asset type constants for ML
 const (
-	AssetTypeTechnology    AssetType = "technology"
-	AssetTypeMetadata      AssetType = "metadata"
+	AssetTypeTechnology AssetType = "technology"
+	AssetTypeMetadata   AssetType = "metadata"
 )

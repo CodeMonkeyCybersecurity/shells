@@ -140,7 +140,7 @@ func (p *EnhancedTargetParser) classifyEmail(input string, target *Target) bool 
 		target.Type = TargetTypeEmail
 		target.Value = strings.ToLower(input)
 		target.Confidence = 1.0
-		
+
 		// Extract domain from email
 		parts := strings.Split(input, "@")
 		if len(parts) == 2 {
@@ -157,7 +157,7 @@ func (p *EnhancedTargetParser) classifyURL(input string, target *Target) bool {
 		target.Type = TargetTypeURL
 		target.Value = input
 		target.Confidence = 1.0
-		
+
 		// Parse URL for metadata
 		if u, err := url.Parse(input); err == nil {
 			target.Metadata["scheme"] = u.Scheme
@@ -174,7 +174,7 @@ func (p *EnhancedTargetParser) classifyIPRange(input string, target *Target) boo
 		target.Type = TargetTypeIPRange
 		target.Value = input
 		target.Confidence = 1.0
-		
+
 		// Extract network and CIDR
 		parts := strings.Split(input, "/")
 		if len(parts) == 2 {
@@ -197,7 +197,7 @@ func (p *EnhancedTargetParser) classifyIP(input string, target *Target) bool {
 				break
 			}
 		}
-		
+
 		if valid {
 			target.Type = TargetTypeIP
 			target.Value = input
@@ -212,7 +212,7 @@ func (p *EnhancedTargetParser) classifyDomain(input string, target *Target) bool
 	// Remove protocol if present
 	cleaned := strings.TrimPrefix(strings.TrimPrefix(input, "https://"), "http://")
 	cleaned = strings.Split(cleaned, "/")[0] // Remove path
-	
+
 	if p.patterns[TargetTypeDomain].MatchString(cleaned) {
 		target.Type = TargetTypeDomain
 		target.Value = cleaned

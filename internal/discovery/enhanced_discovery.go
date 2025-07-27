@@ -31,31 +31,31 @@ import (
 
 // EnhancedDiscovery performs comprehensive asset discovery
 type EnhancedDiscovery struct {
-	config          *DiscoveryConfig
-	logger          *logger.Logger
-	searchEngine    *search.SearchEngineDiscovery
-	dnsbruteforcer  *dns.DNSBruteforcer
-	webSpider       *web.WebSpider
-	whoisClient     *whois.WhoisClient
-	asnClient       *asn.ASNClient
-	shodanClient    *external.ShodanClient
-	censysClient    *external.CensysClient
-	awsClient       *cloud.AWSDiscovery
-	azureClient     *cloud.AzureDiscovery
-	gcpClient       *cloud.GCPDiscovery
-	takeoverDetector *takeover.TakeoverDetector
-	portScanner     *portscan.PortScanner
-	vulnCorrelator  *vulnerability.VulnerabilityCorrelator
-	ctLogClient     *certlogs.CTLogClient
+	config            *DiscoveryConfig
+	logger            *logger.Logger
+	searchEngine      *search.SearchEngineDiscovery
+	dnsbruteforcer    *dns.DNSBruteforcer
+	webSpider         *web.WebSpider
+	whoisClient       *whois.WhoisClient
+	asnClient         *asn.ASNClient
+	shodanClient      *external.ShodanClient
+	censysClient      *external.CensysClient
+	awsClient         *cloud.AWSDiscovery
+	azureClient       *cloud.AzureDiscovery
+	gcpClient         *cloud.GCPDiscovery
+	takeoverDetector  *takeover.TakeoverDetector
+	portScanner       *portscan.PortScanner
+	vulnCorrelator    *vulnerability.VulnerabilityCorrelator
+	ctLogClient       *certlogs.CTLogClient
 	techFingerprinter *techstack.TechFingerprinter
-	passiveDNSClient *passivedns.PassiveDNSClient
-	ipv6Discoverer  *ipv6.IPv6Discoverer
-	discoveredAssets map[string]bool
-	assetLock       sync.RWMutex
-	recursionDepth  int
-	maxRecursion    int
-	cache           *cache.APICache
-	rateLimiter     *ratelimit.RateLimiter
+	passiveDNSClient  *passivedns.PassiveDNSClient
+	ipv6Discoverer    *ipv6.IPv6Discoverer
+	discoveredAssets  map[string]bool
+	assetLock         sync.RWMutex
+	recursionDepth    int
+	maxRecursion      int
+	cache             *cache.APICache
+	rateLimiter       *ratelimit.RateLimiter
 }
 
 // NewEnhancedDiscovery creates enhanced discovery module
@@ -63,7 +63,7 @@ func NewEnhancedDiscovery(config *DiscoveryConfig, logger *logger.Logger, cfg *c
 	// Initialize clients with API keys from config
 	var shodanClient *external.ShodanClient
 	var censysClient *external.CensysClient
-	
+
 	if cfg != nil {
 		if cfg.ShodanAPIKey != "" {
 			shodanClient = external.NewShodanClient(cfg.ShodanAPIKey, logger)
@@ -113,29 +113,29 @@ func NewEnhancedDiscovery(config *DiscoveryConfig, logger *logger.Logger, cfg *c
 	ipv6Discoverer := ipv6.NewIPv6Discoverer(logger)
 
 	return &EnhancedDiscovery{
-		config:          config,
-		logger:          logger,
-		searchEngine:    search.NewSearchEngineDiscovery(logger),
-		dnsbruteforcer:  dns.NewDNSBruteforcer(logger),
-		webSpider:       web.NewWebSpider(logger),
-		whoisClient:     whois.NewWhoisClient(logger),
-		asnClient:       asn.NewASNClient(logger),
-		shodanClient:    shodanClient,
-		censysClient:    censysClient,
-		awsClient:       awsDiscovery,
-		azureClient:     azureDiscovery,
-		gcpClient:       gcpDiscovery,
-		takeoverDetector: takeoverDetector,
-		portScanner:     portScanner,
-		vulnCorrelator:  vulnCorrelator,
-		ctLogClient:     ctLogClient,
+		config:            config,
+		logger:            logger,
+		searchEngine:      search.NewSearchEngineDiscovery(logger),
+		dnsbruteforcer:    dns.NewDNSBruteforcer(logger),
+		webSpider:         web.NewWebSpider(logger),
+		whoisClient:       whois.NewWhoisClient(logger),
+		asnClient:         asn.NewASNClient(logger),
+		shodanClient:      shodanClient,
+		censysClient:      censysClient,
+		awsClient:         awsDiscovery,
+		azureClient:       azureDiscovery,
+		gcpClient:         gcpDiscovery,
+		takeoverDetector:  takeoverDetector,
+		portScanner:       portScanner,
+		vulnCorrelator:    vulnCorrelator,
+		ctLogClient:       ctLogClient,
 		techFingerprinter: techFingerprinter,
-		passiveDNSClient: passiveDNSClient,
-		ipv6Discoverer:  ipv6Discoverer,
-		discoveredAssets: make(map[string]bool),
-		maxRecursion:    3,
-		cache:           apiCache,
-		rateLimiter:     rateLimiter,
+		passiveDNSClient:  passiveDNSClient,
+		ipv6Discoverer:    ipv6Discoverer,
+		discoveredAssets:  make(map[string]bool),
+		maxRecursion:      3,
+		cache:             apiCache,
+		rateLimiter:       rateLimiter,
 	}
 }
 
@@ -155,7 +155,7 @@ func (e *EnhancedDiscovery) Discover(ctx context.Context, target *Target, sessio
 		Source:        e.Name(),
 	}
 
-	e.logger.Info("Starting enhanced discovery", 
+	e.logger.Info("Starting enhanced discovery",
 		"target", target.Value,
 		"type", target.Type,
 		"recursion_depth", e.recursionDepth)
@@ -207,7 +207,7 @@ func (e *EnhancedDiscovery) Discover(ctx context.Context, target *Target, sessio
 // discoverDomain performs comprehensive domain discovery
 func (e *EnhancedDiscovery) discoverDomain(ctx context.Context, domain string, result *DiscoveryResult) {
 	var wg sync.WaitGroup
-	
+
 	// DNS brute-forcing
 	if e.config.EnableDNS {
 		wg.Add(1)
@@ -311,21 +311,21 @@ func (e *EnhancedDiscovery) dnsBruteforce(ctx context.Context, domain string, re
 	for _, sub := range subdomains {
 		if !e.isAlreadyDiscovered(sub.Subdomain) {
 			asset := &Asset{
-				Type:       AssetTypeSubdomain,
-				Value:      sub.Subdomain,
-				Domain:     domain,
-				IP:         strings.Join(sub.IPs, ","), // Store multiple IPs as comma-separated
-				Source:     "dns_bruteforce",
-				Confidence: 0.9,
+				Type:         AssetTypeSubdomain,
+				Value:        sub.Subdomain,
+				Domain:       domain,
+				IP:           strings.Join(sub.IPs, ","), // Store multiple IPs as comma-separated
+				Source:       "dns_bruteforce",
+				Confidence:   0.9,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
-				Metadata:   make(map[string]string),
+				LastSeen:     time.Now(),
+				Metadata:     make(map[string]string),
 			}
-			
+
 			if sub.CNAME != "" {
 				asset.Metadata["cname"] = sub.CNAME
 			}
-			
+
 			if sub.Wildcard {
 				asset.Metadata["wildcard"] = "true"
 				asset.Confidence = 0.5
@@ -353,14 +353,14 @@ func (e *EnhancedDiscovery) searchEngineDiscovery(ctx context.Context, domain st
 			}
 
 			asset := &Asset{
-				Type:       assetType,
-				Value:      d,
-				Domain:     domain,
-				Source:     "search_engine",
-				Confidence: 0.7,
+				Type:         assetType,
+				Value:        d,
+				Domain:       domain,
+				Source:       "search_engine",
+				Confidence:   0.7,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
-				Metadata:   map[string]string{"discovery_method": "google_dork"},
+				LastSeen:     time.Now(),
+				Metadata:     map[string]string{"discovery_method": "google_dork"},
 			}
 
 			result.Assets = append(result.Assets, asset)
@@ -381,15 +381,15 @@ func (e *EnhancedDiscovery) webCrawl(ctx context.Context, url string, result *Di
 		// Add URL as asset
 		if !e.isAlreadyDiscovered(crawl.URL) {
 			asset := &Asset{
-				Type:       AssetTypeURL,
-				Value:      crawl.URL,
-				Title:      crawl.Title,
-				Technology: crawl.Technologies,
-				Source:     "web_crawler",
-				Confidence: 0.95,
+				Type:         AssetTypeURL,
+				Value:        crawl.URL,
+				Title:        crawl.Title,
+				Technology:   crawl.Technologies,
+				Source:       "web_crawler",
+				Confidence:   0.95,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
-				Metadata:   map[string]string{
+				LastSeen:     time.Now(),
+				Metadata: map[string]string{
 					"status_code": fmt.Sprintf("%d", crawl.StatusCode),
 				},
 			}
@@ -402,13 +402,13 @@ func (e *EnhancedDiscovery) webCrawl(ctx context.Context, url string, result *Di
 		for _, subdomain := range crawl.Subdomains {
 			if !e.isAlreadyDiscovered(subdomain) {
 				asset := &Asset{
-					Type:       AssetTypeSubdomain,
-					Value:      subdomain,
-					Source:     "web_crawler",
-					Confidence: 0.8,
+					Type:         AssetTypeSubdomain,
+					Value:        subdomain,
+					Source:       "web_crawler",
+					Confidence:   0.8,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
-					Metadata:   map[string]string{"found_on": crawl.URL},
+					LastSeen:     time.Now(),
+					Metadata:     map[string]string{"found_on": crawl.URL},
 				}
 
 				result.Assets = append(result.Assets, asset)
@@ -420,13 +420,13 @@ func (e *EnhancedDiscovery) webCrawl(ctx context.Context, url string, result *Di
 		for _, api := range crawl.APIs {
 			if !e.isAlreadyDiscovered(api) {
 				asset := &Asset{
-					Type:       AssetTypeAPI,
-					Value:      api,
-					Source:     "web_crawler",
-					Confidence: 0.85,
+					Type:         AssetTypeAPI,
+					Value:        api,
+					Source:       "web_crawler",
+					Confidence:   0.85,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
-					Metadata:   map[string]string{"found_on": crawl.URL},
+					LastSeen:     time.Now(),
+					Metadata:     map[string]string{"found_on": crawl.URL},
 				}
 
 				result.Assets = append(result.Assets, asset)
@@ -438,13 +438,13 @@ func (e *EnhancedDiscovery) webCrawl(ctx context.Context, url string, result *Di
 		for _, email := range crawl.Emails {
 			if !e.isAlreadyDiscovered(email) {
 				asset := &Asset{
-					Type:       AssetTypeEmail,
-					Value:      email,
-					Source:     "web_crawler",
-					Confidence: 0.9,
+					Type:         AssetTypeEmail,
+					Value:        email,
+					Source:       "web_crawler",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
-					Metadata:   map[string]string{"found_on": crawl.URL},
+					LastSeen:     time.Now(),
+					Metadata:     map[string]string{"found_on": crawl.URL},
 				}
 
 				result.Assets = append(result.Assets, asset)
@@ -466,15 +466,15 @@ func (e *EnhancedDiscovery) whoisLookup(ctx context.Context, domain string, resu
 	for _, related := range whoisResult.RelatedDomains {
 		if !e.isAlreadyDiscovered(related) {
 			asset := &Asset{
-				Type:       AssetTypeDomain,
-				Value:      related,
-				Source:     "whois",
-				Confidence: 0.75,
+				Type:         AssetTypeDomain,
+				Value:        related,
+				Source:       "whois",
+				Confidence:   0.75,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
+				LastSeen:     time.Now(),
 				Metadata: map[string]string{
 					"registrant_org": whoisResult.RegistrantOrg,
-					"registrar": whoisResult.Registrar,
+					"registrar":      whoisResult.Registrar,
 				},
 			}
 
@@ -487,14 +487,14 @@ func (e *EnhancedDiscovery) whoisLookup(ctx context.Context, domain string, resu
 	for _, email := range whoisResult.RelatedEmails {
 		if !e.isAlreadyDiscovered(email) {
 			asset := &Asset{
-				Type:       AssetTypeEmail,
-				Value:      email,
-				Source:     "whois",
-				Confidence: 0.9,
+				Type:         AssetTypeEmail,
+				Value:        email,
+				Source:       "whois",
+				Confidence:   0.9,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
+				LastSeen:     time.Now(),
 				Metadata: map[string]string{
-					"domain": domain,
+					"domain":         domain,
 					"registrant_org": whoisResult.RegistrantOrg,
 				},
 			}
@@ -517,20 +517,20 @@ func (e *EnhancedDiscovery) shodanSearch(ctx context.Context, domain string, res
 		// Add IP
 		if !e.isAlreadyDiscovered(host.IP) {
 			asset := &Asset{
-				Type:       AssetTypeIP,
-				Value:      host.IP,
-				Domain:     domain,
-				IP:         host.IP,
-				Source:     "shodan",
-				Confidence: 0.95,
+				Type:         AssetTypeIP,
+				Value:        host.IP,
+				Domain:       domain,
+				IP:           host.IP,
+				Source:       "shodan",
+				Confidence:   0.95,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
+				LastSeen:     time.Now(),
 				Metadata: map[string]string{
-					"asn": host.ASN,
-					"isp": host.ISP,
-					"org": host.Org,
+					"asn":     host.ASN,
+					"isp":     host.ISP,
+					"org":     host.Org,
 					"country": host.Country,
-					"city": host.City,
+					"city":    host.City,
 				},
 			}
 
@@ -556,14 +556,14 @@ func (e *EnhancedDiscovery) shodanSearch(ctx context.Context, domain string, res
 				}
 
 				asset := &Asset{
-					Type:       assetType,
-					Value:      hostname,
-					Domain:     domain,
-					IP:         host.IP,
-					Source:     "shodan",
-					Confidence: 0.9,
+					Type:         assetType,
+					Value:        hostname,
+					Domain:       domain,
+					IP:           host.IP,
+					Source:       "shodan",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
 						"ip": host.IP,
 					},
@@ -587,19 +587,19 @@ func (e *EnhancedDiscovery) censysSearch(ctx context.Context, domain string, res
 	for _, hit := range hits {
 		if !e.isAlreadyDiscovered(hit.IP) {
 			asset := &Asset{
-				Type:       AssetTypeIP,
-				Value:      hit.IP,
-				Domain:     domain,
-				IP:         hit.IP,
-				Source:     "censys",
-				Confidence: 0.95,
+				Type:         AssetTypeIP,
+				Value:        hit.IP,
+				Domain:       domain,
+				IP:           hit.IP,
+				Source:       "censys",
+				Confidence:   0.95,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
+				LastSeen:     time.Now(),
 				Metadata: map[string]string{
-					"asn": fmt.Sprintf("%d", hit.AutonomousSystem.ASN),
+					"asn":     fmt.Sprintf("%d", hit.AutonomousSystem.ASN),
 					"as_name": hit.AutonomousSystem.Name,
 					"country": hit.Location.Country,
-					"city": hit.Location.City,
+					"city":    hit.Location.City,
 				},
 			}
 
@@ -634,27 +634,27 @@ func (e *EnhancedDiscovery) awsDiscovery(ctx context.Context, domain string, res
 		for _, bucket := range buckets {
 			if !e.isAlreadyDiscovered(bucket.Name) {
 				asset := &Asset{
-					Type:       AssetTypeCloudStorage,
-					Value:      bucket.Name,
-					Domain:     domain,
-					Source:     "aws_s3",
-					Confidence: 0.9,
+					Type:         AssetTypeCloudStorage,
+					Value:        bucket.Name,
+					Domain:       domain,
+					Source:       "aws_s3",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "aws",
-						"service": "s3",
-						"url": bucket.URL,
-						"region": bucket.Region,
-						"public": fmt.Sprintf("%v", bucket.IsPublic),
+						"provider":    "aws",
+						"service":     "s3",
+						"url":         bucket.URL,
+						"region":      bucket.Region,
+						"public":      fmt.Sprintf("%v", bucket.IsPublic),
 						"has_listing": fmt.Sprintf("%v", bucket.HasListing),
 					},
 				}
-				
+
 				if bucket.IsPublic {
 					asset.Tags = append(asset.Tags, "public", "exposed")
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(bucket.Name)
 			}
@@ -669,20 +669,20 @@ func (e *EnhancedDiscovery) awsDiscovery(ctx context.Context, domain string, res
 		for _, dist := range distributions {
 			if !e.isAlreadyDiscovered(dist.Domain) {
 				asset := &Asset{
-					Type:       AssetTypeCDN,
-					Value:      dist.Domain,
-					Domain:     domain,
-					Source:     "aws_cloudfront",
-					Confidence: 0.9,
+					Type:         AssetTypeCDN,
+					Value:        dist.Domain,
+					Domain:       domain,
+					Source:       "aws_cloudfront",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
 						"provider": "aws",
-						"service": "cloudfront",
-						"active": fmt.Sprintf("%v", dist.IsActive),
+						"service":  "cloudfront",
+						"active":   fmt.Sprintf("%v", dist.IsActive),
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(dist.Domain)
 			}
@@ -697,21 +697,21 @@ func (e *EnhancedDiscovery) awsDiscovery(ctx context.Context, domain string, res
 		for _, app := range ebApps {
 			if !e.isAlreadyDiscovered(app.URL) {
 				asset := &Asset{
-					Type:       AssetTypeWebApp,
-					Value:      app.URL,
-					Domain:     domain,
-					Source:     "aws_elastic_beanstalk",
-					Confidence: 0.9,
+					Type:         AssetTypeWebApp,
+					Value:        app.URL,
+					Domain:       domain,
+					Source:       "aws_elastic_beanstalk",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
 						"provider": "aws",
-						"service": "elastic_beanstalk",
+						"service":  "elastic_beanstalk",
 						"app_name": app.Name,
-						"region": app.Region,
+						"region":   app.Region,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(app.URL)
 			}
@@ -726,21 +726,21 @@ func (e *EnhancedDiscovery) awsDiscovery(ctx context.Context, domain string, res
 		for _, lambda := range lambdas {
 			if !e.isAlreadyDiscovered(lambda.URL) {
 				asset := &Asset{
-					Type:       AssetTypeAPI,
-					Value:      lambda.URL,
-					Domain:     domain,
-					Source:     "aws_lambda",
-					Confidence: 0.8,
+					Type:         AssetTypeAPI,
+					Value:        lambda.URL,
+					Domain:       domain,
+					Source:       "aws_lambda",
+					Confidence:   0.8,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "aws",
-						"service": "lambda",
+						"provider":      "aws",
+						"service":       "lambda",
 						"function_name": lambda.Name,
-						"region": lambda.Region,
+						"region":        lambda.Region,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(lambda.URL)
 			}
@@ -765,28 +765,28 @@ func (e *EnhancedDiscovery) azureDiscovery(ctx context.Context, domain string, r
 			containerID := fmt.Sprintf("%s/%s", container.AccountName, container.ContainerName)
 			if !e.isAlreadyDiscovered(containerID) {
 				asset := &Asset{
-					Type:       AssetTypeCloudStorage,
-					Value:      containerID,
-					Domain:     domain,
-					Source:     "azure_blob",
-					Confidence: 0.9,
+					Type:         AssetTypeCloudStorage,
+					Value:        containerID,
+					Domain:       domain,
+					Source:       "azure_blob",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "azure",
-						"service": "blob_storage",
-						"account": container.AccountName,
-						"container": container.ContainerName,
-						"url": container.URL,
-						"public": fmt.Sprintf("%v", container.IsPublic),
+						"provider":    "azure",
+						"service":     "blob_storage",
+						"account":     container.AccountName,
+						"container":   container.ContainerName,
+						"url":         container.URL,
+						"public":      fmt.Sprintf("%v", container.IsPublic),
 						"has_listing": fmt.Sprintf("%v", container.HasListing),
 					},
 				}
-				
+
 				if container.IsPublic {
 					asset.Tags = append(asset.Tags, "public", "exposed")
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(containerID)
 			}
@@ -801,20 +801,20 @@ func (e *EnhancedDiscovery) azureDiscovery(ctx context.Context, domain string, r
 		for _, app := range apps {
 			if !e.isAlreadyDiscovered(app.URL) {
 				asset := &Asset{
-					Type:       AssetTypeWebApp,
-					Value:      app.URL,
-					Domain:     domain,
-					Source:     "azure_app_service",
-					Confidence: 0.9,
+					Type:         AssetTypeWebApp,
+					Value:        app.URL,
+					Domain:       domain,
+					Source:       "azure_app_service",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
 						"provider": "azure",
-						"service": app.Type,
+						"service":  app.Type,
 						"app_name": app.Name,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(app.URL)
 			}
@@ -829,25 +829,25 @@ func (e *EnhancedDiscovery) azureDiscovery(ctx context.Context, domain string, r
 		for _, registry := range registries {
 			if !e.isAlreadyDiscovered(registry.URL) {
 				asset := &Asset{
-					Type:       AssetTypeContainerRegistry,
-					Value:      registry.URL,
-					Domain:     domain,
-					Source:     "azure_container_registry",
-					Confidence: 0.9,
+					Type:         AssetTypeContainerRegistry,
+					Value:        registry.URL,
+					Domain:       domain,
+					Source:       "azure_container_registry",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "azure",
-						"service": "container_registry",
+						"provider":      "azure",
+						"service":       "container_registry",
 						"registry_name": registry.Name,
-						"public": fmt.Sprintf("%v", registry.IsPublic),
+						"public":        fmt.Sprintf("%v", registry.IsPublic),
 					},
 				}
-				
+
 				if registry.IsPublic {
 					asset.Tags = append(asset.Tags, "public")
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(registry.URL)
 			}
@@ -862,20 +862,20 @@ func (e *EnhancedDiscovery) azureDiscovery(ctx context.Context, domain string, r
 		for _, function := range functions {
 			if !e.isAlreadyDiscovered(function.URL) {
 				asset := &Asset{
-					Type:       AssetTypeAPI,
-					Value:      function.URL,
-					Domain:     domain,
-					Source:     "azure_functions",
-					Confidence: 0.8,
+					Type:         AssetTypeAPI,
+					Value:        function.URL,
+					Domain:       domain,
+					Source:       "azure_functions",
+					Confidence:   0.8,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "azure",
-						"service": "functions",
+						"provider":     "azure",
+						"service":      "functions",
 						"function_app": function.Name,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(function.URL)
 			}
@@ -899,26 +899,26 @@ func (e *EnhancedDiscovery) gcpDiscovery(ctx context.Context, domain string, res
 		for _, bucket := range buckets {
 			if !e.isAlreadyDiscovered(bucket.Name) {
 				asset := &Asset{
-					Type:       AssetTypeCloudStorage,
-					Value:      bucket.Name,
-					Domain:     domain,
-					Source:     "gcp_gcs",
-					Confidence: 0.9,
+					Type:         AssetTypeCloudStorage,
+					Value:        bucket.Name,
+					Domain:       domain,
+					Source:       "gcp_gcs",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "gcp",
-						"service": "cloud_storage",
-						"url": bucket.URL,
-						"public": fmt.Sprintf("%v", bucket.IsPublic),
+						"provider":    "gcp",
+						"service":     "cloud_storage",
+						"url":         bucket.URL,
+						"public":      fmt.Sprintf("%v", bucket.IsPublic),
 						"has_listing": fmt.Sprintf("%v", bucket.HasListing),
 					},
 				}
-				
+
 				if bucket.IsPublic {
 					asset.Tags = append(asset.Tags, "public", "exposed")
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(bucket.Name)
 			}
@@ -933,21 +933,21 @@ func (e *EnhancedDiscovery) gcpDiscovery(ctx context.Context, domain string, res
 		for _, app := range appEngines {
 			if !e.isAlreadyDiscovered(app.URL) {
 				asset := &Asset{
-					Type:       AssetTypeWebApp,
-					Value:      app.URL,
-					Domain:     domain,
-					Source:     "gcp_app_engine",
-					Confidence: 0.9,
+					Type:         AssetTypeWebApp,
+					Value:        app.URL,
+					Domain:       domain,
+					Source:       "gcp_app_engine",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "gcp",
-						"service": "app_engine",
+						"provider":   "gcp",
+						"service":    "app_engine",
 						"project_id": app.ProjectID,
-						"region": app.Region,
+						"region":     app.Region,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(app.URL)
 			}
@@ -962,21 +962,21 @@ func (e *EnhancedDiscovery) gcpDiscovery(ctx context.Context, domain string, res
 		for _, service := range cloudRuns {
 			if !e.isAlreadyDiscovered(service.URL) {
 				asset := &Asset{
-					Type:       AssetTypeWebApp,
-					Value:      service.URL,
-					Domain:     domain,
-					Source:     "gcp_cloud_run",
-					Confidence: 0.9,
+					Type:         AssetTypeWebApp,
+					Value:        service.URL,
+					Domain:       domain,
+					Source:       "gcp_cloud_run",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "gcp",
-						"service": "cloud_run",
+						"provider":     "gcp",
+						"service":      "cloud_run",
 						"service_name": service.Name,
-						"region": service.Region,
+						"region":       service.Region,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(service.URL)
 			}
@@ -991,22 +991,22 @@ func (e *EnhancedDiscovery) gcpDiscovery(ctx context.Context, domain string, res
 		for _, function := range cloudFunctions {
 			if !e.isAlreadyDiscovered(function.URL) {
 				asset := &Asset{
-					Type:       AssetTypeAPI,
-					Value:      function.URL,
-					Domain:     domain,
-					Source:     "gcp_cloud_functions",
-					Confidence: 0.8,
+					Type:         AssetTypeAPI,
+					Value:        function.URL,
+					Domain:       domain,
+					Source:       "gcp_cloud_functions",
+					Confidence:   0.8,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "gcp",
-						"service": "cloud_functions",
+						"provider":      "gcp",
+						"service":       "cloud_functions",
 						"function_name": function.Name,
-						"project_id": function.ProjectID,
-						"region": function.Region,
+						"project_id":    function.ProjectID,
+						"region":        function.Region,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(function.URL)
 			}
@@ -1021,21 +1021,21 @@ func (e *EnhancedDiscovery) gcpDiscovery(ctx context.Context, domain string, res
 		for _, app := range firebaseApps {
 			if !e.isAlreadyDiscovered(app.URL) {
 				asset := &Asset{
-					Type:       AssetTypeWebApp,
-					Value:      app.URL,
-					Domain:     domain,
-					Source:     "gcp_firebase",
-					Confidence: 0.9,
+					Type:         AssetTypeWebApp,
+					Value:        app.URL,
+					Domain:       domain,
+					Source:       "gcp_firebase",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
+					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"provider": "gcp",
-						"service": "firebase",
-						"project_id": app.ProjectID,
+						"provider":      "gcp",
+						"service":       "firebase",
+						"project_id":    app.ProjectID,
 						"firebase_type": app.Type,
 					},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(app.URL)
 			}
@@ -1051,15 +1051,15 @@ func (e *EnhancedDiscovery) discoverIP(ctx context.Context, ip string, result *D
 		// Add organization info
 		if ipWhois.Organization != "" {
 			asset := &Asset{
-				Type:       AssetTypeOrganization,
-				Value:      ipWhois.Organization,
-				Source:     "whois",
-				Confidence: 0.8,
+				Type:         AssetTypeOrganization,
+				Value:        ipWhois.Organization,
+				Source:       "whois",
+				Confidence:   0.8,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
+				LastSeen:     time.Now(),
 				Metadata: map[string]string{
-					"ip": ip,
-					"asn": ipWhois.ASN,
+					"ip":       ip,
+					"asn":      ipWhois.ASN,
 					"netblock": ipWhois.NetBlock,
 				},
 			}
@@ -1079,14 +1079,14 @@ func (e *EnhancedDiscovery) discoverIP(ctx context.Context, ip string, result *D
 			name = strings.TrimSuffix(name, ".")
 			if !e.isAlreadyDiscovered(name) {
 				asset := &Asset{
-					Type:       AssetTypeDomain,
-					Value:      name,
-					IP:         ip,
-					Source:     "reverse_dns",
-					Confidence: 0.9,
+					Type:         AssetTypeDomain,
+					Value:        name,
+					IP:           ip,
+					Source:       "reverse_dns",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
-					Metadata: map[string]string{"ip": ip},
+					LastSeen:     time.Now(),
+					Metadata:     map[string]string{"ip": ip},
 				}
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(name)
@@ -1101,13 +1101,13 @@ func (e *EnhancedDiscovery) discoverIP(ctx context.Context, ip string, result *D
 			for _, hostname := range host.Hostnames {
 				if !e.isAlreadyDiscovered(hostname) {
 					asset := &Asset{
-						Type:       AssetTypeDomain,
-						Value:      hostname,
-						IP:         ip,
-						Source:     "shodan",
-						Confidence: 0.9,
+						Type:         AssetTypeDomain,
+						Value:        hostname,
+						IP:           ip,
+						Source:       "shodan",
+						Confidence:   0.9,
 						DiscoveredAt: time.Now(),
-						LastSeen:   time.Now(),
+						LastSeen:     time.Now(),
 					}
 					result.Assets = append(result.Assets, asset)
 					e.markAsDiscovered(hostname)
@@ -1140,14 +1140,14 @@ func (e *EnhancedDiscovery) discoverASN(ctx context.Context, asnStr string, resu
 	// Add organization
 	if asnInfo.Organization != "" && !e.isAlreadyDiscovered(asnInfo.Organization) {
 		asset := &Asset{
-			Type:       AssetTypeOrganization,
-			Value:      asnInfo.Organization,
-			Source:     "asn",
-			Confidence: 0.85,
+			Type:         AssetTypeOrganization,
+			Value:        asnInfo.Organization,
+			Source:       "asn",
+			Confidence:   0.85,
 			DiscoveredAt: time.Now(),
-			LastSeen:   time.Now(),
+			LastSeen:     time.Now(),
 			Metadata: map[string]string{
-				"asn": fmt.Sprintf("AS%d", asn),
+				"asn":     fmt.Sprintf("AS%d", asn),
 				"country": asnInfo.Country,
 			},
 		}
@@ -1159,12 +1159,12 @@ func (e *EnhancedDiscovery) discoverASN(ctx context.Context, asnStr string, resu
 	for _, prefix := range asnInfo.Prefixes {
 		if !e.isAlreadyDiscovered(prefix) {
 			asset := &Asset{
-				Type:       AssetTypeIPRange,
-				Value:      prefix,
-				Source:     "asn",
-				Confidence: 0.95,
+				Type:         AssetTypeIPRange,
+				Value:        prefix,
+				Source:       "asn",
+				Confidence:   0.95,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
+				LastSeen:     time.Now(),
 				Metadata: map[string]string{
 					"asn": fmt.Sprintf("AS%d", asn),
 					"org": asnInfo.Organization,
@@ -1192,13 +1192,13 @@ func (e *EnhancedDiscovery) discoverCompany(ctx context.Context, company string,
 		for _, domain := range domains {
 			if !e.isAlreadyDiscovered(domain) {
 				asset := &Asset{
-					Type:       AssetTypeDomain,
-					Value:      domain,
-					Source:     "search_engine",
-					Confidence: 0.6,
+					Type:         AssetTypeDomain,
+					Value:        domain,
+					Source:       "search_engine",
+					Confidence:   0.6,
 					DiscoveredAt: time.Now(),
-					LastSeen:   time.Now(),
-					Metadata: map[string]string{"company": company},
+					LastSeen:     time.Now(),
+					Metadata:     map[string]string{"company": company},
 				}
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(domain)
@@ -1213,15 +1213,15 @@ func (e *EnhancedDiscovery) discoverCompany(ctx context.Context, company string,
 			for _, host := range hosts {
 				if !e.isAlreadyDiscovered(host.IP) {
 					asset := &Asset{
-						Type:       AssetTypeIP,
-						Value:      host.IP,
-						IP:         host.IP,
-						Source:     "shodan",
-						Confidence: 0.8,
+						Type:         AssetTypeIP,
+						Value:        host.IP,
+						IP:           host.IP,
+						Source:       "shodan",
+						Confidence:   0.8,
 						DiscoveredAt: time.Now(),
-						LastSeen:   time.Now(),
+						LastSeen:     time.Now(),
 						Metadata: map[string]string{
-							"org": host.Org,
+							"org":            host.Org,
 							"company_search": company,
 						},
 					}
@@ -1242,20 +1242,20 @@ func (e *EnhancedDiscovery) discoverEmail(ctx context.Context, email string, res
 	}
 
 	domain := parts[1]
-	
+
 	// Discover the domain
 	e.discoverDomain(ctx, domain, result)
 
 	// Add the domain itself
 	if !e.isAlreadyDiscovered(domain) {
 		asset := &Asset{
-			Type:       AssetTypeDomain,
-			Value:      domain,
-			Source:     "email",
-			Confidence: 0.95,
+			Type:         AssetTypeDomain,
+			Value:        domain,
+			Source:       "email",
+			Confidence:   0.95,
 			DiscoveredAt: time.Now(),
-			LastSeen:   time.Now(),
-			Metadata: map[string]string{"email": email},
+			LastSeen:     time.Now(),
+			Metadata:     map[string]string{"email": email},
 		}
 		result.Assets = append(result.Assets, asset)
 		e.markAsDiscovered(domain)
@@ -1267,12 +1267,12 @@ func (e *EnhancedDiscovery) discoverIPRange(ctx context.Context, ipRange string,
 	// For now, just add the range itself
 	// In a full implementation, this would scan the range
 	asset := &Asset{
-		Type:       AssetTypeIPRange,
-		Value:      ipRange,
-		Source:     "input",
-		Confidence: 1.0,
+		Type:         AssetTypeIPRange,
+		Value:        ipRange,
+		Source:       "input",
+		Confidence:   1.0,
 		DiscoveredAt: time.Now(),
-		LastSeen:   time.Now(),
+		LastSeen:     time.Now(),
 	}
 	result.Assets = append(result.Assets, asset)
 }
@@ -1284,7 +1284,7 @@ func (e *EnhancedDiscovery) recursiveDiscovery(ctx context.Context, result *Disc
 
 	// Create new targets from discovered assets
 	var newTargets []*Target
-	
+
 	for _, asset := range result.Assets {
 		// Skip if already fully discovered
 		if e.isFullyDiscovered(asset.Value) {
@@ -1361,39 +1361,39 @@ func (e *EnhancedDiscovery) isFullyDiscovered(value string) bool {
 // checkSubdomainTakeovers checks discovered subdomains for takeover vulnerabilities
 func (e *EnhancedDiscovery) checkSubdomainTakeovers(ctx context.Context, result *DiscoveryResult) {
 	var subdomains []string
-	
+
 	// Collect all subdomains from results
 	for _, asset := range result.Assets {
 		if asset.Type == AssetTypeSubdomain || asset.Type == AssetTypeDomain {
 			subdomains = append(subdomains, asset.Value)
 		}
 	}
-	
+
 	if len(subdomains) == 0 {
 		return
 	}
-	
+
 	e.logger.Info("Checking subdomains for takeover vulnerabilities", "count", len(subdomains))
-	
+
 	// Check for takeovers
 	takeovers, err := e.takeoverDetector.BulkCheck(ctx, subdomains)
 	if err != nil {
 		e.logger.Error("Subdomain takeover check failed", "error", err)
 		return
 	}
-	
+
 	// Add vulnerable subdomains as special assets
 	for _, takeover := range takeovers {
 		if takeover.Vulnerable {
 			vulnAsset := &Asset{
-				Type:       AssetTypeVulnerability,
-				Value:      fmt.Sprintf("Subdomain Takeover: %s", takeover.Subdomain),
-				Domain:     takeover.Subdomain,
-				Source:     "takeover_detector",
-				Confidence: 0.95,
+				Type:         AssetTypeVulnerability,
+				Value:        fmt.Sprintf("Subdomain Takeover: %s", takeover.Subdomain),
+				Domain:       takeover.Subdomain,
+				Source:       "takeover_detector",
+				Confidence:   0.95,
 				DiscoveredAt: time.Now(),
-				LastSeen:   time.Now(),
-				Tags:       []string{"vulnerability", "takeover", takeover.Severity},
+				LastSeen:     time.Now(),
+				Tags:         []string{"vulnerability", "takeover", takeover.Severity},
 				Metadata: map[string]string{
 					"subdomain":     takeover.Subdomain,
 					"service":       takeover.Service,
@@ -1403,9 +1403,9 @@ func (e *EnhancedDiscovery) checkSubdomainTakeovers(ctx context.Context, result 
 					"evidence":      strings.Join(takeover.Evidence, "; "),
 				},
 			}
-			
+
 			result.Assets = append(result.Assets, vulnAsset)
-			
+
 			// Create relationship between subdomain and vulnerability
 			rel := &Relationship{
 				ID:     fmt.Sprintf("takeover-%s", takeover.Subdomain),
@@ -1415,17 +1415,17 @@ func (e *EnhancedDiscovery) checkSubdomainTakeovers(ctx context.Context, result 
 				Weight: 1.0,
 				Metadata: map[string]string{
 					"vulnerability_type": "subdomain_takeover",
-					"service": takeover.Service,
+					"service":            takeover.Service,
 				},
 				CreatedAt: time.Now(),
 			}
-			
+
 			result.Relationships = append(result.Relationships, rel)
 		}
 	}
-	
+
 	if len(takeovers) > 0 {
-		e.logger.Info("Subdomain takeover vulnerabilities found", 
+		e.logger.Info("Subdomain takeover vulnerabilities found",
 			"vulnerable", len(takeovers),
 			"total_checked", len(subdomains))
 	}
@@ -1443,7 +1443,7 @@ func (e *EnhancedDiscovery) portScanDiscovery(ctx context.Context, result *Disco
 
 	for _, asset := range result.Assets {
 		var target string
-		
+
 		switch asset.Type {
 		case AssetTypeIP:
 			target = asset.Value
@@ -1501,13 +1501,13 @@ func (e *EnhancedDiscovery) portScanDiscovery(ctx context.Context, result *Disco
 			// Check if it's a web service
 			if isWebPort(port.Port) {
 				portAsset.Tags = append(portAsset.Tags, "web", "http")
-				
+
 				// Create URL asset for web services
 				scheme := "http"
 				if port.Port == 443 || port.Port == 8443 {
 					scheme = "https"
 				}
-				
+
 				urlAsset := &Asset{
 					Type:         AssetTypeURL,
 					Value:        fmt.Sprintf("%s://%s:%d", scheme, scanResult.Host, port.Port),
@@ -1519,7 +1519,7 @@ func (e *EnhancedDiscovery) portScanDiscovery(ctx context.Context, result *Disco
 					LastSeen:     time.Now(),
 					Tags:         []string{"web", "discovered"},
 				}
-				
+
 				result.Assets = append(result.Assets, urlAsset)
 			}
 
@@ -1533,7 +1533,7 @@ func (e *EnhancedDiscovery) portScanDiscovery(ctx context.Context, result *Disco
 		}
 	}
 
-	e.logger.Info("Port scan completed", 
+	e.logger.Info("Port scan completed",
 		"hosts_scanned", len(scanResults),
 		"ports_discovered", countOpenPorts(scanResults))
 }
@@ -1554,18 +1554,18 @@ func isWebPort(port int) bool {
 // Helper function to check if port is high-value
 func isHighValuePort(port int) bool {
 	highValuePorts := map[int]bool{
-		22: true,   // SSH
-		23: true,   // Telnet
-		25: true,   // SMTP
-		110: true,  // POP3
-		143: true,  // IMAP
-		389: true,  // LDAP
-		445: true,  // SMB
-		1433: true, // MSSQL
-		3306: true, // MySQL
-		3389: true, // RDP
-		5432: true, // PostgreSQL
-		5900: true, // VNC
+		22:    true, // SSH
+		23:    true, // Telnet
+		25:    true, // SMTP
+		110:   true, // POP3
+		143:   true, // IMAP
+		389:   true, // LDAP
+		445:   true, // SMB
+		1433:  true, // MSSQL
+		3306:  true, // MySQL
+		3389:  true, // RDP
+		5432:  true, // PostgreSQL
+		5900:  true, // VNC
 		27017: true, // MongoDB
 	}
 	return highValuePorts[port]
@@ -1608,12 +1608,12 @@ func (e *EnhancedDiscovery) certLogDiscovery(ctx context.Context, domain string,
 					},
 					Tags: []string{"ct-discovered"},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(subdomain)
 			}
 		}
-		
+
 		e.logger.Info("CT log subdomain discovery completed",
 			"domain", domain,
 			"subdomains_found", len(subdomains))
@@ -1641,7 +1641,7 @@ func (e *EnhancedDiscovery) certLogDiscovery(ctx context.Context, domain string,
 				DiscoveredAt: cert.LogEntry.DiscoveredAt,
 				LastSeen:     time.Now(),
 				Metadata: map[string]string{
-					"subject_cn":     cert.SubjectCN,
+					"subject_cn":    cert.SubjectCN,
 					"issuer":        cert.Issuer,
 					"serial_number": cert.SerialNumber,
 					"not_before":    cert.NotBefore.Format(time.RFC3339),
@@ -1684,8 +1684,8 @@ func (e *EnhancedDiscovery) certLogDiscovery(ctx context.Context, domain string,
 			LastSeen:     time.Now(),
 			Metadata: map[string]string{
 				"total_certificates": fmt.Sprintf("%d", certHistory.TotalCerts),
-				"active_certs":      fmt.Sprintf("%d", certHistory.ActiveCerts),
-				"expired_certs":     fmt.Sprintf("%d", certHistory.ExpiredCerts),
+				"active_certs":       fmt.Sprintf("%d", certHistory.ActiveCerts),
+				"expired_certs":      fmt.Sprintf("%d", certHistory.ExpiredCerts),
 			},
 		}
 
@@ -1720,7 +1720,7 @@ func (e *EnhancedDiscovery) certLogDiscovery(ctx context.Context, domain string,
 							LastSeen:     time.Now(),
 							Metadata: map[string]string{
 								"wildcard_cert": "true",
-								"issuer":       cert.Issuer,
+								"issuer":        cert.Issuer,
 							},
 							Tags: []string{"wildcard-domain"},
 						}
@@ -1761,12 +1761,12 @@ func (e *EnhancedDiscovery) passiveDNSDiscovery(ctx context.Context, domain stri
 					},
 					Tags: []string{"passive-dns"},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(subdomain)
 			}
 		}
-		
+
 		e.logger.Info("Passive DNS subdomain discovery completed",
 			"domain", domain,
 			"subdomains_found", len(subdomains))
@@ -1789,17 +1789,17 @@ func (e *EnhancedDiscovery) passiveDNSDiscovery(ctx context.Context, domain stri
 					DiscoveredAt: time.Now(),
 					LastSeen:     time.Now(),
 					Metadata: map[string]string{
-						"discovery_method": "passive_dns_history",
+						"discovery_method":  "passive_dns_history",
 						"associated_domain": domain,
 					},
 					Tags: []string{"passive-dns", "historical"},
 				}
-				
+
 				result.Assets = append(result.Assets, asset)
 				e.markAsDiscovered(ip)
 			}
 		}
-		
+
 		e.logger.Info("Passive DNS IP history discovery completed",
 			"domain", domain,
 			"ips_found", len(ipHistory))
@@ -1828,7 +1828,7 @@ func (e *EnhancedDiscovery) passiveDNSDiscovery(ctx context.Context, domain stri
 			// Add timeline statistics
 			recordTypes := make(map[string]int)
 			sources := make(map[string]int)
-			
+
 			for _, record := range timeline {
 				recordTypes[record.Type]++
 				sources[record.Source]++
@@ -1875,7 +1875,7 @@ func (e *EnhancedDiscovery) passiveDNSDiscovery(ctx context.Context, domain stri
 					DiscoveredAt: time.Now(),
 					LastSeen:     record.LastSeen,
 					Metadata: map[string]string{
-						"record_type":   record.Type,
+						"record_type":  record.Type,
 						"query":        record.Query,
 						"answer":       record.Answer,
 						"ttl":          fmt.Sprintf("%d", record.TTL),
@@ -2018,10 +2018,10 @@ func (e *EnhancedDiscovery) ipv6Discovery(ctx context.Context, domain string, re
 				DiscoveredAt: network.Discovered,
 				LastSeen:     time.Now(),
 				Metadata: map[string]string{
-					"ip_version":   "6",
-					"prefix":       fmt.Sprintf("%d", network.Prefix),
+					"ip_version":    "6",
+					"prefix":        fmt.Sprintf("%d", network.Prefix),
 					"address_count": fmt.Sprintf("%d", len(network.Addresses)),
-					"description":  network.Description,
+					"description":   network.Description,
 				},
 				Tags: []string{"ipv6", "network"},
 			}
@@ -2052,8 +2052,8 @@ func (e *EnhancedDiscovery) ipv6Discovery(ctx context.Context, domain string, re
 						LastSeen:     time.Now(),
 						Metadata: map[string]string{
 							"ip_version":      "6",
-							"type":           ipv6Trans.Type,
-							"source_ipv4":    asset.IP,
+							"type":            ipv6Trans.Type,
+							"source_ipv4":     asset.IP,
 							"transition_type": ipv6Trans.Type,
 						},
 						Tags: []string{"ipv6", "transition", ipv6Trans.Type},
@@ -2071,7 +2071,7 @@ func (e *EnhancedDiscovery) ipv6Discovery(ctx context.Context, domain string, re
 						Weight: 0.8,
 						Metadata: map[string]string{
 							"relationship": "ipv6_transition",
-							"type":        ipv6Trans.Type,
+							"type":         ipv6Trans.Type,
 						},
 						CreatedAt: time.Now(),
 					}
@@ -2149,7 +2149,7 @@ func (e *EnhancedDiscovery) techStackFingerprinting(ctx context.Context, result 
 			// Try both HTTP and HTTPS
 			httpURL := fmt.Sprintf("http://%s", asset.Value)
 			httpsURL := fmt.Sprintf("https://%s", asset.Value)
-			
+
 			urls = append(urls, httpURL, httpsURL)
 			urlAssetMap[httpURL] = asset
 			urlAssetMap[httpsURL] = asset
@@ -2209,14 +2209,14 @@ func (e *EnhancedDiscovery) techStackFingerprinting(ctx context.Context, result 
 
 	// Create technology assets
 	processedTech := make(map[string]bool)
-	
+
 	for url, technologies := range techMap {
 		parentAsset := urlAssetMap[url]
-		
+
 		for _, tech := range technologies {
 			// Create unique key for deduplication
 			techKey := fmt.Sprintf("%s-%s-%s", tech.Name, tech.Version, parentAsset.Value)
-			
+
 			if processedTech[techKey] {
 				continue
 			}
@@ -2291,7 +2291,7 @@ func (e *EnhancedDiscovery) techStackFingerprinting(ctx context.Context, result 
 					},
 					Tags: []string{"technology", "implied"},
 				}
-				
+
 				result.Assets = append(result.Assets, impliedAsset)
 			}
 		}
@@ -2347,10 +2347,10 @@ func (e *EnhancedDiscovery) vulnerabilityCorrelation(ctx context.Context, result
 			Metadata: map[string]string{
 				"vulnerability_id":   finding.Vulnerability.ID,
 				"vulnerability_name": finding.Vulnerability.Name,
-				"severity":          finding.Vulnerability.Severity,
-				"cvss":              fmt.Sprintf("%.1f", finding.Vulnerability.CVSS),
-				"category":          finding.Vulnerability.Category,
-				"affected_asset":    finding.AssetValue,
+				"severity":           finding.Vulnerability.Severity,
+				"cvss":               fmt.Sprintf("%.1f", finding.Vulnerability.CVSS),
+				"category":           finding.Vulnerability.Category,
+				"affected_asset":     finding.AssetValue,
 			},
 			Tags: []string{"vulnerability", strings.ToLower(finding.Vulnerability.Severity)},
 		}
@@ -2376,7 +2376,7 @@ func (e *EnhancedDiscovery) vulnerabilityCorrelation(ctx context.Context, result
 			Weight: finding.Confidence,
 			Metadata: map[string]string{
 				"vulnerability": finding.Vulnerability.ID,
-				"severity":     finding.Vulnerability.Severity,
+				"severity":      finding.Vulnerability.Severity,
 			},
 			CreatedAt: time.Now(),
 		}

@@ -124,14 +124,14 @@ func executeAuthScanner(ctx context.Context, rec discovery.ScannerRecommendation
 
 	for _, target := range rec.Targets {
 		scanID := fmt.Sprintf("auth-scan-%s-%d", strings.ReplaceAll(target, ".", "-"), time.Now().Unix())
-		
+
 		if useNomad {
 			// Convert arguments to map for Nomad
 			argMap := make(map[string]string)
 			for i, arg := range rec.Arguments {
 				argMap[fmt.Sprintf("arg%d", i)] = arg
 			}
-			
+
 			// Dispatch to Nomad
 			jobID, err := nomadClient.SubmitScan(ctx, types.ScanTypeAuth, target, scanID, argMap)
 			if err != nil {
@@ -141,11 +141,11 @@ func executeAuthScanner(ctx context.Context, rec discovery.ScannerRecommendation
 				// Fall back to local execution
 				return executeAuthScannerLocal(ctx, target, rec)
 			}
-			
+
 			log.Infow("Auth scan submitted to Nomad",
 				"jobID", jobID,
 				"target", target)
-			
+
 			// Wait for completion with timeout
 			status, err := nomadClient.WaitForCompletion(ctx, jobID, 10*time.Minute)
 			if err != nil {
@@ -154,7 +154,7 @@ func executeAuthScanner(ctx context.Context, rec discovery.ScannerRecommendation
 					"target", target)
 				return err
 			}
-			
+
 			log.Infow("Auth scan completed",
 				"jobID", jobID,
 				"status", status.Status,
@@ -177,17 +177,17 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 
 	// Import the auth discovery package
 	authDiscovery := authpkg.NewComprehensiveAuthDiscovery(log)
-	
+
 	// Run comprehensive auth discovery
 	inventory, err := authDiscovery.DiscoverAll(ctx, target)
 	if err != nil {
 		log.Errorw("Auth discovery failed", "error", err, "target", target)
 		return err
 	}
-	
+
 	// Convert inventory to findings
 	var findings []types.Finding
-	
+
 	// Network authentication findings
 	if inventory.NetworkAuth != nil {
 		// LDAP findings
@@ -205,7 +205,7 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 				UpdatedAt:   time.Now(),
 			})
 		}
-		
+
 		// Add findings for other network auth methods
 		if len(inventory.NetworkAuth.Kerberos) > 0 {
 			findings = append(findings, types.Finding{
@@ -222,7 +222,7 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 			})
 		}
 	}
-	
+
 	// Web authentication findings
 	if inventory.WebAuth != nil {
 		// Form login findings
@@ -240,7 +240,7 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 				UpdatedAt:   time.Now(),
 			})
 		}
-		
+
 		// OAuth2/OIDC findings
 		if len(inventory.WebAuth.OAuth2) > 0 || len(inventory.WebAuth.OIDC) > 0 {
 			findings = append(findings, types.Finding{
@@ -257,7 +257,7 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 			})
 		}
 	}
-	
+
 	// Custom authentication findings
 	for _, custom := range inventory.CustomAuth {
 		findings = append(findings, types.Finding{
@@ -273,7 +273,7 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 			UpdatedAt:   time.Now(),
 		})
 	}
-	
+
 	// Save all findings
 	if store != nil && len(findings) > 0 {
 		if err := store.SaveFindings(ctx, findings); err != nil {
@@ -282,7 +282,7 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 		}
 		log.Infow("Saved auth discovery findings", "count", len(findings))
 	}
-	
+
 	return nil
 }
 

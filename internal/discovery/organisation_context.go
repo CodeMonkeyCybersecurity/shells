@@ -32,25 +32,25 @@ func (ocb *OrganizationContextBuilder) BuildContext(ctx context.Context, identif
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse identifier: %w", err)
 	}
-	
+
 	// Get organization
 	org, err := resolver.ResolveToOrganization(ctx, identInfo, ocb.correlator)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve organization: %w", err)
 	}
-	
+
 	// Extract email patterns from metadata
 	emailPatterns := []string{}
 	if patterns, ok := org.Metadata["email_patterns"].([]string); ok {
 		emailPatterns = patterns
 	}
-	
+
 	// Extract technologies as strings
 	techStrings := make([]string, 0, len(org.Technologies))
 	for _, tech := range org.Technologies {
 		techStrings = append(techStrings, tech.Name)
 	}
-	
+
 	// Build context matching the existing OrganizationContext structure
 	orgContext := &OrganizationContext{
 		OrgID:         generateOrgID(org.Name),
@@ -62,13 +62,13 @@ func (ocb *OrganizationContextBuilder) BuildContext(ctx context.Context, identif
 		Technologies:  techStrings,
 		IndustryType:  getIndustryType(org),
 	}
-	
+
 	ocb.logger.Info("Built organization context",
 		"org", org.Name,
 		"domains", len(orgContext.KnownDomains),
 		"ip_ranges", len(orgContext.KnownIPRanges),
 		"subsidiaries", len(orgContext.Subsidiaries))
-	
+
 	return orgContext, nil
 }
 

@@ -6,70 +6,18 @@ import (
 	"strings"
 )
 
-// WhoisData represents WHOIS lookup results
-type WhoisData struct {
-	Organization    string
-	RegistrantName  string
-	RegistrantEmail string
-	NameServers     []string
-}
-
-// ASNData represents ASN lookup results
-type ASNData struct {
-	Number       int
-	IPRanges     []string
-	Organization string
-	Description  string
-}
-
-// LinkedInData represents LinkedIn company data
-type LinkedInData struct {
-	CompanyName   string
-	CompanyURL    string
-	EmployeeCount int
-	Industry      string
-	Employees     []LinkedInEmployee
-	Technologies  []string
-}
-
-// LinkedInEmployee represents an employee found on LinkedIn
-type LinkedInEmployee struct {
-	Email      string
-	Name       string
-	Title      string
-	Department string
-	ProfileURL string
-}
-
-// GitHubData represents GitHub organization data
-type GitHubData struct {
-	OrganizationName string
-	OrganizationURL  string
-	RepositoryCount  int
-	Members          []GitHubMember
-	Technologies     []string
-	Domains          []string
-}
-
-// GitHubMember represents a GitHub organization member
-type GitHubMember struct {
-	Email    string
-	Name     string
-	Username string
-}
-
 // mergeWhoisData merges WHOIS data into organization profile
 func (oc *OrganizationCorrelator) mergeWhoisData(profile *OrganizationProfile, whois *WhoisData) {
 	// Extract organization name
 	if whois.Organization != "" && profile.Name == "" {
 		profile.Name = whois.Organization
 	}
-	
+
 	// Extract registrant information
 	if whois.RegistrantName != "" && profile.LegalName == "" {
 		profile.LegalName = whois.RegistrantName
 	}
-	
+
 	// Extract email patterns
 	if whois.RegistrantEmail != "" {
 		if domain := extractDomainFromEmail(whois.RegistrantEmail); domain != "" {
@@ -79,7 +27,7 @@ func (oc *OrganizationCorrelator) mergeWhoisData(profile *OrganizationProfile, w
 			}
 		}
 	}
-	
+
 	// Store additional WHOIS organizations for subsidiary detection
 	if orgs, ok := profile.Metadata["whois_organizations"].([]string); ok {
 		if !containsString(orgs, whois.Organization) {
@@ -89,7 +37,7 @@ func (oc *OrganizationCorrelator) mergeWhoisData(profile *OrganizationProfile, w
 	} else {
 		profile.Metadata["whois_organizations"] = []string{whois.Organization}
 	}
-	
+
 	// Extract name servers (often reveal hosting providers or related infrastructure)
 	if nameservers, ok := profile.Metadata["nameservers"].([]string); ok {
 		nameservers = append(nameservers, whois.NameServers...)
@@ -104,12 +52,12 @@ func (oc *OrganizationCorrelator) mergeCertificateData(profile *OrganizationProf
 	for _, cert := range certs {
 		// Add certificate to profile
 		profile.Certificates = append(profile.Certificates, cert)
-		
+
 		// Extract organization name
 		if cert.Organization != "" && profile.Name == "" {
 			profile.Name = cert.Organization
 		}
-		
+
 		// Extract all domains from SANs
 		for _, san := range cert.SANs {
 			san = strings.TrimPrefix(san, "*.")
@@ -126,19 +74,19 @@ func (oc *OrganizationCorrelator) mergeASNData(profile *OrganizationProfile, asn
 	if !containsInt(profile.ASNumbers, asn.Number) {
 		profile.ASNumbers = append(profile.ASNumbers, asn.Number)
 	}
-	
+
 	// Add IP ranges
 	for _, ipRange := range asn.IPRanges {
 		if !containsString(profile.IPRanges, ipRange) {
 			profile.IPRanges = append(profile.IPRanges, ipRange)
 		}
 	}
-	
+
 	// Update organization name if not set
 	if asn.Organization != "" && profile.Name == "" {
 		profile.Name = asn.Organization
 	}
-	
+
 	// Store ASN description for additional context
 	if profile.Metadata["asn_descriptions"] == nil {
 		profile.Metadata["asn_descriptions"] = make(map[int]string)
@@ -152,7 +100,7 @@ func (oc *OrganizationCorrelator) mergeLinkedInData(profile *OrganizationProfile
 	if linkedin.CompanyName != "" && len(linkedin.CompanyName) > len(profile.Name) {
 		profile.Name = linkedin.CompanyName
 	}
-	
+
 	// Add employees
 	for _, emp := range linkedin.Employees {
 		empInfo := EmployeeInfo{
@@ -164,7 +112,7 @@ func (oc *OrganizationCorrelator) mergeLinkedInData(profile *OrganizationProfile
 			Confidence:  0.8,
 		}
 		profile.Employees = append(profile.Employees, empInfo)
-		
+
 		// Extract email domain
 		if emp.Email != "" {
 			if domain := extractDomainFromEmail(emp.Email); domain != "" {
@@ -174,13 +122,13 @@ func (oc *OrganizationCorrelator) mergeLinkedInData(profile *OrganizationProfile
 			}
 		}
 	}
-	
+
 	// Extract technologies from job postings
 	if linkedin.Technologies != nil {
 		profile.Technologies = append(profile.Technologies, linkedin.Technologies...)
 		profile.Technologies = deduplicateStrings(profile.Technologies)
 	}
-	
+
 	// Store LinkedIn metadata
 	profile.Metadata["linkedin_url"] = linkedin.CompanyURL
 	profile.Metadata["employee_count"] = linkedin.EmployeeCount
@@ -193,7 +141,7 @@ func (oc *OrganizationCorrelator) mergeGitHubData(profile *OrganizationProfile, 
 	if github.OrganizationName != "" && profile.Name == "" {
 		profile.Name = github.OrganizationName
 	}
-	
+
 	// Add GitHub employees
 	for _, member := range github.Members {
 		// Check if we already have this employee
@@ -206,7 +154,7 @@ func (oc *OrganizationCorrelator) mergeGitHubData(profile *OrganizationProfile, 
 				break
 			}
 		}
-		
+
 		if !found {
 			empInfo := EmployeeInfo{
 				Email:          member.Email,
@@ -217,20 +165,20 @@ func (oc *OrganizationCorrelator) mergeGitHubData(profile *OrganizationProfile, 
 			profile.Employees = append(profile.Employees, empInfo)
 		}
 	}
-	
+
 	// Extract technologies from repositories
 	if github.Technologies != nil {
 		profile.Technologies = append(profile.Technologies, github.Technologies...)
 		profile.Technologies = deduplicateStrings(profile.Technologies)
 	}
-	
+
 	// Extract domains from repository URLs or CNAME files
 	for _, domain := range github.Domains {
 		if !containsString(profile.Domains, domain) {
 			profile.Domains = append(profile.Domains, domain)
 		}
 	}
-	
+
 	// Store GitHub metadata
 	profile.Metadata["github_org"] = github.OrganizationURL
 	profile.Metadata["github_repos"] = github.RepositoryCount
@@ -245,7 +193,7 @@ func (oc *OrganizationCorrelator) mergeProfiles(target, source *OrganizationProf
 	if target.LegalName == "" && source.LegalName != "" {
 		target.LegalName = source.LegalName
 	}
-	
+
 	// Merge arrays with deduplication
 	target.Aliases = deduplicateStrings(append(target.Aliases, source.Aliases...))
 	target.Domains = deduplicateStrings(append(target.Domains, source.Domains...))
@@ -254,10 +202,10 @@ func (oc *OrganizationCorrelator) mergeProfiles(target, source *OrganizationProf
 	target.Subsidiaries = deduplicateStrings(append(target.Subsidiaries, source.Subsidiaries...))
 	target.EmailPatterns = deduplicateStrings(append(target.EmailPatterns, source.EmailPatterns...))
 	target.Technologies = deduplicateStrings(append(target.Technologies, source.Technologies...))
-	
+
 	// Merge certificates
 	target.Certificates = append(target.Certificates, source.Certificates...)
-	
+
 	// Merge employees with deduplication
 	employeeMap := make(map[string]EmployeeInfo)
 	for _, emp := range target.Employees {
@@ -289,7 +237,7 @@ func (oc *OrganizationCorrelator) mergeProfiles(target, source *OrganizationProf
 	for _, emp := range employeeMap {
 		target.Employees = append(target.Employees, emp)
 	}
-	
+
 	// Merge cloud accounts
 	if target.CloudAccounts == nil {
 		target.CloudAccounts = make(map[string][]string)
@@ -299,14 +247,14 @@ func (oc *OrganizationCorrelator) mergeProfiles(target, source *OrganizationProf
 			append(target.CloudAccounts[provider], accounts...),
 		)
 	}
-	
+
 	// Merge metadata
 	for k, v := range source.Metadata {
 		if _, exists := target.Metadata[k]; !exists {
 			target.Metadata[k] = v
 		}
 	}
-	
+
 	// Update confidence (take the higher value)
 	if source.Confidence > target.Confidence {
 		target.Confidence = source.Confidence
@@ -317,13 +265,13 @@ func (oc *OrganizationCorrelator) mergeProfiles(target, source *OrganizationProf
 func (oc *OrganizationCorrelator) calculateConfidenceProfile(profile *OrganizationProfile) float64 {
 	score := 0.0
 	factors := 0
-	
+
 	// Name discovery confidence
 	if profile.Name != "" {
 		score += 0.9
 		factors++
 	}
-	
+
 	// Domain count factor
 	if len(profile.Domains) > 0 {
 		domainScore := float64(len(profile.Domains)) / 10.0
@@ -333,13 +281,13 @@ func (oc *OrganizationCorrelator) calculateConfidenceProfile(profile *Organizati
 		score += domainScore
 		factors++
 	}
-	
+
 	// ASN information
 	if len(profile.ASNumbers) > 0 {
 		score += 0.8
 		factors++
 	}
-	
+
 	// Certificate information
 	if len(profile.Certificates) > 0 {
 		certScore := float64(len(profile.Certificates)) / 5.0
@@ -349,7 +297,7 @@ func (oc *OrganizationCorrelator) calculateConfidenceProfile(profile *Organizati
 		score += certScore
 		factors++
 	}
-	
+
 	// Employee information
 	if len(profile.Employees) > 0 {
 		empScore := float64(len(profile.Employees)) / 20.0
@@ -359,16 +307,16 @@ func (oc *OrganizationCorrelator) calculateConfidenceProfile(profile *Organizati
 		score += empScore
 		factors++
 	}
-	
+
 	// Cloud accounts
 	if len(profile.CloudAccounts) > 0 {
 		score += 0.7
 		factors++
 	}
-	
+
 	if factors == 0 {
 		return 0.0
 	}
-	
+
 	return score / float64(factors)
 }
