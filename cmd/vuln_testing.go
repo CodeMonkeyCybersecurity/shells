@@ -37,6 +37,14 @@ func runBugBountyVulnTesting(ctx context.Context, session *discovery.DiscoverySe
 		totalFindings = runWebAppTestSuite(ctx, session, log, store)
 	}
 
+	// Always run authentication testing regardless of target type
+	// (mail servers, APIs, and web apps can all have auth mechanisms)
+	fmt.Printf("\n%s=== Cross-Cutting Security Tests ===%s\n", "\033[1;35m", "\033[0m")
+	fmt.Printf("[+] Testing authentication mechanisms... ")
+	authFindings := testWebAuthentication(ctx, session, log)
+	totalFindings = append(totalFindings, authFindings...)
+	printTestResult(len(authFindings))
+
 	// Display summary
 	fmt.Printf("\n%sVulnerability Testing Complete%s\n", "\033[1;32m", "\033[0m")
 	fmt.Printf("Time: %v\n", time.Since(startTime).Round(time.Second))
@@ -149,38 +157,32 @@ func runAPITestSuite(ctx context.Context, session *discovery.DiscoverySession, l
 func runWebAppTestSuite(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger, store core.ResultStore) []types.Finding {
 	var allFindings []types.Finding
 
-	// Test 1: Authentication
-	fmt.Printf("[1/6] Testing authentication mechanisms... ")
-	authFindings := testWebAuthentication(ctx, session, log)
-	allFindings = append(allFindings, authFindings...)
-	printTestResult(len(authFindings))
-
-	// Test 2: SQL Injection
-	fmt.Printf("[2/6] Testing for SQL injection... ")
+	// Test 1: SQL Injection
+	fmt.Printf("[1/5] Testing for SQL injection... ")
 	sqliFindings := testSQLInjection(ctx, session, log)
 	allFindings = append(allFindings, sqliFindings...)
 	printTestResult(len(sqliFindings))
 
-	// Test 3: XSS
-	fmt.Printf("[3/6] Testing for XSS... ")
+	// Test 2: XSS
+	fmt.Printf("[2/5] Testing for XSS... ")
 	xssFindings := testXSS(ctx, session, log)
 	allFindings = append(allFindings, xssFindings...)
 	printTestResult(len(xssFindings))
 
-	// Test 4: IDOR
-	fmt.Printf("[4/6] Testing for IDOR... ")
+	// Test 3: IDOR
+	fmt.Printf("[3/5] Testing for IDOR... ")
 	idorFindings := testIDOR(ctx, session, log)
 	allFindings = append(allFindings, idorFindings...)
 	printTestResult(len(idorFindings))
 
-	// Test 5: SSRF
-	fmt.Printf("[5/6] Testing for SSRF... ")
+	// Test 4: SSRF
+	fmt.Printf("[4/5] Testing for SSRF... ")
 	ssrfFindings := testSSRF(ctx, session, log)
 	allFindings = append(allFindings, ssrfFindings...)
 	printTestResult(len(ssrfFindings))
 
-	// Test 6: Open Redirect
-	fmt.Printf("[6/6] Testing for open redirects... ")
+	// Test 5: Open Redirect
+	fmt.Printf("[5/5] Testing for open redirects... ")
 	redirectFindings := testOpenRedirect(ctx, session, log)
 	allFindings = append(allFindings, redirectFindings...)
 	printTestResult(len(redirectFindings))
@@ -201,6 +203,7 @@ func printTestResult(count int) {
 
 func testMailDefaultCredentials(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
 	var findings []types.Finding
+	foundPanels := make(map[string]bool) // Track already found admin panels to avoid duplicates
 
 	// Most common default credentials for mail servers (reduced for speed)
 	defaultCreds := []struct {
@@ -243,30 +246,34 @@ func testMailDefaultCredentials(ctx context.Context, session *discovery.Discover
 
 			// Skip credential testing for now to avoid hanging
 			// TODO: Fix the TestCredentials method that seems to hang
-			// For now, just report that we found an admin panel
+			// For now, just report that we found an admin panel (avoid duplicates)
 			if statusCode == 200 && (strings.Contains(path, "admin") || strings.Contains(path, "webmail")) {
-				// Report the finding without testing credentials
-				findings = append(findings, types.Finding{
-					ID:          fmt.Sprintf("mail-admin-%s-%d", session.ID, len(findings)+1),
-					ScanID:      session.ID,
-					Tool:        "mail-scanner",
-					Type:        "ADMIN_PANEL_FOUND",
-					Severity:    types.SeverityMedium,
-					Title:       "Mail Admin Panel Accessible",
-					Description: fmt.Sprintf("Found accessible mail admin panel at %s", path),
-					Evidence:    fmt.Sprintf("Admin panel found at %s (Status: %d)", url, statusCode),
-					Solution:    "Ensure admin panel is properly secured with strong authentication",
-					References: []string{
-						"https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/04-Authentication_Testing/",
-					},
-					Metadata: map[string]interface{}{
-						"url":         url,
-						"status_code": statusCode,
-						"path":        path,
-					},
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-				})
+				// Check if we've already reported this URL to avoid duplicates
+				if !foundPanels[url] {
+					foundPanels[url] = true
+					// Report the finding without testing credentials
+					findings = append(findings, types.Finding{
+						ID:          fmt.Sprintf("mail-admin-%s-%d", session.ID, len(findings)+1),
+						ScanID:      session.ID,
+						Tool:        "mail-scanner",
+						Type:        "ADMIN_PANEL_FOUND",
+						Severity:    types.SeverityMedium,
+						Title:       "Mail Admin Panel Accessible",
+						Description: fmt.Sprintf("Found accessible mail admin panel at %s", path),
+						Evidence:    fmt.Sprintf("Admin panel found at %s (Status: %d)", url, statusCode),
+						Solution:    "Ensure admin panel is properly secured with strong authentication",
+						References: []string{
+							"https://owasp.org/www-project-web-security-testing-guide/v42/4-Web_Application_Security_Testing/04-Authentication_Testing/",
+						},
+						Metadata: map[string]interface{}{
+							"url":         url,
+							"status_code": statusCode,
+							"path":        path,
+						},
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+					})
+				}
 			}
 
 			// Test the credentials (disabled for now to prevent hanging)

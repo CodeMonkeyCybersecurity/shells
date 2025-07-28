@@ -480,12 +480,14 @@ var resultsQueryCmd = &cobra.Command{
 	Long: `Query findings across all scans with advanced filtering options.
 
 Examples:
+  shells results query --scan-id abc8343a-76ed-4346-bd62-4b04a0e46d12
   shells results query --severity critical
   shells results query --tool scim --type "SCIM_UNAUTHORIZED_ACCESS"
   shells results query --search "injection" --limit 20
   shells results query --target example.com --severity high,critical`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Get flags
+		scanID, _ := cmd.Flags().GetString("scan-id")
 		severity, _ := cmd.Flags().GetString("severity")
 		tool, _ := cmd.Flags().GetString("tool")
 		findingType, _ := cmd.Flags().GetString("type")
@@ -503,6 +505,7 @@ Examples:
 
 		// Build query
 		query := core.FindingQuery{
+			ScanID:     scanID,
 			Tool:       tool,
 			Type:       findingType,
 			Target:     target,
@@ -595,6 +598,7 @@ Shows:
 
 func init() {
 	// Query command flags
+	resultsQueryCmd.Flags().String("scan-id", "", "Filter by specific scan ID")
 	resultsQueryCmd.Flags().String("severity", "", "Filter by severity (critical,high,medium,low,info)")
 	resultsQueryCmd.Flags().String("tool", "", "Filter by tool (scim,smuggling,nmap,etc)")
 	resultsQueryCmd.Flags().String("type", "", "Filter by finding type")
