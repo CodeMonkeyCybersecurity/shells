@@ -1,0 +1,83 @@
+# Optimized shells configuration for bug bounty hunting
+version: 1
+
+# Database configuration
+database:
+  driver: sqlite3
+  dsn: shells-demo.db
+
+# Logger configuration
+logger:
+  level: info  # Reduce to info for less noise
+  format: json
+
+# Discovery settings - more focused
+discovery:
+  max_depth: 2  # Reduce recursion depth
+  max_assets: 100  # Focus on quality over quantity
+  timeout: 5m  # Shorter timeout per module
+  
+  # Disable low-value discovery
+  dns_bruteforce: false
+  search_engine_discovery: false
+  
+  # Focus on high-value discovery
+  passive_dns: true
+  certificate_transparency: true
+  web_crawling: true
+  port_scanning: true
+  
+  # Prioritize these patterns
+  high_value_patterns:
+    - "/api"
+    - "/admin"
+    - "/login"
+    - "/oauth"
+    - "/saml"
+    - "/graphql"
+    - "/swagger"
+    - "/api-docs"
+    - "/.git"
+    - "/backup"
+    - "/test"
+    - "/dev"
+
+# Scanner settings
+scanners:
+  # Prioritize auth vulnerabilities
+  auth:
+    enabled: true
+    priority: 100
+    
+  # API security
+  api:
+    enabled: true
+    priority: 90
+    
+  # Business logic
+  logic:
+    enabled: true
+    priority: 85
+    
+  # Request smuggling
+  smuggling:
+    enabled: true
+    priority: 80
+    
+  # SCIM vulnerabilities  
+  scim:
+    enabled: true
+    priority: 75
+
+# Rate limiting for responsible scanning
+rate_limit:
+  requests_per_second: 10
+  burst: 20
+
+# Scope validation
+scope:
+  validate: true
+  platforms:
+    - hackerone
+    - bugcrowd
+    - intigriti

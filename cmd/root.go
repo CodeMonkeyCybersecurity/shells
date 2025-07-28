@@ -2209,8 +2209,99 @@ func createBasicNomadFinding(scanType types.ScanType, target, scanID, message st
 
 func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db core.ResultStore) error {
 	target := args[0]
+	ctx := context.Background()
+	startTime := time.Now()
 
-	// Initialize organization correlator
+	// Display bug bounty optimized banner
+	fmt.Printf("\n%s\n", strings.Repeat("=", 70))
+	fmt.Printf("🎯 %sHigh-Value Bug Bounty Scanner%s\n", "\033[1;36m", "\033[0m")
+	fmt.Printf("   Focus: Auth Bypass • API Security • Business Logic • SSRF • IDOR\n")
+	fmt.Printf("   Target: %s%s%s\n", "\033[1;33m", target, "\033[0m")
+	fmt.Printf("   Time: %s\n", time.Now().Format("15:04:05"))
+	fmt.Printf("%s\n\n", strings.Repeat("=", 70))
+
+	// Phase 1: Smart Attack Surface Discovery
+	fmt.Printf("%s=== Phase 1: Smart Attack Surface Discovery ===%s\n", "\033[1;34m", "\033[0m")
+	
+	// Use existing discovery infrastructure
+	discoveryConfig := discovery.DefaultDiscoveryConfig()
+	discoveryConfig.MaxDepth = 3
+	discoveryConfig.MaxAssets = 1000
+	discoveryConfig.EnableDNS = true
+	discoveryConfig.EnableCertLog = true
+	discoveryConfig.EnableSearch = true
+	discoveryConfig.EnableWebCrawl = true
+	
+	engine := discovery.NewEngine(discoveryConfig, log.WithComponent("discovery"))
+	
+	// Start discovery
+	session, err := engine.StartDiscovery(target)
+	if err != nil {
+		return fmt.Errorf("failed to start discovery: %w", err)
+	}
+	
+	// Wait for discovery to complete
+	fmt.Println("⏳ Discovery in progress...")
+	var discoveredAssets []*discovery.Asset
+	
+	for {
+		session, err = engine.GetSession(session.ID)
+		if err != nil {
+			return fmt.Errorf("failed to get session: %w", err)
+		}
+		
+		if session.Status == discovery.StatusCompleted {
+			fmt.Println("✅ Discovery completed!")
+			for _, asset := range session.Assets {
+				discoveredAssets = append(discoveredAssets, asset)
+			}
+			break
+		} else if session.Status == discovery.StatusFailed {
+			return fmt.Errorf("discovery failed")
+		}
+		
+		time.Sleep(2 * time.Second)
+	}
+	
+	// Prioritize assets based on bug bounty value
+	prioritizedAssets := prioritizeAssetsForBugBounty(discoveredAssets, log)
+	
+	fmt.Printf("\n%s✓ Discovered %d high-value targets%s\n", "\033[1;32m", len(prioritizedAssets), "\033[0m")
+	displayTopBugBountyTargets(prioritizedAssets[:min(10, len(prioritizedAssets))])
+
+	// Phase 2: Vulnerability Testing Pipeline
+	fmt.Printf("\n%s=== Phase 2: High-Value Vulnerability Testing ===%s\n", "\033[1;34m", "\033[0m")
+	
+	// Run comprehensive scanning on discovered assets
+	if err := runComprehensiveScanning(ctx, session, nil, log, db); err != nil {
+		log.Error("Failed to run comprehensive scanning", "error", err)
+		return fmt.Errorf("comprehensive scanning failed: %w", err)
+	}
+
+	// Phase 3: Results & Reporting
+	fmt.Printf("\n%s=== Phase 3: Results Summary ===%s\n", "\033[1;34m", "\033[0m")
+	
+	fmt.Printf("\n✅ Bug bounty scan completed in %v\n", time.Since(startTime).Round(time.Second))
+	fmt.Printf("📈 View results with: shells results query --scan-id %s\n", session.ID)
+	fmt.Printf("🔍 Query critical findings: shells results query --severity critical,high\n")
+	fmt.Printf("📊 View statistics: shells results stats\n")
+	
+	return nil
+}
+
+// Original implementation preserved for reference
+func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Logger, db core.ResultStore) error {
+	target := args[0]
+	ctx := context.Background()
+	
+	// Display bug bounty optimized banner
+	fmt.Printf("\n%s\n", strings.Repeat("=", 60))
+	fmt.Printf("🎯 %sHigh-Value Bug Bounty Scanner%s\n", "\033[1;36m", "\033[0m")
+	fmt.Printf("   Focus: Authentication, API Security, Business Logic\n")
+	fmt.Printf("   Target: %s%s%s\n", "\033[1;33m", target, "\033[0m")
+	fmt.Printf("%s\n\n", strings.Repeat("=", 60))
+
+	// Initialize organization correlator for smart discovery
 	correlatorConfig := correlation.CorrelatorConfig{
 		EnableWhois:     true,
 		EnableCerts:     true,
@@ -2220,7 +2311,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		EnableGitHub:    true,
 		EnableCloud:     true,
 		CacheTTL:        24 * time.Hour,
-		MaxWorkers:      5,
+		MaxWorkers:      10, // Increased for faster discovery
 	}
 
 	baseCorrelator := correlation.NewOrganizationCorrelator(correlatorConfig, log)
@@ -2242,8 +2333,8 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	// Build organization context
 	log.Infow("Building organization context", "target", target)
 	contextBuilder := discovery.NewOrganizationContextBuilder(correlator, log)
-	ctx := context.Background()
-	orgContext, err := contextBuilder.BuildContext(ctx, target)
+	ctx2 := context.Background()
+	orgContext, err := contextBuilder.BuildContext(ctx2, target)
 	if err != nil {
 		log.Error("Failed to build organization context", "error", err)
 		// Continue without context rather than failing

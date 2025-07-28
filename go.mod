@@ -9,6 +9,7 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20250713235838-3ec7dc2cfcb5
 	github.com/chromedp/chromedp v0.13.7
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
+	github.com/fatih/color v1.18.0
 	github.com/go-ldap/ldap/v3 v3.4.11
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
@@ -61,6 +62,8 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/likexian/gokit v0.25.15 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sagikazarmark/locafero v0.9.0 // indirect
