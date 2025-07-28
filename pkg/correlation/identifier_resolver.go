@@ -143,7 +143,7 @@ func (ir *IdentifierResolver) ParseIdentifier(identifier string) (*IdentifierInf
 
 // ResolveToOrganization resolves an identifier to organization details using enhanced correlator
 func (ir *IdentifierResolver) ResolveToOrganization(ctx context.Context, info *IdentifierInfo, ec *EnhancedOrganizationCorrelator) (*Organization, error) {
-	ir.logger.Info("Resolving identifier to organization",
+	ir.logger.Infow("Resolving identifier to organization",
 		"type", info.Type,
 		"value", info.Value)
 

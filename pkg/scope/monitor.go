@@ -48,7 +48,7 @@ func (m *ScopeMonitor) Start() error {
 	m.wg.Add(1)
 	go m.monitor()
 
-	m.logger.Info("Scope monitoring started", "interval", m.interval)
+	m.logger.Infow("Scope monitoring started", "interval", m.interval)
 	return nil
 }
 

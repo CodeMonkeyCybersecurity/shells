@@ -185,7 +185,7 @@ func (c *CloudFlareIntel) FindOriginIP(ctx context.Context, domain string) ([]Or
 
 // findHistoricalDNS searches for pre-CloudFlare DNS records
 func (c *CloudFlareIntel) findHistoricalDNS(ctx context.Context, domain string, results chan<- OriginCandidate) {
-	c.logger.Info("Searching historical DNS records", "domain", domain)
+	c.logger.Infow("Searching historical DNS records", "domain", domain)
 
 	// In production, integrate with SecurityTrails, DNS Dumpster APIs
 	// This is a placeholder for the actual implementation
@@ -226,7 +226,7 @@ func (c *CloudFlareIntel) findHistoricalDNS(ctx context.Context, domain string, 
 
 // findFromSSLCerts searches for origin IPs in SSL certificate SANs
 func (c *CloudFlareIntel) findFromSSLCerts(ctx context.Context, domain string, results chan<- OriginCandidate) {
-	c.logger.Info("Analyzing SSL certificates", "domain", domain)
+	c.logger.Infow("Analyzing SSL certificates", "domain", domain)
 
 	// In production, integrate with crt.sh, Censys APIs
 	// This searches for certificates that might be shared between CloudFlare and origin
@@ -234,7 +234,7 @@ func (c *CloudFlareIntel) findFromSSLCerts(ctx context.Context, domain string, r
 
 // findFromEmailRecords checks SPF and MX records for origin IPs
 func (c *CloudFlareIntel) findFromEmailRecords(ctx context.Context, domain string, results chan<- OriginCandidate) {
-	c.logger.Info("Checking email records", "domain", domain)
+	c.logger.Infow("Checking email records", "domain", domain)
 
 	// Check MX records
 	mxRecords, err := c.dnsResolver.LookupMX(ctx, domain)
@@ -273,7 +273,7 @@ func (c *CloudFlareIntel) findFromEmailRecords(ctx context.Context, domain strin
 
 // findFromFaviconHash compares favicon hashes between CloudFlare and potential origins
 func (c *CloudFlareIntel) findFromFaviconHash(ctx context.Context, domain string, results chan<- OriginCandidate) {
-	c.logger.Info("Comparing favicon hashes", "domain", domain)
+	c.logger.Infow("Comparing favicon hashes", "domain", domain)
 
 	// Get favicon from CloudFlare
 	cfFavicon, err := c.fetchFavicon(fmt.Sprintf("https://%s/favicon.ico", domain))
@@ -290,7 +290,7 @@ func (c *CloudFlareIntel) findFromFaviconHash(ctx context.Context, domain string
 
 // findFromTimingAnalysis uses response timing to identify geographic location
 func (c *CloudFlareIntel) findFromTimingAnalysis(ctx context.Context, domain string, results chan<- OriginCandidate) {
-	c.logger.Info("Performing timing analysis", "domain", domain)
+	c.logger.Infow("Performing timing analysis", "domain", domain)
 
 	// Measure response times from different geographic locations
 	// Compare with CloudFlare edge locations to identify anomalies
@@ -298,7 +298,7 @@ func (c *CloudFlareIntel) findFromTimingAnalysis(ctx context.Context, domain str
 
 // findFromHeaderLeaks checks for origin server information in HTTP headers
 func (c *CloudFlareIntel) findFromHeaderLeaks(ctx context.Context, domain string, results chan<- OriginCandidate) {
-	c.logger.Info("Checking for header leaks", "domain", domain)
+	c.logger.Infow("Checking for header leaks", "domain", domain)
 
 	resp, err := c.httpClient.Get(fmt.Sprintf("https://%s", domain))
 	if err != nil {

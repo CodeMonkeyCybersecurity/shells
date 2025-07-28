@@ -86,7 +86,7 @@ func (s *ShodanClient) SearchDomain(ctx context.Context, domain string) ([]Shoda
 		}
 	}
 
-	s.logger.Info("Shodan search completed", "domain", domain, "hosts_found", len(allHosts))
+	s.logger.Infow("Shodan search completed", "domain", domain, "hosts_found", len(allHosts))
 	return allHosts, nil
 }
 

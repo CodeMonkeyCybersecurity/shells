@@ -112,7 +112,7 @@ func (s *nucleiScanner) Scan(ctx context.Context, target string, options map[str
 
 	args := s.buildNucleiArgs(target, tempFile, options)
 
-	s.logger.Info("Running nuclei scan", "target", target, "args", args)
+	s.logger.Infow("Running nuclei scan", "target", target, "args", args)
 
 	cmd := exec.CommandContext(ctx, s.cfg.BinaryPath, args...)
 

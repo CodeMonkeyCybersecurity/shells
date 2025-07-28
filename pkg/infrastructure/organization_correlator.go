@@ -147,7 +147,7 @@ func NewOrganizationCorrelator(logger *logger.Logger) *OrganizationCorrelator {
 
 // FindRelatedOrganizations finds organizations related to the target
 func (o *OrganizationCorrelator) FindRelatedOrganizations(target string) []OrganizationInfo {
-	o.logger.Info("Starting organization correlation", "target", target)
+	o.logger.Infow("Starting organization correlation", "target", target)
 
 	// Check cache first
 	if cached, exists := o.cache[target]; exists {

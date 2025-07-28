@@ -97,7 +97,7 @@ func (s *oauth2Scanner) Scan(ctx context.Context, target string, options map[str
 	findings := []types.Finding{}
 
 	for _, test := range tests {
-		s.logger.Info("Running OAuth2 test", "test", test.Name)
+		s.logger.Infow("Running OAuth2 test", "test", test.Name)
 
 		finding, err := test.TestFunc(ctx, config)
 		if err != nil {

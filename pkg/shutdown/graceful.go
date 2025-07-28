@@ -49,7 +49,7 @@ func (h *Handler) WaitForShutdown(ctx context.Context) {
 
 	select {
 	case sig := <-sigChan:
-		h.logger.Info("Received signal, starting graceful shutdown", "signal", sig)
+		h.logger.Infow("Received signal, starting graceful shutdown", "signal", sig)
 		h.Shutdown()
 	case <-ctx.Done():
 		h.logger.Info("Context cancelled, starting graceful shutdown")

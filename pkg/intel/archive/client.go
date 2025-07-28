@@ -119,7 +119,7 @@ func (a *ArchiveIntel) ExtractIntelligence(ctx context.Context, domain string) (
 		return findings, err
 	}
 
-	a.logger.Info("Found snapshots", "count", len(allSnapshots), "domain", domain)
+	a.logger.Infow("Found snapshots", "count", len(allSnapshots), "domain", domain)
 
 	// Group snapshots by URL
 	urlSnapshots := a.groupSnapshotsByURL(allSnapshots)

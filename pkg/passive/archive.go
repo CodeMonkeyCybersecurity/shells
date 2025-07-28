@@ -74,7 +74,7 @@ func (a *ArchiveIntel) ExtractIntelligence(domain string) (*ArchiveFindings, err
 		return findings, fmt.Errorf("no archived snapshots found for %s", domain)
 	}
 
-	a.logger.Info("Collected archive snapshots", "domain", domain, "count", len(allSnapshots))
+	a.logger.Infow("Collected archive snapshots", "domain", domain, "count", len(allSnapshots))
 
 	// Analyze snapshots in parallel
 	var wg sync.WaitGroup

@@ -278,7 +278,7 @@ func (c *CensysClient) SearchDomain(ctx context.Context, domain string) ([]Censy
 		}
 	}
 
-	c.logger.Info("Censys domain search completed", "domain", domain, "hosts_found", len(allHits))
+	c.logger.Infow("Censys domain search completed", "domain", domain, "hosts_found", len(allHits))
 	return allHits, nil
 }
 

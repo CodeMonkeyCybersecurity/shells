@@ -300,7 +300,7 @@ func (ica *IdentityChainAnalyzer) AnalyzeIdentityChains(ctx context.Context, ses
 	// Step 4: Detect vulnerability chains using registered detectors
 	allChains := []*VulnerabilityChain{}
 	for _, detector := range ica.chainDetectors {
-		ica.logger.Info("Running chain detector", "detector", detector.Name())
+		ica.logger.Infow("Running chain detector", "detector", detector.Name())
 
 		chains, err := detector.DetectChains(ctx, ica.identityAssets)
 		if err != nil {
@@ -328,7 +328,7 @@ func (ica *IdentityChainAnalyzer) AnalyzeIdentityChains(ctx context.Context, ses
 
 // identifyIdentityAssets finds and classifies identity-related assets
 func (ica *IdentityChainAnalyzer) identifyIdentityAssets(ctx context.Context, session *DiscoverySession) error {
-	ica.logger.Info("Identifying identity assets from discovered assets", "total_assets", len(session.Assets))
+	ica.logger.Infow("Identifying identity assets from discovered assets", "total_assets", len(session.Assets))
 
 	for _, asset := range session.Assets {
 		// Check if asset is identity-related
@@ -344,7 +344,7 @@ func (ica *IdentityChainAnalyzer) identifyIdentityAssets(ctx context.Context, se
 	// Deep scan capability would be implemented here
 	// For now, we continue with the assets we found
 
-	ica.logger.Info("Identity asset identification completed", "identity_assets", len(ica.identityAssets))
+	ica.logger.Infow("Identity asset identification completed", "identity_assets", len(ica.identityAssets))
 	return nil
 }
 
@@ -496,7 +496,7 @@ func (ica *IdentityChainAnalyzer) getProtocolsFromAuthMethod(authType string) []
 
 // analyzeIndividualAssets analyzes each identity asset for vulnerabilities
 func (ica *IdentityChainAnalyzer) analyzeIndividualAssets(ctx context.Context) error {
-	ica.logger.Info("Analyzing individual identity assets for vulnerabilities", "assets", len(ica.identityAssets))
+	ica.logger.Infow("Analyzing individual identity assets for vulnerabilities", "assets", len(ica.identityAssets))
 
 	// Create a semaphore to limit concurrent analysis
 	semaphore := make(chan struct{}, ica.config.MaxConcurrent)

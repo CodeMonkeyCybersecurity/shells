@@ -127,7 +127,7 @@ func (f *oauth2Fuzzer) Validate(target string) error {
 }
 
 func (f *oauth2Fuzzer) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
-	f.logger.Info("Starting OAuth2 parameter fuzzing", "target", target)
+	f.logger.Infow("Starting OAuth2 parameter fuzzing", "target", target)
 
 	findings := []types.Finding{}
 

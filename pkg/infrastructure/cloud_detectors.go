@@ -82,7 +82,7 @@ func (a *AWSDetector) DiscoverAssets(ctx context.Context, target string) []Infra
 	// Extract domain from target
 	domain := extractDomainFromTarget(target)
 
-	a.logger.Info("Starting AWS asset discovery", "target", target, "domain", domain)
+	a.logger.Infow("Starting AWS asset discovery", "target", target, "domain", domain)
 
 	// S3 bucket discovery
 	s3Assets := a.discoverS3Buckets(ctx, domain)

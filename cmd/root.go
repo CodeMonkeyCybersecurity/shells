@@ -10,6 +10,7 @@ import (
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/credentials"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
@@ -91,6 +92,19 @@ Point-and-Click Mode:
 		store, err = database.NewStore(cfg.Database)
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)
+		}
+
+		// Check for API credentials on first run (only for main commands, not help/version)
+		if cmd.Name() != "help" && cmd.Name() != "version" && cmd.Name() != "config" {
+			credManager, err := credentials.NewManager(log)
+			if err != nil {
+				log.Warn("Failed to initialize credentials manager", "error", err)
+			} else {
+				// Check and prompt for CIRCL credentials if not configured
+				if err := credManager.CheckAndPromptForCircl(); err != nil {
+					log.Debug("CIRCL credential prompt skipped or failed", "error", err)
+				}
+			}
 		}
 
 		return nil
@@ -2226,7 +2240,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	correlator := correlation.NewEnhancedOrganizationCorrelator(correlatorConfig, log)
 
 	// Build organization context
-	log.Info("Building organization context", "target", target)
+	log.Infow("Building organization context", "target", target)
 	contextBuilder := discovery.NewOrganizationContextBuilder(correlator, log)
 	ctx := context.Background()
 	orgContext, err := contextBuilder.BuildContext(ctx, target)
@@ -2235,7 +2249,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		// Continue without context rather than failing
 		orgContext = nil
 	} else {
-		log.Info("Organization context built successfully",
+		log.Infow("Organization context built successfully",
 			"organization", orgContext.OrgName,
 			"domains", len(orgContext.KnownDomains),
 			"subsidiaries", len(orgContext.Subsidiaries))
@@ -2308,10 +2322,10 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	if err != nil {
 		return fmt.Errorf("failed to start discovery: %w", err)
 	}
-	log.Info("Discovery session started", "session_id", session.ID, "target", target)
+	log.Infow("Discovery session started", "session_id", session.ID, "target", target)
 
 	// Wait for discovery to complete and collect discovered assets
-	log.Info("Waiting for discovery to complete...", "session_id", session.ID)
+	log.Infow("Waiting for discovery to complete...", "session_id", session.ID)
 	fmt.Println("⏳ Discovery in progress...")
 
 	var discoveredAssets []*discovery.Asset
@@ -2389,7 +2403,7 @@ discoveryComplete:
 
 		// Discover authentication for each domain
 		for _, domain := range orgContext.KnownDomains {
-			log.Info("Discovering authentication methods for domain", "domain", domain)
+			log.Infow("Discovering authentication methods for domain", "domain", domain)
 
 			authInventory, err := authDiscovery.DiscoverAll(ctx, domain)
 			if err != nil {
@@ -2438,7 +2452,7 @@ discoveryComplete:
 		// Process each discovered domain/URL asset
 		for _, asset := range discoveredAssets {
 			if asset.Type == discovery.AssetTypeDomain || asset.Type == discovery.AssetTypeURL || asset.Type == discovery.AssetTypeSubdomain {
-				log.Info("Discovering authentication methods for asset", "asset", asset.Value)
+				log.Infow("Discovering authentication methods for asset", "asset", asset.Value)
 
 				authInventory, err := authDiscovery.DiscoverAll(ctx, asset.Value)
 				if err != nil {
@@ -2573,7 +2587,7 @@ func getAPIAuthCount(apiAuth *authdiscovery.APIAuthMethods) int {
 
 // runComprehensiveScanning executes all available scanners on discovered assets using Nomad
 func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoverySession, orgContext *discovery.OrganizationContext, log *logger.Logger, store core.ResultStore) error {
-	log.Info("Starting comprehensive security scanning with Nomad", "session_id", session.ID)
+	log.Infow("Starting comprehensive security scanning with Nomad", "session_id", session.ID)
 
 	// Initialize Nomad client
 	nomadClient := nomad.NewClient("")
@@ -2615,7 +2629,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 		targets = append(targets, session.Target.Value)
 	}
 
-	log.Info("Collected scanning targets", "count", len(targets), "targets", targets)
+	log.Infow("Collected scanning targets", "count", len(targets), "targets", targets)
 
 	// Submit scanner jobs to Nomad
 	var submittedJobs []string
@@ -2631,7 +2645,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 				log.Error("Failed to submit SCIM scan job", "target", target, "error", err)
 			} else {
 				submittedJobs = append(submittedJobs, jobID)
-				log.Info("SCIM scan job submitted", "target", target, "job_id", jobID)
+				log.Infow("SCIM scan job submitted", "target", target, "job_id", jobID)
 			}
 		}
 	}
@@ -2647,7 +2661,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 				log.Error("Failed to submit smuggling detection job", "target", target, "error", err)
 			} else {
 				submittedJobs = append(submittedJobs, jobID)
-				log.Info("Smuggling detection job submitted", "target", target, "job_id", jobID)
+				log.Infow("Smuggling detection job submitted", "target", target, "job_id", jobID)
 			}
 		}
 	}
@@ -2664,7 +2678,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 				log.Error("Failed to submit auth testing job", "target", target, "error", err)
 			} else {
 				submittedJobs = append(submittedJobs, jobID)
-				log.Info("Auth testing job submitted", "target", target, "job_id", jobID)
+				log.Infow("Auth testing job submitted", "target", target, "job_id", jobID)
 			}
 		}
 	}
@@ -2688,7 +2702,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 
 // runComprehensiveScanningLocal executes all available scanners locally when Nomad is not available
 func runComprehensiveScanningLocal(ctx context.Context, session *discovery.DiscoverySession, orgContext *discovery.OrganizationContext, log *logger.Logger, store core.ResultStore) error {
-	log.Info("Starting local comprehensive security scanning", "session_id", session.ID)
+	log.Infow("Starting local comprehensive security scanning", "session_id", session.ID)
 
 	// Collect all targets for scanning from discovered assets
 	var targets []string
@@ -2719,7 +2733,7 @@ func runComprehensiveScanningLocal(ctx context.Context, session *discovery.Disco
 		targets = append(targets, session.Target.Value)
 	}
 
-	log.Info("Collected scanning targets", "count", len(targets), "targets", targets)
+	log.Infow("Collected scanning targets", "count", len(targets), "targets", targets)
 
 	// Run SCIM scanning locally
 	log.Info("Running local SCIM vulnerability scans")
@@ -2766,7 +2780,7 @@ func runComprehensiveScanningLocal(ctx context.Context, session *discovery.Disco
 
 // runSCIMScan executes SCIM vulnerability scanning
 func runSCIMScan(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
-	log.Info("Starting SCIM scan", "target", target)
+	log.Infow("Starting SCIM scan", "target", target)
 
 	// Create SCIM scanner
 	scanner := scim.NewScanner()
@@ -2786,7 +2800,7 @@ func runSCIMScan(ctx context.Context, target, scanID string, log *logger.Logger,
 			log.Error("Failed to save SCIM findings", "error", err)
 			return err
 		}
-		log.Info("SCIM scan completed", "target", target, "findings", len(findings))
+		log.Infow("SCIM scan completed", "target", target, "findings", len(findings))
 	}
 
 	return nil
@@ -2794,7 +2808,7 @@ func runSCIMScan(ctx context.Context, target, scanID string, log *logger.Logger,
 
 // runSmugglingDetection executes HTTP Request Smuggling detection
 func runSmugglingDetection(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
-	log.Info("Starting HTTP Request Smuggling detection", "target", target)
+	log.Infow("Starting HTTP Request Smuggling detection", "target", target)
 
 	// Ensure target has http/https prefix
 	if !strings.HasPrefix(target, "http") {
@@ -2819,7 +2833,7 @@ func runSmugglingDetection(ctx context.Context, target, scanID string, log *logg
 			log.Error("Failed to save smuggling findings", "error", err)
 			return err
 		}
-		log.Info("Smuggling detection completed", "target", target, "findings", len(findings))
+		log.Infow("Smuggling detection completed", "target", target, "findings", len(findings))
 	}
 
 	return nil
@@ -2827,7 +2841,7 @@ func runSmugglingDetection(ctx context.Context, target, scanID string, log *logg
 
 // runComprehensiveBusinessLogicTests executes business logic vulnerability testing
 func runComprehensiveBusinessLogicTests(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
-	log.Info("Starting business logic testing", "target", target)
+	log.Infow("Starting business logic testing", "target", target)
 
 	// Note: This would integrate with the business logic testing framework
 	// For now, we'll create a placeholder that would be replaced with actual implementation
@@ -2852,14 +2866,14 @@ func runComprehensiveBusinessLogicTests(ctx context.Context, target, scanID stri
 		log.Error("Failed to save business logic findings", "error", err)
 		return err
 	}
-	log.Info("Business logic testing completed", "target", target, "findings", len(findings))
+	log.Infow("Business logic testing completed", "target", target, "findings", len(findings))
 
 	return nil
 }
 
 // runComprehensiveAuthenticationTests executes comprehensive authentication testing
 func runComprehensiveAuthenticationTests(ctx context.Context, target, scanID string, log *logger.Logger, store core.ResultStore) error {
-	log.Info("Starting authentication testing", "target", target)
+	log.Infow("Starting authentication testing", "target", target)
 
 	// Ensure target has http/https prefix
 	if !strings.HasPrefix(target, "http") {
@@ -2887,7 +2901,7 @@ func runComprehensiveAuthenticationTests(ctx context.Context, target, scanID str
 			log.Error("Failed to save authentication findings", "error", err)
 			return err
 		}
-		log.Info("Authentication testing completed", "target", target, "findings", len(findings))
+		log.Infow("Authentication testing completed", "target", target, "findings", len(findings))
 	}
 
 	return nil

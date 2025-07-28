@@ -52,7 +52,7 @@ func (p *workerPool) Start(ctx context.Context, workerCount int) error {
 
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
-	p.logger.Info("Starting worker pool", "workers", workerCount)
+	p.logger.Infow("Starting worker pool", "workers", workerCount)
 
 	for i := 0; i < workerCount; i++ {
 		worker := NewWorker(p.queue, p.plugins, p.store, p.telemetry, p.logger)
@@ -65,7 +65,7 @@ func (p *workerPool) Start(ctx context.Context, workerCount int) error {
 		p.workers = append(p.workers, worker)
 	}
 
-	p.logger.Info("Worker pool started successfully", "workers", len(p.workers))
+	p.logger.Infow("Worker pool started successfully", "workers", len(p.workers))
 
 	return nil
 }
@@ -100,7 +100,7 @@ func (p *workerPool) Scale(workerCount int) error {
 	}
 
 	if workerCount > currentCount {
-		p.logger.Info("Scaling up worker pool", "from", currentCount, "to", workerCount)
+		p.logger.Infow("Scaling up worker pool", "from", currentCount, "to", workerCount)
 
 		for i := currentCount; i < workerCount; i++ {
 			worker := NewWorker(p.queue, p.plugins, p.store, p.telemetry, p.logger)
@@ -112,7 +112,7 @@ func (p *workerPool) Scale(workerCount int) error {
 			p.workers = append(p.workers, worker)
 		}
 	} else {
-		p.logger.Info("Scaling down worker pool", "from", currentCount, "to", workerCount)
+		p.logger.Infow("Scaling down worker pool", "from", currentCount, "to", workerCount)
 
 		workersToStop := p.workers[workerCount:]
 		p.workers = p.workers[:workerCount]
@@ -130,7 +130,7 @@ func (p *workerPool) Scale(workerCount int) error {
 		}
 	}
 
-	p.logger.Info("Worker pool scaled successfully", "workers", len(p.workers))
+	p.logger.Infow("Worker pool scaled successfully", "workers", len(p.workers))
 
 	return nil
 }

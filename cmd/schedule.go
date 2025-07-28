@@ -94,7 +94,7 @@ var scheduleListCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nomadAddr, _ := cmd.Flags().GetString("nomad-addr")
 
-		log.Info("Listing scheduled scans", "nomad_addr", nomadAddr)
+		log.Infow("Listing scheduled scans", "nomad_addr", nomadAddr)
 
 		client := nomad.NewClient(nomadAddr)
 
@@ -137,7 +137,7 @@ var scheduleDeleteCmd = &cobra.Command{
 		scheduleName := args[0]
 		nomadAddr, _ := cmd.Flags().GetString("nomad-addr")
 
-		log.Info("Deleting scheduled scan", "schedule_name", scheduleName, "nomad_addr", nomadAddr)
+		log.Infow("Deleting scheduled scan", "schedule_name", scheduleName, "nomad_addr", nomadAddr)
 
 		client := nomad.NewClient(nomadAddr)
 

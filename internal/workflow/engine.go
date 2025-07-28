@@ -93,7 +93,7 @@ func NewWorkflowEngine(
 }
 
 func (e *WorkflowEngine) ExecuteWorkflow(ctx context.Context, workflow *Workflow, target string) (*WorkflowResult, error) {
-	e.logger.Info("Starting workflow execution", "workflow", workflow.Name, "target", target)
+	e.logger.Infow("Starting workflow execution", "workflow", workflow.Name, "target", target)
 
 	result := &WorkflowResult{
 		WorkflowID:  workflow.ID,
@@ -289,7 +289,7 @@ func (e *WorkflowEngine) executeParallelSteps(ctx context.Context, steps []Workf
 }
 
 func (e *WorkflowEngine) executeStep(ctx context.Context, step WorkflowStep, target string, result *WorkflowResult) error {
-	e.logger.Info("Executing workflow step", "step", step.ID, "scanner", step.Scanner)
+	e.logger.Infow("Executing workflow step", "step", step.ID, "scanner", step.Scanner)
 
 	stepResult := StepResult{
 		StepID:    step.ID,

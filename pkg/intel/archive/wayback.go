@@ -108,7 +108,7 @@ func (w *WaybackMachine) GetSnapshots(ctx context.Context, domain string) ([]Sna
 		snapshots = append(snapshots, snapshot)
 	}
 
-	w.logger.Info("Retrieved snapshots from Wayback Machine", "count", len(snapshots), "domain", domain)
+	w.logger.Infow("Retrieved snapshots from Wayback Machine", "count", len(snapshots), "domain", domain)
 	return snapshots, nil
 }
 

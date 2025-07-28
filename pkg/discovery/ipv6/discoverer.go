@@ -183,7 +183,7 @@ func (d *IPv6Discoverer) ScanIPv6Network(ctx context.Context, network string) ([
 		return addresses, err
 	}
 
-	d.logger.Info("Starting IPv6 network scan", "network", network)
+	d.logger.Infow("Starting IPv6 network scan", "network", network)
 
 	// For IPv6, we can't scan entire networks like we do with IPv4
 	// Instead, we try common address patterns

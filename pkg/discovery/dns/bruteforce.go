@@ -61,7 +61,7 @@ func (b *DNSBruteforcer) Bruteforce(ctx context.Context, domain string) ([]Brute
 	hasWildcard := len(wildcardIPs) > 0
 
 	if hasWildcard {
-		b.logger.Info("Wildcard DNS detected", "domain", domain, "ips", wildcardIPs)
+		b.logger.Infow("Wildcard DNS detected", "domain", domain, "ips", wildcardIPs)
 	}
 
 	results := make([]BruteforceResult, 0)

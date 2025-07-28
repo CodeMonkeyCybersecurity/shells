@@ -189,7 +189,7 @@ func runScopeImport(cmd *cobra.Command, args []string) error {
 		return importCustomProgram(scopeManager, handle)
 	}
 
-	log.Info("Importing program", "platform", platform, "handle", handle)
+	log.Infow("Importing program", "platform", platform, "handle", handle)
 
 	// Create a basic program structure and sync it
 	program := &scope.Program{

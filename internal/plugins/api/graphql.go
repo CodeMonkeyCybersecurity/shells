@@ -175,7 +175,7 @@ func (s *graphQLScanner) Validate(target string) error {
 }
 
 func (s *graphQLScanner) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
-	s.logger.Info("Starting comprehensive GraphQL security scan", "target", target)
+	s.logger.Infow("Starting comprehensive GraphQL security scan", "target", target)
 
 	findings := []types.Finding{}
 
@@ -186,7 +186,7 @@ func (s *graphQLScanner) Scan(ctx context.Context, target string, options map[st
 		return findings, nil
 	}
 
-	s.logger.Info("Discovered GraphQL endpoints", "count", len(endpoints))
+	s.logger.Infow("Discovered GraphQL endpoints", "count", len(endpoints))
 
 	for _, endpoint := range endpoints {
 		s.logger.Debug("Testing GraphQL endpoint", "endpoint", endpoint)
@@ -242,7 +242,7 @@ func (s *graphQLScanner) Scan(ctx context.Context, target string, options map[st
 		findings = append(findings, rateLimitFindings...)
 	}
 
-	s.logger.Info("GraphQL scan completed", "findings", len(findings))
+	s.logger.Infow("GraphQL scan completed", "findings", len(findings))
 	return findings, nil
 }
 

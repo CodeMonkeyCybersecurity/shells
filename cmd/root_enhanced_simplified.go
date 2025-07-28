@@ -35,7 +35,7 @@ func runEnhancedDiscovery(cmd *cobra.Command, args []string, log *logger.Logger,
 	target := args[0]
 	ctx := context.Background()
 
-	log.Info("🚀 Starting enhanced infrastructure discovery and testing", "target", target)
+	log.Infow("🚀 Starting enhanced infrastructure discovery and testing", "target", target)
 
 	// Phase 1: Advanced Infrastructure Discovery
 	log.Info("📡 Phase 1: Advanced Infrastructure Discovery")

@@ -133,7 +133,7 @@ func (s *interactshScanner) Validate(target string) error {
 }
 
 func (s *interactshScanner) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
-	s.logger.Info("Starting OOB identity validation scan", "target", target)
+	s.logger.Infow("Starting OOB identity validation scan", "target", target)
 
 	// Register with Interactsh server
 	if err := s.client.Register(ctx); err != nil {

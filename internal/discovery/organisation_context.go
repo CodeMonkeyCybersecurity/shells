@@ -63,7 +63,7 @@ func (ocb *OrganizationContextBuilder) BuildContext(ctx context.Context, identif
 		IndustryType:  getIndustryType(org),
 	}
 
-	ocb.logger.Info("Built organization context",
+	ocb.logger.Infow("Built organization context",
 		"org", org.Name,
 		"domains", len(orgContext.KnownDomains),
 		"ip_ranges", len(orgContext.KnownIPRanges),

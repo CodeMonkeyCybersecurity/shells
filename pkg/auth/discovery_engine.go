@@ -281,7 +281,7 @@ func (e *AuthDiscoveryEngine) discoverPortBasedAuth(ctx context.Context, target 
 			TLS:  e.checkPort(host, 636),
 		}
 		mu.Unlock()
-		e.logger.Infow("LDAP service discovered", "host", host)
+		e.logger.Info("LDAP service discovered", "host", host)
 	}
 
 	// Kerberos ports
@@ -292,7 +292,7 @@ func (e *AuthDiscoveryEngine) discoverPortBasedAuth(ctx context.Context, target 
 			KDCPort: 88,
 		}
 		mu.Unlock()
-		e.logger.Infow("Kerberos service discovered", "host", host)
+		e.logger.Info("Kerberos service discovered", "host", host)
 	}
 
 	// RADIUS ports
@@ -303,7 +303,7 @@ func (e *AuthDiscoveryEngine) discoverPortBasedAuth(ctx context.Context, target 
 			Port: 1812,
 		}
 		mu.Unlock()
-		e.logger.Infow("RADIUS service discovered", "host", host)
+		e.logger.Info("RADIUS service discovered", "host", host)
 	}
 }
 

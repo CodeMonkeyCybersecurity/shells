@@ -135,7 +135,7 @@ func NewEmailSecurityIntel(logger *logger.Logger) *EmailSecurityIntel {
 
 // AnalyzeDomain performs comprehensive email security analysis
 func (e *EmailSecurityIntel) AnalyzeDomain(ctx context.Context, domain string) (*EmailSecurityFindings, error) {
-	e.logger.Info("Starting email security analysis", "domain", domain)
+	e.logger.Infow("Starting email security analysis", "domain", domain)
 
 	findings := &EmailSecurityFindings{
 		Domain:         domain,

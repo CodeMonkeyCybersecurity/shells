@@ -748,7 +748,7 @@ func (d *DomainDiscovery) checkCloudflareBypass(ctx context.Context, domain stri
 		return assets
 	}
 
-	d.logger.Info("Domain is behind Cloudflare, attempting to find origin IPs", "domain", domain)
+	d.logger.Infow("Domain is behind Cloudflare, attempting to find origin IPs", "domain", domain)
 
 	// Try to find origin IPs
 	candidates, err := cfIntel.FindOriginIP(ctx, domain)

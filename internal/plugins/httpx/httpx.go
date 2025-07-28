@@ -132,7 +132,7 @@ func (s *httpxScanner) Scan(ctx context.Context, target string, options map[stri
 
 	args := s.buildHTTPXArgs(target, tempFile, options)
 
-	s.logger.Info("Running httpx scan", "target", target, "args", args)
+	s.logger.Infow("Running httpx scan", "target", target, "args", args)
 
 	cmd := exec.CommandContext(ctx, s.cfg.BinaryPath, args...)
 

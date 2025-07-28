@@ -281,7 +281,7 @@ func (m *Manager) RemoveProgram(programID string) error {
 	// Clear cache
 	m.cache.Clear()
 
-	m.logger.Info("Successfully removed program", "program_id", programID)
+	m.logger.Infow("Successfully removed program", "program_id", programID)
 	return nil
 }
 
@@ -306,7 +306,7 @@ func (m *Manager) insertScopeItem(tx *sqlx.Tx, programID string, item *ScopeItem
 
 // SyncProgram syncs a program's scope from the platform
 func (m *Manager) SyncProgram(programID string) error {
-	m.logger.Info("Syncing program scope", "program_id", programID)
+	m.logger.Infow("Syncing program scope", "program_id", programID)
 
 	// Get program
 	program, err := m.GetProgram(programID)

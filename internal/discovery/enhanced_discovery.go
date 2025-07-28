@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/credentials"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/asn"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/cache"
@@ -104,9 +105,26 @@ func NewEnhancedDiscovery(config *DiscoveryConfig, logger *logger.Logger, cfg *c
 	// Initialize technology fingerprinter
 	techFingerprinter := techstack.NewTechFingerprinter(logger)
 
-	// Initialize passive DNS client - API keys would come from environment or config
-	// For now, create an empty map that can be populated later
+	// Initialize passive DNS client with API keys from credentials manager
 	passiveDNSAPIKeys := make(map[string]string)
+	
+	// Try to get credentials from the credentials manager
+	if credManager, err := credentials.NewManager(logger); err == nil {
+		// Get all API keys from credentials manager
+		apiKeys := credManager.GetAPIKeys()
+		
+		// Map the keys to the format expected by passive DNS client
+		for k, v := range apiKeys {
+			passiveDNSAPIKeys[k] = v
+		}
+		
+		logger.Debug("Loaded API keys from credentials manager", 
+			"keys_loaded", len(passiveDNSAPIKeys))
+	} else {
+		logger.Debug("Could not load credentials from manager, using empty API keys", 
+			"error", err)
+	}
+	
 	passiveDNSClient := passivedns.NewPassiveDNSClient(logger, passiveDNSAPIKeys)
 
 	// Initialize IPv6 discoverer
@@ -1373,7 +1391,7 @@ func (e *EnhancedDiscovery) checkSubdomainTakeovers(ctx context.Context, result 
 		return
 	}
 
-	e.logger.Info("Checking subdomains for takeover vulnerabilities", "count", len(subdomains))
+	e.logger.Infow("Checking subdomains for takeover vulnerabilities", "count", len(subdomains))
 
 	// Check for takeovers
 	takeovers, err := e.takeoverDetector.BulkCheck(ctx, subdomains)
@@ -1469,7 +1487,7 @@ func (e *EnhancedDiscovery) portScanDiscovery(ctx context.Context, result *Disco
 		return
 	}
 
-	e.logger.Info("Starting port scan on discovered assets", "targets", len(targets))
+	e.logger.Infow("Starting port scan on discovered assets", "targets", len(targets))
 
 	// Perform port scanning
 	scanResults, err := e.portScanner.ScanHosts(ctx, targets)
@@ -1586,7 +1604,7 @@ func (e *EnhancedDiscovery) certLogDiscovery(ctx context.Context, domain string,
 		return
 	}
 
-	e.logger.Info("Starting Certificate Transparency log discovery", "domain", domain)
+	e.logger.Infow("Starting Certificate Transparency log discovery", "domain", domain)
 
 	// Discover subdomains from CT logs
 	subdomains, err := e.ctLogClient.DiscoverSubdomains(ctx, domain)
@@ -1739,7 +1757,7 @@ func (e *EnhancedDiscovery) passiveDNSDiscovery(ctx context.Context, domain stri
 		return
 	}
 
-	e.logger.Info("Starting passive DNS discovery", "domain", domain)
+	e.logger.Infow("Starting passive DNS discovery", "domain", domain)
 
 	// Discover subdomains via passive DNS
 	subdomains, err := e.passiveDNSClient.DiscoverSubdomains(ctx, domain)
@@ -1953,7 +1971,7 @@ func (e *EnhancedDiscovery) ipv6Discovery(ctx context.Context, domain string, re
 		return
 	}
 
-	e.logger.Info("Starting IPv6 discovery", "domain", domain)
+	e.logger.Infow("Starting IPv6 discovery", "domain", domain)
 
 	// Discover IPv6 addresses for the domain
 	ipv6Addresses, err := e.ipv6Discoverer.DiscoverIPv6Addresses(ctx, domain)
@@ -2125,7 +2143,7 @@ func (e *EnhancedDiscovery) ipv6Discovery(ctx context.Context, domain string, re
 		}
 	}
 
-	e.logger.Info("IPv6 discovery completed", "domain", domain)
+	e.logger.Infow("IPv6 discovery completed", "domain", domain)
 }
 
 // techStackFingerprinting performs technology stack fingerprinting on discovered assets
@@ -2319,7 +2337,7 @@ func (e *EnhancedDiscovery) vulnerabilityCorrelation(ctx context.Context, result
 		return
 	}
 
-	e.logger.Info("Starting vulnerability correlation", "assets", len(result.Assets))
+	e.logger.Infow("Starting vulnerability correlation", "assets", len(result.Assets))
 
 	// Convert assets to interface slice for correlator
 	var assetInterfaces []interface{}

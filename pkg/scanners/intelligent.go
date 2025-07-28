@@ -207,7 +207,7 @@ func NewIntelligentScanner(logger *logger.Logger, passiveModules passive.Passive
 
 // ScanWithIntelligence performs intelligent scanning based on passive intel
 func (s *IntelligentScanner) ScanWithIntelligence(ctx context.Context, target string) (*IntelligentScanResult, error) {
-	s.logger.Info("Starting intelligent scan", "target", target)
+	s.logger.Infow("Starting intelligent scan", "target", target)
 
 	result := &IntelligentScanResult{
 		Target:    target,
@@ -225,7 +225,7 @@ func (s *IntelligentScanner) ScanWithIntelligence(ctx context.Context, target st
 
 	// Phase 2: Correlate and prioritize targets
 	scanTargets := s.generateScanTargets(intel)
-	s.logger.Info("Generated scan targets", "count", len(scanTargets))
+	s.logger.Infow("Generated scan targets", "count", len(scanTargets))
 
 	// Phase 3: Execute intelligent active scanning
 	s.executeIntelligentScans(ctx, scanTargets, result)
@@ -254,7 +254,7 @@ func (s *IntelligentScanner) ScanWithIntelligence(ctx context.Context, target st
 
 // ScanWithContext allows passing pre-gathered intelligence
 func (s *IntelligentScanner) ScanWithContext(ctx context.Context, target string, intel *passive.PassiveIntel) (*IntelligentScanResult, error) {
-	s.logger.Info("Starting contextual intelligent scan", "target", target)
+	s.logger.Infow("Starting contextual intelligent scan", "target", target)
 
 	result := &IntelligentScanResult{
 		Target:    target,
@@ -601,7 +601,7 @@ func (s *IntelligentScanner) scanOriginIP(ctx context.Context, target ScanTarget
 	ip := target.Value
 	domain := target.Context["domain"].(string)
 
-	s.logger.Info("Scanning potential origin IP", "ip", ip, "domain", domain)
+	s.logger.Infow("Scanning potential origin IP", "ip", ip, "domain", domain)
 
 	// Verify it's actually the origin
 	verified := s.verifyOrigin(ctx, ip, domain)

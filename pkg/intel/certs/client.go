@@ -225,7 +225,11 @@ func (c *CertIntel) queryCrtSh(ctx context.Context, domain string, results chan<
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.logger.Error("crt.sh returned non-200 status", "status", resp.StatusCode)
+		if resp.StatusCode == 502 || resp.StatusCode == 429 || resp.StatusCode == 503 {
+			c.logger.Debug("crt.sh temporarily unavailable", "status", resp.StatusCode)
+		} else {
+			c.logger.Warn("crt.sh returned non-200 status", "status", resp.StatusCode)
+		}
 		return
 	}
 
@@ -260,7 +264,7 @@ func (c *CertIntel) queryCrtSh(ctx context.Context, domain string, results chan<
 		}
 	}
 
-	c.logger.Info("Retrieved certificates from crt.sh", "count", len(crtShResults), "domain", domain)
+	c.logger.Infow("Retrieved certificates from crt.sh", "count", len(crtShResults), "domain", domain)
 }
 
 // crtShResult represents a result from crt.sh API

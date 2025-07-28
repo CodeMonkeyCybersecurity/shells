@@ -1,13 +1,19 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/credentials"
 	"github.com/spf13/cobra"
 )
 
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Manage scan profiles and tool configurations",
-	Long:  `Create, update, and manage scan profiles and tool-specific configurations.`,
+	Short: "Manage scan profiles, API keys, and tool configurations",
+	Long:  `Create, update, and manage scan profiles, API credentials, and tool-specific configurations.`,
 }
 
 func init() {
@@ -16,6 +22,9 @@ func init() {
 	configCmd.AddCommand(configProfileCmd)
 	configCmd.AddCommand(configScopeCmd)
 	configCmd.AddCommand(configToolCmd)
+	configCmd.AddCommand(configAPIKeysCmd)
+	configCmd.AddCommand(configShowCmd)
+	configCmd.AddCommand(configClearCmd)
 }
 
 var configProfileCmd = &cobra.Command{
@@ -31,7 +40,7 @@ var configProfileCreateCmd = &cobra.Command{
 		name := args[0]
 		description, _ := cmd.Flags().GetString("description")
 
-		log.Info("Creating profile", "name", name, "description", description)
+		log.Infow("Creating profile", "name", name, "description", description)
 
 		return nil
 	},
@@ -58,7 +67,7 @@ var configScopeAddCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pattern := args[0]
 
-		log.Info("Adding to scope", "pattern", pattern)
+		log.Infow("Adding to scope", "pattern", pattern)
 
 		return nil
 	},
@@ -86,4 +95,109 @@ func init() {
 	configScopeCmd.AddCommand(configScopeListCmd)
 
 	configProfileCreateCmd.Flags().String("description", "", "Profile description")
+	configClearCmd.Flags().BoolP("force", "f", false, "Force clear without confirmation")
+}
+
+var configAPIKeysCmd = &cobra.Command{
+	Use:   "api-keys",
+	Short: "Configure API keys for external services",
+	Long: `Configure API keys for external services like CIRCL, PassiveTotal, Shodan, etc.
+These credentials are encrypted and stored locally in ~/.shells/credentials.enc`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Create credentials manager
+		credManager, err := credentials.NewManager(log)
+		if err != nil {
+			return fmt.Errorf("failed to initialize credentials manager: %w", err)
+		}
+
+		// Run interactive configuration
+		if err := credManager.PromptForAllAPIs(); err != nil {
+			return fmt.Errorf("failed to configure API keys: %w", err)
+		}
+
+		return nil
+	},
+}
+
+var configShowCmd = &cobra.Command{
+	Use:   "show",
+	Short: "Show current configuration",
+	Long:  `Display the current configuration including which API keys are configured (keys are not shown).`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Create credentials manager
+		credManager, err := credentials.NewManager(log)
+		if err != nil {
+			return fmt.Errorf("failed to initialize credentials manager: %w", err)
+		}
+
+		// Load and display configured APIs
+		keys := credManager.GetAPIKeys()
+		
+		fmt.Println("\n🔧 Current Configuration")
+		fmt.Println("═══════════════════════")
+		
+		fmt.Println("\n📡 API Keys:")
+		apis := map[string]string{
+			"CirclUsername":        "CIRCL",
+			"PassiveTotalUsername": "PassiveTotal",
+			"Shodan":               "Shodan",
+			"CensysID":             "Censys",
+			"VirusTotal":           "VirusTotal",
+			"SecurityTrails":       "SecurityTrails",
+		}
+
+		configured := 0
+		for key, name := range apis {
+			if val, exists := keys[key]; exists && val != "" {
+				fmt.Printf("   ✅ %s: Configured\n", name)
+				configured++
+			} else {
+				fmt.Printf("   ❌ %s: Not configured\n", name)
+			}
+		}
+
+		fmt.Printf("\n📊 Total: %d/%d APIs configured\n", configured, len(apis))
+
+		// Show config file location
+		homeDir, _ := os.UserHomeDir()
+		configDir := filepath.Join(homeDir, ".shells")
+		fmt.Printf("\n📁 Config directory: %s\n", configDir)
+		
+		return nil
+	},
+}
+
+var configClearCmd = &cobra.Command{
+	Use:   "clear",
+	Short: "Clear stored API credentials",
+	Long:  `Clear all stored API credentials. This action cannot be undone.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		force, _ := cmd.Flags().GetBool("force")
+		
+		if !force {
+			fmt.Println("⚠️  This will delete all stored API credentials.")
+			fmt.Print("Are you sure? [y/N]: ")
+			
+			var response string
+			fmt.Scanln(&response)
+			response = strings.TrimSpace(strings.ToLower(response))
+			
+			if response != "y" && response != "yes" {
+				fmt.Println("Cancelled.")
+				return nil
+			}
+		}
+
+		// Remove credentials file
+		homeDir, _ := os.UserHomeDir()
+		credFile := filepath.Join(homeDir, ".shells", "credentials.enc")
+		keyFile := filepath.Join(homeDir, ".shells", ".key")
+		
+		os.Remove(credFile)
+		os.Remove(keyFile)
+		
+		fmt.Println("✅ API credentials cleared")
+		
+		return nil
+	},
 }

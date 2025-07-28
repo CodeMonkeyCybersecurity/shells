@@ -106,7 +106,7 @@ var workflowCreateCmd = &cobra.Command{
 		name := args[0]
 		filename := args[1]
 
-		log.Info("Creating custom workflow", "name", name, "file", filename)
+		log.Infow("Creating custom workflow", "name", name, "file", filename)
 
 		// TODO: Implement workflow creation from JSON
 		return fmt.Errorf("custom workflow creation not yet implemented")
@@ -120,7 +120,7 @@ var workflowStatusCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		workflowID := args[0]
 
-		log.Info("Getting workflow status", "workflow_id", workflowID)
+		log.Infow("Getting workflow status", "workflow_id", workflowID)
 
 		// TODO: Implement workflow status checking
 		return fmt.Errorf("workflow status checking not yet implemented")

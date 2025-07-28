@@ -102,7 +102,7 @@ func (e *Engine) RegisterModule(module DiscoveryModule) {
 	e.modules[moduleName] = module
 
 	// Use both loggers for backward compatibility and enhanced logging
-	e.logger.Info("Registered discovery module", "module", moduleName)
+	e.logger.Infow("Registered discovery module", "module", moduleName)
 
 	e.logger.WithFields(
 		"module", moduleName,
@@ -177,7 +177,7 @@ func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 	e.mutex.Unlock()
 
 	// Log with both loggers for compatibility
-	e.logger.Info("Started discovery session", "session_id", session.ID, "target", target.Value, "type", target.Type)
+	e.logger.Infow("Started discovery session", "session_id", session.ID, "target", target.Value, "type", target.Type)
 
 	e.logger.WithFields(
 		"session_id", sessionID,
@@ -265,7 +265,7 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 	}()
 
 	// Log with both loggers for compatibility
-	e.logger.Info("Running discovery", "session_id", session.ID)
+	e.logger.Infow("Running discovery", "session_id", session.ID)
 
 	e.logger.WithContext(ctx).Infow("Starting discovery execution",
 		"session_id", session.ID,
@@ -783,7 +783,7 @@ func (e *Engine) StopDiscovery(sessionID string) error {
 
 	if session.Status == StatusRunning {
 		session.Status = StatusPaused
-		e.logger.Info("Discovery session stopped", "session_id", sessionID)
+		e.logger.Infow("Discovery session stopped", "session_id", sessionID)
 	}
 
 	return nil

@@ -59,7 +59,7 @@ Example:
 			return fmt.Errorf("Nomad cluster not available at %s", nomadAddr)
 		}
 
-		log.Info("Nomad cluster is available", "address", nomadAddr)
+		log.Infow("Nomad cluster is available", "address", nomadAddr)
 
 		ctx := context.Background()
 
@@ -102,7 +102,7 @@ var deployScaleCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nomadAddr, _ := cmd.Flags().GetString("nomad-addr")
 
-		log.Info("Scaling workers", "count", args[0], "nomad_addr", nomadAddr)
+		log.Infow("Scaling workers", "count", args[0], "nomad_addr", nomadAddr)
 
 		client := nomad.NewClient(nomadAddr)
 
@@ -126,7 +126,7 @@ var deployStatusCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nomadAddr, _ := cmd.Flags().GetString("nomad-addr")
 
-		log.Info("Getting deployment status", "nomad_addr", nomadAddr)
+		log.Infow("Getting deployment status", "nomad_addr", nomadAddr)
 
 		client := nomad.NewClient(nomadAddr)
 
@@ -169,7 +169,7 @@ var deployStopCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nomadAddr, _ := cmd.Flags().GetString("nomad-addr")
 
-		log.Info("Stopping deployment", "nomad_addr", nomadAddr)
+		log.Infow("Stopping deployment", "nomad_addr", nomadAddr)
 
 		client := nomad.NewClient(nomadAddr)
 
@@ -229,13 +229,13 @@ func deployComponent(ctx context.Context, client *nomad.Client, component string
 		return fmt.Errorf("failed to read job file %s: %w", jobFile, err)
 	}
 
-	log.Info("Deploying component", "component", component, "job_file", jobFile)
+	log.Infow("Deploying component", "component", component, "job_file", jobFile)
 
 	// Register the job with Nomad
 	if err := client.RegisterJob(ctx, component, string(jobContent)); err != nil {
 		return fmt.Errorf("failed to register job %s: %w", component, err)
 	}
 
-	log.Info("Successfully deployed component", "component", component)
+	log.Infow("Successfully deployed component", "component", component)
 	return nil
 }
