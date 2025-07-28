@@ -122,7 +122,7 @@ func (a *jsAnalyzer) Validate(target string) error {
 func (a *jsAnalyzer) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
 	findings := []types.Finding{}
 
-	a.logger.Infow("Starting JavaScript analysis", "target", target)
+	a.logger.Info("Starting JavaScript analysis", "target", target)
 
 	// Determine if target is URL or file
 	var jsFiles []string

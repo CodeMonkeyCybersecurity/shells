@@ -43,7 +43,7 @@ func NewScanner(cfg config.SSLConfig, log interface {
 		enhancedLogger.FinishOperation(ctx, span, "ssl.NewScanner", start, nil)
 	}()
 
-	enhancedLogger.WithContext(ctx).Infow("Initializing SSL/TLS scanner",
+	enhancedLogger.WithContext(ctx).Info("Initializing SSL/TLS scanner",
 		"scanner_type", "ssl",
 		"component", "ssl_tls_scanner",
 		"timeout", cfg.Timeout.String(),
@@ -62,7 +62,7 @@ func NewScanner(cfg config.SSLConfig, log interface {
 		logger: enhancedLogger,
 	}
 
-	enhancedLogger.WithContext(ctx).Infow("SSL scanner initialized successfully",
+	enhancedLogger.WithContext(ctx).Info("SSL scanner initialized successfully",
 		"scanner_type", "ssl",
 		"total_init_duration_ms", time.Since(start).Milliseconds(),
 		"security_checks", []string{"weak_protocols", "certificate_validation", "cipher_suites", "key_strength", "signature_algorithms"},
@@ -159,7 +159,7 @@ func (s *sslScanner) Validate(target string) error {
 		)
 	}
 
-	s.logger.WithContext(ctx).Infow("SSL target validation successful",
+	s.logger.WithContext(ctx).Info("SSL target validation successful",
 		"target", target,
 		"host", host,
 		"port", port,
@@ -203,7 +203,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 		target = target + ":" + port
 	}
 
-	s.logger.WithContext(ctx).Infow("Starting SSL/TLS scan",
+	s.logger.WithContext(ctx).Info("Starting SSL/TLS scan",
 		"scan_id", scanID,
 		"target", target,
 		"original_target", originalTarget,
@@ -228,7 +228,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 	var state tls.ConnectionState
 	protocolTestResults := make(map[string]interface{})
 
-	s.logger.WithContext(ctx).Infow("Testing TLS protocol versions",
+	s.logger.WithContext(ctx).Info("Testing TLS protocol versions",
 		"scan_id", scanID,
 		"protocols_to_test", len(tlsConfigs),
 		"target", target,
@@ -277,7 +277,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 				"test_duration_ms": time.Since(versionTestStart).Milliseconds(),
 			}
 
-			s.logger.WithContext(ctx).Infow("TLS version supported",
+			s.logger.WithContext(ctx).Info("TLS version supported",
 				"scan_id", scanID,
 				"version", version,
 				"test_duration_ms", time.Since(versionTestStart).Milliseconds(),
@@ -310,7 +310,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 	}
 
 	protocolTestDuration := time.Since(protocolTestStart)
-	s.logger.WithContext(ctx).Infow("TLS protocol testing completed",
+	s.logger.WithContext(ctx).Info("TLS protocol testing completed",
 		"scan_id", scanID,
 		"protocol_test_duration_ms", protocolTestDuration.Milliseconds(),
 		"supported_versions", supportedVersions,
@@ -329,7 +329,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 	}
 	defer conn.Close()
 
-	s.logger.WithContext(ctx).Infow("SSL connection established, running security checks",
+	s.logger.WithContext(ctx).Info("SSL connection established, running security checks",
 		"scan_id", scanID,
 		"target", target,
 		"connection_state_version", state.Version,
@@ -397,7 +397,7 @@ func (s *sslScanner) Scan(ctx context.Context, target string, options map[string
 		severityBreakdown[finding.Severity]++
 	}
 
-	s.logger.WithContext(ctx).Infow("SSL scan completed successfully",
+	s.logger.WithContext(ctx).Info("SSL scan completed successfully",
 		"scan_id", scanID,
 		"target", target,
 		"total_duration_ms", totalDuration.Milliseconds(),

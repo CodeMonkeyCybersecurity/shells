@@ -145,7 +145,7 @@ func NewChromedpAnalyzer(config BrowserConfig, log interface {
 		config.WaitForLoad = 5 * time.Second
 	}
 
-	enhancedLogger.WithContext(ctx).Infow("Initializing browser-based JavaScript analyzer",
+	enhancedLogger.WithContext(ctx).Info("Initializing browser-based JavaScript analyzer",
 		"scanner_type", "browser",
 		"component", "javascript_analyzer",
 		"headless", config.Headless,
@@ -163,7 +163,7 @@ func NewChromedpAnalyzer(config BrowserConfig, log interface {
 		config: config,
 	}
 
-	enhancedLogger.WithContext(ctx).Infow("Browser analyzer initialized successfully",
+	enhancedLogger.WithContext(ctx).Info("Browser analyzer initialized successfully",
 		"scanner_type", "browser",
 		"total_init_duration_ms", time.Since(start).Milliseconds(),
 		"analysis_capabilities", []string{"api_endpoint_discovery", "secret_detection", "dom_source_analysis", "event_listener_analysis", "storage_analysis", "vulnerability_detection"},
@@ -213,7 +213,7 @@ func (a *chromedpAnalyzer) Validate(target string) error {
 		return err
 	}
 
-	a.logger.WithContext(ctx).Infow("Browser target validation successful",
+	a.logger.WithContext(ctx).Info("Browser target validation successful",
 		"target", target,
 		"validation_duration_ms", time.Since(start).Milliseconds(),
 		"protocol", strings.Split(strings.Split(target, "://")[0], "")[0],
@@ -235,7 +235,7 @@ func (a *chromedpAnalyzer) Scan(ctx context.Context, target string, options map[
 		a.logger.FinishOperation(ctx, span, "browser.Scan", start, err)
 	}()
 
-	a.logger.WithContext(ctx).Infow("Starting browser-based JavaScript analysis",
+	a.logger.WithContext(ctx).Info("Starting browser-based JavaScript analysis",
 		"scan_id", scanID,
 		"target", target,
 		"timeout_seconds", a.config.Timeout.Seconds(),

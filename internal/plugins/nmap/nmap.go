@@ -42,7 +42,7 @@ func NewScanner(cfg config.NmapConfig, log interface {
 		enhancedLogger.FinishOperation(ctx, span, "nmap.NewScanner", start, nil)
 	}()
 
-	enhancedLogger.WithContext(ctx).Infow("Initializing Nmap scanner",
+	enhancedLogger.WithContext(ctx).Info("Initializing Nmap scanner",
 		"scanner_type", "nmap",
 		"component", "network_scanner",
 		"binary_path", cfg.BinaryPath,
@@ -65,7 +65,7 @@ func NewScanner(cfg config.NmapConfig, log interface {
 		logger: enhancedLogger,
 	}
 
-	enhancedLogger.WithContext(ctx).Infow("Nmap scanner initialized successfully",
+	enhancedLogger.WithContext(ctx).Info("Nmap scanner initialized successfully",
 		"scanner_type", "nmap",
 		"total_init_duration_ms", time.Since(start).Milliseconds(),
 		"capabilities", []string{"port_scanning", "service_detection", "os_detection", "vulnerability_assessment"},
@@ -138,7 +138,7 @@ func (s *nmapScanner) Validate(target string) error {
 		)
 	}
 
-	s.logger.WithContext(ctx).Infow("Nmap target validation successful",
+	s.logger.WithContext(ctx).Info("Nmap target validation successful",
 		"target", target,
 		"validation_duration_ms", time.Since(start).Milliseconds(),
 	)
@@ -159,7 +159,7 @@ func (s *nmapScanner) Scan(ctx context.Context, target string, options map[strin
 		s.logger.FinishOperation(ctx, span, "nmap.Scan", start, err)
 	}()
 
-	s.logger.WithContext(ctx).Infow("Starting Nmap scan",
+	s.logger.WithContext(ctx).Info("Starting Nmap scan",
 		"target", target,
 		"scan_id", scanID,
 		"available_options", len(options),
@@ -191,7 +191,7 @@ func (s *nmapScanner) Scan(ctx context.Context, target string, options map[strin
 		profileArgs = s.cfg.Profiles["default"]
 	}
 
-	s.logger.WithContext(ctx).Infow("Profile selected",
+	s.logger.WithContext(ctx).Info("Profile selected",
 		"scan_id", scanID,
 		"selected_profile", profile,
 		"profile_args", profileArgs,
@@ -212,7 +212,7 @@ func (s *nmapScanner) Scan(ctx context.Context, target string, options map[strin
 	profileArgsSlice := strings.Fields(profileArgs)
 	args = append(args, profileArgsSlice...)
 
-	s.logger.WithContext(ctx).Infow("Nmap command prepared",
+	s.logger.WithContext(ctx).Info("Nmap command prepared",
 		"scan_id", scanID,
 		"binary_path", s.cfg.BinaryPath,
 		"total_args", len(args),
@@ -225,7 +225,7 @@ func (s *nmapScanner) Scan(ctx context.Context, target string, options map[strin
 	cmdStart := time.Now()
 	cmd := exec.CommandContext(ctx, s.cfg.BinaryPath, args...)
 
-	s.logger.WithContext(ctx).Infow("Executing Nmap scan",
+	s.logger.WithContext(ctx).Info("Executing Nmap scan",
 		"scan_id", scanID,
 		"command", s.cfg.BinaryPath,
 		"target", target,
@@ -253,7 +253,7 @@ func (s *nmapScanner) Scan(ctx context.Context, target string, options map[strin
 		return nil, err
 	}
 
-	s.logger.WithContext(ctx).Infow("Nmap execution completed successfully",
+	s.logger.WithContext(ctx).Info("Nmap execution completed successfully",
 		"scan_id", scanID,
 		"command_duration_ms", cmdDuration.Milliseconds(),
 		"output_size_bytes", len(output),
@@ -274,7 +274,7 @@ func (s *nmapScanner) Scan(ctx context.Context, target string, options map[strin
 	}
 
 	// Log scan completion with comprehensive metrics
-	s.logger.WithContext(ctx).Infow("Nmap scan completed successfully",
+	s.logger.WithContext(ctx).Info("Nmap scan completed successfully",
 		"scan_id", scanID,
 		"target", target,
 		"total_duration_ms", time.Since(start).Milliseconds(),
@@ -432,7 +432,7 @@ func (s *nmapScanner) parseNmapOutput(ctx context.Context, xmlData []byte, targe
 			findings = append(findings, finding)
 		}
 
-		s.logger.WithContext(ctx).Infow("Host processing completed",
+		s.logger.WithContext(ctx).Info("Host processing completed",
 			"scan_id", scanID,
 			"host_address", address,
 			"open_ports", hostPortCount,
@@ -469,7 +469,7 @@ func (s *nmapScanner) parseNmapOutput(ctx context.Context, xmlData []byte, targe
 	}
 
 	// Log comprehensive parsing summary
-	s.logger.WithContext(ctx).Infow("Nmap output parsing completed",
+	s.logger.WithContext(ctx).Info("Nmap output parsing completed",
 		"scan_id", scanID,
 		"total_duration_ms", time.Since(start).Milliseconds(),
 		"hosts_processed", hostCount,
