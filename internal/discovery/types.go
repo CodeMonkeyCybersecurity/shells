@@ -183,23 +183,46 @@ type DiscoveryConfig struct {
 
 // DefaultDiscoveryConfig returns default discovery configuration
 func DefaultDiscoveryConfig() *DiscoveryConfig {
+	// TODO: Add BugBountyConfig() for optimized settings
+	// FIXME: These defaults are too slow for bug bounty hunting
 	return &DiscoveryConfig{
-		MaxDepth:        3,
-		MaxAssets:       1000,
-		Timeout:         30 * time.Minute,
-		EnableDNS:       true,
-		EnableCertLog:   true,
-		EnableSearch:    true,
-		EnablePortScan:  true,
-		EnableWebCrawl:  true,
-		EnableTechStack: true,
+		MaxDepth:        3,       // TODO: Reduce to 1 for bug bounty
+		MaxAssets:       1000,    // TODO: Reduce to 100 for focused testing
+		Timeout:         30 * time.Minute, // FIXME: Way too long - max 30 seconds
+		EnableDNS:       true,    // TODO: Make optional - low value
+		EnableCertLog:   true,    // FIXME: Disable by default - too slow
+		EnableSearch:    true,    // FIXME: Disable - not needed for direct targets
+		EnablePortScan:  true,    // Keep for finding services
+		EnableWebCrawl:  true,    // Keep for finding endpoints
+		EnableTechStack: true,    // Keep for targeting vulns
 		MaxWorkers:      10,
 		RateLimit:       10,
 		UserAgent:       "shells-discovery/1.0",
-		Recursive:       true,
-		HighValueOnly:   false,
+		Recursive:       true,    // FIXME: Disable for bug bounty
+		HighValueOnly:   false,   // TODO: Enable for bug bounty mode
 	}
 }
+
+// TODO: Add this function
+// BugBountyDiscoveryConfig returns optimized config for bug bounty hunting
+// func BugBountyDiscoveryConfig() *DiscoveryConfig {
+// 	return &DiscoveryConfig{
+// 		MaxDepth:        1,
+// 		MaxAssets:       50,
+// 		Timeout:         30 * time.Second,
+// 		EnableDNS:       false,
+// 		EnableCertLog:   false,
+// 		EnableSearch:    false,
+// 		EnablePortScan:  true,
+// 		EnableWebCrawl:  true,
+// 		EnableTechStack: true,
+// 		MaxWorkers:      20,
+// 		RateLimit:       50,
+// 		UserAgent:       "Mozilla/5.0",
+// 		Recursive:       false,
+// 		HighValueOnly:   true,
+// 	}
+// }
 
 // AssetPriority represents asset priority levels
 type AssetPriority int

@@ -197,14 +197,19 @@ func (e *EnhancedDiscovery) Discover(ctx context.Context, target *Target, sessio
 		e.discoverASN(ctx, target.Value, result)
 	}
 
-	// Recursive discovery on new assets
+	// FIXME: Recursive discovery is too broad for bug bounty
+	// TODO: Only recurse on high-value assets (login, api, admin)
 	if e.recursionDepth < e.maxRecursion {
+		// TODO: Filter assets before recursing
 		e.recursiveDiscovery(ctx, result)
 	}
 
+	// TODO: This is good for bug bounty! Move to vulnerability testing phase
 	// Check for subdomain takeover vulnerabilities
 	e.checkSubdomainTakeovers(ctx, result)
 
+	// TODO: Port scanning is good but needs optimization
+	// FIXME: Only scan common web/api ports for bug bounty
 	// Perform port scanning on discovered assets
 	e.portScanDiscovery(ctx, result)
 
@@ -226,20 +231,24 @@ func (e *EnhancedDiscovery) Discover(ctx context.Context, target *Target, sessio
 func (e *EnhancedDiscovery) discoverDomain(ctx context.Context, domain string, result *DiscoveryResult) {
 	var wg sync.WaitGroup
 
-	// DNS brute-forcing
+	// FIXME: DNS brute-forcing is too slow for bug bounty
+	// TODO: Only run if --deep flag is set
 	if e.config.EnableDNS {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			// TODO: Add timeout context - max 10 seconds
 			e.dnsBruteforce(ctx, domain, result)
 		}()
 	}
 
-	// Search engine discovery
+	// FIXME: Skip search engine discovery for bug bounty - not needed
+	// TODO: Only enable if user has API keys configured
 	if e.config.EnableSearch {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			// FIXME: This takes too long and rarely finds vulns
 			e.searchEngineDiscovery(ctx, domain, result)
 		}()
 	}

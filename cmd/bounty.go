@@ -138,7 +138,7 @@ func runBountyCommand(cmd *cobra.Command, args []string) error {
 			
 			// Always test for request smuggling and SSRF on web endpoints
 			testRequestSmuggling(ctx, a, &findings, &mu, progress)
-			testSSRF(ctx, a, &findings, &mu, progress)
+			testSSRFOld(ctx, a, &findings, &mu, progress)
 			
 		}(i, asset)
 	}
@@ -310,7 +310,7 @@ func testRequestSmuggling(ctx context.Context, asset discovery.Asset, findings *
 	}
 }
 
-func testSSRF(ctx context.Context, asset discovery.Asset, findings *[]types.Finding, mu *sync.Mutex, progress string) {
+func testSSRFOld(ctx context.Context, asset discovery.Asset, findings *[]types.Finding, mu *sync.Mutex, progress string) {
 	// Look for SSRF indicators
 	if strings.Contains(asset.Value, "webhook") || 
 	   strings.Contains(asset.Value, "callback") ||

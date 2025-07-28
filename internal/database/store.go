@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -33,7 +34,14 @@ func (s *sqlStore) getPlaceholder(n int) string {
 
 func NewStore(cfg config.DatabaseConfig) (core.ResultStore, error) {
 	// Initialize logger for database operations
-	log, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
+	// Use error level if in bug bounty mode to reduce noise
+	level := "debug"
+	format := "json"
+	if os.Getenv("SHELLS_BUG_BOUNTY_MODE") == "true" {
+		level = "fatal"
+		format = "console"
+	}
+	log, err := logger.New(config.LoggerConfig{Level: level, Format: format})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database logger: %w", err)
 	}

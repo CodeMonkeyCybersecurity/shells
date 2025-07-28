@@ -132,13 +132,13 @@ func (p *PassiveDNSClient) QueryDomain(ctx context.Context, domain string) ([]*D
 			result, err := p.querySingleSource(ctx, src, domain)
 			if err != nil {
 				// Log at debug level for expected API failures (missing credentials, access denied)
+				// TODO: For bug bounty mode, reduce noise from expected failures
 				if p.isExpectedFailure(err) {
-					p.logger.Debug("Passive DNS source unavailable",
-						"source", src.Name,
-						"domain", domain,
-						"reason", err.Error())
+					// FIXME: Don't log at all - these are expected without API keys
+					// Silently skip
 				} else {
-					p.logger.Warn("Failed to query passive DNS source",
+					// FIXME: Change to Debug - only log real errors in bug bounty mode
+					p.logger.Debug("Failed to query passive DNS source",
 						"source", src.Name,
 						"domain", domain,
 						"error", err)
@@ -677,6 +677,7 @@ func (p *PassiveDNSClient) hasValidCredentials(source PassiveDNSSource) bool {
 }
 
 // isExpectedFailure checks if an error is an expected API failure (credentials, rate limits, etc.)
+// TODO: In bug bounty mode, treat ALL passive DNS failures as expected to reduce noise
 func (p *PassiveDNSClient) isExpectedFailure(err error) bool {
 	errStr := strings.ToLower(err.Error())
 

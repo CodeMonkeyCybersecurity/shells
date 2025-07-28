@@ -151,6 +151,32 @@ func (l *Logger) WithTracer(tracer trace.Tracer) *Logger {
 	return &newLogger
 }
 
+// SetLevel dynamically changes the log level
+func (l *Logger) SetLevel(level string) error {
+	var zapLevel zapcore.Level
+	if err := zapLevel.UnmarshalText([]byte(level)); err != nil {
+		return fmt.Errorf("invalid log level: %w", err)
+	}
+	
+	// Create a new atomic level
+	atomicLevel := zap.NewAtomicLevelAt(zapLevel)
+	
+	// Recreate the logger with the new level
+	zapConfig := zap.NewProductionConfig()
+	zapConfig.Level = atomicLevel
+	
+	newLogger, err := zapConfig.Build()
+	if err != nil {
+		return err
+	}
+	
+	// Update the logger
+	l.baseLogger = newLogger
+	l.SugaredLogger = newLogger.Sugar()
+	
+	return nil
+}
+
 // Span and tracing utilities
 
 func (l *Logger) StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {

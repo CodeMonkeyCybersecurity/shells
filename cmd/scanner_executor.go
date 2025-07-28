@@ -13,6 +13,9 @@ import (
 )
 
 // executeRecommendedScanners executes the scanners recommended by the intelligent selector
+// FIXME: This function needs major optimization for bug bounty
+// TODO: Add parallel execution with time limits
+// TODO: Prioritize high-value vulnerability scanners
 func executeRecommendedScanners(session *discovery.DiscoverySession, recommendations []discovery.ScannerRecommendation) error {
 	if len(recommendations) == 0 {
 		log.Infow("No specific scanners recommended")
@@ -23,7 +26,8 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 
 	// Execute scanners by priority
 	for i, rec := range recommendations {
-		// Limit to top 10 scanners to avoid overload
+		// FIXME: 10 scanners is too many for quick bug bounty
+		// TODO: Limit to top 5 high-value scanners
 		if i >= 10 {
 			log.Infow("Additional lower-priority scanners available",
 				"count", len(recommendations)-10)
@@ -39,6 +43,8 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 		// Execute scanner based on type
 		switch rec.Scanner {
 		case discovery.ScannerTypeAuth:
+			// TODO: HIGH PRIORITY - Auth bypass is top bug bounty target
+			// FIXME: Add time limit - max 30 seconds
 			if err := executeAuthScanner(ctx, rec); err != nil {
 				log.LogError(ctx, err, "Auth scanner failed")
 			}
@@ -54,6 +60,11 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 			}
 
 		case discovery.ScannerTypeMail:
+			// TODO: For mail servers, add these quick tests:
+			// - Default credentials (admin:admin, postmaster:postmaster)
+			// - Open relay
+			// - Webmail XSS
+			// - Mail header injection
 			if err := executeMailScanner(ctx, rec); err != nil {
 				log.LogError(ctx, err, "Mail scanner failed")
 			}
@@ -311,9 +322,33 @@ func executeSmugglingScanner(ctx context.Context, rec discovery.ScannerRecommend
 func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running mail server security tests")
 
-	// Would execute actual mail scanner
+	// FIXME: Implement actual mail server vulnerability tests
+	// TODO: Quick wins for mail servers:
+	// 1. Check webmail interface for XSS/SQLi
+	// 2. Test SMTP AUTH bypass
+	// 3. Check for open relay
+	// 4. Test default credentials:
+	//    - admin:admin, admin:password
+	//    - postmaster:postmaster
+	//    - root:root
+	// 5. Mail header injection
+	// 6. Check for exposed admin panels:
+	//    - /admin, /webmail/admin, /postfixadmin
+	//    - /roundcube, /squirrelmail
+	
 	for _, target := range rec.Targets {
+		// TODO: Add actual implementation
 		log.Debugw("Executing mail scanner", "target", target)
+		
+		// FIXME: Quick test example:
+		// if strings.Contains(target, ":25") {
+		//     testSMTPAuth(target)
+		//     testOpenRelay(target)
+		// }
+		// if strings.Contains(target, ":80") || strings.Contains(target, ":443") {
+		//     testWebmailXSS(target)
+		//     testDefaultCreds(target)
+		// }
 	}
 
 	return nil
@@ -322,9 +357,21 @@ func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation
 func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running API security tests")
 
-	// Would execute actual API scanner
+	// TODO: HIGH PRIORITY - APIs often have critical vulns
+	// FIXME: Implement these tests:
+	// 1. GraphQL introspection
+	// 2. REST API authorization bypass
+	// 3. Mass assignment
+	// 4. Rate limiting bypass
+	// 5. API key leakage in responses
+	// 6. JWT vulnerabilities
+	
 	for _, target := range rec.Targets {
 		log.Debugw("Executing API scanner", "target", target)
+		// TODO: Quick GraphQL check:
+		// if strings.Contains(target, "graphql") {
+		//     testGraphQLIntrospection(target)
+		// }
 	}
 
 	return nil

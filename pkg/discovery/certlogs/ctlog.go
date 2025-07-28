@@ -15,6 +15,9 @@ import (
 )
 
 // CTLogClient queries Certificate Transparency logs
+// FIXME: CT log queries are too slow for bug bounty - often 5-10 seconds
+// TODO: Add caching to avoid repeated queries
+// TODO: Add option to skip CT logs entirely for quick scans
 type CTLogClient struct {
 	client     *http.Client
 	logger     *logger.Logger
@@ -56,6 +59,8 @@ type CTLogEntry struct {
 func NewCTLogClient(logger *logger.Logger) *CTLogClient {
 	client := &CTLogClient{
 		client: &http.Client{
+			// FIXME: 30 seconds is way too long for bug bounty
+			// TODO: Reduce to 5 seconds max
 			Timeout: 30 * time.Second,
 		},
 		logger:     logger,
