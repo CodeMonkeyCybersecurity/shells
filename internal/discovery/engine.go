@@ -1072,7 +1072,7 @@ func (e *Engine) runIdentityChainAnalysis(ctx context.Context, session *Discover
 	}
 
 	start := time.Now()
-	
+
 	e.logger.WithContext(ctx).Infow("Starting identity vulnerability chain analysis",
 		"session_id", session.ID,
 		"total_assets", len(session.Assets),

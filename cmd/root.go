@@ -68,13 +68,8 @@ Point-and-Click Mode:
 		}
 
 		// Point-and-click mode: intelligent discovery and testing
-		// Initialize database
-		db, err := database.NewStore(cfg.Database)
-		if err != nil {
-			return fmt.Errorf("failed to initialize database: %w", err)
-		}
-
-		return runMainDiscovery(cmd, args, log, db)
+		// Use the already initialized database store from PersistentPreRunE
+		return runMainDiscovery(cmd, args, log, store)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip initialization for certain commands that don't need it
@@ -115,13 +110,6 @@ func Execute() error {
 }
 
 func init() {
-	cobra.OnInitialize(func() {
-		if err := initConfig(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error initializing config: %v\n", err)
-			os.Exit(1)
-		}
-	})
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.shells.yaml)")
 	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("log-format", "json", "log format (json, console)")
@@ -2238,7 +2226,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	correlator := correlation.NewEnhancedOrganizationCorrelator(correlatorConfig, log)
 
 	// Build organization context
-	log.Info("Building organization context for target", "target", target)
+	log.Info("Building organization context", "target", target)
 	contextBuilder := discovery.NewOrganizationContextBuilder(correlator, log)
 	ctx := context.Background()
 	orgContext, err := contextBuilder.BuildContext(ctx, target)

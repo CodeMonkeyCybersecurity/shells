@@ -780,31 +780,31 @@ func listSessionsWithChains(output string) error {
 
 func showIdentityChains(sessionID, severityFilter string, verbose bool, output string) error {
 	fmt.Printf("🔗 Identity Vulnerability Chains for Session: %s\n\n", sessionID)
-	
+
 	// Note: In a full implementation, this would query the discovery engine
 	// for the session and extract the identity chains from session metadata
-	
+
 	fmt.Println("📊 Identity Chain Analysis Summary:")
 	fmt.Println("   • SAML XML Wrapping Chains: Available")
-	fmt.Println("   • OAuth JWT Attack Chains: Available") 
+	fmt.Println("   • OAuth JWT Attack Chains: Available")
 	fmt.Println("   • Federation Confusion Chains: Available")
 	fmt.Println("   • Privilege Escalation Chains: Available")
 	fmt.Println("   • Cross-Protocol Attack Chains: Available")
 	fmt.Println()
-	
+
 	fmt.Println("🔍 Chain Detection Features:")
 	fmt.Println("   ✓ Maps identity asset relationships")
 	fmt.Println("   ✓ Detects trust relationship vulnerabilities")
-	fmt.Println("   ✓ Identifies attack path chaining opportunities") 
+	fmt.Println("   ✓ Identifies attack path chaining opportunities")
 	fmt.Println("   ✓ Analyzes cross-protocol vulnerabilities")
 	fmt.Println("   ✓ Provides proof-of-concept payloads")
 	fmt.Println()
-	
+
 	fmt.Println("💡 Next Steps:")
 	fmt.Println("   1. Run discovery with: shells [target]")
 	fmt.Println("   2. Identity chains will be automatically analyzed")
 	fmt.Println("   3. High-impact chains will be logged in real-time")
 	fmt.Println("   4. Query findings with: shells results query --tool identity-chain-analyzer")
-	
+
 	return nil
 }

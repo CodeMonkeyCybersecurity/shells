@@ -100,10 +100,10 @@ func (d *SAMLXMLWrappingChainDetector) DetectChains(ctx context.Context, assets 
 						ExpectedResult: "Authentication bypass with elevated privileges",
 					},
 				},
-				Prerequisites:    []string{"Valid user account", "Access to SAML authentication flow"},
-				ImpactScore:      8.5,
+				Prerequisites:     []string{"Valid user account", "Access to SAML authentication flow"},
+				ImpactScore:       8.5,
 				ExploitDifficulty: DifficultyModerate,
-				AttackVectors:    []AttackVector{VectorSAMLManipulation, VectorPrivilegeEscalation},
+				AttackVectors:     []AttackVector{VectorSAMLManipulation, VectorPrivilegeEscalation},
 				Mitigations: []string{
 					"Implement strict XML signature validation",
 					"Use XML signature wrapping protection",
@@ -202,15 +202,15 @@ func (d *OAuthJWTChainDetector) DetectChains(ctx context.Context, assets map[str
 
 			// Create JWT attack chain
 			chain := &VulnerabilityChain{
-				ID:          uuid.New().String(),
-				Name:        fmt.Sprintf("OAuth JWT Attack Chain: %s -> %s", provider.URL, client.URL),
-				Description: fmt.Sprintf("JWT %s vulnerability allows token forgery and privilege escalation", jwtVulnType),
-				Severity:    SeverityCritical,
-				Steps:       d.generateJWTAttackSteps(provider, client, jwtVulnType),
-				Prerequisites: []string{"Access to OAuth flow", "Ability to intercept JWT tokens"},
-				ImpactScore: 9.2,
+				ID:                uuid.New().String(),
+				Name:              fmt.Sprintf("OAuth JWT Attack Chain: %s -> %s", provider.URL, client.URL),
+				Description:       fmt.Sprintf("JWT %s vulnerability allows token forgery and privilege escalation", jwtVulnType),
+				Severity:          SeverityCritical,
+				Steps:             d.generateJWTAttackSteps(provider, client, jwtVulnType),
+				Prerequisites:     []string{"Access to OAuth flow", "Ability to intercept JWT tokens"},
+				ImpactScore:       9.2,
 				ExploitDifficulty: DifficultyEasy,
-				AttackVectors: []AttackVector{VectorTokenForging, VectorPrivilegeEscalation},
+				AttackVectors:     []AttackVector{VectorTokenForging, VectorPrivilegeEscalation},
 				Mitigations: []string{
 					"Use only secure JWT algorithms (RS256, ES256)",
 					"Implement proper key validation",
@@ -405,10 +405,10 @@ func (d *FederationConfusionChainDetector) DetectChains(ctx context.Context, ass
 									ExpectedResult: "Unauthorized access to sensitive resources",
 								},
 							},
-							Prerequisites:    []string{"Account on low-privilege IdP", "Knowledge of federation configuration"},
-							ImpactScore:      8.0,
+							Prerequisites:     []string{"Account on low-privilege IdP", "Knowledge of federation configuration"},
+							ImpactScore:       8.0,
 							ExploitDifficulty: DifficultyModerate,
-							AttackVectors:    []AttackVector{VectorFederationConfusion, VectorPrivilegeEscalation},
+							AttackVectors:     []AttackVector{VectorFederationConfusion, VectorPrivilegeEscalation},
 							Mitigations: []string{
 								"Implement strict issuer validation",
 								"Use unique signing keys per IdP",
@@ -489,15 +489,15 @@ func (d *PrivilegeEscalationChainDetector) DetectChains(ctx context.Context, ass
 			// Check for escalation path
 			if escalationPath := d.findEscalationPath(lowPrivAsset, highPrivAsset, assets); escalationPath != nil {
 				chain := &VulnerabilityChain{
-					ID:          uuid.New().String(),
-					Name:        fmt.Sprintf("Privilege Escalation Chain: %s -> %s", lowPrivAsset.URL, highPrivAsset.URL),
-					Description: fmt.Sprintf("Privilege escalation from %s to %s access", lowPrivAsset.PrivilegeLevel, highPrivAsset.PrivilegeLevel),
-					Severity:    d.getSeverityForEscalation(lowPrivAsset.PrivilegeLevel, highPrivAsset.PrivilegeLevel),
-					Steps:       escalationPath,
-					Prerequisites: []string{"User-level access to initial system"},
-					ImpactScore: d.getImpactScoreForEscalation(lowPrivAsset.PrivilegeLevel, highPrivAsset.PrivilegeLevel),
+					ID:                uuid.New().String(),
+					Name:              fmt.Sprintf("Privilege Escalation Chain: %s -> %s", lowPrivAsset.URL, highPrivAsset.URL),
+					Description:       fmt.Sprintf("Privilege escalation from %s to %s access", lowPrivAsset.PrivilegeLevel, highPrivAsset.PrivilegeLevel),
+					Severity:          d.getSeverityForEscalation(lowPrivAsset.PrivilegeLevel, highPrivAsset.PrivilegeLevel),
+					Steps:             escalationPath,
+					Prerequisites:     []string{"User-level access to initial system"},
+					ImpactScore:       d.getImpactScoreForEscalation(lowPrivAsset.PrivilegeLevel, highPrivAsset.PrivilegeLevel),
 					ExploitDifficulty: DifficultyModerate,
-					AttackVectors: []AttackVector{VectorPrivilegeEscalation},
+					AttackVectors:     []AttackVector{VectorPrivilegeEscalation},
 					Mitigations: []string{
 						"Implement least privilege principles",
 						"Regular privilege reviews",
@@ -622,15 +622,15 @@ func (d *CrossProtocolChainDetector) DetectChains(ctx context.Context, assets ma
 				// Check for cross-protocol vulnerabilities
 				if vulnTypes := d.identifyCrossProtocolVulns(asset1, asset2); len(vulnTypes) > 0 {
 					chain := &VulnerabilityChain{
-						ID:          uuid.New().String(),
-						Name:        fmt.Sprintf("Cross-Protocol Attack: %s (%v) -> %s (%v)", asset1.URL, asset1.Protocols, asset2.URL, asset2.Protocols),
-						Description: "Cross-protocol attack leveraging trust relationships between different identity protocols",
-						Severity:    SeverityHigh,
-						Steps:       d.generateCrossProtocolSteps(asset1, asset2, vulnTypes),
-						Prerequisites: []string{"Access to initial protocol", "Knowledge of trust relationships"},
-						ImpactScore: 7.5,
+						ID:                uuid.New().String(),
+						Name:              fmt.Sprintf("Cross-Protocol Attack: %s (%v) -> %s (%v)", asset1.URL, asset1.Protocols, asset2.URL, asset2.Protocols),
+						Description:       "Cross-protocol attack leveraging trust relationships between different identity protocols",
+						Severity:          SeverityHigh,
+						Steps:             d.generateCrossProtocolSteps(asset1, asset2, vulnTypes),
+						Prerequisites:     []string{"Access to initial protocol", "Knowledge of trust relationships"},
+						ImpactScore:       7.5,
 						ExploitDifficulty: DifficultyHard,
-						AttackVectors: []AttackVector{VectorCrossProtocolAttack},
+						AttackVectors:     []AttackVector{VectorCrossProtocolAttack},
 						Mitigations: []string{
 							"Isolate different protocol implementations",
 							"Validate protocol-specific requirements",
@@ -677,7 +677,7 @@ func (d *CrossProtocolChainDetector) identifyCrossProtocolVulns(asset1, asset2 *
 	// Example: SAML to OAuth confusion
 	hasSAML := false
 	hasOAuth := false
-	
+
 	for _, p := range asset1.Protocols {
 		if p == ProtocolSAML20 {
 			hasSAML = true
@@ -686,7 +686,7 @@ func (d *CrossProtocolChainDetector) identifyCrossProtocolVulns(asset1, asset2 *
 			hasOAuth = true
 		}
 	}
-	
+
 	for _, p := range asset2.Protocols {
 		if p == ProtocolSAML20 {
 			hasSAML = true

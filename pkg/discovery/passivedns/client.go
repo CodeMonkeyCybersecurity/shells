@@ -119,9 +119,9 @@ func (p *PassiveDNSClient) QueryDomain(ctx context.Context, domain string) ([]*D
 			continue
 		}
 
-		// Check if we have required API key
-		if source.APIKeyParam != "" && p.apiKeys[source.Name] == "" {
-			p.logger.Debug("Skipping source due to missing API key", "source", source.Name)
+		// Check if we have required API key for sources that need them
+		if p.requiresCredentials(source) && !p.hasValidCredentials(source) {
+			p.logger.Debug("Skipping source due to missing credentials", "source", source.Name)
 			continue
 		}
 
@@ -131,10 +131,18 @@ func (p *PassiveDNSClient) QueryDomain(ctx context.Context, domain string) ([]*D
 
 			result, err := p.querySingleSource(ctx, src, domain)
 			if err != nil {
-				p.logger.Error("Failed to query passive DNS source",
-					"source", src.Name,
-					"domain", domain,
-					"error", err)
+				// Log at debug level for expected API failures (missing credentials, access denied)
+				if p.isExpectedFailure(err) {
+					p.logger.Debug("Passive DNS source unavailable",
+						"source", src.Name,
+						"domain", domain,
+						"reason", err.Error())
+				} else {
+					p.logger.Warn("Failed to query passive DNS source",
+						"source", src.Name,
+						"domain", domain,
+						"error", err)
+				}
 				return
 			}
 
@@ -417,6 +425,9 @@ func (p *PassiveDNSClient) queryCIRCL(ctx context.Context, domain string) (*DNSQ
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		if resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 429 {
+			return nil, fmt.Errorf("CIRCL API access denied or rate limited: status %d", resp.StatusCode)
+		}
 		return nil, fmt.Errorf("CIRCL returned status %d", resp.StatusCode)
 	}
 
@@ -627,4 +638,66 @@ func (p *PassiveDNSClient) GetDNSTimeline(ctx context.Context, domain string) ([
 	}
 
 	return timeline, nil
+}
+
+// requiresCredentials checks if a source requires API credentials
+func (p *PassiveDNSClient) requiresCredentials(source PassiveDNSSource) bool {
+	switch source.Name {
+	case "PassiveTotal":
+		return true // Requires username and API key
+	case "CIRCL":
+		return false // Public API, but may require authorization for some queries
+	case "VirusTotal", "SecurityTrails", "Spyse":
+		return true // Require API keys
+	default:
+		return source.APIKeyParam != ""
+	}
+}
+
+// hasValidCredentials checks if we have valid credentials for a source
+func (p *PassiveDNSClient) hasValidCredentials(source PassiveDNSSource) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	switch source.Name {
+	case "PassiveTotal":
+		// PassiveTotal requires both username and API key
+		return p.apiKeys["PassiveTotal"] != "" && p.apiKeys["PassiveTotalUsername"] != ""
+	case "CIRCL":
+		// CIRCL is public but may have rate limits/auth requirements
+		return true // Always try CIRCL, handle auth errors gracefully
+	case "VirusTotal", "SecurityTrails", "Spyse":
+		return p.apiKeys[source.Name] != ""
+	default:
+		if source.APIKeyParam != "" {
+			return p.apiKeys[source.Name] != ""
+		}
+		return true
+	}
+}
+
+// isExpectedFailure checks if an error is an expected API failure (credentials, rate limits, etc.)
+func (p *PassiveDNSClient) isExpectedFailure(err error) bool {
+	errStr := strings.ToLower(err.Error())
+
+	// Common patterns for expected failures
+	expectedPatterns := []string{
+		"credentials not provided",
+		"api key not provided",
+		"status 401", // Unauthorized
+		"status 403", // Forbidden
+		"status 429", // Rate limited
+		"authentication failed",
+		"access denied",
+		"unauthorized",
+		"forbidden",
+	}
+
+	for _, pattern := range expectedPatterns {
+		if strings.Contains(errStr, pattern) {
+			return true
+		}
+	}
+
+	return false
 }

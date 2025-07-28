@@ -22,60 +22,60 @@ func generateID() string {
 // IdentityChainAnalyzer discovers and analyzes identity vulnerability chains
 // This module focuses on finding exploitable paths across identity systems
 type IdentityChainAnalyzer struct {
-	config          *IdentityChainConfig
-	logger          *logger.Logger
-	vulnChains      map[string]*VulnerabilityChain
-	identityAssets  map[string]*IdentityAsset
-	mutex           sync.RWMutex
-	chainDetectors  []ChainDetector
+	config         *IdentityChainConfig
+	logger         *logger.Logger
+	vulnChains     map[string]*VulnerabilityChain
+	identityAssets map[string]*IdentityAsset
+	mutex          sync.RWMutex
+	chainDetectors []ChainDetector
 }
 
 // IdentityChainConfig configures the identity chain analyzer
 type IdentityChainConfig struct {
-	MaxChainDepth        int           `json:"max_chain_depth"`
-	EnableSAMLAnalysis   bool          `json:"enable_saml_analysis"`
-	EnableOAuthAnalysis  bool          `json:"enable_oauth_analysis"`
-	EnableWebAuthnAnalysis bool        `json:"enable_webauthn_analysis"`
-	EnableFederationAnalysis bool      `json:"enable_federation_analysis"`
-	EnablePrivescAnalysis bool         `json:"enable_privesc_analysis"`
-	AnalysisTimeout      time.Duration `json:"analysis_timeout"`
-	MaxConcurrent        int           `json:"max_concurrent"`
-	DeepScan             bool          `json:"deep_scan"`
+	MaxChainDepth            int           `json:"max_chain_depth"`
+	EnableSAMLAnalysis       bool          `json:"enable_saml_analysis"`
+	EnableOAuthAnalysis      bool          `json:"enable_oauth_analysis"`
+	EnableWebAuthnAnalysis   bool          `json:"enable_webauthn_analysis"`
+	EnableFederationAnalysis bool          `json:"enable_federation_analysis"`
+	EnablePrivescAnalysis    bool          `json:"enable_privesc_analysis"`
+	AnalysisTimeout          time.Duration `json:"analysis_timeout"`
+	MaxConcurrent            int           `json:"max_concurrent"`
+	DeepScan                 bool          `json:"deep_scan"`
 }
 
 // IdentityAsset represents an identity-related asset with vulnerability context
 type IdentityAsset struct {
-	ID               string                 `json:"id"`
-	URL              string                 `json:"url"`
-	Type             IdentityAssetType      `json:"type"`
-	Protocols        []IdentityProtocol     `json:"protocols"`
-	TrustRelations   []TrustRelation        `json:"trust_relations"`
-	Vulnerabilities  []IdentityVulnType     `json:"vulnerabilities"`
-	PrivilegeLevel   PrivilegeLevel         `json:"privilege_level"`
-	AccessScopes     []string               `json:"access_scopes"`
-	FederationLinks  []FederationLink       `json:"federation_links"`
-	Metadata         map[string]interface{} `json:"metadata"`
-	DiscoveredAt     time.Time              `json:"discovered_at"`
-	LastAnalyzed     time.Time              `json:"last_analyzed"`
-	ConfidenceScore  float64                `json:"confidence_score"`
+	ID              string                 `json:"id"`
+	URL             string                 `json:"url"`
+	Type            IdentityAssetType      `json:"type"`
+	Protocols       []IdentityProtocol     `json:"protocols"`
+	TrustRelations  []TrustRelation        `json:"trust_relations"`
+	Vulnerabilities []IdentityVulnType     `json:"vulnerabilities"`
+	PrivilegeLevel  PrivilegeLevel         `json:"privilege_level"`
+	AccessScopes    []string               `json:"access_scopes"`
+	FederationLinks []FederationLink       `json:"federation_links"`
+	Metadata        map[string]interface{} `json:"metadata"`
+	DiscoveredAt    time.Time              `json:"discovered_at"`
+	LastAnalyzed    time.Time              `json:"last_analyzed"`
+	ConfidenceScore float64                `json:"confidence_score"`
 }
 
 // VulnerabilityChain represents a chain of identity vulnerabilities that can be chained
 type VulnerabilityChain struct {
-	ID               string                     `json:"id"`
-	Name             string                     `json:"name"`
-	Description      string                     `json:"description"`
-	Severity         VulnChainSeverity          `json:"severity"`
-	Steps            []VulnChainStep            `json:"steps"`
-	Prerequisites    []string                   `json:"prerequisites"`
-	ImpactScore      float64                    `json:"impact_score"`
-	ExploitDifficulty ExploitDifficulty         `json:"exploit_difficulty"`
-	AttackVectors    []AttackVector             `json:"attack_vectors"`
-	Mitigations      []string                   `json:"mitigations"`
-	AffectedAssets   []string                   `json:"affected_assets"` // Asset IDs
-	ProofOfConcept   string                     `json:"proof_of_concept"`
-	CreatedAt        time.Time                  `json:"created_at"`
-	UpdatedAt        time.Time                  `json:"updated_at"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Description       string            `json:"description"`
+	Severity          VulnChainSeverity `json:"severity"`
+	Steps             []VulnChainStep   `json:"steps"`
+	Prerequisites     []string          `json:"prerequisites"`
+	ImpactScore       float64           `json:"impact_score"`
+	ExploitDifficulty ExploitDifficulty `json:"exploit_difficulty"`
+	AttackVectors     []AttackVector    `json:"attack_vectors"`
+	Mitigations       []string          `json:"mitigations"`
+	AffectedAssets    []string          `json:"affected_assets"` // Asset IDs
+	ProofOfConcept    string            `json:"proof_of_concept"`
+	CreatedAt         time.Time         `json:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at"`
 }
 
 // VulnChainStep represents a single step in a vulnerability chain
@@ -92,14 +92,14 @@ type VulnChainStep struct {
 
 // TrustRelation represents trust relationships between identity providers
 type TrustRelation struct {
-	SourceAssetID   string            `json:"source_asset_id"`
-	TargetAssetID   string            `json:"target_asset_id"`
-	TrustType       TrustType         `json:"trust_type"`
-	Direction       TrustDirection    `json:"direction"`
-	Protocols       []string          `json:"protocols"`
-	Constraints     []string          `json:"constraints"`
-	IsVulnerable    bool              `json:"is_vulnerable"`
-	VulnReasons     []string          `json:"vuln_reasons"`
+	SourceAssetID string         `json:"source_asset_id"`
+	TargetAssetID string         `json:"target_asset_id"`
+	TrustType     TrustType      `json:"trust_type"`
+	Direction     TrustDirection `json:"direction"`
+	Protocols     []string       `json:"protocols"`
+	Constraints   []string       `json:"constraints"`
+	IsVulnerable  bool           `json:"is_vulnerable"`
+	VulnReasons   []string       `json:"vuln_reasons"`
 }
 
 // FederationLink represents federation connections between identity systems
@@ -123,67 +123,73 @@ type ChainDetector interface {
 
 // Enums and constants
 type IdentityAssetType string
+
 const (
-	AssetTypeSAMLIDP        IdentityAssetType = "saml_idp"
-	AssetTypeSAMLSP         IdentityAssetType = "saml_sp"
-	AssetTypeOAuthProvider  IdentityAssetType = "oauth_provider"
-	AssetTypeOAuthClient    IdentityAssetType = "oauth_client"
-	AssetTypeWebAuthnRP     IdentityAssetType = "webauthn_rp"
-	AssetTypeWebAuthnAuth   IdentityAssetType = "webauthn_authenticator"
-	AssetTypeLoginPortal    IdentityAssetType = "login_portal"
-	AssetTypeIdentityAdminPanel     IdentityAssetType = "admin_panel"
-	AssetTypeAPIGateway     IdentityAssetType = "api_gateway"
-	AssetTypeFederationHub  IdentityAssetType = "federation_hub"
+	AssetTypeSAMLIDP            IdentityAssetType = "saml_idp"
+	AssetTypeSAMLSP             IdentityAssetType = "saml_sp"
+	AssetTypeOAuthProvider      IdentityAssetType = "oauth_provider"
+	AssetTypeOAuthClient        IdentityAssetType = "oauth_client"
+	AssetTypeWebAuthnRP         IdentityAssetType = "webauthn_rp"
+	AssetTypeWebAuthnAuth       IdentityAssetType = "webauthn_authenticator"
+	AssetTypeLoginPortal        IdentityAssetType = "login_portal"
+	AssetTypeIdentityAdminPanel IdentityAssetType = "admin_panel"
+	AssetTypeAPIGateway         IdentityAssetType = "api_gateway"
+	AssetTypeFederationHub      IdentityAssetType = "federation_hub"
 )
 
 type IdentityProtocol string
+
 const (
-	ProtocolSAML20      IdentityProtocol = "saml2.0"
-	ProtocolOAuth20     IdentityProtocol = "oauth2.0"
-	ProtocolOIDC        IdentityProtocol = "oidc"
-	ProtocolWebAuthn    IdentityProtocol = "webauthn"
-	ProtocolLDAP        IdentityProtocol = "ldap"
-	ProtocolKerberos    IdentityProtocol = "kerberos"
-	ProtocolCAS         IdentityProtocol = "cas"
-	ProtocolWSSecurity  IdentityProtocol = "ws-security"
+	ProtocolSAML20     IdentityProtocol = "saml2.0"
+	ProtocolOAuth20    IdentityProtocol = "oauth2.0"
+	ProtocolOIDC       IdentityProtocol = "oidc"
+	ProtocolWebAuthn   IdentityProtocol = "webauthn"
+	ProtocolLDAP       IdentityProtocol = "ldap"
+	ProtocolKerberos   IdentityProtocol = "kerberos"
+	ProtocolCAS        IdentityProtocol = "cas"
+	ProtocolWSSecurity IdentityProtocol = "ws-security"
 )
 
 type IdentityVulnType string
+
 const (
-	VulnSAMLSignatureBypass    IdentityVulnType = "saml_signature_bypass"
-	VulnSAMLXMLWrapping        IdentityVulnType = "saml_xml_wrapping"
-	VulnSAMLAssertionReplay    IdentityVulnType = "saml_assertion_replay"
-	VulnOAuthStateBypass       IdentityVulnType = "oauth_state_bypass"
-	VulnOAuthCodeInjection     IdentityVulnType = "oauth_code_injection"
-	VulnOAuthScopeEscalation   IdentityVulnType = "oauth_scope_escalation"
-	VulnJWTAlgConfusion        IdentityVulnType = "jwt_algorithm_confusion"
-	VulnJWTKeyConfusion        IdentityVulnType = "jwt_key_confusion"
-	VulnWebAuthnOriginBypass   IdentityVulnType = "webauthn_origin_bypass"
+	VulnSAMLSignatureBypass     IdentityVulnType = "saml_signature_bypass"
+	VulnSAMLXMLWrapping         IdentityVulnType = "saml_xml_wrapping"
+	VulnSAMLAssertionReplay     IdentityVulnType = "saml_assertion_replay"
+	VulnOAuthStateBypass        IdentityVulnType = "oauth_state_bypass"
+	VulnOAuthCodeInjection      IdentityVulnType = "oauth_code_injection"
+	VulnOAuthScopeEscalation    IdentityVulnType = "oauth_scope_escalation"
+	VulnJWTAlgConfusion         IdentityVulnType = "jwt_algorithm_confusion"
+	VulnJWTKeyConfusion         IdentityVulnType = "jwt_key_confusion"
+	VulnWebAuthnOriginBypass    IdentityVulnType = "webauthn_origin_bypass"
 	VulnWebAuthnCredentialClone IdentityVulnType = "webauthn_credential_clone"
-	VulnFederationConfusion    IdentityVulnType = "federation_confusion"
-	VulnTrustChainBypass       IdentityVulnType = "trust_chain_bypass"
-	VulnSessionFixation        IdentityVulnType = "session_fixation"
-	VulnPrivilegeEscalation    IdentityVulnType = "privilege_escalation"
+	VulnFederationConfusion     IdentityVulnType = "federation_confusion"
+	VulnTrustChainBypass        IdentityVulnType = "trust_chain_bypass"
+	VulnSessionFixation         IdentityVulnType = "session_fixation"
+	VulnPrivilegeEscalation     IdentityVulnType = "privilege_escalation"
 )
 
 type VulnChainSeverity string
+
 const (
 	SeverityCritical VulnChainSeverity = "critical"
-	SeverityHigh     VulnChainSeverity = "high" 
+	SeverityHigh     VulnChainSeverity = "high"
 	SeverityMedium   VulnChainSeverity = "medium"
 	SeverityLow      VulnChainSeverity = "low"
 )
 
 type ExploitDifficulty string
+
 const (
-	DifficultyTrivial   ExploitDifficulty = "trivial"
-	DifficultyEasy      ExploitDifficulty = "easy"
-	DifficultyModerate  ExploitDifficulty = "moderate"
-	DifficultyHard      ExploitDifficulty = "hard"
-	DifficultyExpert    ExploitDifficulty = "expert"
+	DifficultyTrivial  ExploitDifficulty = "trivial"
+	DifficultyEasy     ExploitDifficulty = "easy"
+	DifficultyModerate ExploitDifficulty = "moderate"
+	DifficultyHard     ExploitDifficulty = "hard"
+	DifficultyExpert   ExploitDifficulty = "expert"
 )
 
 type PrivilegeLevel string
+
 const (
 	PrivilegePublic     PrivilegeLevel = "public"
 	PrivilegeUser       PrivilegeLevel = "user"
@@ -193,28 +199,32 @@ const (
 )
 
 type TrustType string
+
 const (
-	TrustSAMLFederation    TrustType = "saml_federation"
-	TrustOAuthDelegation   TrustType = "oauth_delegation"
-	TrustDirectTrust       TrustType = "direct_trust"
-	TrustTransitiveTrust   TrustType = "transitive_trust"
+	TrustSAMLFederation  TrustType = "saml_federation"
+	TrustOAuthDelegation TrustType = "oauth_delegation"
+	TrustDirectTrust     TrustType = "direct_trust"
+	TrustTransitiveTrust TrustType = "transitive_trust"
 )
 
 type TrustDirection string
+
 const (
 	TrustUnidirectional TrustDirection = "unidirectional"
 	TrustBidirectional  TrustDirection = "bidirectional"
 )
 
 type FederationProviderType string
+
 const (
-	FedProviderSAML     FederationProviderType = "saml"
-	FedProviderOIDC     FederationProviderType = "oidc"
-	FedProviderLDAP     FederationProviderType = "ldap"
-	FedProviderCustom   FederationProviderType = "custom"
+	FedProviderSAML   FederationProviderType = "saml"
+	FedProviderOIDC   FederationProviderType = "oidc"
+	FedProviderLDAP   FederationProviderType = "ldap"
+	FedProviderCustom FederationProviderType = "custom"
 )
 
 type AttackVector string
+
 const (
 	VectorSAMLManipulation    AttackVector = "saml_manipulation"
 	VectorTokenForging        AttackVector = "token_forging"
@@ -234,8 +244,8 @@ func DefaultIdentityChainConfig() *IdentityChainConfig {
 		EnableFederationAnalysis: true,
 		EnablePrivescAnalysis:    true,
 		AnalysisTimeout:          30 * time.Minute,
-		MaxConcurrent:           3,
-		DeepScan:                true,
+		MaxConcurrent:            3,
+		DeepScan:                 true,
 	}
 }
 
@@ -291,7 +301,7 @@ func (ica *IdentityChainAnalyzer) AnalyzeIdentityChains(ctx context.Context, ses
 	allChains := []*VulnerabilityChain{}
 	for _, detector := range ica.chainDetectors {
 		ica.logger.Info("Running chain detector", "detector", detector.Name())
-		
+
 		chains, err := detector.DetectChains(ctx, ica.identityAssets)
 		if err != nil {
 			ica.logger.Error("Chain detector failed", "detector", detector.Name(), "error", err)
@@ -361,7 +371,7 @@ func (ica *IdentityChainAnalyzer) classifyAssetAsIdentity(asset *Asset) *Identit
 		tag = strings.ToLower(tag)
 		if typ, found := identityIndicators[tag]; found {
 			assetType = typ
-			
+
 			// Determine protocols based on tag
 			switch tag {
 			case "saml":
@@ -430,16 +440,16 @@ func (ica *IdentityChainAnalyzer) classifyAssetAsIdentity(asset *Asset) *Identit
 // classifyByURLPattern classifies assets based on URL patterns
 func (ica *IdentityChainAnalyzer) classifyByURLPattern(url string) IdentityAssetType {
 	url = strings.ToLower(url)
-	
+
 	patterns := map[string]IdentityAssetType{
-		"/saml/":      AssetTypeSAMLIDP,
-		"/oauth/":     AssetTypeOAuthProvider,
-		"/auth/":      AssetTypeLoginPortal,
-		"/login":      AssetTypeLoginPortal,
-		"/signin":     AssetTypeLoginPortal,
-		"/sso":        AssetTypeFederationHub,
-		"/admin":      AssetTypeIdentityAdminPanel,
-		"/webauthn":   AssetTypeWebAuthnRP,
+		"/saml/":                            AssetTypeSAMLIDP,
+		"/oauth/":                           AssetTypeOAuthProvider,
+		"/auth/":                            AssetTypeLoginPortal,
+		"/login":                            AssetTypeLoginPortal,
+		"/signin":                           AssetTypeLoginPortal,
+		"/sso":                              AssetTypeFederationHub,
+		"/admin":                            AssetTypeIdentityAdminPanel,
+		"/webauthn":                         AssetTypeWebAuthnRP,
 		"/.well-known/openid_configuration": AssetTypeOAuthProvider,
 	}
 
@@ -496,7 +506,7 @@ func (ica *IdentityChainAnalyzer) analyzeIndividualAssets(ctx context.Context) e
 		wg.Add(1)
 		go func(asset *IdentityAsset) {
 			defer wg.Done()
-			
+
 			// Acquire semaphore
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
@@ -692,8 +702,8 @@ func (ica *IdentityChainAnalyzer) detectTrustRelationship(asset1, asset2 *Identi
 
 	// Example: SAML IdP to SP trust
 	if (asset1.Type == AssetTypeSAMLIDP && asset2.Type == AssetTypeSAMLSP) ||
-	   (asset1.Type == AssetTypeOAuthProvider && asset2.Type == AssetTypeOAuthClient) {
-		
+		(asset1.Type == AssetTypeOAuthProvider && asset2.Type == AssetTypeOAuthClient) {
+
 		return &TrustRelation{
 			SourceAssetID: asset1.ID,
 			TargetAssetID: asset2.ID,
@@ -746,7 +756,7 @@ func (ica *IdentityChainAnalyzer) ConvertToFindings(chains []*VulnerabilityChain
 
 	for _, chain := range chains {
 		severity := ica.convertChainSeverityToFindingSeverity(chain.Severity)
-		
+
 		finding := types.Finding{
 			ID:          fmt.Sprintf("identity-chain-%s", chain.ID),
 			ScanID:      sessionID,
@@ -786,17 +796,17 @@ func (ica *IdentityChainAnalyzer) buildChainEvidence(chain *VulnerabilityChain) 
 	evidence += fmt.Sprintf("Impact Score: %.2f\n", chain.ImpactScore)
 	evidence += fmt.Sprintf("Exploit Difficulty: %s\n", chain.ExploitDifficulty)
 	evidence += fmt.Sprintf("Steps: %d\n", len(chain.Steps))
-	
+
 	for i, step := range chain.Steps {
 		evidence += fmt.Sprintf("Step %d: %s (%s)\n", i+1, step.Action, step.VulnType)
 	}
-	
+
 	if len(chain.Mitigations) > 0 {
 		evidence += "\nMitigations:\n"
 		for _, mitigation := range chain.Mitigations {
 			evidence += fmt.Sprintf("- %s\n", mitigation)
 		}
 	}
-	
+
 	return evidence
 }
