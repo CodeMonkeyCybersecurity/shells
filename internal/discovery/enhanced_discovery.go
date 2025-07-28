@@ -107,24 +107,24 @@ func NewEnhancedDiscovery(config *DiscoveryConfig, logger *logger.Logger, cfg *c
 
 	// Initialize passive DNS client with API keys from credentials manager
 	passiveDNSAPIKeys := make(map[string]string)
-	
+
 	// Try to get credentials from the credentials manager
 	if credManager, err := credentials.NewManager(logger); err == nil {
 		// Get all API keys from credentials manager
 		apiKeys := credManager.GetAPIKeys()
-		
+
 		// Map the keys to the format expected by passive DNS client
 		for k, v := range apiKeys {
 			passiveDNSAPIKeys[k] = v
 		}
-		
-		logger.Debug("Loaded API keys from credentials manager", 
+
+		logger.Debug("Loaded API keys from credentials manager",
 			"keys_loaded", len(passiveDNSAPIKeys))
 	} else {
-		logger.Debug("Could not load credentials from manager, using empty API keys", 
+		logger.Debug("Could not load credentials from manager, using empty API keys",
 			"error", err)
 	}
-	
+
 	passiveDNSClient := passivedns.NewPassiveDNSClient(logger, passiveDNSAPIKeys)
 
 	// Initialize IPv6 discoverer

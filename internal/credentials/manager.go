@@ -22,23 +22,23 @@ import (
 
 // Manager handles secure storage and retrieval of API credentials
 type Manager struct {
-	configDir    string
-	logger       *logger.Logger
-	credentials  map[string]string
-	isEncrypted  bool
+	configDir   string
+	logger      *logger.Logger
+	credentials map[string]string
+	isEncrypted bool
 }
 
 // APICredentials represents the structure of stored credentials
 type APICredentials struct {
-	CirclUsername      string `json:"circl_username,omitempty"`
-	CirclPassword      string `json:"circl_password,omitempty"`
-	PassiveTotalUser   string `json:"passivetotal_user,omitempty"`
-	PassiveTotalKey    string `json:"passivetotal_key,omitempty"`
-	ShodanAPIKey       string `json:"shodan_api_key,omitempty"`
-	CensysAPIID        string `json:"censys_api_id,omitempty"`
-	CensysAPISecret    string `json:"censys_api_secret,omitempty"`
-	VirusTotalAPIKey   string `json:"virustotal_api_key,omitempty"`
-	SecurityTrailsKey  string `json:"securitytrails_key,omitempty"`
+	CirclUsername     string `json:"circl_username,omitempty"`
+	CirclPassword     string `json:"circl_password,omitempty"`
+	PassiveTotalUser  string `json:"passivetotal_user,omitempty"`
+	PassiveTotalKey   string `json:"passivetotal_key,omitempty"`
+	ShodanAPIKey      string `json:"shodan_api_key,omitempty"`
+	CensysAPIID       string `json:"censys_api_id,omitempty"`
+	CensysAPISecret   string `json:"censys_api_secret,omitempty"`
+	VirusTotalAPIKey  string `json:"virustotal_api_key,omitempty"`
+	SecurityTrailsKey string `json:"securitytrails_key,omitempty"`
 }
 
 // NewManager creates a new credentials manager
@@ -129,7 +129,7 @@ func (m *Manager) PromptForAllAPIs() error {
 	fmt.Println("\n🔐 API Credentials Configuration")
 	fmt.Println("═══════════════════════════════")
 	fmt.Println("Configure API keys for enhanced discovery capabilities.")
-	fmt.Println("All credentials are encrypted and stored locally.\n")
+	fmt.Println("All credentials are encrypted and stored locally.")
 
 	apis := []struct {
 		name        string
@@ -204,10 +204,10 @@ func (m *Manager) PromptForAllAPIs() error {
 		if response == "y" || response == "yes" {
 			for _, field := range api.fields {
 				fmt.Printf("   Enter %s: ", field.prompt)
-				
+
 				var value string
 				var err error
-				
+
 				if field.isPassword {
 					value, err = readPassword()
 					if err != nil {
@@ -246,18 +246,18 @@ func (m *Manager) GetAPIKeys() map[string]string {
 
 	// Return a copy to prevent modification
 	keys := make(map[string]string)
-	
+
 	// Map internal names to expected names
 	mappings := map[string]string{
-		"circl_username":      "CirclUsername",
-		"circl_password":      "CirclPassword",
-		"passivetotal_user":   "PassiveTotalUsername",
-		"passivetotal_key":    "PassiveTotal",
-		"shodan_api_key":      "Shodan",
-		"censys_api_id":       "CensysID",
-		"censys_api_secret":   "CensysSecret",
-		"virustotal_api_key":  "VirusTotal",
-		"securitytrails_key":  "SecurityTrails",
+		"circl_username":     "CirclUsername",
+		"circl_password":     "CirclPassword",
+		"passivetotal_user":  "PassiveTotalUsername",
+		"passivetotal_key":   "PassiveTotal",
+		"shodan_api_key":     "Shodan",
+		"censys_api_id":      "CensysID",
+		"censys_api_secret":  "CensysSecret",
+		"virustotal_api_key": "VirusTotal",
+		"securitytrails_key": "SecurityTrails",
 	}
 
 	for internal, external := range mappings {
@@ -302,7 +302,7 @@ func (m *Manager) Save() error {
 // Load decrypts and loads credentials from disk
 func (m *Manager) Load() error {
 	credFile := filepath.Join(m.configDir, "credentials.enc")
-	
+
 	// Check if encrypted file exists
 	encrypted, err := os.ReadFile(credFile)
 	if err != nil {
@@ -366,7 +366,7 @@ func (m *Manager) loadLegacy() error {
 		if err := m.Save(); err != nil {
 			return fmt.Errorf("failed to migrate credentials: %w", err)
 		}
-		
+
 		// Remove legacy file
 		os.Remove(legacyFile)
 		m.logger.Info("Migrated credentials to encrypted storage")
@@ -378,7 +378,7 @@ func (m *Manager) loadLegacy() error {
 // getOrCreateKey gets or creates the encryption key
 func (m *Manager) getOrCreateKey() ([]byte, error) {
 	keyFile := filepath.Join(m.configDir, ".key")
-	
+
 	// Try to read existing key
 	keyData, err := os.ReadFile(keyFile)
 	if err == nil {
@@ -468,7 +468,7 @@ func decrypt(ciphertext, key []byte) ([]byte, error) {
 	}
 
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-	
+
 	// Decrypt
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {

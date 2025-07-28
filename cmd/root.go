@@ -131,7 +131,7 @@ func init() {
 	// FIXME: JSON logs are too noisy - default to console for bug bounty
 	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("log-format", "json", "log format (json, console)")
-	
+
 	// TODO: Add bug bounty specific flags:
 	// rootCmd.PersistentFlags().Bool("quick", false, "Quick scan mode - skip discovery")
 	// rootCmd.PersistentFlags().Bool("quiet", false, "Quiet mode - only show vulnerabilities")
@@ -2223,16 +2223,16 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 
 	// Set bug bounty mode and reduce log noise
 	os.Setenv("SHELLS_BUG_BOUNTY_MODE", "true")
-	
+
 	// Force clean console output for bug bounty mode
 	viper.Set("log.format", "console")
 	viper.Set("log.level", "error") // Only show errors
-	
+
 	// Recreate logger with clean settings
 	if err := log.SetLevel("error"); err != nil {
 		// Ignore error, continue with existing logger
 	}
-	
+
 	// Display bug bounty optimized banner
 	fmt.Printf("\n%s\n", strings.Repeat("=", 70))
 	fmt.Printf("🎯 %sHigh-Value Bug Bounty Scanner%s\n", "\033[1;36m", "\033[0m")
@@ -2243,32 +2243,32 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 
 	// Phase 1: Smart Attack Surface Discovery
 	fmt.Printf("%s=== Phase 1: Smart Attack Surface Discovery ===%s\n", "\033[1;34m", "\033[0m")
-	
+
 	// FIXME: Skip low-value discovery for bug bounty (WHOIS, passive DNS, cert timeline)
 	// TODO: Add --skip-discovery flag to go straight to vuln testing
 	// TODO: Time-box discovery to max 30 seconds
 	discoveryTimeout := 30 * time.Second
 	discoveryCtx, cancel := context.WithTimeout(ctx, discoveryTimeout)
 	defer cancel()
-	
+
 	// Use optimized bug bounty discovery config
 	discoveryConfig := &discovery.DiscoveryConfig{
-		MaxDepth:        1,                    // Focus on direct assets only
-		MaxAssets:       50,                   // Quality over quantity
-		Timeout:         discoveryTimeout,     // 30 second timeout
-		EnableDNS:       false,                // Skip - low value
-		EnableCertLog:   false,                // Skip - too slow
-		EnableSearch:    false,                // Skip - focus on target
-		EnablePortScan:  true,                 // Keep - find services
-		EnableWebCrawl:  true,                 // Keep - find endpoints
-		EnableTechStack: true,                 // Keep - target vulns
-		MaxWorkers:      20,                   // More parallelism
-		RateLimit:       50,                   // Higher rate for speed
-		UserAgent:       "Mozilla/5.0",        // Blend in
-		Recursive:       false,                // No recursion
-		HighValueOnly:   true,                 // Focus on high-value
+		MaxDepth:        1,                // Focus on direct assets only
+		MaxAssets:       50,               // Quality over quantity
+		Timeout:         discoveryTimeout, // 30 second timeout
+		EnableDNS:       false,            // Skip - low value
+		EnableCertLog:   false,            // Skip - too slow
+		EnableSearch:    false,            // Skip - focus on target
+		EnablePortScan:  true,             // Keep - find services
+		EnableWebCrawl:  true,             // Keep - find endpoints
+		EnableTechStack: true,             // Keep - target vulns
+		MaxWorkers:      20,               // More parallelism
+		RateLimit:       50,               // Higher rate for speed
+		UserAgent:       "Mozilla/5.0",    // Blend in
+		Recursive:       false,            // No recursion
+		HighValueOnly:   true,             // Focus on high-value
 	}
-	
+
 	// TODO: For mail servers, add specialized quick discovery
 	if strings.Contains(target, "mail") || strings.Contains(target, "smtp") {
 		// FIXME: Add mail-specific discovery:
@@ -2276,15 +2276,15 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		// - Admin panels (postfixadmin, etc)
 		// - Common mail paths (/webmail, /mail, /admin)
 	}
-	
+
 	engine := discovery.NewEngine(discoveryConfig, log.WithComponent("discovery"))
-	
+
 	// Start discovery
 	session, err := engine.StartDiscovery(target)
 	if err != nil {
 		return fmt.Errorf("failed to start discovery: %w", err)
 	}
-	
+
 	// Add the target itself as a high-value asset
 	targetAsset := &discovery.Asset{
 		ID:       fmt.Sprintf("target-%s", session.ID),
@@ -2295,11 +2295,11 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		Source:   "initial-target",
 	}
 	session.Assets[targetAsset.ID] = targetAsset
-	
+
 	// Wait for discovery to complete
 	fmt.Println("⏳ Discovery in progress (30s timeout)...")
 	var discoveredAssets []*discovery.Asset
-	
+
 	// FIXME: Add progress indicator with time remaining
 	discoveryStart := time.Now()
 	for {
@@ -2316,7 +2316,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 			if err != nil {
 				return fmt.Errorf("failed to get session: %w", err)
 			}
-			
+
 			if session.Status == discovery.StatusCompleted {
 				fmt.Printf("✅ Discovery completed in %v!\n", time.Since(discoveryStart).Round(time.Second))
 				for _, asset := range session.Assets {
@@ -2326,15 +2326,15 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 			} else if session.Status == discovery.StatusFailed {
 				return fmt.Errorf("discovery failed")
 			}
-			
+
 			time.Sleep(1 * time.Second)
 		}
 	}
 discoveryDone:
-	
+
 	// Prioritize assets based on bug bounty value
 	prioritizedAssets := prioritizeAssetsForBugBounty(discoveredAssets, log)
-	
+
 	// Ensure we found at least the target itself
 	assetCount := len(prioritizedAssets)
 	if assetCount == 0 {
@@ -2347,14 +2347,14 @@ discoveryDone:
 
 	// Phase 2: Vulnerability Testing Pipeline
 	fmt.Printf("\n%s=== Phase 2: High-Value Vulnerability Testing ===%s\n", "\033[1;34m", "\033[0m")
-	
+
 	// FIXME: Replace runComprehensiveScanning with actual vulnerability tests
 	// TODO: Implement parallel vulnerability testing with progress
 	// TODO: Add mail-specific tests when target is mail server
-	
+
 	// Detect target type for specialized testing
 	targetType := detectTargetType(target, discoveredAssets)
-	
+
 	switch targetType {
 	case "mail":
 		// TODO: Implement mail-specific vulnerability tests
@@ -2375,35 +2375,35 @@ discoveryDone:
 		// Run general tests
 		fmt.Println("🔍 Running general vulnerability tests...")
 	}
-	
+
 	// Run targeted vulnerability testing instead of comprehensive scanning
 	if err := runBugBountyVulnTesting(ctx, session, log, db); err != nil {
 		log.Error("Failed to run vulnerability testing", "error", err)
 		return fmt.Errorf("vulnerability testing failed: %w", err)
 	}
 
-	// Phase 3: Results & Reporting  
+	// Phase 3: Results & Reporting
 	fmt.Printf("\n%s=== Phase 3: Results Summary ===%s\n", "\033[1;34m", "\033[0m")
-	
+
 	fmt.Printf("\n%s=== Scan Complete ===%s\n", "\033[1;32m", "\033[0m")
 	fmt.Printf("Total time: %v\n", time.Since(startTime).Round(time.Second))
 	fmt.Printf("Session ID: %s\n", session.ID)
-	
+
 	// Quick commands
 	fmt.Printf("\n%sUseful commands:%s\n", "\033[1;33m", "\033[0m")
 	fmt.Printf("  View all findings:  shells results query --scan-id %s\n", session.ID)
 	fmt.Printf("  Critical only:      shells results query --severity critical,high\n")
 	fmt.Printf("  Export report:      shells results export %s --format markdown\n", session.ID)
-	
+
 	return nil
 }
 
 // TODO: Implement target type detection
 func detectTargetType(target string, assets []*discovery.Asset) string {
 	// FIXME: Improve detection logic
-	if strings.Contains(strings.ToLower(target), "mail") || 
-	   strings.Contains(strings.ToLower(target), "smtp") ||
-	   strings.Contains(strings.ToLower(target), "imap") {
+	if strings.Contains(strings.ToLower(target), "mail") ||
+		strings.Contains(strings.ToLower(target), "smtp") ||
+		strings.Contains(strings.ToLower(target), "imap") {
 		return "mail"
 	}
 	if strings.Contains(strings.ToLower(target), "api") {
@@ -2422,7 +2422,7 @@ func detectTargetType(target string, assets []*discovery.Asset) string {
 func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Logger, db core.ResultStore) error {
 	target := args[0]
 	ctx := context.Background()
-	
+
 	// Display bug bounty optimized banner
 	fmt.Printf("\n%s\n", strings.Repeat("=", 60))
 	fmt.Printf("🎯 %sHigh-Value Bug Bounty Scanner%s\n", "\033[1;36m", "\033[0m")
@@ -2815,7 +2815,7 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 		log.Debug("Skipping comprehensive scanning in bug bounty mode")
 		return runBugBountyVulnTesting(ctx, session, log, store)
 	}
-	
+
 	log.Infow("Starting comprehensive security scanning with Nomad", "session_id", session.ID)
 
 	// Initialize Nomad client
@@ -2937,7 +2937,7 @@ func runComprehensiveScanningLocal(ctx context.Context, session *discovery.Disco
 	if os.Getenv("SHELLS_BUG_BOUNTY_MODE") == "true" {
 		return runBugBountyVulnTesting(ctx, session, log, store)
 	}
-	
+
 	log.Infow("Starting local comprehensive security scanning", "session_id", session.ID)
 
 	// Collect all targets for scanning from discovered assets

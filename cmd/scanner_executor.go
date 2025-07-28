@@ -335,11 +335,11 @@ func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation
 	// 6. Check for exposed admin panels:
 	//    - /admin, /webmail/admin, /postfixadmin
 	//    - /roundcube, /squirrelmail
-	
+
 	for _, target := range rec.Targets {
 		// TODO: Add actual implementation
 		log.Debugw("Executing mail scanner", "target", target)
-		
+
 		// FIXME: Quick test example:
 		// if strings.Contains(target, ":25") {
 		//     testSMTPAuth(target)
@@ -365,7 +365,7 @@ func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation)
 	// 4. Rate limiting bypass
 	// 5. API key leakage in responses
 	// 6. JWT vulnerabilities
-	
+
 	for _, target := range rec.Targets {
 		log.Debugw("Executing API scanner", "target", target)
 		// TODO: Quick GraphQL check:

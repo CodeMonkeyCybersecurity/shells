@@ -186,20 +186,20 @@ func DefaultDiscoveryConfig() *DiscoveryConfig {
 	// TODO: Add BugBountyConfig() for optimized settings
 	// FIXME: These defaults are too slow for bug bounty hunting
 	return &DiscoveryConfig{
-		MaxDepth:        3,       // TODO: Reduce to 1 for bug bounty
-		MaxAssets:       1000,    // TODO: Reduce to 100 for focused testing
+		MaxDepth:        3,                // TODO: Reduce to 1 for bug bounty
+		MaxAssets:       1000,             // TODO: Reduce to 100 for focused testing
 		Timeout:         30 * time.Minute, // FIXME: Way too long - max 30 seconds
-		EnableDNS:       true,    // TODO: Make optional - low value
-		EnableCertLog:   true,    // FIXME: Disable by default - too slow
-		EnableSearch:    true,    // FIXME: Disable - not needed for direct targets
-		EnablePortScan:  true,    // Keep for finding services
-		EnableWebCrawl:  true,    // Keep for finding endpoints
-		EnableTechStack: true,    // Keep for targeting vulns
+		EnableDNS:       true,             // TODO: Make optional - low value
+		EnableCertLog:   true,             // FIXME: Disable by default - too slow
+		EnableSearch:    true,             // FIXME: Disable - not needed for direct targets
+		EnablePortScan:  true,             // Keep for finding services
+		EnableWebCrawl:  true,             // Keep for finding endpoints
+		EnableTechStack: true,             // Keep for targeting vulns
 		MaxWorkers:      10,
 		RateLimit:       10,
 		UserAgent:       "shells-discovery/1.0",
-		Recursive:       true,    // FIXME: Disable for bug bounty
-		HighValueOnly:   false,   // TODO: Enable for bug bounty mode
+		Recursive:       true,  // FIXME: Disable for bug bounty
+		HighValueOnly:   false, // TODO: Enable for bug bounty mode
 	}
 }
 

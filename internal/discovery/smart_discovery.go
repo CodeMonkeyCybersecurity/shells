@@ -31,16 +31,16 @@ type SmartAssetPriority struct {
 
 // AssetFeatures represents high-value features of an asset
 type AssetFeatures struct {
-	HasAuthentication   bool
-	HasAPI             bool
-	HasPayment         bool
-	HasFileUpload      bool
-	HasAdminInterface  bool
-	HasUserData        bool
-	IsInternal         bool
-	Technology         []string
-	Endpoints          []string
-	Parameters         []string
+	HasAuthentication bool
+	HasAPI            bool
+	HasPayment        bool
+	HasFileUpload     bool
+	HasAdminInterface bool
+	HasUserData       bool
+	IsInternal        bool
+	Technology        []string
+	Endpoints         []string
+	Parameters        []string
 }
 
 // AssetClassifier classifies and scores assets based on bug bounty value
@@ -60,7 +60,7 @@ type PatternRule struct {
 // NewSmartDiscovery creates a new smart discovery module
 func NewSmartDiscovery(config *DiscoveryConfig, logger *logger.Logger) *SmartDiscovery {
 	classifier := NewAssetClassifier(logger)
-	
+
 	return &SmartDiscovery{
 		config:          config,
 		logger:          logger,
@@ -103,7 +103,7 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 			Type:    "authentication",
 			Reason:  "Password reset - potential for account takeover",
 		},
-		
+
 		// API endpoints - Very high value
 		"api_graphql": {
 			Pattern: regexp.MustCompile(`(?i)(graphql|gql)`),
@@ -123,7 +123,7 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 			Type:    "api",
 			Reason:  "Internal API - high value target",
 		},
-		
+
 		// Payment/Financial - Critical for business logic
 		"payment_checkout": {
 			Pattern: regexp.MustCompile(`(?i)(checkout|payment|pay|purchase)`),
@@ -143,7 +143,7 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 			Type:    "payment",
 			Reason:  "Billing endpoint - potential for fraud",
 		},
-		
+
 		// Admin/Management - High privilege targets
 		"admin_panel": {
 			Pattern: regexp.MustCompile(`(?i)(admin|administrator|manage|dashboard)`),
@@ -157,7 +157,7 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 			Type:    "admin",
 			Reason:  "Configuration endpoint - potential for tampering",
 		},
-		
+
 		// User data access - IDOR/Access control
 		"user_profile": {
 			Pattern: regexp.MustCompile(`(?i)(profile|account|user/\d+|member)`),
@@ -168,10 +168,10 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 		"user_docs": {
 			Pattern: regexp.MustCompile(`(?i)(document|file|download|attachment)`),
 			Score:   70,
-			Type:    "user_data", 
+			Type:    "user_data",
 			Reason:  "Document access - potential for unauthorized access",
 		},
-		
+
 		// File operations - Various vulnerabilities
 		"file_upload": {
 			Pattern: regexp.MustCompile(`(?i)(upload|import|attach)`),
@@ -185,7 +185,7 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 			Type:    "file_ops",
 			Reason:  "File download - potential for path traversal",
 		},
-		
+
 		// SSRF candidates
 		"ssrf_webhook": {
 			Pattern: regexp.MustCompile(`(?i)(webhook|callback|notify|hook)`),
@@ -199,7 +199,7 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 			Type:    "ssrf",
 			Reason:  "URL parameter - potential for SSRF",
 		},
-		
+
 		// Development/Testing - Often vulnerable
 		"dev_endpoint": {
 			Pattern: regexp.MustCompile(`(?i)(dev|test|debug|staging)`),
@@ -214,7 +214,7 @@ func NewAssetClassifier(logger *logger.Logger) *AssetClassifier {
 			Reason:  "API documentation - information disclosure",
 		},
 	}
-	
+
 	return &AssetClassifier{
 		patterns: patterns,
 		logger:   logger,
@@ -229,14 +229,14 @@ func (ac *AssetClassifier) ClassifyAndScore(asset *Asset) *SmartAssetPriority {
 		Reasons:  []string{},
 		Features: AssetFeatures{},
 	}
-	
+
 	// Check URL patterns
 	assetURL := asset.Value
 	for _, rule := range ac.patterns {
 		if rule.Pattern.MatchString(assetURL) {
 			priority.Score += rule.Score
 			priority.Reasons = append(priority.Reasons, rule.Reason)
-			
+
 			// Update features based on type
 			switch rule.Type {
 			case "authentication":
@@ -256,14 +256,14 @@ func (ac *AssetClassifier) ClassifyAndScore(asset *Asset) *SmartAssetPriority {
 			}
 		}
 	}
-	
+
 	// Check for internal/private indicators
 	if strings.Contains(assetURL, "internal") || strings.Contains(assetURL, "private") {
 		priority.Score += 20
 		priority.Features.IsInternal = true
 		priority.Reasons = append(priority.Reasons, "Internal resource - should not be exposed")
 	}
-	
+
 	// Check technology stack for vulnerable components
 	if asset.Technology != nil {
 		priority.Features.Technology = asset.Technology
@@ -285,20 +285,28 @@ func (ac *AssetClassifier) ClassifyAndScore(asset *Asset) *SmartAssetPriority {
 			}
 		}
 	}
-	
+
 	// Boost score for multiple high-value features
 	featureCount := 0
-	if priority.Features.HasAuthentication { featureCount++ }
-	if priority.Features.HasAPI { featureCount++ }
-	if priority.Features.HasPayment { featureCount++ }
-	if priority.Features.HasAdminInterface { featureCount++ }
-	
+	if priority.Features.HasAuthentication {
+		featureCount++
+	}
+	if priority.Features.HasAPI {
+		featureCount++
+	}
+	if priority.Features.HasPayment {
+		featureCount++
+	}
+	if priority.Features.HasAdminInterface {
+		featureCount++
+	}
+
 	if featureCount > 1 {
 		priority.Score += featureCount * 10
-		priority.Reasons = append(priority.Reasons, 
+		priority.Reasons = append(priority.Reasons,
 			fmt.Sprintf("Multiple high-value features (%d)", featureCount))
 	}
-	
+
 	return priority
 }
 
@@ -306,10 +314,10 @@ func (ac *AssetClassifier) ClassifyAndScore(asset *Asset) *SmartAssetPriority {
 func (sd *SmartDiscovery) DiscoverWithPriority(ctx context.Context, target string) ([]*SmartAssetPriority, error) {
 	sd.logger.Info("Starting smart discovery with prioritization",
 		"target", target)
-	
+
 	// Phase 1: Quick reconnaissance for high-value endpoints
 	highValueEndpoints := sd.quickRecon(ctx, target)
-	
+
 	// Phase 2: Classify and prioritize discovered assets
 	var priorities []*SmartAssetPriority
 	for _, endpoint := range highValueEndpoints {
@@ -322,17 +330,17 @@ func (sd *SmartDiscovery) DiscoverWithPriority(ctx context.Context, target strin
 			priorities = append(priorities, priority)
 		}
 	}
-	
+
 	// Phase 3: Sort by priority score
 	sort.Slice(priorities, func(i, j int) bool {
 		return priorities[i].Score > priorities[j].Score
 	})
-	
+
 	// Phase 4: Deep scan top priority targets first
 	sd.logger.Info("Prioritized assets for scanning",
 		"total", len(priorities),
 		"top_score", priorities[0].Score)
-	
+
 	return priorities, nil
 }
 
@@ -341,7 +349,7 @@ func (sd *SmartDiscovery) quickRecon(ctx context.Context, target string) []strin
 	var endpoints []string
 	var mutex sync.Mutex
 	var wg sync.WaitGroup
-	
+
 	// Common high-value paths to check
 	highValuePaths := []string{
 		// Authentication
@@ -349,43 +357,43 @@ func (sd *SmartDiscovery) quickRecon(ctx context.Context, target string) []strin
 		"/oauth", "/oauth2", "/saml", "/sso",
 		"/api/auth", "/api/login", "/api/v1/auth",
 		"/.well-known/openid-configuration",
-		
+
 		// APIs
 		"/api", "/api/v1", "/api/v2", "/graphql", "/gql",
 		"/rest", "/services", "/api-docs", "/swagger",
 		"/swagger.json", "/openapi.json",
-		
+
 		// Admin
 		"/admin", "/administrator", "/manage", "/dashboard",
 		"/console", "/portal", "/control-panel",
-		
+
 		// Payment
 		"/checkout", "/payment", "/billing", "/subscribe",
 		"/cart", "/order", "/invoice",
-		
+
 		// User data
 		"/profile", "/account", "/user", "/me",
 		"/settings", "/preferences",
-		
+
 		// File operations
 		"/upload", "/download", "/files", "/documents",
 		"/attachments", "/media",
-		
+
 		// Webhooks/SSRF
 		"/webhook", "/callback", "/notify",
 		"/proxy", "/fetch", "/url",
-		
+
 		// Development
 		"/dev", "/test", "/staging", "/debug",
 		"/.git", "/.env", "/config", "/backup",
 	}
-	
+
 	// Check paths in parallel
 	for _, path := range highValuePaths {
 		wg.Add(1)
 		go func(p string) {
 			defer wg.Done()
-			
+
 			fullURL := fmt.Sprintf("https://%s%s", target, p)
 			if sd.checkEndpoint(ctx, fullURL) {
 				mutex.Lock()
@@ -394,7 +402,7 @@ func (sd *SmartDiscovery) quickRecon(ctx context.Context, target string) []strin
 			}
 		}(path)
 	}
-	
+
 	wg.Wait()
 	return endpoints
 }
@@ -409,19 +417,19 @@ func (sd *SmartDiscovery) checkEndpoint(ctx context.Context, url string) bool {
 // GetHighValueTargets returns a prioritized list of targets for scanning
 func (sd *SmartDiscovery) GetHighValueTargets(assets []*Asset) []*SmartAssetPriority {
 	var priorities []*SmartAssetPriority
-	
+
 	for _, asset := range assets {
 		priority := sd.assetClassifier.ClassifyAndScore(asset)
 		if priority.Score > 30 { // Configurable threshold
 			priorities = append(priorities, priority)
 		}
 	}
-	
+
 	// Sort by score descending
 	sort.Slice(priorities, func(i, j int) bool {
 		return priorities[i].Score > priorities[j].Score
 	})
-	
+
 	return priorities
 }
 
@@ -440,7 +448,7 @@ func NewPriorityQueue() *PriorityQueue {
 func (pq *PriorityQueue) Push(item *SmartAssetPriority) {
 	pq.mutex.Lock()
 	defer pq.mutex.Unlock()
-	
+
 	pq.items = append(pq.items, item)
 	// Keep sorted
 	sort.Slice(pq.items, func(i, j int) bool {
@@ -451,11 +459,11 @@ func (pq *PriorityQueue) Push(item *SmartAssetPriority) {
 func (pq *PriorityQueue) Pop() *SmartAssetPriority {
 	pq.mutex.Lock()
 	defer pq.mutex.Unlock()
-	
+
 	if len(pq.items) == 0 {
 		return nil
 	}
-	
+
 	item := pq.items[0]
 	pq.items = pq.items[1:]
 	return item

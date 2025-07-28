@@ -132,10 +132,10 @@ var configShowCmd = &cobra.Command{
 
 		// Load and display configured APIs
 		keys := credManager.GetAPIKeys()
-		
+
 		fmt.Println("\n🔧 Current Configuration")
 		fmt.Println("═══════════════════════")
-		
+
 		fmt.Println("\n📡 API Keys:")
 		apis := map[string]string{
 			"CirclUsername":        "CIRCL",
@@ -162,7 +162,7 @@ var configShowCmd = &cobra.Command{
 		homeDir, _ := os.UserHomeDir()
 		configDir := filepath.Join(homeDir, ".shells")
 		fmt.Printf("\n📁 Config directory: %s\n", configDir)
-		
+
 		return nil
 	},
 }
@@ -173,15 +173,15 @@ var configClearCmd = &cobra.Command{
 	Long:  `Clear all stored API credentials. This action cannot be undone.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		force, _ := cmd.Flags().GetBool("force")
-		
+
 		if !force {
 			fmt.Println("⚠️  This will delete all stored API credentials.")
 			fmt.Print("Are you sure? [y/N]: ")
-			
+
 			var response string
 			fmt.Scanln(&response)
 			response = strings.TrimSpace(strings.ToLower(response))
-			
+
 			if response != "y" && response != "yes" {
 				fmt.Println("Cancelled.")
 				return nil
@@ -192,12 +192,12 @@ var configClearCmd = &cobra.Command{
 		homeDir, _ := os.UserHomeDir()
 		credFile := filepath.Join(homeDir, ".shells", "credentials.enc")
 		keyFile := filepath.Join(homeDir, ".shells", ".key")
-		
+
 		os.Remove(credFile)
 		os.Remove(keyFile)
-		
+
 		fmt.Println("✅ API credentials cleared")
-		
+
 		return nil
 	},
 }
