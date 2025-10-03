@@ -68,11 +68,10 @@ Point-and-Click Mode:
 			return cmd.Help()
 		}
 
-		// FIXME: Bug bounty workflow not being called - runMainDiscovery should use optimized workflow
-		// TODO: Add flag to skip discovery and go straight to vuln testing (--quick-scan)
-		// Point-and-click mode: intelligent discovery and testing
-		// Use the already initialized database store from PersistentPreRunE
-		return runMainDiscovery(cmd, args, log, store)
+		// Point-and-click mode: Use optimized bug bounty workflow
+		target := args[0]
+		ctx := context.Background()
+		return runBugBountyWorkflow(ctx, target, log, store)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip initialization for certain commands that don't need it
@@ -127,15 +126,14 @@ func Execute() error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.shells.yaml)")
-	// TODO: Default log level should be "warn" for bug bounty mode
-	// FIXME: JSON logs are too noisy - default to console for bug bounty
-	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().String("log-format", "json", "log format (json, console)")
+	// Default to console format and error level for cleaner bug bounty output
+	rootCmd.PersistentFlags().String("log-level", "error", "log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().String("log-format", "console", "log format (json, console)")
 
-	// TODO: Add bug bounty specific flags:
-	// rootCmd.PersistentFlags().Bool("quick", false, "Quick scan mode - skip discovery")
-	// rootCmd.PersistentFlags().Bool("quiet", false, "Quiet mode - only show vulnerabilities")
-	// rootCmd.PersistentFlags().Duration("timeout", 5*time.Minute, "Maximum scan time")
+	// Bug bounty specific flags
+	rootCmd.PersistentFlags().Bool("quick", false, "Quick scan mode - critical vulnerabilities only")
+	rootCmd.PersistentFlags().Bool("deep", false, "Deep scan mode - comprehensive testing")
+	rootCmd.PersistentFlags().Duration("timeout", 5*time.Minute, "Maximum scan time")
 
 	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag("log.format", rootCmd.PersistentFlags().Lookup("log-format"))

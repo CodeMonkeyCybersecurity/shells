@@ -179,6 +179,15 @@ type DiscoveryConfig struct {
 	ExcludeDomains  []string      `json:"exclude_domains"`
 	IncludePatterns []string      `json:"include_patterns"`
 	ExcludePatterns []string      `json:"exclude_patterns"`
+
+	// Port scan specific settings
+	PortScanPorts   string        `json:"port_scan_ports"`
+	PortScanTimeout time.Duration `json:"port_scan_timeout"`
+
+	// Crawl specific settings
+	CrawlDepth   int           `json:"crawl_depth"`
+	CrawlTimeout time.Duration `json:"crawl_timeout"`
+	CrawlMaxURLs int           `json:"crawl_max_urls"`
 }
 
 // DefaultDiscoveryConfig returns default discovery configuration
