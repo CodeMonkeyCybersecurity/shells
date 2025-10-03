@@ -46,12 +46,12 @@ func runBugBountyWorkflow(ctx context.Context, target string, log *logger.Logger
 	prioritized := prioritizeAssetsForBugBounty(discoveredAssets, log)
 	if len(prioritized) > 0 {
 		fmt.Printf("✓ Found %s assets (showing top 5)\n", color.GreenString("%d", len(prioritized)))
-		displayTopTargets(prioritized, 5)
+		displayBugBountyTargets(prioritized, 5)
 	}
 
 	// Phase 2: Focused vulnerability testing
 	fmt.Printf("\n%s", color.CyanString("═══ Phase 2: Vulnerability Testing ═══\n"))
-	findings := runFocusedVulnTests(ctx, prioritized, target, log)
+	findings := runBugBountyVulnTests(ctx, prioritized, target, log)
 
 	// Save findings to database
 	if len(findings) > 0 {
@@ -149,8 +149,8 @@ func runTimedDiscovery(ctx context.Context, target string, log *logger.Logger) (
 	}
 }
 
-// runFocusedVulnTests runs focused vulnerability tests
-func runFocusedVulnTests(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
+// runBugBountyVulnTests runs focused vulnerability tests
+func runBugBountyVulnTests(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
 	var allFindings []types.Finding
 	var mu sync.Mutex
 
@@ -163,11 +163,11 @@ func runFocusedVulnTests(ctx context.Context, assets []*BugBountyAssetPriority, 
 		name string
 		fn   func(context.Context, []*BugBountyAssetPriority, string, *logger.Logger) []types.Finding
 	}{
-		{"Authentication", testAuthentication},
-		{"API Security", testAPISecurity},
-		{"Business Logic", testBusinessLogic},
-		{"SSRF", testSSRF},
-		{"Access Control", testAccessControl},
+		{"Authentication", testBugBountyAuth},
+		{"API Security", testBugBountyAPI},
+		{"Business Logic", testBugBountyLogic},
+		{"SSRF", testBugBountySSRF},
+		{"Access Control", testBugBountyAccessControl},
 	}
 
 	// Run tests sequentially with timeout per test
@@ -200,7 +200,7 @@ func runFocusedVulnTests(ctx context.Context, assets []*BugBountyAssetPriority, 
 }
 
 // Vulnerability test functions (simplified implementations)
-func testAuthentication(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
+func testBugBountyAuth(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
 	var findings []types.Finding
 
 	// Quick auth bypass checks on high-value auth endpoints
@@ -230,7 +230,7 @@ func testAuthentication(ctx context.Context, assets []*BugBountyAssetPriority, t
 	return findings
 }
 
-func testAPISecurity(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
+func testBugBountyAPI(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
 	var findings []types.Finding
 
 	// Quick API security checks
@@ -258,7 +258,7 @@ func testAPISecurity(ctx context.Context, assets []*BugBountyAssetPriority, targ
 	return findings
 }
 
-func testBusinessLogic(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
+func testBugBountyLogic(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
 	var findings []types.Finding
 
 	// Quick business logic checks
@@ -286,7 +286,7 @@ func testBusinessLogic(ctx context.Context, assets []*BugBountyAssetPriority, ta
 	return findings
 }
 
-func testSSRF(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
+func testBugBountySSRF(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
 	var findings []types.Finding
 
 	// Quick SSRF pattern detection
@@ -317,7 +317,7 @@ func testSSRF(ctx context.Context, assets []*BugBountyAssetPriority, target stri
 	return findings
 }
 
-func testAccessControl(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
+func testBugBountyAccessControl(ctx context.Context, assets []*BugBountyAssetPriority, target string, log *logger.Logger) []types.Finding {
 	var findings []types.Finding
 
 	// Quick access control checks
@@ -356,7 +356,7 @@ func printBugBountyBanner(target string) {
 	fmt.Println(strings.Repeat("═", 70))
 }
 
-func displayTopTargets(assets []*BugBountyAssetPriority, limit int) {
+func displayBugBountyTargets(assets []*BugBountyAssetPriority, limit int) {
 	if len(assets) == 0 {
 		return
 	}
@@ -380,7 +380,7 @@ func displayTopTargets(assets []*BugBountyAssetPriority, limit int) {
 			asset.Asset.Value)
 
 		if len(asset.Reasons) > 0 {
-			fmt.Printf("     → %s\n", strings.Join(asset.Reasons[:min(2, len(asset.Reasons))], ", "))
+			fmt.Printf("     → %s\n", strings.Join(asset.Reasons[:minInt(2, len(asset.Reasons))], ", "))
 		}
 	}
 }
@@ -446,7 +446,7 @@ func countBySeverity(findings []types.Finding, sev types.Severity) int {
 	return count
 }
 
-func min(a, b int) int {
+func minInt(a, b int) int {
 	if a < b {
 		return a
 	}
