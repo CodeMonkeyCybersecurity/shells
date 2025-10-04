@@ -315,26 +315,48 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 		return nil, phase
 	}
 
+	// Create discovery timeout context
+	discoveryCtx, discoveryCancel := context.WithTimeout(ctx, e.config.DiscoveryTimeout)
+	defer discoveryCancel()
+
 	// Wait for discovery to complete or timeout
-	discoveryComplete := make(chan bool)
+	discoveryComplete := make(chan bool, 1)
 	go func() {
 		progress := 20
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
 		for {
-			time.Sleep(100 * time.Millisecond)
-			currentSession, err := e.discoveryEngine.GetSession(session.ID)
-			if err != nil || currentSession == nil {
-				discoveryComplete <- false
-				return
-			}
+			select {
+			case <-ticker.C:
+				currentSession, err := e.discoveryEngine.GetSession(session.ID)
+				if err != nil || currentSession == nil {
+					select {
+					case discoveryComplete <- false:
+					default:
+					}
+					return
+				}
 
-			// Update progress incrementally
-			if progress < 90 {
-				progress += 5
-				tracker.UpdateProgress("discovery", progress)
-			}
+				// Update progress incrementally
+				if progress < 90 {
+					progress += 5
+					tracker.UpdateProgress("discovery", progress)
+				}
 
-			if currentSession.Status == discovery.StatusCompleted || currentSession.Status == discovery.StatusFailed {
-				discoveryComplete <- true
+				if currentSession.Status == discovery.StatusCompleted || currentSession.Status == discovery.StatusFailed {
+					select {
+					case discoveryComplete <- true:
+					default:
+					}
+					return
+				}
+			case <-discoveryCtx.Done():
+				// Discovery timeout
+				select {
+				case discoveryComplete <- false:
+				default:
+				}
 				return
 			}
 		}
@@ -342,19 +364,20 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 
 	// Wait for completion or timeout
 	select {
-	case <-discoveryComplete:
-		// Discovery completed
-		tracker.UpdateProgress("discovery", 95)
-		session, err = e.discoveryEngine.GetSession(session.ID)
-		if err != nil {
-			phase.Status = "failed"
-			phase.Error = fmt.Sprintf("failed to get discovery session: %v", err)
-			phase.EndTime = time.Now()
-			phase.Duration = phase.EndTime.Sub(phase.StartTime)
-			return nil, phase
+	case success := <-discoveryComplete:
+		if success {
+			// Discovery completed
+			tracker.UpdateProgress("discovery", 95)
+			session, err = e.discoveryEngine.GetSession(session.ID)
+			if err != nil {
+				e.logger.Warnw("Failed to get session after completion, using partial results", "error", err)
+			}
+		} else {
+			e.logger.Warnw("Discovery failed or stopped, using partial results")
+			session, _ = e.discoveryEngine.GetSession(session.ID)
 		}
-	case <-ctx.Done():
-		// Timeout
+	case <-discoveryCtx.Done():
+		// Discovery timeout
 		e.logger.Warnw("Discovery timed out, using partial results", "timeout", e.config.DiscoveryTimeout)
 		session, _ = e.discoveryEngine.GetSession(session.ID)
 	}

@@ -103,26 +103,29 @@ func buildOrchestratorConfig(cmd *cobra.Command) orchestrator.BugBountyConfig {
 
 	// Apply mode-specific settings
 	if quick {
-		// Quick mode: Faster, less comprehensive
-		config.DiscoveryTimeout = 15 * time.Second
-		config.ScanTimeout = 2 * time.Minute
-		config.TotalTimeout = 5 * time.Minute
-		config.MaxAssets = 20
+		// Quick mode: Fast triage, critical vulns only (< 2 minutes total)
+		config.DiscoveryTimeout = 5 * time.Second
+		config.ScanTimeout = 1 * time.Minute
+		config.TotalTimeout = 2 * time.Minute
+		config.MaxAssets = 10
 		config.MaxDepth = 1
 		config.EnableDNS = false
 		config.EnablePortScan = false
 		config.EnableWebCrawl = true
+		config.EnableAPITesting = false // Skip in quick mode
+		config.EnableLogicTesting = false
 	} else if deep {
-		// Deep mode: Comprehensive, slower
-		config.DiscoveryTimeout = 2 * time.Minute
-		config.ScanTimeout = 15 * time.Minute
-		config.TotalTimeout = 30 * time.Minute
-		config.MaxAssets = 200
-		config.MaxDepth = 3
+		// Deep mode: Comprehensive testing (< 15 minutes total)
+		config.DiscoveryTimeout = 1 * time.Minute
+		config.ScanTimeout = 10 * time.Minute
+		config.TotalTimeout = 15 * time.Minute
+		config.MaxAssets = 100
+		config.MaxDepth = 2
 		config.EnableDNS = true
 		config.EnablePortScan = true
 		config.EnableWebCrawl = true
 	}
+	// Default mode (no flag): Balanced - 30s discovery, 5min total (from DefaultBugBountyConfig)
 
 	// Apply custom timeout if provided
 	if timeout, _ := cmd.Flags().GetDuration("timeout"); timeout > 0 {
