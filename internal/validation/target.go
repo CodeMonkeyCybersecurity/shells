@@ -50,6 +50,18 @@ func ValidateTarget(target string) *TargetValidationResult {
 	}
 
 	if isIPRange(target) {
+		// Check if it's a private IP range
+		_, ipNet, err := net.ParseCIDR(target)
+		if err == nil {
+			// Check if the network is private
+			firstIP := ipNet.IP
+			if firstIP.IsPrivate() || firstIP.IsLoopback() || firstIP.IsLinkLocalUnicast() {
+				result.Error = fmt.Errorf("scanning private/local IP ranges is not allowed without explicit authorization")
+				result.Warnings = append(result.Warnings, "Target is a private IP range")
+				return result
+			}
+		}
+
 		result.TargetType = "ip_range"
 		result.NormalizedURL = target
 		result.Valid = true
@@ -92,13 +104,25 @@ func ValidateTarget(target string) *TargetValidationResult {
 		return result
 	}
 
-	// Assume it's a company name if nothing else matches
+	// Assume it's a company name if nothing else matches and it looks reasonable
 	if len(target) > 3 && !strings.Contains(target, "/") {
-		result.TargetType = "company"
-		result.NormalizedURL = target
-		result.Valid = true
-		result.Warnings = append(result.Warnings, "Treating input as company name - will perform discovery")
-		return result
+		// Company names should only contain alphanumeric, spaces, and common punctuation
+		validCompanyName := true
+		allowedChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .-_&,"
+		for _, char := range target {
+			if !strings.ContainsRune(allowedChars, char) {
+				validCompanyName = false
+				break
+			}
+		}
+
+		if validCompanyName {
+			result.TargetType = "company"
+			result.NormalizedURL = target
+			result.Valid = true
+			result.Warnings = append(result.Warnings, "Treating input as company name - will perform discovery")
+			return result
+		}
 	}
 
 	result.Error = fmt.Errorf("unable to determine target type - expected URL, domain, IP, email, or company name")

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
@@ -27,6 +29,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/smuggling"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -77,7 +80,23 @@ The main command runs the full orchestrated pipeline:
 
 		// Point-and-click mode: Use intelligent orchestrator
 		target := args[0]
-		ctx := context.Background()
+
+		// Set up context with cancellation for Ctrl+C handling
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		// Set up signal handling for graceful shutdown
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+		// Handle signals in goroutine
+		go func() {
+			sig := <-sigChan
+			color.Yellow("\n\n⚠️  Received %s - shutting down gracefully...\n", sig)
+			color.White("   Partial results will be saved to database.\n\n")
+			cancel()
+		}()
+
 		return runIntelligentOrchestrator(ctx, target, cmd, log, store)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -141,6 +160,7 @@ func init() {
 	rootCmd.PersistentFlags().Bool("quick", false, "Quick scan mode - critical vulnerabilities only")
 	rootCmd.PersistentFlags().Bool("deep", false, "Deep scan mode - comprehensive testing")
 	rootCmd.PersistentFlags().Duration("timeout", 5*time.Minute, "Maximum scan time")
+	rootCmd.PersistentFlags().String("scope", "", "Scope file defining authorized targets (.scope file)")
 
 	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag("log.format", rootCmd.PersistentFlags().Lookup("log-format"))
@@ -3129,6 +3149,7 @@ func runComprehensiveAuthenticationTests(ctx context.Context, target, scanID str
 	if err != nil {
 		return fmt.Errorf("auth discovery failed: %w", err)
 	}
+	
 
 	// Convert to findings
 	findings := convertAuthInventoryToFindings(authInventory, target, scanID)

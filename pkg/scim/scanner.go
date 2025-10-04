@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -31,10 +32,17 @@ func NewScanner() core.Scanner {
 	start := time.Now()
 
 	// Initialize logger for SCIM scanner
-	log, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
+	// Default to error level, use debug only if SHELLS_DEBUG is set
+	logLevel := "error"
+	logFormat := "console"
+	if os.Getenv("SHELLS_DEBUG") == "true" || os.Getenv("SHELLS_DEBUG") == "1" {
+		logLevel = "debug"
+		logFormat = "json"
+	}
+	log, err := logger.New(config.LoggerConfig{Level: logLevel, Format: logFormat})
 	if err != nil {
 		// Fallback to basic logger if initialization fails
-		log, _ = logger.New(config.LoggerConfig{Level: "info", Format: "json"})
+		log, _ = logger.New(config.LoggerConfig{Level: "error", Format: "console"})
 	}
 	log = log.WithComponent("scim-scanner")
 

@@ -73,9 +73,21 @@ func (m *Manager) CheckAndPromptForCircl() error {
 		return nil
 	}
 
-	// Check if running in non-interactive mode
+	// Check if running in non-interactive mode or if prompts are disabled
 	if !isInteractive() {
 		m.logger.Debug("Running in non-interactive mode, skipping CIRCL prompt")
+		return nil
+	}
+
+	// Check environment variable to skip prompts
+	if os.Getenv("SHELLS_SKIP_PROMPTS") == "true" || os.Getenv("SHELLS_NO_PROMPTS") == "1" {
+		m.logger.Debug("SHELLS_SKIP_PROMPTS set, skipping CIRCL prompt")
+		return nil
+	}
+
+	// Check if this is the first run - only prompt on initial setup, not every scan
+	if os.Getenv("SHELLS_FIRST_RUN") != "true" {
+		m.logger.Debug("Not first run, skipping CIRCL prompt")
 		return nil
 	}
 

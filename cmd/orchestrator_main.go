@@ -17,8 +17,23 @@ import (
 
 // runIntelligentOrchestrator is the main entry point that wires the orchestrator to the root command
 func runIntelligentOrchestrator(ctx context.Context, target string, cmd *cobra.Command, log *logger.Logger, store core.ResultStore) error {
-	// Validate target before scanning
-	validationResult := validation.ValidateTarget(target)
+	// Check for scope file
+	scopePath, _ := cmd.Flags().GetString("scope")
+
+	// Validate target (with scope if provided)
+	var validationResult *validation.TargetValidationResult
+	var err error
+
+	if scopePath != "" {
+		validationResult, err = validation.ValidateWithScope(target, scopePath)
+		if err != nil {
+			return fmt.Errorf("scope validation failed: %w", err)
+		}
+		color.Green("✓ Target authorized by scope file: %s\n\n", scopePath)
+	} else {
+		validationResult = validation.ValidateTarget(target)
+	}
+
 	if !validationResult.Valid {
 		return fmt.Errorf("target validation failed: %w", validationResult.Error)
 	}
@@ -221,8 +236,14 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 	fmt.Println()
 	fmt.Printf("✓ Scan complete in %s\n", result.Duration.Round(time.Second))
 	fmt.Printf("  Scan ID: %s\n", result.ScanID)
-	fmt.Printf("\nResults stored in database. Query with:\n")
+
+	// Print results location
+	dbPath := "~/.shells/shells.db" // Default database path
+	fmt.Printf("\n📊 Results saved to: %s\n", color.CyanString(dbPath))
+	fmt.Printf("\nQuery results with:\n")
 	fmt.Printf("  shells results query --scan-id %s\n", result.ScanID)
+	fmt.Printf("  shells results stats\n")
+	fmt.Printf("  shells results recent --limit 10\n")
 }
 
 // Helper functions

@@ -13,6 +13,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/progress"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/ratelimit"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
@@ -212,6 +213,13 @@ type PhaseResult struct {
 func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBountyResult, error) {
 	e.logger.Infow("Starting bug bounty scan", "target", target)
 
+	// Initialize progress tracker
+	tracker := progress.New(e.config.ShowProgress)
+	tracker.AddPhase("discovery", "Discovering assets")
+	tracker.AddPhase("prioritization", "Prioritizing targets")
+	tracker.AddPhase("testing", "Testing for vulnerabilities")
+	tracker.AddPhase("storage", "Storing results")
+
 	// Create scan record
 	scanID := fmt.Sprintf("bounty-%d", time.Now().Unix())
 	result := &BugBountyResult{
@@ -228,38 +236,52 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	defer cancel()
 
 	// Phase 1: Asset Discovery
-	assets, phaseResult := e.executeDiscoveryPhase(ctx, target)
+	tracker.StartPhase("discovery")
+	assets, phaseResult := e.executeDiscoveryPhase(ctx, target, tracker)
 	result.PhaseResults["discovery"] = phaseResult
 	result.DiscoveredAt = len(assets)
 
 	if phaseResult.Status == "failed" {
+		tracker.FailPhase("discovery", fmt.Errorf("%s", phaseResult.Error))
 		result.Status = "failed"
 		result.EndTime = time.Now()
 		result.Duration = result.EndTime.Sub(result.StartTime)
 		return result, fmt.Errorf("discovery phase failed: %s", phaseResult.Error)
 	}
+	tracker.CompletePhase("discovery")
 
 	// Phase 2: Asset Prioritization
+	tracker.StartPhase("prioritization")
 	prioritized := e.executePrioritizationPhase(assets)
 	e.logger.Infow("Prioritized assets", "count", len(prioritized), "target", target)
+	tracker.CompletePhase("prioritization")
 
 	// Phase 3: Vulnerability Testing (parallel)
-	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized)
+	tracker.StartPhase("testing")
+	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized, tracker)
 	for phase, pr := range phaseResults {
 		result.PhaseResults[phase] = pr
 	}
 	result.Findings = append(result.Findings, findings...)
 	result.TestedAssets = len(prioritized)
+	tracker.CompletePhase("testing")
 
 	// Phase 4: Store results
+	tracker.StartPhase("storage")
 	if err := e.storeResults(ctx, scanID, result); err != nil {
 		e.logger.Errorw("Failed to store results", "error", err, "scan_id", scanID)
+		tracker.FailPhase("storage", err)
+	} else {
+		tracker.CompletePhase("storage")
 	}
 
 	result.Status = "completed"
 	result.EndTime = time.Now()
 	result.Duration = result.EndTime.Sub(result.StartTime)
 	result.TotalFindings = len(result.Findings)
+
+	// Show final summary
+	tracker.Complete()
 
 	e.logger.Infow("Bug bounty scan completed",
 		"target", target,
@@ -272,7 +294,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 }
 
 // executeDiscoveryPhase runs asset discovery with timeout
-func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string) ([]*discovery.Asset, PhaseResult) {
+func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string, tracker *progress.Tracker) ([]*discovery.Asset, PhaseResult) {
 	phase := PhaseResult{
 		Phase:     "discovery",
 		Status:    "running",
@@ -280,6 +302,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 	}
 
 	e.logger.Infow("Phase 1: Asset Discovery", "target", target, "timeout", e.config.DiscoveryTimeout)
+	tracker.UpdateProgress("discovery", 10)
 
 	// Start discovery session
 	session, err := e.discoveryEngine.StartDiscovery(target)
@@ -295,6 +318,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 	// Wait for discovery to complete or timeout
 	discoveryComplete := make(chan bool)
 	go func() {
+		progress := 20
 		for {
 			time.Sleep(100 * time.Millisecond)
 			currentSession, err := e.discoveryEngine.GetSession(session.ID)
@@ -302,6 +326,13 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 				discoveryComplete <- false
 				return
 			}
+
+			// Update progress incrementally
+			if progress < 90 {
+				progress += 5
+				tracker.UpdateProgress("discovery", progress)
+			}
+
 			if currentSession.Status == discovery.StatusCompleted || currentSession.Status == discovery.StatusFailed {
 				discoveryComplete <- true
 				return
@@ -313,6 +344,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 	select {
 	case <-discoveryComplete:
 		// Discovery completed
+		tracker.UpdateProgress("discovery", 95)
 		session, err = e.discoveryEngine.GetSession(session.ID)
 		if err != nil {
 			phase.Status = "failed"
@@ -525,12 +557,33 @@ func (e *BugBountyEngine) analyzeAssetFeatures(asset *discovery.Asset) AssetFeat
 }
 
 // executeTestingPhase runs all vulnerability tests in parallel
-func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string, assets []*AssetPriority) ([]types.Finding, map[string]PhaseResult) {
+func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string, assets []*AssetPriority, tracker *progress.Tracker) ([]types.Finding, map[string]PhaseResult) {
 	e.logger.Infow("Phase 3: Vulnerability Testing", "assets", len(assets))
 
 	phaseResults := make(map[string]PhaseResult)
 	allFindings := []types.Finding{}
 	var mu sync.Mutex
+
+	// Track test progress
+	totalTests := 0
+	completedTests := 0
+	if e.config.EnableAuthTesting {
+		totalTests++
+	}
+	if e.config.EnableSCIMTesting {
+		totalTests++
+	}
+	if e.config.EnableAPITesting {
+		totalTests++
+	}
+
+	updateTestProgress := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		completedTests++
+		progress := (completedTests * 100) / totalTests
+		tracker.UpdateProgress("testing", progress)
+	}
 
 	// Run tests in parallel
 	var wg sync.WaitGroup
@@ -545,6 +598,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			allFindings = append(allFindings, findings...)
 			phaseResults["auth"] = result
 			mu.Unlock()
+			updateTestProgress()
 		}()
 	}
 
@@ -558,6 +612,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			allFindings = append(allFindings, findings...)
 			phaseResults["scim"] = result
 			mu.Unlock()
+			updateTestProgress()
 		}()
 	}
 
@@ -571,6 +626,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			allFindings = append(allFindings, findings...)
 			phaseResults["api"] = result
 			mu.Unlock()
+			updateTestProgress()
 		}()
 	}
 

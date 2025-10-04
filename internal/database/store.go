@@ -34,9 +34,13 @@ func (s *sqlStore) getPlaceholder(n int) string {
 
 func NewStore(cfg config.DatabaseConfig) (core.ResultStore, error) {
 	// Initialize logger for database operations
-	// Use error level if in bug bounty mode to reduce noise
-	level := "debug"
-	format := "json"
+	// Default to error level to reduce noise, use debug only if explicitly set
+	level := "error"
+	format := "console"
+	if debugMode := os.Getenv("SHELLS_DEBUG"); debugMode == "true" || debugMode == "1" {
+		level = "debug"
+		format = "json"
+	}
 	if os.Getenv("SHELLS_BUG_BOUNTY_MODE") == "true" {
 		level = "fatal"
 		format = "console"

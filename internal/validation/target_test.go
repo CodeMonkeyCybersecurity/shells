@@ -157,18 +157,36 @@ func TestValidateTarget_Email(t *testing.T) {
 }
 
 func TestValidateTarget_IPRange(t *testing.T) {
-	tests := []string{
+	// Private IP ranges should be rejected
+	privateRanges := []string{
 		"192.168.1.0/24",
 		"10.0.0.0/16",
 		"172.16.0.0/12",
 	}
 
-	for _, ipRange := range tests {
-		t.Run(ipRange, func(t *testing.T) {
+	for _, ipRange := range privateRanges {
+		t.Run(ipRange+"_private", func(t *testing.T) {
 			result := ValidateTarget(ipRange)
-			// IP ranges are valid but should have warnings
+			if result.Valid {
+				t.Errorf("ValidateTarget(%q) should reject private IP range", ipRange)
+			}
+			if result.Error == nil {
+				t.Errorf("ValidateTarget(%q) should return error for private IP range", ipRange)
+			}
+		})
+	}
+
+	// Public IP ranges should be accepted with warnings
+	publicRanges := []string{
+		"8.8.8.0/24",     // Google DNS range
+		"1.1.1.0/24",     // Cloudflare range
+	}
+
+	for _, ipRange := range publicRanges {
+		t.Run(ipRange+"_public", func(t *testing.T) {
+			result := ValidateTarget(ipRange)
 			if !result.Valid {
-				t.Errorf("ValidateTarget(%q) should accept IP range format, got error: %v", ipRange, result.Error)
+				t.Errorf("ValidateTarget(%q) should accept public IP range, got error: %v", ipRange, result.Error)
 			}
 			if result.TargetType != "ip_range" {
 				t.Errorf("ValidateTarget(%q) type = %v, want ip_range", ipRange, result.TargetType)
