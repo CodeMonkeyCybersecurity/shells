@@ -303,14 +303,14 @@ func TestRealWorldQuickScan(t *testing.T) {
 	}
 	defer store.Close()
 
-	// Quick mode config (should skip discovery)
+	// Quick mode config (should skip discovery but enable auth testing)
 	engineConfig := orchestrator.DefaultBugBountyConfig()
 	engineConfig.SkipDiscovery = true // Quick mode skips discovery
 	engineConfig.DiscoveryTimeout = 1 * time.Second
-	engineConfig.TotalTimeout = 10 * time.Second
+	engineConfig.TotalTimeout = 30 * time.Second // Increased for auth testing
 	engineConfig.MaxAssets = 1
 	engineConfig.ShowProgress = false
-	engineConfig.EnableAuthTesting = false // Skip auth discovery in quick mode
+	engineConfig.EnableAuthTesting = true // Enable auth testing - high value for bug bounties
 
 	engine, _ := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, log, engineConfig)
 

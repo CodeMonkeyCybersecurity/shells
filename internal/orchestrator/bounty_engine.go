@@ -785,7 +785,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 	return findings, phase
 }
 
-// runSCIMTests executes SCIM vulnerability tests
+// runSCIMTests executes SCIM vulnerability tests in parallel
 func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
 	phase := PhaseResult{
 		Phase:     "scim",
@@ -796,29 +796,60 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 	e.logger.Infow("Testing SCIM endpoints")
 
 	var findings []types.Finding
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
-	// Find SCIM endpoints
+	// Worker pool for parallel SCIM testing
+	maxWorkers := 5
+	semaphore := make(chan struct{}, maxWorkers)
+
+	// Find and test SCIM endpoints in parallel
 	for _, asset := range assets {
 		if !asset.Features.IsSCIM {
 			continue
 		}
 
-		e.logger.Infow("Testing SCIM endpoint", "url", asset.Asset.Value)
+		wg.Add(1)
+		semaphore <- struct{}{} // Acquire worker slot
 
-		// Run SCIM vulnerability tests
-		scimOptions := make(map[string]string)
-		scimOptions["test_all"] = "true"
+		go func(assetValue string) {
+			defer func() {
+				// P2.1: Panic recovery - graceful error handling
+				if r := recover(); r != nil {
+					e.logger.Errorw("SCIM scanner panicked - recovered gracefully",
+						"url", assetValue,
+						"panic", r)
+				}
+				<-semaphore // Release worker slot
+				wg.Done()
+			}()
 
-		scimFindings, err := e.scimScanner.Scan(ctx, asset.Asset.Value, scimOptions)
-		if err != nil {
-			e.logger.Warnw("SCIM scan failed", "url", asset.Asset.Value, "error", err)
-			continue
-		}
+			e.logger.Infow("Testing SCIM endpoint", "url", assetValue)
 
-		// Append findings from SCIM scanner
-		findings = append(findings, scimFindings...)
-		e.logger.Infow("SCIM scan completed", "url", asset.Asset.Value, "findings", len(scimFindings))
+			// Run SCIM vulnerability tests with timeout protection
+			scanCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+
+			scimOptions := make(map[string]string)
+			scimOptions["test_all"] = "true"
+
+			scimFindings, err := e.scimScanner.Scan(scanCtx, assetValue, scimOptions)
+			if err != nil {
+				e.logger.Warnw("SCIM scan failed", "url", assetValue, "error", err)
+				return
+			}
+
+			// Thread-safe append of findings
+			mu.Lock()
+			findings = append(findings, scimFindings...)
+			mu.Unlock()
+
+			e.logger.Infow("SCIM scan completed", "url", assetValue, "findings", len(scimFindings))
+		}(asset.Asset.Value)
 	}
+
+	// Wait for all SCIM scans to complete
+	wg.Wait()
 
 	phase.EndTime = time.Now()
 	phase.Duration = phase.EndTime.Sub(phase.StartTime)

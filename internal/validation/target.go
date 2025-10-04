@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -225,15 +226,31 @@ func isDomain(s string) bool {
 	return domainRegex.MatchString(s)
 }
 
-// RequireAuthorization prompts user for authorization confirmation
-func RequireAuthorization(target string) error {
-	// This is a placeholder - in a real implementation, this might:
-	// 1. Check for a scope file
-	// 2. Prompt interactively
-	// 3. Check environment variables
-	// 4. Verify against a whitelist
+// RequireAuthorization checks if a target is authorized for scanning
+// P2.3: Enforce scope file validation
+// Uses the existing LoadScopeFile implementation from scope.go
+func RequireAuthorization(target string, scopeFile string) error {
+	// If no scope file provided, check environment variable
+	if scopeFile == "" {
+		if os.Getenv("SHELLS_SKIP_SCOPE_CHECK") == "true" {
+			// Allow skipping scope check for development/testing
+			return nil
+		}
+		// In production, scope file should be required
+		// For now, allow scans without scope file (backward compatibility)
+		return nil
+	}
 
-	// For now, just return nil to allow scans
-	// In production, you'd want actual authorization checks
+	// Load and validate scope file using existing implementation
+	scope, err := LoadScopeFile(scopeFile)
+	if err != nil {
+		return fmt.Errorf("failed to load scope file: %w", err)
+	}
+
+	// Check if target is in scope
+	if !scope.IsInScope(target) {
+		return fmt.Errorf("target '%s' is not in authorized scope file '%s'", target, scopeFile)
+	}
+
 	return nil
 }
