@@ -58,6 +58,7 @@ type BugBountyConfig struct {
 	EnablePortScan bool
 	EnableWebCrawl bool
 	EnableDNS      bool
+	SkipDiscovery  bool // If true, use target directly without discovery
 
 	// Testing settings
 	EnableAuthTesting   bool
@@ -235,20 +236,55 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	ctx, cancel := context.WithTimeout(ctx, e.config.TotalTimeout)
 	defer cancel()
 
-	// Phase 1: Asset Discovery
-	tracker.StartPhase("discovery")
-	assets, phaseResult := e.executeDiscoveryPhase(ctx, target, tracker)
-	result.PhaseResults["discovery"] = phaseResult
-	result.DiscoveredAt = len(assets)
+	// Phase 1: Asset Discovery (or skip if configured)
+	var assets []*discovery.Asset
+	var phaseResult PhaseResult
 
-	if phaseResult.Status == "failed" {
-		tracker.FailPhase("discovery", fmt.Errorf("%s", phaseResult.Error))
-		result.Status = "failed"
-		result.EndTime = time.Now()
-		result.Duration = result.EndTime.Sub(result.StartTime)
-		return result, fmt.Errorf("discovery phase failed: %s", phaseResult.Error)
+	if e.config.SkipDiscovery {
+		// Quick mode: Use target directly without discovery
+		e.logger.Infow("Skipping discovery (quick mode)", "target", target)
+		tracker.StartPhase("discovery")
+
+		// Normalize target to URL
+		normalizedTarget := target
+		if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+			normalizedTarget = "https://" + target
+		}
+
+		assets = []*discovery.Asset{
+			{
+				Type:  discovery.AssetTypeURL,
+				Value: normalizedTarget,
+			},
+		}
+
+		phaseResult = PhaseResult{
+			Phase:     "discovery",
+			Status:    "skipped",
+			StartTime: time.Now(),
+			EndTime:   time.Now(),
+			Duration:  0,
+			Findings:  0,
+		}
+		result.PhaseResults["discovery"] = phaseResult
+		result.DiscoveredAt = 1
+		tracker.CompletePhase("discovery")
+	} else {
+		// Normal/Deep mode: Run full discovery
+		tracker.StartPhase("discovery")
+		assets, phaseResult = e.executeDiscoveryPhase(ctx, target, tracker)
+		result.PhaseResults["discovery"] = phaseResult
+		result.DiscoveredAt = len(assets)
+
+		if phaseResult.Status == "failed" {
+			tracker.FailPhase("discovery", fmt.Errorf("%s", phaseResult.Error))
+			result.Status = "failed"
+			result.EndTime = time.Now()
+			result.Duration = result.EndTime.Sub(result.StartTime)
+			return result, fmt.Errorf("discovery phase failed: %s", phaseResult.Error)
+		}
+		tracker.CompletePhase("discovery")
 	}
-	tracker.CompletePhase("discovery")
 
 	// Phase 2: Asset Prioritization
 	tracker.StartPhase("prioritization")

@@ -287,6 +287,67 @@ func TestDatabaseResultsPersistence(t *testing.T) {
 	t.Log("✅ Database persistence verified")
 }
 
+// TestRealWorldQuickScan tests against actual public target
+func TestRealWorldQuickScan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping real network test in short mode")
+	}
+
+	// Setup
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "real.db")
+	log, _ := logger.New(config.LoggerConfig{Level: "error", Format: "console"})
+	store, err := database.NewStore(config.DatabaseConfig{Driver: "sqlite3", DSN: dbPath})
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer store.Close()
+
+	// Quick mode config (should skip discovery)
+	engineConfig := orchestrator.DefaultBugBountyConfig()
+	engineConfig.SkipDiscovery = true // Quick mode skips discovery
+	engineConfig.DiscoveryTimeout = 1 * time.Second
+	engineConfig.TotalTimeout = 10 * time.Second
+	engineConfig.MaxAssets = 1
+	engineConfig.ShowProgress = false
+
+	engine, _ := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, log, engineConfig)
+
+	// Execute against REAL public API (httpbin.org is designed for testing)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	target := "httpbin.org"
+	start := time.Now()
+	result, err := engine.Execute(ctx, target)
+	duration := time.Since(start)
+
+	if err != nil {
+		t.Fatalf("Real network scan failed: %v", err)
+	}
+
+	// Quick mode should complete in < 10 seconds
+	if duration > 10*time.Second {
+		t.Errorf("Scan too slow: %v (expected < 10s)", duration)
+	}
+
+	// Should have tested at least the target
+	if result.TestedAssets == 0 {
+		t.Error("No assets tested")
+	}
+
+	// Status should be completed
+	if result.Status != "completed" {
+		t.Errorf("Expected status 'completed', got '%s'", result.Status)
+	}
+
+	t.Logf("✅ Real network scan passed:")
+	t.Logf("   Target: %s", target)
+	t.Logf("   Duration: %v", duration)
+	t.Logf("   Assets: %d tested", result.TestedAssets)
+	t.Logf("   Status: %s", result.Status)
+}
+
 // Benchmark for performance regression testing
 func BenchmarkQuickScan(b *testing.B) {
 	// Create mock server

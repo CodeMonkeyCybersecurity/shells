@@ -103,15 +103,17 @@ func buildOrchestratorConfig(cmd *cobra.Command) orchestrator.BugBountyConfig {
 
 	// Apply mode-specific settings
 	if quick {
-		// Quick mode: Fast triage, critical vulns only (< 2 minutes total)
-		config.DiscoveryTimeout = 5 * time.Second
-		config.ScanTimeout = 1 * time.Minute
-		config.TotalTimeout = 2 * time.Minute
-		config.MaxAssets = 10
-		config.MaxDepth = 1
+		// Quick mode: Fast triage, critical vulns only (< 10 seconds total)
+		// SKIP discovery entirely - just test the target directly
+		config.SkipDiscovery = true
+		config.DiscoveryTimeout = 1 * time.Second // Not used when skipped
+		config.ScanTimeout = 30 * time.Second
+		config.TotalTimeout = 1 * time.Minute
+		config.MaxAssets = 1
+		config.MaxDepth = 0
 		config.EnableDNS = false
 		config.EnablePortScan = false
-		config.EnableWebCrawl = true
+		config.EnableWebCrawl = false
 		config.EnableAPITesting = false // Skip in quick mode
 		config.EnableLogicTesting = false
 	} else if deep {
