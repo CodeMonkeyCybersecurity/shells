@@ -50,17 +50,24 @@ func GetContext() context.Context {
 
 var rootCmd = &cobra.Command{
 	Use:   "shells [target]",
-	Short: "A modular web application security testing CLI",
-	Long: `Shells is a production-ready CLI tool for web application security testing
-and bug bounty automation. It integrates multiple security tools and provides
-a unified interface for distributed scanning with result aggregation.
+	Short: "Intelligent bug bounty automation platform",
+	Long: `Shells - Intelligent Bug Bounty Automation Platform
+
+Automatically discovers assets, identifies vulnerabilities, and generates
+actionable findings using real security scanners.
 
 Point-and-Click Mode:
-  shells example.com          # Discover and test domain
-  shells "Acme Corporation"   # Discover and test company
-  shells admin@example.com    # Discover and test from email
-  shells 192.168.1.1          # Discover and test IP
-  shells 192.168.1.0/24       # Discover and test IP range`,
+  shells example.com          # Full bug bounty pipeline: Discovery → Testing → Reporting
+  shells "Acme Corporation"   # Discover company assets and test for vulnerabilities
+  shells admin@example.com    # Discover from email and test discovered assets
+  shells 192.168.1.1          # Discover network and test services
+  shells 192.168.1.0/24       # Scan IP range and test discovered hosts
+
+The main command runs the full orchestrated pipeline:
+  1. Asset Discovery (DNS, subdomains, ports, services, tech stack)
+  2. Intelligent Prioritization (auth endpoints, APIs, admin panels)
+  3. Vulnerability Testing (SAML, OAuth2, WebAuthn, SCIM, API security)
+  4. Results Storage & Reporting`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// If no arguments provided, show help
@@ -68,10 +75,10 @@ Point-and-Click Mode:
 			return cmd.Help()
 		}
 
-		// Point-and-click mode: Use optimized bug bounty workflow
+		// Point-and-click mode: Use intelligent orchestrator
 		target := args[0]
 		ctx := context.Background()
-		return runBugBountyWorkflow(ctx, target, log, store)
+		return runIntelligentOrchestrator(ctx, target, cmd, log, store)
 	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip initialization for certain commands that don't need it
