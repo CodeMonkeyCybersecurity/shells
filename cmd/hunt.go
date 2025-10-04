@@ -31,8 +31,8 @@ Legacy documentation:
   2. Asset prioritization (auth endpoints, APIs, admin panels)
   3. Parallel vulnerability testing (SAML, OAuth2, WebAuthn, SCIM, etc.)
   4. Structured results storage and reporting`,
-	Args: cobra.ExactArgs(1),
-	RunE: runHuntCommand,
+	Args:       cobra.ExactArgs(1),
+	RunE:       runHuntCommand,
 	Deprecated: "use the main command 'shells [target]' instead, which provides the same functionality",
 }
 
@@ -120,14 +120,14 @@ func runHuntCommand(cmd *cobra.Command, args []string) error {
 
 	// Create bug bounty configuration
 	bountyConfig := orchestrator.BugBountyConfig{
-		DiscoveryTimeout: discoveryTimeout,
-		ScanTimeout:      scanTimeout,
-		TotalTimeout:     totalTimeout,
-		MaxAssets:        maxAssets,
-		MaxDepth:         maxDepth,
-		EnablePortScan:   enablePortScan,
-		EnableWebCrawl:   enableWebCrawl,
-		EnableDNS:        enableDNS,
+		DiscoveryTimeout:    discoveryTimeout,
+		ScanTimeout:         scanTimeout,
+		TotalTimeout:        totalTimeout,
+		MaxAssets:           maxAssets,
+		MaxDepth:            maxDepth,
+		EnablePortScan:      enablePortScan,
+		EnableWebCrawl:      enableWebCrawl,
+		EnableDNS:           enableDNS,
 		EnableAuthTesting:   enableAuthTesting,
 		EnableAPITesting:    enableAPITesting,
 		EnableLogicTesting:  enableLogicTesting,
@@ -238,7 +238,6 @@ func displayHuntResults(result *orchestrator.BugBountyResult) {
 	fmt.Printf("✓ Scan complete in %s\n", result.Duration.Round(time.Second))
 	fmt.Printf("  Scan ID: %s\n", result.ScanID)
 }
-
 
 func saveHuntReport(result *orchestrator.BugBountyResult, filename string) error {
 	// TODO: Implement JSON export

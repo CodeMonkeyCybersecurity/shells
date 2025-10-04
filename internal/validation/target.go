@@ -10,11 +10,11 @@ import (
 
 // TargetValidationResult contains the result of target validation
 type TargetValidationResult struct {
-	Valid          bool
-	TargetType     string // "domain", "ip", "url", "ip_range", "email", "company"
-	NormalizedURL  string
-	Warnings       []string
-	Error          error
+	Valid         bool
+	TargetType    string // "domain", "ip", "url", "ip_range", "email", "company"
+	NormalizedURL string
+	Warnings      []string
+	Error         error
 }
 
 // ValidateTarget performs comprehensive validation of scan targets

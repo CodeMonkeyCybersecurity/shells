@@ -67,7 +67,7 @@ func TestBugBountyWorkflowEndToEnd(t *testing.T) {
 
 	// Create orchestrator with quick mode settings
 	engineConfig := orchestrator.DefaultBugBountyConfig()
-	engineConfig.DiscoveryTimeout = 3 * time.Second  // Very quick for test
+	engineConfig.DiscoveryTimeout = 3 * time.Second // Very quick for test
 	engineConfig.ScanTimeout = 10 * time.Second
 	engineConfig.TotalTimeout = 15 * time.Second
 	engineConfig.MaxAssets = 5
@@ -310,6 +310,7 @@ func TestRealWorldQuickScan(t *testing.T) {
 	engineConfig.TotalTimeout = 10 * time.Second
 	engineConfig.MaxAssets = 1
 	engineConfig.ShowProgress = false
+	engineConfig.EnableAuthTesting = false // Skip auth discovery in quick mode
 
 	engine, _ := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, log, engineConfig)
 

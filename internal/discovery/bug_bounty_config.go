@@ -24,8 +24,8 @@ func BugBountyDiscoveryConfig() *DiscoveryConfig {
 		EnableTechStack: true, // Identify technologies for targeted testing
 
 		// Performance settings
-		MaxWorkers: 10,        // Parallel workers for speed
-		RateLimit:  50,        // Higher rate limit for faster scanning
+		MaxWorkers: 10,                                                             // Parallel workers for speed
+		RateLimit:  50,                                                             // Higher rate limit for faster scanning
 		UserAgent:  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", // Blend in
 
 		// Behavior settings
@@ -37,9 +37,9 @@ func BugBountyDiscoveryConfig() *DiscoveryConfig {
 		PortScanTimeout: 5 * time.Second,                        // Fast timeout
 
 		// Crawl settings (shallow crawl for endpoints)
-		CrawlDepth:   2,              // Shallow crawl
+		CrawlDepth:   2,                // Shallow crawl
 		CrawlTimeout: 10 * time.Second, // Quick crawl
-		CrawlMaxURLs: 50,             // Limit URLs crawled
+		CrawlMaxURLs: 50,               // Limit URLs crawled
 	}
 }
 
@@ -82,7 +82,7 @@ func DeepDiscoveryConfig() *DiscoveryConfig {
 		Recursive:     true,
 		HighValueOnly: false, // Include all assets
 
-		PortScanPorts:   "1-10000",          // Full port range
+		PortScanPorts:   "1-10000", // Full port range
 		PortScanTimeout: 30 * time.Second,
 		CrawlDepth:      5,
 		CrawlTimeout:    2 * time.Minute,

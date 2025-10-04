@@ -32,8 +32,8 @@ type Config struct {
 // DefaultConfig returns sensible rate limiting defaults for bug bounty scanning
 func DefaultConfig() Config {
 	return Config{
-		RequestsPerSecond: 10.0,  // 10 requests per second
-		BurstSize:         5,      // Allow bursts of 5 requests
+		RequestsPerSecond: 10.0,                   // 10 requests per second
+		BurstSize:         5,                      // Allow bursts of 5 requests
 		MinDelay:          100 * time.Millisecond, // 100ms between requests
 	}
 }
@@ -130,15 +130,15 @@ func (l *Limiter) GetStats() Stats {
 	defer l.mu.Unlock()
 
 	return Stats{
-		TrackedHosts:  len(l.lastRequestMap),
-		BurstSize:     l.burstSize,
-		RequestDelay:  l.requestDelay,
+		TrackedHosts: len(l.lastRequestMap),
+		BurstSize:    l.burstSize,
+		RequestDelay: l.requestDelay,
 	}
 }
 
 // Stats contains rate limiter statistics
 type Stats struct {
-	TrackedHosts  int
-	BurstSize     int
-	RequestDelay  time.Duration
+	TrackedHosts int
+	BurstSize    int
+	RequestDelay time.Duration
 }

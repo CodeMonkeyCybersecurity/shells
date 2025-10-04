@@ -178,8 +178,8 @@ func TestValidateTarget_IPRange(t *testing.T) {
 
 	// Public IP ranges should be accepted with warnings
 	publicRanges := []string{
-		"8.8.8.0/24",     // Google DNS range
-		"1.1.1.0/24",     // Cloudflare range
+		"8.8.8.0/24", // Google DNS range
+		"1.1.1.0/24", // Cloudflare range
 	}
 
 	for _, ipRange := range publicRanges {

@@ -26,9 +26,9 @@ import (
 // BugBountyEngine orchestrates the full bug bounty scanning pipeline
 type BugBountyEngine struct {
 	// Core services
-	store      core.ResultStore
-	telemetry  core.Telemetry
-	logger     *logger.Logger
+	store       core.ResultStore
+	telemetry   core.Telemetry
+	logger      *logger.Logger
 	rateLimiter *ratelimit.Limiter
 
 	// Discovery
@@ -456,13 +456,13 @@ type AssetPriority struct {
 // AssetFeatures tracks important features of an asset
 type AssetFeatures struct {
 	HasAuthentication bool
-	HasAPI           bool
-	HasPayment       bool
-	HasFileUpload    bool
-	HasUserData      bool
-	HasAdmin         bool
-	IsSCIM           bool
-	Technology       string
+	HasAPI            bool
+	HasPayment        bool
+	HasFileUpload     bool
+	HasUserData       bool
+	HasAdmin          bool
+	IsSCIM            bool
+	Technology        string
 }
 
 // executePrioritizationPhase prioritizes assets for testing
@@ -743,9 +743,9 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 		oauth2Options := map[string]interface{}{
 			"authorization_url": authInventory.OAuth2.AuthorizationURL,
-			"token_url":        authInventory.OAuth2.TokenURL,
-			"test_jwt":         true,
-			"test_pkce":        true,
+			"token_url":         authInventory.OAuth2.TokenURL,
+			"test_jwt":          true,
+			"test_pkce":         true,
 		}
 
 		report, err := e.oauth2Scanner.Scan(target, oauth2Options)

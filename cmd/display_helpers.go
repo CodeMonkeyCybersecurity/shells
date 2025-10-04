@@ -122,4 +122,4 @@ type noopTelemetry struct{}
 func (n *noopTelemetry) RecordScan(scanType types.ScanType, duration float64, success bool) {}
 func (n *noopTelemetry) RecordFinding(severity types.Severity)                              {}
 func (n *noopTelemetry) RecordWorkerMetrics(status *types.WorkerStatus)                     {}
-func (n *noopTelemetry) Close() error                                                        { return nil }
+func (n *noopTelemetry) Close() error                                                       { return nil }

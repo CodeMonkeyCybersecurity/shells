@@ -3149,7 +3149,6 @@ func runComprehensiveAuthenticationTests(ctx context.Context, target, scanID str
 	if err != nil {
 		return fmt.Errorf("auth discovery failed: %w", err)
 	}
-	
 
 	// Convert to findings
 	findings := convertAuthInventoryToFindings(authInventory, target, scanID)

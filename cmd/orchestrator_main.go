@@ -116,6 +116,7 @@ func buildOrchestratorConfig(cmd *cobra.Command) orchestrator.BugBountyConfig {
 		config.EnableWebCrawl = false
 		config.EnableAPITesting = false // Skip in quick mode
 		config.EnableLogicTesting = false
+		config.EnableAuthTesting = false // Skip auth discovery in quick mode
 	} else if deep {
 		// Deep mode: Comprehensive testing (< 15 minutes total)
 		config.DiscoveryTimeout = 1 * time.Minute
