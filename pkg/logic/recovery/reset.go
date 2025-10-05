@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
 	"github.com/google/uuid"
 )
@@ -242,7 +243,7 @@ func (p *PasswordResetAnalyzer) testEndpointActive(endpoint ResetEndpoint) bool 
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	endpoint.ResponseTime = time.Since(startTime)
 
@@ -369,7 +370,7 @@ func (p *PasswordResetAnalyzer) testHostHeaderInjection(endpoint ResetEndpoint) 
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// Check if email contains injected host
 		time.Sleep(2 * time.Second) // Wait for email processing
@@ -537,7 +538,7 @@ func (p *PasswordResetAnalyzer) testRateLimiting(endpoint ResetEndpoint) *logic.
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 || resp.StatusCode == 302 {
 			successCount++
@@ -575,7 +576,7 @@ func (p *PasswordResetAnalyzer) requestPasswordReset(endpoint ResetEndpoint, ema
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Extract token from response or location header
 	if token := p.extractTokenFromResponse(resp); token != "" {
@@ -687,7 +688,7 @@ func (p *PasswordResetAnalyzer) isTokenValid(endpoint ResetEndpoint, token strin
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Token is valid if we don't get an error response
 	return resp.StatusCode != 400 && resp.StatusCode != 403 && resp.StatusCode != 404
@@ -797,7 +798,7 @@ func (p *PasswordResetAnalyzer) testEmailParameterPollution(endpoint ResetEndpoi
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check if multiple emails received reset links
 	time.Sleep(3 * time.Second)
@@ -833,7 +834,7 @@ func (p *PasswordResetAnalyzer) testHTMLInjection(endpoint ResetEndpoint) *logic
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check email for injected HTML
 	time.Sleep(2 * time.Second)
@@ -891,7 +892,7 @@ func (p *PasswordResetAnalyzer) testDirectPasswordChange(endpoint ResetEndpoint)
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == 200 || resp.StatusCode == 302 {
 		return &logic.Vulnerability{
@@ -938,7 +939,7 @@ func (p *PasswordResetAnalyzer) testIDORInReset(endpoint ResetEndpoint) *logic.V
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == 200 || resp.StatusCode == 302 {
 		return &logic.Vulnerability{
@@ -998,14 +999,14 @@ func (p *PasswordResetAnalyzer) testTokenReuse(endpoint ResetEndpoint, token str
 	if err != nil {
 		return nil
 	}
-	resp.Body.Close()
+	httpclient.CloseBody(resp)
 
 	// Try to use the same token again
 	resp2, err := p.httpClient.Do(req)
 	if err != nil {
 		return nil
 	}
-	defer resp2.Body.Close()
+	defer httpclient.CloseBody(resp2)
 
 	if resp2.StatusCode == 200 || resp2.StatusCode == 302 {
 		return &logic.Vulnerability{
@@ -1049,7 +1050,7 @@ func (p *PasswordResetAnalyzer) testConcurrentPasswordChanges(endpoint ResetEndp
 		defer wg.Done()
 		resp, err := p.httpClient.Do(req1)
 		if err == nil {
-			defer resp.Body.Close()
+			defer httpclient.CloseBody(resp)
 			results <- (resp.StatusCode == 200 || resp.StatusCode == 302)
 		} else {
 			results <- false
@@ -1060,7 +1061,7 @@ func (p *PasswordResetAnalyzer) testConcurrentPasswordChanges(endpoint ResetEndp
 		defer wg.Done()
 		resp, err := p.httpClient.Do(req2)
 		if err == nil {
-			defer resp.Body.Close()
+			defer httpclient.CloseBody(resp)
 			results <- (resp.StatusCode == 200 || resp.StatusCode == 302)
 		} else {
 			results <- false

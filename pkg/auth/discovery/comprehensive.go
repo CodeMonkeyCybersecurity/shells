@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-ldap/ldap/v3"
@@ -349,7 +350,7 @@ func (c *ComprehensiveAuthDiscovery) analyzeAuthPage(ctx context.Context, pageUR
 	if err != nil {
 		return methods
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check response headers first
 	if authHeader := resp.Header.Get("WWW-Authenticate"); authHeader != "" {
@@ -705,7 +706,7 @@ func (c *ComprehensiveAuthDiscovery) checkOIDCConfiguration(url string) AuthMeth
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -730,7 +731,7 @@ func (c *ComprehensiveAuthDiscovery) checkOAuth2Configuration(url string) AuthMe
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -753,7 +754,7 @@ func (c *ComprehensiveAuthDiscovery) checkOAuth2Endpoint(url string) AuthMethod 
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// OAuth2 endpoints often return specific responses
 	if resp.StatusCode == 400 || resp.StatusCode == 401 {
@@ -781,7 +782,7 @@ func (c *ComprehensiveAuthDiscovery) checkSAMLMetadata(url string) AuthMethod {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -813,7 +814,7 @@ func (c *ComprehensiveAuthDiscovery) checkSAMLEndpoint(url string) AuthMethod {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// SAML SSO endpoints often redirect or return specific content
 	if resp.StatusCode == 302 || resp.StatusCode == 200 {
@@ -850,7 +851,7 @@ func (c *ComprehensiveAuthDiscovery) checkShibboleth(url string) AuthMethod {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Shibboleth specific checks
 	if resp.StatusCode == 200 {
@@ -885,7 +886,7 @@ func (c *ComprehensiveAuthDiscovery) checkCASEndpoint(url string) AuthMethod {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// CAS login pages have specific characteristics
 	if resp.StatusCode == 200 {
@@ -913,7 +914,7 @@ func (c *ComprehensiveAuthDiscovery) checkGenericLogin(url string) AuthMethod {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -949,7 +950,7 @@ func (c *ComprehensiveAuthDiscovery) checkWordPressLogin(url string) AuthMethod 
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -984,7 +985,7 @@ func (c *ComprehensiveAuthDiscovery) checkAPIAuth(url string) AuthMethod {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// API endpoints often return 401/403 without auth
 	if resp.StatusCode == 401 || resp.StatusCode == 403 {
@@ -1026,7 +1027,7 @@ func (c *ComprehensiveAuthDiscovery) checkWebAuthnEndpoint(url string) AuthMetho
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// WebAuthn endpoints often return JSON
 	contentType := resp.Header.Get("Content-Type")

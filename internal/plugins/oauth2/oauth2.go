@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
@@ -187,7 +188,7 @@ func (s *oauth2Scanner) testAuthCodeReplay(ctx context.Context, config OAuth2Con
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusFound {
 		return nil, nil
@@ -258,7 +259,7 @@ func (s *oauth2Scanner) testRedirectURIValidation(ctx context.Context, config OA
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == http.StatusFound {
 			location := resp.Header.Get("Location")
@@ -302,7 +303,7 @@ func (s *oauth2Scanner) testStateParameter(ctx context.Context, config OAuth2Con
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == http.StatusFound {
 		findings = append(findings, "Authorization request accepted without state parameter")
@@ -315,7 +316,7 @@ func (s *oauth2Scanner) testStateParameter(ctx context.Context, config OAuth2Con
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == http.StatusFound {
 			findings = append(findings, fmt.Sprintf("Weak state value accepted: '%s'", weakState))
@@ -356,7 +357,7 @@ func (s *oauth2Scanner) testPKCEDowngrade(ctx context.Context, config OAuth2Conf
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusFound {
 		return nil, nil
@@ -369,7 +370,7 @@ func (s *oauth2Scanner) testPKCEDowngrade(ctx context.Context, config OAuth2Conf
 	if err != nil {
 		return nil, err
 	}
-	defer resp2.Body.Close()
+	defer httpclient.CloseBody(resp2)
 
 	if resp2.StatusCode == http.StatusFound {
 		return &types.Finding{
@@ -417,7 +418,7 @@ func (s *oauth2Scanner) testOpenRedirect(ctx context.Context, config OAuth2Confi
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == http.StatusFound {
 			location := resp.Header.Get("Location")
@@ -458,7 +459,7 @@ func (s *oauth2Scanner) testTokenLeakageReferrer(ctx context.Context, config OAu
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == http.StatusFound {
 		location := resp.Header.Get("Location")
@@ -494,7 +495,7 @@ func (s *oauth2Scanner) testImplicitFlow(ctx context.Context, config OAuth2Confi
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == http.StatusFound && strings.Contains(resp.Header.Get("Location"), "access_token=") {
 		return &types.Finding{
@@ -532,7 +533,7 @@ func (s *oauth2Scanner) testJWTAlgNone(ctx context.Context, config OAuth2Config)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden {
 		return &types.Finding{
@@ -573,7 +574,7 @@ func (s *oauth2Scanner) testResponseTypeConfusion(ctx context.Context, config OA
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == http.StatusFound {
 			location := resp.Header.Get("Location")
@@ -615,7 +616,7 @@ func (s *oauth2Scanner) testCSRF(ctx context.Context, config OAuth2Config) (*typ
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == http.StatusFound {
 		location := resp.Header.Get("Location")

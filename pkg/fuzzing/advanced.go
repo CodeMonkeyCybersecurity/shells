@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 )
 
 // SmartFuzzer implements advanced fuzzing techniques
@@ -140,7 +142,7 @@ func (s *SmartFuzzer) extractParametersFromJS(ctx context.Context, target *url.U
 		if err != nil || resp.StatusCode != 200 {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		// Analyze JS content
 		// This is simplified - real implementation would use proper JS parsing
@@ -187,7 +189,7 @@ func (s *SmartFuzzer) testParameterPollution(ctx context.Context, target *url.UR
 				if err != nil {
 					continue
 				}
-				resp.Body.Close()
+				httpclient.CloseBody(resp)
 
 				if resp.StatusCode == 200 {
 					results = append(results, FuzzResult{
@@ -241,7 +243,7 @@ func (s *SmartFuzzer) testArrayParameters(ctx context.Context, target *url.URL, 
 			if err != nil {
 				continue
 			}
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 
 			if resp.StatusCode == 200 {
 				results = append(results, FuzzResult{
@@ -288,7 +290,7 @@ func (s *SmartFuzzer) testJSONParameters(ctx context.Context, target *url.URL, p
 	if err != nil {
 		return results
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == 200 || resp.StatusCode == 400 {
 		results = append(results, FuzzResult{
@@ -360,7 +362,7 @@ func (s *SmartFuzzer) getVHostBaseline(ctx context.Context, target *url.URL, vho
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read limited response for baseline
 	body := make([]byte, 1024)
@@ -405,7 +407,7 @@ func (s *SmartFuzzer) testVHost(ctx context.Context, target *url.URL, vhost, bas
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check if different from baseline
 	if resp.StatusCode != baseline.StatusCode {
@@ -452,7 +454,7 @@ func (s *SmartFuzzer) testSubdomain(ctx context.Context, target, subdomain strin
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return &FuzzResult{
 		URL:          target,
@@ -513,7 +515,7 @@ func (s *SmartFuzzer) identifyFramework(ctx context.Context, target *url.URL) st
 	if err != nil {
 		return "unknown"
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check headers
 	headers := map[string]string{
@@ -608,7 +610,7 @@ func (s *SmartFuzzer) testParameterTypeConfusion(ctx context.Context, target *ur
 				if err != nil {
 					continue
 				}
-				resp.Body.Close()
+				httpclient.CloseBody(resp)
 
 				// Look for errors or different behavior
 				if resp.StatusCode >= 400 && resp.StatusCode < 600 {
@@ -656,7 +658,7 @@ func (s *SmartFuzzer) testExtractedParameters(ctx context.Context, target *url.U
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			results = append(results, FuzzResult{
@@ -699,7 +701,7 @@ func (s *SmartFuzzer) testPredictedParameters(ctx context.Context, target *url.U
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			results = append(results, FuzzResult{
@@ -742,7 +744,7 @@ func (s *SmartFuzzer) testPatternParameters(ctx context.Context, target *url.URL
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			results = append(results, FuzzResult{

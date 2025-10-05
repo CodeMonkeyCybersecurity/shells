@@ -274,7 +274,9 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Checking AWS credentials (profile: %s)... ", awsProfile)
 
 		// Set AWS profile environment variable
-		os.Setenv("AWS_PROFILE", awsProfile)
+		if err := os.Setenv("AWS_PROFILE", awsProfile); err != nil {
+			return fmt.Errorf("failed to set AWS_PROFILE environment variable: %w", err)
+		}
 
 		// Test AWS credentials by calling STS GetCallerIdentity
 		cmd := exec.Command("aws", "sts", "get-caller-identity", "--profile", awsProfile)

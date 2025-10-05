@@ -4,8 +4,10 @@ package httpclient
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -237,4 +239,39 @@ func DoWithContext(ctx context.Context, client *http.Client, req *http.Request) 
 	}
 
 	return resp, nil
+}
+
+// CloseBody safely closes an HTTP response body and logs any errors.
+// This is critical for connection pool health - unclosed bodies leak HTTP connections.
+//
+// Usage:
+//   defer httpclient.CloseBody(resp)
+//
+// Philosophy alignment: Transparent error handling (human-centric principle)
+func CloseBody(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return
+	}
+
+	// Drain body before closing to enable connection reuse
+	// HTTP/1.1 connections can only be reused if body is fully read
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	if err := resp.Body.Close(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to close HTTP response body: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Impact: HTTP connection may leak (pool exhaustion possible)\n")
+	}
+}
+
+// MustCloseBody is like CloseBody but panics on error (use only in tests)
+func MustCloseBody(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return
+	}
+
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	if err := resp.Body.Close(); err != nil {
+		panic(fmt.Sprintf("failed to close response body: %v", err))
+	}
 }

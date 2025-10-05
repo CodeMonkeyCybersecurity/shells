@@ -499,10 +499,16 @@ func saveProtocolResults(findings []types.Finding, output string) error {
 		}
 	}()
 
-	// Create report
-	fmt.Fprintf(file, "Protocol Security Scan Report\n")
-	fmt.Fprintf(file, "Generated: %s\n", time.Now().Format(time.RFC3339))
-	fmt.Fprintf(file, "=====================================\n\n")
+	// Create report - check all write errors
+	if _, err := fmt.Fprintf(file, "Protocol Security Scan Report\n"); err != nil {
+		return fmt.Errorf("failed to write report header: %w", err)
+	}
+	if _, err := fmt.Fprintf(file, "Generated: %s\n", time.Now().Format(time.RFC3339)); err != nil {
+		return fmt.Errorf("failed to write report timestamp: %w", err)
+	}
+	if _, err := fmt.Fprintf(file, "=====================================\n\n"); err != nil {
+		return fmt.Errorf("failed to write report separator: %w", err)
+	}
 
 	// Group by target
 	byTarget := make(map[string][]types.Finding)
@@ -517,28 +523,48 @@ func saveProtocolResults(findings []types.Finding, output string) error {
 	}
 
 	for target, targetFindings := range byTarget {
-		fmt.Fprintf(file, "Target: %s\n", target)
-		fmt.Fprintf(file, "-------------------\n")
+		if _, err := fmt.Fprintf(file, "Target: %s\n", target); err != nil {
+			return fmt.Errorf("failed to write target header: %w", err)
+		}
+		if _, err := fmt.Fprintf(file, "-------------------\n"); err != nil {
+			return fmt.Errorf("failed to write target separator: %w", err)
+		}
 
 		for _, finding := range targetFindings {
-			fmt.Fprintf(file, "\nTitle: %s\n", finding.Title)
-			fmt.Fprintf(file, "Type: %s\n", finding.Type)
-			fmt.Fprintf(file, "Severity: %s\n", finding.Severity)
-			fmt.Fprintf(file, "Description: %s\n", finding.Description)
+			if _, err := fmt.Fprintf(file, "\nTitle: %s\n", finding.Title); err != nil {
+				return fmt.Errorf("failed to write finding title: %w", err)
+			}
+			if _, err := fmt.Fprintf(file, "Type: %s\n", finding.Type); err != nil {
+				return fmt.Errorf("failed to write finding type: %w", err)
+			}
+			if _, err := fmt.Fprintf(file, "Severity: %s\n", finding.Severity); err != nil {
+				return fmt.Errorf("failed to write finding severity: %w", err)
+			}
+			if _, err := fmt.Fprintf(file, "Description: %s\n", finding.Description); err != nil {
+				return fmt.Errorf("failed to write finding description: %w", err)
+			}
 
 			if finding.Solution != "" {
-				fmt.Fprintf(file, "Remediation: %s\n", finding.Solution)
+				if _, err := fmt.Fprintf(file, "Remediation: %s\n", finding.Solution); err != nil {
+					return fmt.Errorf("failed to write finding remediation: %w", err)
+				}
 			}
 
 			if len(finding.References) > 0 {
-				fmt.Fprintf(file, "References:\n")
+				if _, err := fmt.Fprintf(file, "References:\n"); err != nil {
+					return fmt.Errorf("failed to write references header: %w", err)
+				}
 				for _, ref := range finding.References {
-					fmt.Fprintf(file, "  - %s\n", ref)
+					if _, err := fmt.Fprintf(file, "  - %s\n", ref); err != nil {
+						return fmt.Errorf("failed to write reference: %w", err)
+					}
 				}
 			}
 		}
 
-		fmt.Fprintf(file, "\n=====================================\n\n")
+		if _, err := fmt.Fprintf(file, "\n=====================================\n\n"); err != nil {
+			return fmt.Errorf("failed to write section separator: %w", err)
+		}
 	}
 
 	return nil

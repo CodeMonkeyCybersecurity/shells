@@ -2252,7 +2252,10 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	startTime := time.Now()
 
 	// Set bug bounty mode and reduce log noise
-	os.Setenv("SHELLS_BUG_BOUNTY_MODE", "true")
+	if err := os.Setenv("SHELLS_BUG_BOUNTY_MODE", "true"); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to set bug bounty mode: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Impact: Some features may not operate in optimized mode\n")
+	}
 
 	// Force clean console output for bug bounty mode
 	viper.Set("log.format", "console")

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
@@ -311,7 +312,7 @@ func (s *graphQLScanner) isGraphQLEndpoint(ctx context.Context, url string) bool
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -474,7 +475,7 @@ func (s *graphQLScanner) testIntrospection(ctx context.Context, endpoint string,
 	if err != nil {
 		return findings
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -833,7 +834,7 @@ func (s *graphQLScanner) testBatchingAttacks(ctx context.Context, endpoint strin
 	if err != nil {
 		return findings
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -937,7 +938,7 @@ func (s *graphQLScanner) testQueryComplexity(ctx context.Context, endpoint strin
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// If complex queries execute without limits, it's a finding
 		if resp.StatusCode == 200 && duration > 3*time.Second {
@@ -1018,7 +1019,7 @@ func (s *graphQLScanner) testDepthLimits(ctx context.Context, endpoint string, o
 	if err != nil {
 		return findings
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == 200 {
 		severity := types.SeverityMedium
@@ -1098,7 +1099,7 @@ func (s *graphQLScanner) testFieldSuggestion(ctx context.Context, endpoint strin
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -1177,7 +1178,7 @@ func (s *graphQLScanner) testAuthorizationBypass(ctx context.Context, endpoint s
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -1329,7 +1330,7 @@ func (s *graphQLScanner) testInjectionQuery(ctx context.Context, endpoint, query
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -1412,7 +1413,7 @@ func (s *graphQLScanner) testInformationDisclosure(ctx context.Context, endpoint
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -1494,7 +1495,7 @@ func (s *graphQLScanner) testCSRFProtection(ctx context.Context, endpoint string
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == http.StatusOK {
 			var result GraphQLResponse
@@ -1569,7 +1570,7 @@ func (s *graphQLScanner) testRateLimiting(ctx context.Context, endpoint string, 
 		if resp.StatusCode == http.StatusOK {
 			successCount++
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// Don't delay between requests to test rate limiting
 	}

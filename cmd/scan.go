@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/security"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/google/uuid"
@@ -622,7 +623,7 @@ func executeDirScan(target string, options map[string]string, scanID string) ([]
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 400 {
 			log.Infow("Directory found", "path", path, "status", resp.StatusCode)
@@ -645,7 +646,7 @@ func executeSCIMScan(target string, options map[string]string, scanID string) ([
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 400 {
 			log.Infow("SCIM endpoint found", "path", path, "status", resp.StatusCode)
@@ -684,7 +685,7 @@ func executeOAuth2Scan(target string, options map[string]string, scanID string) 
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 400 {
 			log.Infow("OAuth2 endpoint found", "path", path, "status", resp.StatusCode)
@@ -731,7 +732,7 @@ func executeJSScan(target string, options map[string]string, scanID string) ([]t
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		contentType := resp.Header.Get("Content-Type")
 		if resp.StatusCode < 400 && strings.Contains(contentType, "javascript") {
@@ -754,7 +755,7 @@ func executeAPISecan(target string, options map[string]string, scanID string) ([
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 400 {
 			log.Infow("API endpoint found", "path", path, "status", resp.StatusCode)
@@ -921,7 +922,7 @@ func legacyDirScan(target string, options map[string]string) error {
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 400 {
 			log.Infow("Directory found", "path", path, "status", resp.StatusCode)
@@ -944,7 +945,7 @@ func legacySCIMScan(target string, options map[string]string) error {
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 400 {
 			log.Infow("SCIM endpoint found", "path", path, "status", resp.StatusCode)
