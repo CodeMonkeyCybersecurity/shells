@@ -4,6 +4,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
@@ -113,7 +114,11 @@ func runHuntCommand(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to close database: %v\n", err)
+		}
+	}()
 
 	// Initialize telemetry (no-op for now)
 	telemetry := &noopTelemetry{}

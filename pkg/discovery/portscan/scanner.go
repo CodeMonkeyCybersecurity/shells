@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -175,7 +176,8 @@ func (p *PortScanner) QuickScan(ctx context.Context, host string) (*HostScanResu
 
 // isPortOpen checks if a port is open
 func (p *PortScanner) isPortOpen(ctx context.Context, host string, port int) bool {
-	target := fmt.Sprintf("%s:%d", host, port)
+	// Use net.JoinHostPort for proper IPv6 support
+	target := net.JoinHostPort(host, strconv.Itoa(port))
 
 	dialer := net.Dialer{
 		Timeout: p.timeout,
@@ -191,7 +193,8 @@ func (p *PortScanner) isPortOpen(ctx context.Context, host string, port int) boo
 
 // grabBanner attempts to grab a service banner
 func (p *PortScanner) grabBanner(host string, port int) string {
-	target := fmt.Sprintf("%s:%d", host, port)
+	// Use net.JoinHostPort for proper IPv6 support
+	target := net.JoinHostPort(host, strconv.Itoa(port))
 
 	conn, err := net.DialTimeout("tcp", target, p.timeout)
 	if err != nil {

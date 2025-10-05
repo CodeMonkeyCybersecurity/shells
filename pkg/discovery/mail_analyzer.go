@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -312,7 +313,8 @@ func (ma *MailServerAnalyzer) checkIMAPService(server *MailServer, port int, use
 		RequiresTLS: useTLS,
 	}
 
-	address := fmt.Sprintf("%s:%d", server.Hostname, port)
+	// Use net.JoinHostPort for proper IPv6 support
+	address := net.JoinHostPort(server.Hostname, strconv.Itoa(port))
 
 	var conn net.Conn
 	var err error
@@ -385,7 +387,8 @@ func (ma *MailServerAnalyzer) checkPOP3Service(server *MailServer, port int, use
 	}
 
 	// Similar to IMAP but simpler
-	address := fmt.Sprintf("%s:%d", server.Hostname, port)
+	// Use net.JoinHostPort for proper IPv6 support
+	address := net.JoinHostPort(server.Hostname, strconv.Itoa(port))
 
 	var conn net.Conn
 	var err error

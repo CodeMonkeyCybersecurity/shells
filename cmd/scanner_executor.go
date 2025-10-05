@@ -60,19 +60,18 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 			}
 
 		case discovery.ScannerTypeMail:
-			// TODO: For mail servers, add these quick tests:
-			// - Default credentials (admin:admin, postmaster:postmaster)
-			// - Open relay
-			// - Webmail XSS
-			// - Mail header injection
-			if err := executeMailScanner(ctx, rec); err != nil {
-				log.LogError(ctx, err, "Mail scanner failed")
-			}
+			// Mail scanner not yet implemented - skip for now
+			log.Warnw("Mail scanner not yet implemented - skipping",
+				"targets", rec.Targets,
+				"status", "[COMING SOON]",
+				"note", "Mail server testing will be added in future release")
 
 		case discovery.ScannerTypeAPI:
-			if err := executeAPIScanner(ctx, rec); err != nil {
-				log.LogError(ctx, err, "API scanner failed")
-			}
+			// API scanner not yet implemented - skip for now
+			log.Warnw("API scanner not yet implemented - skipping",
+				"targets", rec.Targets,
+				"status", "[COMING SOON]",
+				"note", "GraphQL/REST API testing will be added in future release")
 
 		case discovery.ScannerTypeWebCrawl:
 			if err := executeWebCrawlScanner(ctx, rec); err != nil {
@@ -319,63 +318,37 @@ func executeSmugglingScanner(ctx context.Context, rec discovery.ScannerRecommend
 	return nil
 }
 
+// executeMailScanner - STUB - NOT YET IMPLEMENTED
+// TODO: Implement mail server vulnerability testing in future release
+// Planned features:
+// 1. Check webmail interface for XSS/SQLi
+// 2. Test SMTP AUTH bypass
+// 3. Check for open relay
+// 4. Test default credentials
+// 5. Mail header injection
+// 6. Check for exposed admin panels
+/*
 func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
-	log.Infow("Running mail server security tests")
-
-	// FIXME: Implement actual mail server vulnerability tests
-	// TODO: Quick wins for mail servers:
-	// 1. Check webmail interface for XSS/SQLi
-	// 2. Test SMTP AUTH bypass
-	// 3. Check for open relay
-	// 4. Test default credentials:
-	//    - admin:admin, admin:password
-	//    - postmaster:postmaster
-	//    - root:root
-	// 5. Mail header injection
-	// 6. Check for exposed admin panels:
-	//    - /admin, /webmail/admin, /postfixadmin
-	//    - /roundcube, /squirrelmail
-
-	for _, target := range rec.Targets {
-		// TODO: Add actual implementation
-		log.Debugw("Executing mail scanner", "target", target)
-
-		// FIXME: Quick test example:
-		// if strings.Contains(target, ":25") {
-		//     testSMTPAuth(target)
-		//     testOpenRelay(target)
-		// }
-		// if strings.Contains(target, ":80") || strings.Contains(target, ":443") {
-		//     testWebmailXSS(target)
-		//     testDefaultCreds(target)
-		// }
-	}
-
+	// Stub implementation - not yet ready for use
 	return nil
 }
+*/
 
+// executeAPIScanner - STUB - NOT YET IMPLEMENTED
+// TODO: Implement API security testing in future release
+// Planned features:
+// 1. GraphQL introspection
+// 2. REST API authorization bypass
+// 3. Mass assignment
+// 4. Rate limiting bypass
+// 5. API key leakage in responses
+// 6. JWT vulnerabilities
+/*
 func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
-	log.Infow("Running API security tests")
-
-	// TODO: HIGH PRIORITY - APIs often have critical vulns
-	// FIXME: Implement these tests:
-	// 1. GraphQL introspection
-	// 2. REST API authorization bypass
-	// 3. Mass assignment
-	// 4. Rate limiting bypass
-	// 5. API key leakage in responses
-	// 6. JWT vulnerabilities
-
-	for _, target := range rec.Targets {
-		log.Debugw("Executing API scanner", "target", target)
-		// TODO: Quick GraphQL check:
-		// if strings.Contains(target, "graphql") {
-		//     testGraphQLIntrospection(target)
-		// }
-	}
-
+	// Stub implementation - not yet ready for use
 	return nil
 }
+*/
 
 func executeWebCrawlScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running web crawler")

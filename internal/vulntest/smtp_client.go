@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/smtp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -22,7 +23,8 @@ func NewSMTPClient() *SMTPClient {
 
 // TestOpenRelay checks if the SMTP server is an open relay
 func (s *SMTPClient) TestOpenRelay(host string, port int) (bool, string, error) {
-	addr := fmt.Sprintf("%s:%d", host, port)
+	// Use net.JoinHostPort for proper IPv6 support
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	// Try to connect
 	conn, err := net.DialTimeout("tcp", addr, s.timeout)
@@ -131,7 +133,8 @@ func (s *SMTPClient) TestSMTPAuth(host string, port int, username, password stri
 
 // CheckSMTPBanner gets the SMTP banner for fingerprinting
 func (s *SMTPClient) CheckSMTPBanner(host string, port int) (string, error) {
-	addr := fmt.Sprintf("%s:%d", host, port)
+	// Use net.JoinHostPort for proper IPv6 support
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 
 	conn, err := net.DialTimeout("tcp", addr, s.timeout)
 	if err != nil {

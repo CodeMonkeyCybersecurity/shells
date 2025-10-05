@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
@@ -57,12 +58,15 @@ type CTLogEntry struct {
 
 // NewCTLogClient creates a new Certificate Transparency log client
 func NewCTLogClient(logger *logger.Logger) *CTLogClient {
+	// Use secure HTTP client factory with 30s timeout (external API calls)
+	// SSRF protection disabled for public CT log APIs
+	httpClient := httpclient.NewSecureClient(httpclient.SecureClientConfig{
+		Timeout:    30 * time.Second,
+		EnableSSRF: false, // CT log APIs are public, SSRF not a concern
+	})
+
 	client := &CTLogClient{
-		client: &http.Client{
-			// FIXME: 30 seconds is way too long for bug bounty
-			// TODO: Reduce to 5 seconds max
-			Timeout: 30 * time.Second,
-		},
+		client:     httpClient,
 		logger:     logger,
 		logServers: getDefaultCTLogServers(),
 	}
@@ -108,6 +112,11 @@ func getDefaultCTLogServers() []CTLogServer {
 
 // SearchDomain searches for certificates for a domain in CT logs
 func (c *CTLogClient) SearchDomain(ctx context.Context, domain string) ([]Certificate, error) {
+	// Validate domain input
+	if domain == "" {
+		return nil, fmt.Errorf("domain cannot be empty")
+	}
+
 	var allCerts []Certificate
 	var mu sync.Mutex
 	var wg sync.WaitGroup

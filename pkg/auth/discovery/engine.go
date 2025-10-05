@@ -72,6 +72,11 @@ func NewEngine(logger *logger.Logger, config *Config) *Engine {
 func (e *Engine) Discover(ctx context.Context, target string) (*DiscoveryResult, error) {
 	startTime := time.Now()
 
+	// Check context before starting
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled before discovery: %w", err)
+	}
+
 	e.logger.Info("Starting authentication discovery",
 		"target", target,
 		"max_depth", e.config.MaxDepth,
@@ -95,29 +100,56 @@ func (e *Engine) Discover(ctx context.Context, target string) (*DiscoveryResult,
 	// 1. Web-based discovery
 	webImplementations, err := e.discoverWebAuth(ctx, targetURL)
 	if err != nil {
+		// Check if context was cancelled
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("discovery cancelled during web auth: %w", ctx.Err())
+		}
 		e.logger.Warn("Web auth discovery failed", "error", err)
 	} else {
 		result.Implementations = append(result.Implementations, webImplementations...)
+	}
+
+	// Check context between major steps
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("discovery cancelled after web auth: %w", err)
 	}
 
 	// 2. API discovery
 	if e.config.EnableAPIDiscovery {
 		apiImplementations, err := e.discoverAPIAuth(ctx, targetURL)
 		if err != nil {
+			// Check if context was cancelled
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("discovery cancelled during API auth: %w", ctx.Err())
+			}
 			e.logger.Warn("API auth discovery failed", "error", err)
 		} else {
 			result.Implementations = append(result.Implementations, apiImplementations...)
 		}
 	}
 
+	// Check context between major steps
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("discovery cancelled after API auth: %w", err)
+	}
+
 	// 3. JavaScript analysis
 	if e.config.EnableJSAnalysis {
 		jsImplementations, err := e.discoverJSAuth(ctx, targetURL)
 		if err != nil {
+			// Check if context was cancelled
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("discovery cancelled during JS auth: %w", ctx.Err())
+			}
 			e.logger.Warn("JS auth discovery failed", "error", err)
 		} else {
 			result.Implementations = append(result.Implementations, jsImplementations...)
 		}
+	}
+
+	// Check context between major steps
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("discovery cancelled after JS auth: %w", err)
 	}
 
 	// 4. Security analysis for each implementation

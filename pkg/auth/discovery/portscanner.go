@@ -3,8 +3,8 @@ package discovery
 
 import (
 	"context"
-	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -98,7 +98,8 @@ func (p *PortScanner) scanSinglePort(host string, port PortDefinition) PortScanR
 		SSL:      port.SSL,
 	}
 
-	address := fmt.Sprintf("%s:%d", host, port.Port)
+	// Use net.JoinHostPort for proper IPv6 support
+	address := net.JoinHostPort(host, strconv.Itoa(port.Port))
 	conn, err := net.DialTimeout("tcp", address, p.timeout)
 	if err != nil {
 		result.Error = err

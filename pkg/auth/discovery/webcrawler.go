@@ -161,6 +161,13 @@ func (w *WebCrawler) generateCommonAuthPaths(baseURL string) []string {
 
 // crawlPage recursively crawls pages looking for auth endpoints
 func (w *WebCrawler) crawlPage(ctx context.Context, pageURL string, baseDomain *url.URL, depth int, results *[]CrawlResult, mu *sync.Mutex) {
+	// Check context cancellation first
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	// Check termination conditions
 	if depth > w.maxDepth || len(w.visited) >= w.maxPages {
 		return

@@ -566,25 +566,47 @@ func saveFuzzResults(findings []types.Finding, output string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close report file: %v\n", err)
+		}
+	}()
 
-	fmt.Fprintf(file, "Fuzzing Results Report\n")
-	fmt.Fprintf(file, "Generated: %s\n", time.Now().Format(time.RFC3339))
-	fmt.Fprintf(file, "=====================================\n\n")
+	if _, err := fmt.Fprintf(file, "Fuzzing Results Report\n"); err != nil {
+		return fmt.Errorf("failed to write report: %w", err)
+	}
+	if _, err := fmt.Fprintf(file, "Generated: %s\n", time.Now().Format(time.RFC3339)); err != nil {
+		return fmt.Errorf("failed to write report: %w", err)
+	}
+	if _, err := fmt.Fprintf(file, "=====================================\n\n"); err != nil {
+		return fmt.Errorf("failed to write report: %w", err)
+	}
 
 	for _, finding := range findings {
-		fmt.Fprintf(file, "Title: %s\n", finding.Title)
-		fmt.Fprintf(file, "Severity: %s\n", finding.Severity)
-		if target, ok := finding.Metadata["target"]; ok {
-			fmt.Fprintf(file, "Target: %s\n", target)
+		if _, err := fmt.Fprintf(file, "Title: %s\n", finding.Title); err != nil {
+			return fmt.Errorf("failed to write finding: %w", err)
 		}
-		fmt.Fprintf(file, "Description: %s\n", finding.Description)
+		if _, err := fmt.Fprintf(file, "Severity: %s\n", finding.Severity); err != nil {
+			return fmt.Errorf("failed to write finding: %w", err)
+		}
+		if target, ok := finding.Metadata["target"]; ok {
+			if _, err := fmt.Fprintf(file, "Target: %s\n", target); err != nil {
+				return fmt.Errorf("failed to write finding: %w", err)
+			}
+		}
+		if _, err := fmt.Fprintf(file, "Description: %s\n", finding.Description); err != nil {
+			return fmt.Errorf("failed to write finding: %w", err)
+		}
 
 		if finding.Solution != "" {
-			fmt.Fprintf(file, "Solution: %s\n", finding.Solution)
+			if _, err := fmt.Fprintf(file, "Solution: %s\n", finding.Solution); err != nil {
+				return fmt.Errorf("failed to write finding: %w", err)
+			}
 		}
 
-		fmt.Fprintf(file, "\n---\n\n")
+		if _, err := fmt.Fprintf(file, "\n---\n\n"); err != nil {
+			return fmt.Errorf("failed to write finding: %w", err)
+		}
 	}
 
 	return nil

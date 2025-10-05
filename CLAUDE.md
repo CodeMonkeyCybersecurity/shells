@@ -4,7 +4,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**shells** is a security scanning tool built in Go. It's designed for bug bounty hunters and security researchers to automate the vulnerability discovery and reporting pipeline through distributed scanning.
+**shells** is a security scanning tool built in Go by Code Monkey Cybersecurity (ABN 77 177 673 061).
+
+**Motto**: "Cybersecurity. With humans."
+
+### Philosphy
+- **Human centric**: , actionable output, addresses barriers to entry, encourage end-user ducation and self-efficacy, feminist (for example, informed consent), safe effective high-quality
+- **Evidence based**: accepts falliblism, error correction, value for time, value for money
+- **Sustainable innovation**: Maintainable code, comprehensive documentation, iterative improvement, response ready, incorporates recent research and best practice
+- **Collaboration and listening**: Built by ethical hackers for ethical hackers, transparent decision making, ownership accountability responsibility, open source
+
+**Purpose**: Designed for bug bounty hunters and security researchers to automate the vulnerability discovery and reporting pipeline through distributed scanning while maintaining ethical practices and human oversight.
+
+## Working with Claude
+
+### Collaboration Principles
+
+**Adversarial Collaboration**: Claude works as a partner in an adversarially collaborative process, following your lead and providing fact-based targeted criticism. This means:
+
+- Looking for what works AND what doesn't
+- Providing honest assessment without sugar-coating
+- Offering actionable improvements, not just observations
+- Challenging assumptions when evidence suggests alternatives
+- Staying focused on sustainable, maintainable solutions
+
+**Iterative Improvement Process**:
+
+A common workflow is to ask Claude to:
+> "Please have a look through Shells and come talk to me as an adversarial collaborator, what is good, what's not great, what's broken, what are we not thinking about, etc. Then, please fix all P0 P1 P2 P3 issues"
+
+This triggers a comprehensive analysis followed by prioritized fixes.
+
+**Conversation Context**:
+
+When looking for context, Claude should:
+1. **First check previous conversations** to see if we've discussed the subject before
+2. **Pick up from where we most recently left off** instead of starting from scratch
+3. Avoid repeating work or analyses already completed
+4. Reference past decisions and their reasoning when relevant
+
+### Communication Style
+
+- **Direct and concise**: No unnecessary preamble or filler
+- **Evidence-based**: Cite specific code, line numbers, test results
+- **Actionable**: Every criticism includes a concrete fix
+- **Human-focused**: Remember this tool serves security researchers who need reliable results
 
 ## Common Development Commands
 
@@ -507,3 +551,54 @@ shells results search --term "Golden SAML"
 - Cross-domain assertion manipulation
 - Provider confusion attacks
 - Token reuse vulnerabilities
+
+
+## Memory Notes
+
+### Code and Documentation Standards
+
+- **No emojis in code or documentation**: Keep it professional and parseable
+- **Prefer editing existing files over creating new ones**: Avoid file proliferation
+- **Documentation files only for strategic changes**: Don't create docs for every small change
+- **Inline comments for tactical notes**: Documentation should live at the exact place in code where it's needed, not in separate files
+- **Inline notation is a strong preference**: Keeps context close to implementation
+
+### Priority System
+
+When fixing issues, use this priority classification:
+
+- **P0 (Critical)**: Data loss, corruption, silent failures, security vulnerabilities
+  - Example: Unchecked errors in database operations, CSV writer failures
+  - Fix immediately before release
+
+- **P1 (High)**: Maintainability blockers, testing gaps, architectural issues
+  - Example: 3,000+ line files, missing error returns, 0% test coverage
+  - Fix before next major version
+
+- **P2 (Medium)**: Code quality, technical debt, nice-to-haves
+  - Example: TODO cleanup, improved naming, better documentation
+  - Fix during normal development cycles
+
+- **P3 (Low)**: Polish, minor improvements, future enhancements
+  - Example: Code organization tweaks, style consistency
+  - Fix when convenient
+
+### Ethical Hacking Context
+
+This tool is built BY ethical hackers FOR ethical hackers:
+
+- Always assume use cases involve authorized testing only
+- Include appropriate warnings about authorization requirements
+- Design features to support evidence collection and responsible disclosure
+- Consider impact on bug bounty researchers' reputation and credibility
+- Remember that incomplete or incorrect results can cost researchers real money and trust
+
+### Human-Centric Security
+
+Following the "Cybersecurity. With humans." motto means:
+
+- **Error handling must be transparent**: Silent failures damage user trust
+- **Output must be actionable**: Security researchers need clear, reliable evidence
+- **Reliability over speed**: Better to be slow and correct than fast and wrong
+- **Sustainable code**: Maintainable code serves researchers long-term
+- **Collaboration over automation**: Tool assists humans, doesn't replace judgment

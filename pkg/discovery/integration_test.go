@@ -221,9 +221,11 @@ func TestDiscoveryFeatures(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	ctx := context.Background()
-
 	t.Run("CT Log Features", func(t *testing.T) {
+		// Use context with reasonable timeout for network operations
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
 		ctClient := certlogs.NewCTLogClient(log)
 
 		// Test with a known domain that should have certificates
@@ -329,9 +331,11 @@ func TestEdgeCases(t *testing.T) {
 		t.Fatalf("Failed to create logger: %v", err)
 	}
 
-	ctx := context.Background()
-
 	t.Run("Empty Domain Handling", func(t *testing.T) {
+		// Use context with timeout for network operations
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		ctClient := certlogs.NewCTLogClient(log)
 
 		_, err := ctClient.SearchDomain(ctx, "")
@@ -350,6 +354,10 @@ func TestEdgeCases(t *testing.T) {
 	})
 
 	t.Run("Tech Fingerprint Empty Response", func(t *testing.T) {
+		// Use context with timeout for network operations
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
 		techFp := techstack.NewTechFingerprinter(log)
 
 		// Test with invalid URL

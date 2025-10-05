@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
@@ -54,16 +55,15 @@ type Technology struct {
 
 // NewTechFingerprinter creates a new technology fingerprinter
 func NewTechFingerprinter(logger *logger.Logger) *TechFingerprinter {
+	// Use secure HTTP client factory with 30s timeout
+	// SSRF protection disabled for public website fingerprinting
+	httpClient := httpclient.NewSecureClient(httpclient.SecureClientConfig{
+		Timeout:    30 * time.Second,
+		EnableSSRF: false, // Fingerprinting user-provided targets
+	})
+
 	tf := &TechFingerprinter{
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= 10 {
-					return fmt.Errorf("too many redirects")
-				}
-				return nil
-			},
-		},
+		client:       httpClient,
 		logger:       logger,
 		fingerprints: make(map[string]TechFingerprint),
 	}

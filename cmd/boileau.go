@@ -181,7 +181,9 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 	if outputDir == "" {
 		outputDir = fmt.Sprintf("boileau-%s-%d", toolName, time.Now().Unix())
 	}
-	os.MkdirAll(outputDir, 0755)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
+	}
 	options["output_dir"] = outputDir
 
 	fmt.Printf("🎯 Running %s against %s\n", toolName, target)
@@ -309,7 +311,9 @@ func runboileauBatch(cmd *cobra.Command, args []string) error {
 	if outputDir == "" {
 		outputDir = fmt.Sprintf("boileau-batch-%d", time.Now().Unix())
 	}
-	os.MkdirAll(outputDir, 0755)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
+	}
 
 	fmt.Printf("🎯 Running %d tools against %s\n", len(tools), target)
 	fmt.Printf("🛠️  Tools: %s\n", strings.Join(tools, ", "))

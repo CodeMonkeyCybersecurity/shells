@@ -1,9 +1,272 @@
-# WebScan CLI
+# Shells - Intelligent Bug Bounty Automation
 
-A production-ready Cobra CLI tool for web application security testing and bug bounty automation. WebScan integrates multiple security tools into a unified platform with distributed scanning capabilities, result aggregation, and deployment on HashiCorp Nomad.
+**By Code Monkey Cybersecurity (ABN 77 177 673 061)**
+**Motto**: "Cybersecurity. With humans."
+
+Shells is a comprehensive security scanning platform designed for bug bounty hunters and security researchers. Point it at a target (company name, domain, IP, or email) and it automatically discovers assets, tests for vulnerabilities, and generates actionable findings.
+
+**Current Status**: 1.0.0-beta - Production ready with known limitations
+
+## Quick Start
+
+```bash
+# Build from source
+make deps
+make build
+
+# Run full bug bounty pipeline
+./shells example.com
+
+# Or specify target type
+./shells "Acme Corporation"    # Discover company assets
+./shells admin@example.com     # Discover from email
+./shells 192.168.1.0/24        # Scan IP range
+```
 
 ## Features
 
+### Automated Asset Discovery
+- **From company name**: Certificate transparency logs, WHOIS, DNS enumeration
+- **From domain**: Subdomain discovery, related domains, tech stack fingerprinting
+- **From IP/range**: Network scanning, service discovery, reverse DNS
+- **From email**: Domain extraction, mail server analysis
+
+### Vulnerability Testing
+- **Authentication Security**: SAML (Golden SAML, XSW), OAuth2/OIDC (JWT attacks, PKCE bypass), WebAuthn/FIDO2
+- **SCIM Vulnerabilities**: Unauthorized provisioning, filter injection, privilege escalation
+- **HTTP Request Smuggling**: CL.TE, TE.CL, TE.TE desync attacks
+- **Business Logic Testing**: Password reset flows, payment processing
+- **Infrastructure**: SSL/TLS analysis, port scanning
+
+### Results & Reporting
+- **SQLite database**: Persistent storage with full query capabilities
+- **Export formats**: JSON, CSV, HTML
+- **Query & filter**: By severity, tool, target, date range
+- **Statistics**: Aggregate findings, trend analysis
+
+## Installation
+
+### From Source
+
+```bash
+# Clone repository
+git clone https://github.com/CodeMonkeyCybersecurity/shells
+cd shells
+
+# Install dependencies
+make deps
+
+# Build binary
+make build
+
+# Optional: Install to $GOPATH/bin
+make install
+```
+
+### Requirements
+- Go 1.21 or higher
+- SQLite3
+
+## Usage
+
+### Point-and-Click Mode
+
+The main command runs the full orchestrated pipeline:
+
+```bash
+# Full automated workflow: Discovery → Prioritization → Testing → Reporting
+./shells example.com
+```
+
+### Targeted Commands
+
+```bash
+# Asset discovery only
+./shells discover example.com
+
+# Authentication testing
+./shells auth discover --target https://example.com
+./shells auth test --target https://example.com --protocol saml
+./shells auth chain --target https://example.com  # Find attack chains
+
+# SCIM security testing
+./shells scim discover https://example.com
+./shells scim test https://example.com/scim/v2 --test-all
+
+# HTTP request smuggling
+./shells smuggle detect https://example.com
+./shells smuggle exploit https://example.com --technique cl.te
+
+# Results querying
+./shells results query --severity critical
+./shells results stats
+./shells results export scan-12345 --format json
+```
+
+### Configuration
+
+Create `.shells.yaml` in your home directory:
+
+```yaml
+logger:
+  level: info
+  format: json
+
+database:
+  driver: sqlite3
+  dsn: "~/.shells/shells.db"
+
+scanning:
+  rate_limit: 10  # requests per second
+  timeout: 30s
+  max_depth: 3    # asset discovery depth
+```
+
+## Architecture
+
+### Directory Structure
+- `/cmd/` - CLI commands (Cobra)
+- `/internal/` - Internal packages
+  - `config/` - Configuration management
+  - `database/` - SQLite storage layer
+  - `discovery/` - Asset discovery modules
+  - `orchestrator/` - Bug bounty workflow engine
+  - `logger/` - Structured logging (otelzap)
+- `/pkg/` - Public packages
+  - `auth/` - Authentication testing (SAML, OAuth2, WebAuthn)
+  - `scim/` - SCIM vulnerability testing
+  - `smuggling/` - HTTP request smuggling detection
+  - `discovery/` - Asset discovery utilities
+
+### Key Technologies
+- **Go**: Performance and reliability
+- **SQLite**: Embedded database (no external dependencies)
+- **Cobra**: CLI framework
+- **OpenTelemetry**: Observability and tracing
+- **Context**: Proper cancellation and timeouts
+
+## Testing
+
+```bash
+# Run all tests
+make test
+
+# Run specific package tests
+go test ./pkg/auth/...
+go test ./pkg/scim/...
+
+# With coverage
+go test -cover ./...
+
+# Verify build
+make check  # Runs fmt, vet, and test
+```
+
+See [docs/TESTING.md](docs/TESTING.md) for comprehensive testing guide including IPv6 verification.
+
+## Development
+
+### Adding New Features
+
+1. **New Scanner Command**:
+   - Add command in `/cmd/`
+   - Follow existing patterns (see `cmd/auth.go`)
+   - Register in `init()` function
+   - Add tests
+
+2. **New Scanner Plugin**:
+   - Create directory in `/internal/plugins/`
+   - Implement plugin interface
+   - Add configuration options
+   - Register in worker system
+
+See [CLAUDE.md](CLAUDE.md) for detailed development guidance including:
+- Collaboration principles
+- Code standards
+- Priority system (P0-P3)
+- Testing guidelines
+
+### Build Commands
+
+```bash
+make deps          # Download dependencies
+make build         # Build binary
+make dev           # Build with race detection
+make test          # Run tests
+make check         # Run fmt, vet, test (pre-commit)
+make fmt           # Format code
+make vet           # Check for issues
+make clean         # Remove binary
+```
+
+## Known Limitations (Beta)
+
+### In Development
+- **Mail Server Testing**: Planned for v1.1.0
+- **Advanced API Testing**: Planned for v1.1.0
+- **Test Coverage**: Currently ~8%, targeting 50% for v1.2.0
+
+### Code Organization
+- `cmd/root.go` is 3,169 lines (refactoring in progress)
+- Some TODO markers in codebase
+- See [CLAUDE.md](CLAUDE.md) for complete technical debt inventory
+
+### Performance
+- Optimized for thoroughness over speed
+- Rate limiting prevents target overload
+- Parallel scanning of discovered assets
+
+## Security Considerations
+
+This tool is for **authorized security testing only**:
+
+- Always obtain explicit permission before scanning
+- Respect rate limits and terms of service
+- Follow responsible disclosure practices
+- Never use against production systems without authorization
+- Verify scope before running automated scans
+
+### Built-In Protections
+- No hardcoded credentials
+- SQL injection protection (parameterized queries)
+- SSRF protection in HTTP client
+- Context cancellation prevents hangs
+- Graceful error handling
+
+## Bug Bounty Workflow
+
+See [docs/BUG-BOUNTY-GUIDE.md](docs/BUG-BOUNTY-GUIDE.md) for complete workflow guide.
+
+**Typical Usage**:
+1. Research target scope
+2. Run discovery: `./shells discover target.com`
+3. Review discovered assets
+4. Run full scan: `./shells target.com`
+5. Query findings: `./shells results query --severity high`
+6. Export evidence: `./shells results export scan-id --format json`
+7. Verify findings manually
+8. Submit responsible disclosure
+
+## Contributing
+
+We welcome contributions! Please:
+
+1. Read [CLAUDE.md](CLAUDE.md) for development guidelines
+2. Follow existing code patterns
+3. Add tests for new functionality
+4. Run `make check` before committing
+5. Write clear commit messages
+6. Focus on sustainable, maintainable solutions
+
+**Philosophy**: We prioritize human-centric security, evidence-based approaches, and collaboration. See [CLAUDE.md](CLAUDE.md) for our working principles.
+
+## Documentation
+
+- [CLAUDE.md](CLAUDE.md) - Development guide and collaboration principles
+- [docs/BUG-BOUNTY-GUIDE.md](docs/BUG-BOUNTY-GUIDE.md) - Bug bounty workflow
+- [docs/TESTING.md](docs/TESTING.md) - Testing and verification guide
+
+## Roadmap
 - **Modular Architecture**: Clean architecture with dependency injection and plugin system
 - **Multiple Scanner Integration**:
   - **Network & Infrastructure**: Nmap (port scanning, service detection), SSL/TLS analysis
@@ -20,368 +283,16 @@ A production-ready Cobra CLI tool for web application security testing and bug b
 - **Deployment Ready**: Docker containers and Nomad job specifications
 - **Security Features**: Rate limiting, scope validation, audit trails
 
-## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/webscan-cli
-cd webscan-cli
-
-# Install dependencies
-make deps
-
-# Build the binary
-make build
-
-# Install to $GOPATH/bin
-make install
-```
-
-## Quick Start
-
-### Local Development
-
-```bash
-# Start infrastructure with Docker Compose
-make docker-compose-up
-
-# Run a worker
-make worker
-
-# In another terminal, run scans
-webscan scan port example.com
-webscan scan ssl example.com:443
-webscan scan full example.com
-```
-
-### Configuration
-
-Create a `.webscan.yaml` in your home directory or use `--config` flag:
-
-```yaml
-logger:
-  level: info
-  format: json
-
-database:
-  driver: sqlite3
-  dsn: "webscan.db"  # SQLite database file path
-
-redis:
-  addr: localhost:6379
-
-worker:
-  count: 3
-  queue_poll_interval: 5s
-
-tools:
-  nmap:
-    binary_path: /usr/bin/nmap
-    profiles:
-      default: "-sS -sV -O"
-      fast: "-T4 -F"
-      thorough: "-sS -sV -sC -O -A"
-```
-
-## CLI Commands
-
-### Scanning
-
-```bash
-# Port scanning
-webscan scan port example.com --profile fast --ports 1-1000
-
-# SSL/TLS analysis
-webscan scan ssl example.com --port 443
-
-# Web application scanning
-webscan scan web https://example.com --depth 3
-
-# Vulnerability scanning
-webscan scan vuln example.com
-
-# DNS enumeration
-webscan scan dns example.com
-
-# Directory discovery
-webscan scan dir https://example.com --wordlist common.txt
-
-# OAuth2/OIDC Security Testing
-webscan scan oauth2 https://example.com --client-id your-client-id --redirect-uri https://example.com/callback
-
-# Advanced HTTP Reconnaissance
-webscan scan httpx example.com --follow-redirects --probe-all-ips
-
-# Nuclei Template-based Vulnerability Scanning
-webscan scan nuclei example.com --severity critical,high --tags oauth,jwt,auth
-
-# JavaScript Security Analysis
-webscan scan js https://example.com
-
-# GraphQL Security Testing
-webscan scan graphql https://example.com/graphql --auth-header "Authorization: Bearer token"
-
-# Comprehensive scan
-webscan scan full example.com
-```
-
-### Workflow-Based Scanning
-
-```bash
-# List available workflows
-webscan workflow list
-
-# Run comprehensive security assessment
-webscan workflow run comprehensive example.com
-
-# OAuth2-focused security testing
-webscan workflow run oauth2_focused https://oauth.example.com
-
-# API security assessment
-webscan workflow run api_security https://api.example.com
-```
-
-### Results Management
-
-```bash
-# List recent scans
-webscan results list --limit 20
-
-# Get specific scan results
-webscan results get <scan-id>
-
-# Export results
-webscan results export <scan-id> --format json --output results.json
-webscan results export <scan-id> --format csv --output results.csv
-webscan results export <scan-id> --format html --output report.html
-
-# Get summary statistics
-webscan results summary --days 7
-```
-
-### Configuration
-
-```bash
-# Create scan profile
-webscan config profile create aggressive --description "Aggressive scanning profile"
-
-# Manage scope
-webscan config scope add "*.example.com"
-webscan config scope add "192.168.1.0/24"
-webscan config scope list
-
-# Configure tools
-webscan config tool nmap --timeout 60m
-webscan config tool zap --api-key your-api-key
-```
-
-### Scheduling
-
-```bash
-# Schedule periodic scans
-webscan schedule create example.com --cron "0 0 * * *" --type full
-
-# List schedules
-webscan schedule list
-
-# Delete schedule
-webscan schedule delete <schedule-id>
-```
-
-### Deployment
-
-```bash
-# Deploy to Nomad
-webscan deploy create --workers 5 --datacenter dc1
-
-# Scale workers
-webscan deploy scale 10
-
-# Check deployment status
-webscan deploy status
-
-# Stop deployment
-webscan deploy stop
-```
-
-## Advanced Pentesting Capabilities
-
-WebScan CLI includes state-of-the-art security testing modules designed for serious penetration testers and bug bounty hunters:
-
-### OAuth2/OIDC Security Testing
-- **Authorization Code Replay**: Tests for single-use code enforcement
-- **Redirect URI Validation Bypass**: 10+ bypass techniques including subdomain takeover, unicode, and protocol downgrade
-- **PKCE Downgrade Attacks**: Tests for PKCE requirement enforcement
-- **State Parameter Validation**: Entropy and binding validation
-- **Token Leakage Detection**: Referrer header and URL fragment exposure
-- **JWT Security**: Algorithm confusion, signature bypass, weak secrets
-- **CSRF Protection**: Tests for proper CSRF token implementation
-
-### GraphQL Security Assessment
-- **Introspection Analysis**: Schema exposure and sensitive type detection
-- **Batching Attacks**: Array and alias-based batching for rate limit bypass
-- **Query Depth Limiting**: Deep nesting DoS attack testing
-- **Query Complexity**: Resource exhaustion via complex queries
-- **Field Duplication**: Redundant field processing detection
-- **Information Disclosure**: Error message analysis for sensitive data
-- **SQL Injection**: GraphQL-specific injection testing
-- **Authentication Bypass**: CSRF and missing authorization testing
-
-### JavaScript Security Analysis
-- **Secret Extraction**: AWS keys, Google API keys, GitHub tokens, JWT tokens
-- **Vulnerable Library Detection**: jQuery, Angular, Bootstrap, Lodash with CVE mapping
-- **DOM XSS Sink Detection**: innerHTML, eval, setTimeout with user input flow analysis
-- **API Endpoint Discovery**: Fetch, Axios, AJAX call extraction
-- **OAuth2 Token Analysis**: Client secrets, hardcoded tokens, weak randomness
-- **URL Extraction**: Admin paths, config files, S3 buckets, internal URLs
-
-### Advanced HTTP Reconnaissance (httpx Integration)
-- **Technology Stack Detection**: 20+ web technologies with security implications
-- **Security Header Analysis**: Missing CSP, HSTS, X-Frame-Options detection
-- **Subdomain Takeover Detection**: CNAME analysis for vulnerable services
-- **Certificate Analysis**: Wildcard certificates, hostname mismatches
-- **OAuth2 Endpoint Discovery**: .well-known, authorization, token endpoints
-- **API Documentation Discovery**: Swagger, OpenAPI, GraphQL endpoints
-
-### Nuclei Template Integration
-- **10,000+ Security Templates**: Community-driven vulnerability detection
-- **OAuth2-Specific Templates**: JWT vulnerabilities, client secret exposure
-- **API Security Templates**: GraphQL introspection, REST API misconfigurations
-- **Cloud Security Templates**: AWS, GCP, Azure misconfiguration detection
-- **Custom Template Support**: Organization-specific vulnerability patterns
-
-## Architecture
-
-### Core Components
-
-1. **Job Queue**: Redis-based priority queue for scan jobs
-2. **Worker Pool**: Scalable workers that process scan jobs
-3. **Plugin System**: Modular scanner integration
-4. **Result Store**: SQLite for persistent storage
-5. **Telemetry**: OpenTelemetry for distributed tracing and metrics
-
-### Security Features
-
-- **Rate Limiting**: Configurable per-target rate limits
-- **Scope Validation**: Whitelist-based target validation
-- **Authentication**: API key and JWT support
-- **Audit Logging**: Complete activity trails
-
-## Development
-
-### Project Structure
-
-```
-webscan-cli/
-├── cmd/              # CLI commands
-├── internal/         # Internal packages
-│   ├── config/      # Configuration
-│   ├── core/        # Core interfaces
-│   ├── database/    # Storage implementation
-│   ├── jobs/        # Job queue
-│   ├── logger/      # Structured logging
-│   ├── plugins/     # Scanner plugins
-│   ├── telemetry/   # OpenTelemetry
-│   └── worker/      # Worker implementation
-├── pkg/             # Public packages
-│   ├── scanner/     # Scanner interface
-│   └── types/       # Domain types
-├── deployments/     # Deployment configs
-│   ├── docker/      # Docker files
-│   └── nomad/       # Nomad job specs
-└── test/            # Tests
-
-```
-
-### Adding a New Scanner
-
-1. Implement the `core.Scanner` interface:
-
-```go
-type Scanner interface {
-    Name() string
-    Type() types.ScanType
-    Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error)
-    Validate(target string) error
-}
-```
-
-2. Register with the plugin manager:
-
-```go
-pluginManager.Register(yourScanner)
-```
-
-### Running Tests
-
-```bash
-# Unit tests
-make test
-
-# Integration tests
-make test-integration
-
-# Benchmarks
-make bench
-
-# Coverage report
-make coverage
-```
-
-## Deployment
-
-### Docker
-
-```bash
-# Build image
-make docker-build
-
-# Push to registry
-make docker-push
-
-# Run with Docker Compose
-docker-compose -f deployments/docker/docker-compose.yml up
-```
-
-### Nomad
-
-```bash
-# Deploy job
-nomad job run deployments/nomad/webscan.nomad
-
-# Check status
-nomad job status webscan
-
-# Scale workers
-nomad job scale webscan workers 10
-```
-
-## Monitoring
-
-### Metrics
-
-- Scan duration and success rate
-- Finding counts by severity
-- Worker utilization
-- Queue depth
-
-### Distributed Tracing
-
-OpenTelemetry traces provide visibility into:
-- Scan execution flow
-- Tool performance
-- Database queries
-- External API calls
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run `make lint` and `make test`
-6. Submit a pull request
-
 ## License
 
-MIT License - see LICENSE file for details
+[Add license information]
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/CodeMonkeyCybersecurity/shells/issues)
+- **Documentation**: See `/docs` directory
+- **Contact**: Code Monkey Cybersecurity
+
+---
+
+**Remember**: "Cybersecurity. With humans." - This tool assists security researchers, it doesn't replace human judgment and expertise.

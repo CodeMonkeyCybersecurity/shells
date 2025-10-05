@@ -318,7 +318,9 @@ func exportCSV(findings []types.Finding) ([]byte, error) {
 
 	// Write header
 	header := []string{"ID", "Scan ID", "Tool", "Type", "Severity", "Title", "Description", "Evidence", "Solution", "Created At"}
-	writer.Write(header)
+	if err := writer.Write(header); err != nil {
+		return nil, fmt.Errorf("failed to write CSV header: %w", err)
+	}
 
 	// Write data
 	for _, finding := range findings {
@@ -334,11 +336,16 @@ func exportCSV(findings []types.Finding) ([]byte, error) {
 			finding.Solution,
 			finding.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
-		writer.Write(record)
+		if err := writer.Write(record); err != nil {
+			return nil, fmt.Errorf("failed to write CSV record: %w", err)
+		}
 	}
 
 	writer.Flush()
-	return []byte(result.String()), writer.Error()
+	if err := writer.Error(); err != nil {
+		return nil, fmt.Errorf("CSV writer flush failed: %w", err)
+	}
+	return []byte(result.String()), nil
 }
 
 func exportHTML(findings []types.Finding) ([]byte, error) {

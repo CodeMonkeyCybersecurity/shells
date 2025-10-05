@@ -138,10 +138,15 @@ The main command runs the full orchestrated pipeline:
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if log != nil {
-			log.Sync()
+			if err := log.Sync(); err != nil {
+				// Log sync errors are not critical, just warn
+				fmt.Fprintf(os.Stderr, "Warning: failed to sync logger: %v\n", err)
+			}
 		}
 		if store != nil {
-			store.Close()
+			if err := store.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: failed to close database: %v\n", err)
+			}
 		}
 	},
 }

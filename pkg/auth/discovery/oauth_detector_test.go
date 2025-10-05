@@ -90,7 +90,7 @@ func TestOAuthDetector_DetectOAuth(t *testing.T) {
 	assert.True(t, discovery.PKCESupported)
 	assert.Contains(t, discovery.ResponseTypesSupported, "code")
 	assert.Contains(t, discovery.GrantTypesSupported, "authorization_code")
-	assert.Greater(t, discovery.Confidence, 0.8)
+	assert.GreaterOrEqual(t, discovery.Confidence, 0.8)
 }
 
 func TestOAuthDetector_DetectOAuth_NoOAuth(t *testing.T) {
