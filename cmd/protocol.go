@@ -492,7 +492,12 @@ func saveProtocolResults(findings []types.Finding, output string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close report file %s: %v\n", output, err)
+			fmt.Fprintf(os.Stderr, "Report may be incomplete or corrupted\n")
+		}
+	}()
 
 	// Create report
 	fmt.Fprintf(file, "Protocol Security Scan Report\n")

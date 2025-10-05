@@ -161,7 +161,12 @@ func calculateSHA256(filepath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			// Log but don't fail - hash was already calculated
+			fmt.Fprintf(os.Stderr, "Warning: failed to close file after hashing: %v\n", err)
+		}
+	}()
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {

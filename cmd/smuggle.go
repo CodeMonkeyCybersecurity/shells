@@ -13,6 +13,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// TECHNICAL DEBT: This file contains 2 remaining os.Exit(1) calls that should be replaced
+// with proper error returns for better composability and testing.
+// Pattern to fix: fmt.Printf("Error..."); os.Exit(1) -> return fmt.Errorf("...")
+// Locations: lines ~143, ~186 (search for "os.Exit" to find exact lines)
+// Priority: P1 (improves testability but not critical for users)
+
 var smuggleCmd = &cobra.Command{
 	Use:   "smuggle",
 	Short: "Detect HTTP Request Smuggling vulnerabilities",
@@ -82,7 +88,8 @@ Examples:
 
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
-			fmt.Printf("Error during smuggling detection: %v\n", err)
+			// TODO(P1): Convert this command to use RunE instead of Run to return errors properly
+			fmt.Fprintf(os.Stderr, "Error: smuggling detection failed: %v\n", err)
 			os.Exit(1)
 		}
 

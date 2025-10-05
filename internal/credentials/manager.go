@@ -379,8 +379,13 @@ func (m *Manager) loadLegacy() error {
 			return fmt.Errorf("failed to migrate credentials: %w", err)
 		}
 
-		// Remove legacy file
-		os.Remove(legacyFile)
+		// Remove legacy file after successful migration
+		if err := os.Remove(legacyFile); err != nil && !os.IsNotExist(err) {
+			m.logger.Warnw("Failed to remove legacy credentials file after migration",
+				"file", legacyFile,
+				"error", err,
+				"action", "Manually delete the file for security")
+		}
 		m.logger.Info("Migrated credentials to encrypted storage")
 	}
 

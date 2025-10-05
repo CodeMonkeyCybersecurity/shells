@@ -193,8 +193,16 @@ var configClearCmd = &cobra.Command{
 		credFile := filepath.Join(homeDir, ".shells", "credentials.enc")
 		keyFile := filepath.Join(homeDir, ".shells", ".key")
 
-		os.Remove(credFile)
-		os.Remove(keyFile)
+		// Remove credential files - warn if fails but don't error
+		// (files may not exist, which is fine)
+		if err := os.Remove(credFile); err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "Warning: failed to remove %s: %v\n", credFile, err)
+			fmt.Fprintf(os.Stderr, "You may need to manually delete this file\n")
+		}
+		if err := os.Remove(keyFile); err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "Warning: failed to remove %s: %v\n", keyFile, err)
+			fmt.Fprintf(os.Stderr, "You may need to manually delete this file\n")
+		}
 
 		fmt.Println("✅ API credentials cleared")
 

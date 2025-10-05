@@ -8,11 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Motto**: "Cybersecurity. With humans."
 
-### Philosphy
-- **Human centric**: , actionable output, addresses barriers to entry, encourage end-user ducation and self-efficacy, feminist (for example, informed consent), safe effective high-quality
-- **Evidence based**: accepts falliblism, error correction, value for time, value for money
-- **Sustainable innovation**: Maintainable code, comprehensive documentation, iterative improvement, response ready, incorporates recent research and best practice
-- **Collaboration and listening**: Built by ethical hackers for ethical hackers, transparent decision making, ownership accountability responsibility, open source
+### Philosophy
+
+- **Human-centric**: Transparent error handling, actionable output, addresses barriers to entry, encourages end-user education and self-efficacy, feminist principles (informed consent), safe, effective, high-quality
+- **Evidence-based**: Accepts fallibilism, error correction, value for time, value for money, verifiable results
+- **Sustainable innovation**: Maintainable code, comprehensive documentation, iterative improvement, incident response ready, incorporates recent research and best practice
+- **Collaboration and listening**: Built by ethical hackers for ethical hackers, transparent decision making, ownership and accountability, open source
 
 **Purpose**: Designed for bug bounty hunters and security researchers to automate the vulnerability discovery and reporting pipeline through distributed scanning while maintaining ethical practices and human oversight.
 

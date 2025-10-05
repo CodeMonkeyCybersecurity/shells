@@ -32,6 +32,27 @@ func (s *sqlStore) getPlaceholder(n int) string {
 	return "?"
 }
 
+// closeRows safely closes database rows and logs any errors
+// This is critical for connection pool health - unclosed rows leak connections
+func (s *sqlStore) closeRows(rows *sqlx.Rows) {
+	if err := rows.Close(); err != nil {
+		s.logger.Errorw("Failed to close database rows - connection may leak",
+			"error", err,
+			"impact", "Database connection pool may be exhausted over time",
+			"action", "Monitor connection pool metrics")
+	}
+}
+
+// closeRows2 safely closes sql.Rows (non-sqlx variant)
+func (s *sqlStore) closeRows2(rows *sql.Rows) {
+	if err := rows.Close(); err != nil {
+		s.logger.Errorw("Failed to close database rows - connection may leak",
+			"error", err,
+			"impact", "Database connection pool may be exhausted over time",
+			"action", "Monitor connection pool metrics")
+	}
+}
+
 func NewStore(cfg config.DatabaseConfig) (core.ResultStore, error) {
 	// Initialize logger for database operations
 	// Default to error level to reduce noise, use debug only if explicitly set
@@ -420,7 +441,7 @@ func (s *sqlStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*ty
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer s.closeRows(rows)
 
 	scans := []*types.ScanRequest{}
 	for rows.Next() {
@@ -496,7 +517,15 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 		)
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			// Log rollback errors (ignore ErrTxDone which means tx already committed)
+			s.logger.Errorw("Failed to rollback transaction",
+				"error", err,
+				"impact", "Transaction may have partially committed",
+				"action", "Verify data integrity")
+		}
+	}()
 
 	s.logger.LogDuration(ctx, "database.SaveFindings.begin_tx", txStart,
 		"scan_id", scanID,
@@ -641,7 +670,7 @@ func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Find
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer s.closeRows2(rows)
 
 	findings := []types.Finding{}
 	for rows.Next() {
@@ -690,7 +719,7 @@ func (s *sqlStore) GetFindingsBySeverity(ctx context.Context, severity types.Sev
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer s.closeRows2(rows)
 
 	findings := []types.Finding{}
 	for rows.Next() {
@@ -743,7 +772,7 @@ func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summar
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer s.closeRows2(rows)
 
 	for rows.Next() {
 		var severity types.Severity
@@ -768,7 +797,7 @@ func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summar
 	if err != nil {
 		return nil, err
 	}
-	defer rows2.Close()
+	defer s.closeRows2(rows2)
 
 	for rows2.Next() {
 		var tool string
@@ -870,7 +899,7 @@ func (s *sqlStore) QueryFindings(ctx context.Context, query core.FindingQuery) (
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer s.closeRows(rows)
 
 	findings := []types.Finding{}
 	for rows.Next() {
@@ -924,7 +953,7 @@ func (s *sqlStore) GetFindingStats(ctx context.Context) (*core.FindingStats, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer s.closeRows2(rows)
 
 	for rows.Next() {
 		var severity types.Severity
@@ -948,7 +977,7 @@ func (s *sqlStore) GetFindingStats(ctx context.Context) (*core.FindingStats, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows2.Close()
+	defer s.closeRows2(rows2)
 
 	for rows2.Next() {
 		var tool string
@@ -971,7 +1000,7 @@ func (s *sqlStore) GetFindingStats(ctx context.Context) (*core.FindingStats, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows3.Close()
+	defer s.closeRows2(rows3)
 
 	for rows3.Next() {
 		var findingType string
@@ -995,7 +1024,7 @@ func (s *sqlStore) GetFindingStats(ctx context.Context) (*core.FindingStats, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows4.Close()
+	defer s.closeRows2(rows4)
 
 	for rows4.Next() {
 		var target string
