@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"time"
 
@@ -130,7 +131,7 @@ func (c *CensysClient) SearchHosts(ctx context.Context, query string, limit int)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Censys API error: %d", resp.StatusCode)
@@ -172,7 +173,7 @@ func (c *CensysClient) SearchCertificates(ctx context.Context, query string, lim
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Status  string `json:"status"`
@@ -234,7 +235,7 @@ func (c *CensysClient) GetHost(ctx context.Context, ip string) (*CensysHost, err
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Censys API error: %d", resp.StatusCode)
@@ -357,7 +358,7 @@ func (c *CensysClient) GetAccountStatus(ctx context.Context) (map[string]interfa
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -204,7 +205,7 @@ func (p *PassiveDNSClient) queryVirusTotal(ctx context.Context, domain string) (
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("VirusTotal returned status %d", resp.StatusCode)
@@ -285,7 +286,7 @@ func (p *PassiveDNSClient) querySecurityTrails(ctx context.Context, domain strin
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("SecurityTrails returned status %d", resp.StatusCode)
@@ -354,7 +355,7 @@ func (p *PassiveDNSClient) queryPassiveTotal(ctx context.Context, domain string)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("PassiveTotal returned status %d", resp.StatusCode)
@@ -422,7 +423,7 @@ func (p *PassiveDNSClient) queryCIRCL(ctx context.Context, domain string) (*DNSQ
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		if resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 429 {
@@ -502,7 +503,7 @@ func (p *PassiveDNSClient) querySpyse(ctx context.Context, domain string) (*DNSQ
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("Spyse returned status %d", resp.StatusCode)

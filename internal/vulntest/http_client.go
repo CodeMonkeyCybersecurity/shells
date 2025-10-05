@@ -3,6 +3,7 @@ package vulntest
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -46,7 +47,7 @@ func (h *HTTPClient) TestCredentials(loginURL, username, password string) (bool,
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check if it's already using basic auth
 	if resp.StatusCode == 401 {
@@ -69,7 +70,7 @@ func (h *HTTPClient) testBasicAuth(loginURL, username, password string) (bool, e
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// 200 OK or redirect means successful login
 	return resp.StatusCode == 200 || resp.StatusCode == 302, nil
@@ -107,7 +108,7 @@ func (h *HTTPClient) testFormLogin(loginURL, username, password string) (bool, e
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		body, _ := io.ReadAll(resp.Body)
 		bodyStr := string(body)
@@ -163,7 +164,7 @@ func (h *HTTPClient) CheckEndpoint(endpoint string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 	return resp.StatusCode, nil
 }
 
@@ -173,7 +174,7 @@ func (h *HTTPClient) GetResponseBody(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
@@ -89,7 +90,7 @@ func (c *CloudFlareIntel) DetectCloudFlare(ctx context.Context, domain string) (
 			return false, fmt.Errorf("HTTP request failed: %w", err)
 		}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check for CloudFlare headers
 	cfHeaders := []string{
@@ -304,7 +305,7 @@ func (c *CloudFlareIntel) findFromHeaderLeaks(ctx context.Context, domain string
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check for headers that might reveal origin
 	suspiciousHeaders := []string{
@@ -361,7 +362,7 @@ func (c *CloudFlareIntel) fetchFavicon(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	favicon := make([]byte, 0)
 	buffer := make([]byte, 1024)

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"strings"
@@ -402,7 +403,7 @@ func (f *oauth2Fuzzer) executeTest(ctx context.Context, target string, testCase 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read response body (limited to prevent memory issues)
 	bodyBytes := make([]byte, 10240) // 10KB limit

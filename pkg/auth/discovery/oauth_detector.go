@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -186,7 +187,7 @@ func (o *OAuthDetector) discoverWellKnownConfig(ctx context.Context, baseURL str
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -214,7 +215,7 @@ func (o *OAuthDetector) discoverOAuth2Config(ctx context.Context, baseURL string
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -349,7 +350,7 @@ func (o *OAuthDetector) probeOAuthEndpoint(ctx context.Context, endpoint string,
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// OAuth endpoints typically return 400 for malformed requests
 	if resp.StatusCode == 400 || resp.StatusCode == 401 {
@@ -385,7 +386,7 @@ func (o *OAuthDetector) analyzePageForOAuth(ctx context.Context, pageURL string,
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

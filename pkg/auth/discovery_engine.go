@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
@@ -403,7 +404,7 @@ func (e *AuthDiscoveryEngine) checkCommonEndpoints(ctx context.Context, baseURL 
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		// Check if endpoint exists and analyze
 		if resp.StatusCode == 200 || resp.StatusCode == 401 || resp.StatusCode == 302 {
@@ -418,7 +419,7 @@ func (e *AuthDiscoveryEngine) checkAuthHeaders(ctx context.Context, target strin
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	mu.Lock()
 	defer mu.Unlock()

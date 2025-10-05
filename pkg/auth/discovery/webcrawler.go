@@ -4,6 +4,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -229,7 +230,7 @@ func (w *WebCrawler) analyzePage(ctx context.Context, pageURL string) *CrawlResu
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Don't analyze non-HTML content
 	contentType := resp.Header.Get("Content-Type")
@@ -468,7 +469,7 @@ func (w *WebCrawler) fetchPageContent(ctx context.Context, url string) (string, 
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Only process HTML content
 	contentType := resp.Header.Get("Content-Type")

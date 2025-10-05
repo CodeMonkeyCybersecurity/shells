@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"crypto/tls"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -160,7 +161,7 @@ func (s *WebSpider) crawlURL(ctx context.Context, urlStr string, depth int, wg *
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read body
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024)) // 10MB limit

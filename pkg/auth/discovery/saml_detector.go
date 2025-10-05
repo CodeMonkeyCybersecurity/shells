@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -205,7 +206,7 @@ func (s *SAMLDetector) fetchMetadata(ctx context.Context, metadataURL string) *M
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil
@@ -308,7 +309,7 @@ func (s *SAMLDetector) probeSAMLEndpoint(ctx context.Context, endpoint string, d
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check for SAML-related headers
 	for header, values := range resp.Header {
@@ -346,7 +347,7 @@ func (s *SAMLDetector) analyzePageForSAML(ctx context.Context, pageURL string, d
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

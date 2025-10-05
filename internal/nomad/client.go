@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"os"
@@ -76,7 +77,7 @@ func (c *Client) IsAvailable() bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode == 200
 }
@@ -131,7 +132,7 @@ func (c *Client) SubmitScan(ctx context.Context, scanType types.ScanType, target
 	if err != nil {
 		return "", fmt.Errorf("failed to submit job: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
@@ -187,7 +188,7 @@ func (c *Client) GetJobStatus(ctx context.Context, jobID string) (*JobStatusResp
 	if err != nil {
 		return nil, fmt.Errorf("failed to get job status: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
@@ -214,7 +215,7 @@ func (c *Client) GetJobLogs(ctx context.Context, jobID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get allocations: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var allocs []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&allocs); err != nil {
@@ -243,7 +244,7 @@ func (c *Client) GetJobLogs(ctx context.Context, jobID string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get logs: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	logs, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -276,7 +277,7 @@ func (c *Client) RegisterJob(ctx context.Context, jobName, jobHCL string) error 
 	if err != nil {
 		return fmt.Errorf("failed to register job: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
@@ -299,7 +300,7 @@ func (c *Client) StopJob(ctx context.Context, jobID string) error {
 	if err != nil {
 		return fmt.Errorf("failed to stop job: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 && resp.StatusCode != 204 {
 		body, _ := io.ReadAll(resp.Body)

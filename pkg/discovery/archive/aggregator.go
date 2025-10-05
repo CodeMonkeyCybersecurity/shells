@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -212,7 +213,7 @@ func (at *ArchiveTodayClient) Search(ctx context.Context, domain string) ([]Arch
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("archive.today API returned status %d", resp.StatusCode)
@@ -262,7 +263,7 @@ func (cc *CommonCrawlClient) QueryIndex(ctx context.Context, domain string) ([]C
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("common crawl API returned status %d", resp.StatusCode)
@@ -561,7 +562,7 @@ func (a *ArchiveAggregator) urlStillExists(urlStr string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode < 400
 }

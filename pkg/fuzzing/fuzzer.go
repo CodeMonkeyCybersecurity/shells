@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"net/url"
@@ -422,7 +423,7 @@ func (f *Fuzzer) fuzzDirectory(ctx context.Context, baseURL *url.URL, path strin
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		// Check status code filters
 		if !f.isValidStatusCode(resp.StatusCode) {
@@ -515,7 +516,7 @@ func (f *Fuzzer) testParameter(ctx context.Context, test paramTest, baseline *ba
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read response
 	body := make([]byte, 0, 1024)
@@ -671,7 +672,7 @@ func (f *Fuzzer) getBaseline(ctx context.Context, target *url.URL) (*baselineRes
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read response
 	body := make([]byte, 0, 1024)
@@ -791,7 +792,7 @@ func (f *Fuzzer) testParameterPollution(ctx context.Context, target *url.URL, kn
 				if err != nil {
 					continue
 				}
-				resp.Body.Close()
+				httpclient.CloseBody(resp)
 
 				if resp.StatusCode == 200 {
 					results = append(results, FuzzResult{
@@ -845,7 +846,7 @@ func (f *Fuzzer) testArrayParameters(ctx context.Context, target *url.URL, param
 			if err != nil {
 				continue
 			}
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 
 			if resp.StatusCode == 200 {
 				results = append(results, FuzzResult{
@@ -892,7 +893,7 @@ func (f *Fuzzer) testJSONParameters(ctx context.Context, target *url.URL, params
 	if err != nil {
 		return results
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == 200 || resp.StatusCode == 400 {
 		results = append(results, FuzzResult{
@@ -935,7 +936,7 @@ func (f *Fuzzer) getVHostBaseline(ctx context.Context, target *url.URL, vhost st
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read limited response for baseline
 	body := make([]byte, 1024)
@@ -980,7 +981,7 @@ func (f *Fuzzer) testVHost(ctx context.Context, target *url.URL, vhost, baseDoma
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check if different from baseline
 	if resp.StatusCode != baseline.StatusCode {
@@ -1027,7 +1028,7 @@ func (f *Fuzzer) testSubdomain(ctx context.Context, target, subdomain string) *F
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return &FuzzResult{
 		URL:          target,

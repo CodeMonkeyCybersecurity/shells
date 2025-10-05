@@ -180,7 +180,7 @@ func (c *CTLogClient) searchCrtSh(ctx context.Context, domain string) ([]Certifi
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("crt.sh returned status %d", resp.StatusCode)

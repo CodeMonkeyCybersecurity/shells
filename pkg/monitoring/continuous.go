@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
@@ -977,7 +978,7 @@ func (w *WebhookAlertChannel) SendAlert(alert *Alert) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -134,7 +135,7 @@ func (a *Attacker) testFilterPayload(ctx context.Context, endpoint *SCIMEndpoint
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -280,7 +281,7 @@ func (a *Attacker) testBulkLimitBypass(ctx context.Context, endpoint *SCIMEndpoi
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -356,7 +357,7 @@ func (a *Attacker) testBulkInjection(ctx context.Context, endpoint *SCIMEndpoint
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -451,7 +452,7 @@ func (a *Attacker) testTimingBasedEnumeration(ctx context.Context, endpoint *SCI
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		elapsed := time.Since(start)
 		timings[username] = elapsed
@@ -528,7 +529,7 @@ func (a *Attacker) testResponseBasedEnumeration(ctx context.Context, endpoint *S
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		responses[testCase.username] = resp.StatusCode
 	}
@@ -628,7 +629,7 @@ func (a *Attacker) testProvisioningPrivilegeEscalation(ctx context.Context, endp
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

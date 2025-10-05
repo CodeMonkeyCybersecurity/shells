@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"regexp"
@@ -356,7 +357,7 @@ func (d *DomainDiscovery) crawlURL(url, baseDomain string) []*Asset {
 	if err != nil {
 		return assets
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Create URL asset
 	asset := &Asset{
@@ -693,7 +694,7 @@ func (t *TechnologyDiscovery) detectTechnologies(url string) []string {
 	if err != nil {
 		return technologies
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Detect from response headers
 	headerTech := t.detectFromHeaders(resp.Header)

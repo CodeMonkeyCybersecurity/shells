@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -222,7 +223,7 @@ func (c *CertIntel) queryCrtSh(ctx context.Context, domain string, results chan<
 		c.logger.Error("Failed to query crt.sh", "error", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == 502 || resp.StatusCode == 429 || resp.StatusCode == 503 {

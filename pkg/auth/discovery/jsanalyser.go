@@ -4,6 +4,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -151,7 +152,7 @@ func (j *JavaScriptAnalyzer) findScriptURLs(ctx context.Context, baseURL string)
 	if err != nil {
 		return scripts
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Parse HTML to find script tags
 	// This is a simplified implementation - in production you'd use goquery
@@ -175,7 +176,7 @@ func (j *JavaScriptAnalyzer) analyzeInlineScripts(ctx context.Context, url strin
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -250,7 +251,7 @@ func (j *JavaScriptAnalyzer) analyzeScript(ctx context.Context, scriptURL string
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

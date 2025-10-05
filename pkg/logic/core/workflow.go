@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -202,7 +203,7 @@ func (w *WorkflowAnalyzer) createStateFromURL(urlStr string, workflow *logic.Wor
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -573,7 +574,7 @@ func (w *WorkflowAnalyzer) canAccessStateDirectly(from, to *logic.WorkflowState,
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// If we get a successful response, the state can be accessed directly
 	return resp.StatusCode >= 200 && resp.StatusCode < 400
@@ -601,7 +602,7 @@ func (w *WorkflowAnalyzer) canExecuteSequence(sequence []*logic.WorkflowState, w
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// If any step fails, sequence execution failed
 		if resp.StatusCode >= 400 {
@@ -628,7 +629,7 @@ func (w *WorkflowAnalyzer) canRepeatState(state *logic.WorkflowState, workflow *
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// If repetition is blocked, return false
 		if resp.StatusCode >= 400 {
@@ -693,7 +694,7 @@ func (w *WorkflowAnalyzer) canExecuteInParallel(state1, state2 *logic.WorkflowSt
 			results <- false
 			return
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		results <- resp.StatusCode < 400
 	}()
@@ -711,7 +712,7 @@ func (w *WorkflowAnalyzer) canExecuteInParallel(state1, state2 *logic.WorkflowSt
 			results <- false
 			return
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		results <- resp.StatusCode < 400
 	}()

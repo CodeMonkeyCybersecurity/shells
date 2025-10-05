@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"net/smtp"
@@ -471,7 +472,7 @@ func (ma *MailServerAnalyzer) discoverWebmail(ctx context.Context, hostname stri
 			if err != nil {
 				continue
 			}
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 
 			// Check if accessible
 			if resp.StatusCode == 200 || resp.StatusCode == 302 || resp.StatusCode == 401 {
@@ -535,7 +536,7 @@ func (ma *MailServerAnalyzer) discoverAdminPanels(ctx context.Context, hostname 
 			if err != nil {
 				continue
 			}
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 
 			// Check if accessible
 			if resp.StatusCode == 200 || resp.StatusCode == 302 || resp.StatusCode == 401 {

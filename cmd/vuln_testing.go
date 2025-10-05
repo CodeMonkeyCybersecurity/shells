@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"regexp"
@@ -830,7 +831,7 @@ func tryFormLogin(httpClient *vulntest.HTTPClient, loginURL, username, password 
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return extractJWTFromResponse(resp)
 }
@@ -841,7 +842,7 @@ func tryJSONLogin(httpClient *vulntest.HTTPClient, loginURL, username, password 
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return extractJWTFromResponse(resp)
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"regexp"
@@ -357,7 +358,7 @@ func (c *CrtShAPI) SearchDomain(domain string) ([]CertificateRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var crtShResults []struct {
 		IssuerCAID     int    `json:"issuer_ca_id"`

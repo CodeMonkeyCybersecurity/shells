@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"os"
@@ -773,7 +774,7 @@ func (s *Scanner) testUnauthorizedAccess(ctx context.Context, endpoint *SCIMEndp
 		)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	s.logger.LogHTTPRequest(ctx, "GET", testURL, resp.StatusCode, httpDuration,
 		"endpoint_url", endpoint.URL,
@@ -864,7 +865,7 @@ func (s *Scanner) testWeakAuthentication(ctx context.Context, endpoint *SCIMEndp
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == http.StatusOK {
 			return &types.Finding{
@@ -928,7 +929,7 @@ func (s *Scanner) testSchemaDisclosure(ctx context.Context, endpoint *SCIMEndpoi
 	if err != nil {
 		return findings
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// If schemas are accessible without authentication, it might be information disclosure
 	if resp.StatusCode == http.StatusOK {

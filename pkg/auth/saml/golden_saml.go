@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"math/big"
 	"net"
@@ -548,7 +549,7 @@ func (g *GoldenSAMLScanner) testSAMLResponse(endpoint SAMLEndpoint, response str
 		g.logger.Debug("Request failed", "error", err)
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read response body
 	body, err := io.ReadAll(resp.Body)

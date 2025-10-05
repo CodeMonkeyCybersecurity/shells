@@ -2,6 +2,7 @@ package recovery
 
 import (
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"strings"
 	"sync"
@@ -239,7 +240,7 @@ func (p *PasswordResetMethod) IsEnabled(target string) bool {
 	for _, endpoint := range endpoints {
 		resp, err := p.tester.httpClient.Get(endpoint)
 		if err == nil {
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 			if resp.StatusCode == 200 {
 				return true
 			}
@@ -312,7 +313,7 @@ func (s *SecurityQuestionMethod) IsEnabled(target string) bool {
 	for _, endpoint := range endpoints {
 		resp, err := s.tester.httpClient.Get(endpoint)
 		if err == nil {
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 			if resp.StatusCode == 200 {
 				return true
 			}

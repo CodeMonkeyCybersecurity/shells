@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"regexp"
@@ -64,7 +65,7 @@ func (c *SAMLCrawler) Crawl(ctx context.Context, target string) (*AuthEndpoints,
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024)) // 1MB limit
@@ -93,7 +94,7 @@ func (c *SAMLCrawler) Crawl(ctx context.Context, target string) (*AuthEndpoints,
 	// Check main page for SAML indicators
 	resp, err := c.httpClient.Get(baseURL)
 	if err == nil {
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 
 		// Look for SAML form actions
@@ -169,7 +170,7 @@ func (c *OAuth2Crawler) Crawl(ctx context.Context, target string) (*AuthEndpoint
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// OAuth2 endpoints often return 400/401/405 for GET requests
 		if resp.StatusCode != 404 {
@@ -236,7 +237,7 @@ func (c *OIDCCrawler) Crawl(ctx context.Context, target string) (*AuthEndpoints,
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			var config map[string]interface{}
@@ -343,7 +344,7 @@ func (c *WebAuthnCrawler) Crawl(ctx context.Context, target string) (*AuthEndpoi
 	// First check if the main page mentions WebAuthn
 	resp, err := c.httpClient.Get(baseURL)
 	if err == nil {
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 		bodyStr := string(body)
 
@@ -371,7 +372,7 @@ func (c *WebAuthnCrawler) Crawl(ctx context.Context, target string) (*AuthEndpoi
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode != 404 {
 			found = true
@@ -433,7 +434,7 @@ func (c *FormCrawler) Crawl(ctx context.Context, target string) (*AuthEndpoints,
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			// Parse HTML and look for forms
@@ -451,7 +452,7 @@ func (c *FormCrawler) Crawl(ctx context.Context, target string) (*AuthEndpoints,
 	// Also check the main page
 	resp, err := c.httpClient.Get(baseURL)
 	if err == nil {
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 		doc, _ := html.Parse(resp.Body)
 		if loginForms := findLoginForms(doc, baseURL); len(loginForms) > 0 {
 			forms = append(forms, loginForms...)

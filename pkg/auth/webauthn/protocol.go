@@ -2,6 +2,7 @@ package webauthn
 
 import (
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"strings"
 	"time"
@@ -70,7 +71,7 @@ func (d *WebAuthnDiscoverer) DiscoverEndpoints(target string) ([]WebAuthnEndpoin
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// Check if endpoint exists
 		if resp.StatusCode == 200 || resp.StatusCode == 400 || resp.StatusCode == 405 {

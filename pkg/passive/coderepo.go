@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"regexp"
 	"strings"
@@ -303,7 +304,7 @@ func (d *DomainMentionStrategy) searchGitHub(ctx context.Context, domain string)
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 403 {
 			// Rate limited

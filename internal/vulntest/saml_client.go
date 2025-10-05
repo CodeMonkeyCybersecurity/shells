@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/url"
 	"regexp"
 	"strings"
@@ -311,7 +312,7 @@ func (s *SAMLClient) testSAMLAssertion(acsURL, assertion string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check if assertion was accepted (various success indicators)
 	return resp.StatusCode == 200 || resp.StatusCode == 302

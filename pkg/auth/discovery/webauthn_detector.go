@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -199,7 +200,7 @@ func (w *WebAuthnDetector) analyzePageForWebAuthn(ctx context.Context, pageURL s
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -334,7 +335,7 @@ func (w *WebAuthnDetector) probeWebAuthnEndpoint(ctx context.Context, endpoint s
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check response
 	body, err := io.ReadAll(resp.Body)
@@ -374,7 +375,7 @@ func (w *WebAuthnDetector) analyzeJavaScriptImplementation(ctx context.Context, 
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

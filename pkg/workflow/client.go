@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"time"
@@ -187,7 +188,7 @@ func (c *AirflowClient) TriggerDAGRun(ctx context.Context, dagID string, conf ma
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -215,7 +216,7 @@ func (c *AirflowClient) GetDAGRunStatus(ctx context.Context, dagID, runID string
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -243,7 +244,7 @@ func (c *AirflowClient) GetTaskInstances(ctx context.Context, dagID, runID strin
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -416,7 +417,7 @@ func (c *AirflowClient) deployDAG(ctx context.Context, dagID string, dagCode str
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
@@ -447,7 +448,7 @@ func (c *AirflowClient) doWithRetry(req *http.Request) (*http.Response, error) {
 
 		lastErr = err
 		if resp != nil {
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 		}
 
 		if i < c.config.MaxRetries-1 {

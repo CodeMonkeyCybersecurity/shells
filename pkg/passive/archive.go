@@ -4,6 +4,7 @@ package passive
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -498,7 +499,7 @@ func (w *WaybackMachine) GetSnapshots(domain string) ([]Snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var snapshots []Snapshot
 	decoder := json.NewDecoder(resp.Body)
@@ -556,7 +557,7 @@ func (w *WaybackMachine) GetSnapshotContent(url string, timestamp time.Time) (st
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -5,10 +5,10 @@ logger:
     - stdout
 
 database:
-  driver: sqlite3
-  dsn: "/data/shells.db"
-  max_connections: 1
-  max_idle_conns: 1
+  driver: postgres
+  dsn: "postgres://shells:shells_dev_password@postgres:5432/shells?sslmode=disable"
+  max_connections: 25
+  max_idle_conns: 5
   conn_max_lifetime: 1h
 
 redis:

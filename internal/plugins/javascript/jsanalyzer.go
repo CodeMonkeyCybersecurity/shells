@@ -3,6 +3,7 @@ package javascript
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -157,7 +158,7 @@ func (a *jsAnalyzer) fetchJavaScriptFiles(ctx context.Context, targetURL string)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -656,7 +657,7 @@ func (a *jsAnalyzer) downloadFile(url, filepath string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	out, err := os.Create(filepath)
 	if err != nil {

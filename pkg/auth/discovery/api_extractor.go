@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -119,7 +120,7 @@ func (a *APIExtractor) extractEndpointsFromPage(ctx context.Context, pageURL str
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read page content
 	content, err := a.readResponseBody(resp)
@@ -210,7 +211,7 @@ func (a *APIExtractor) isValidAPIEndpoint(ctx context.Context, endpoint string) 
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check if it's a valid HTTP response (not 404)
 	if resp.StatusCode == 404 {
@@ -260,7 +261,7 @@ func (a *APIExtractor) discoverFromRobots(ctx context.Context, baseURL string) [
 	if err != nil {
 		return []string{}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	content, err := a.readResponseBody(resp)
 	if err != nil {
@@ -297,7 +298,7 @@ func (a *APIExtractor) discoverFromSitemap(ctx context.Context, baseURL string) 
 	if err != nil {
 		return []string{}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	content, err := a.readResponseBody(resp)
 	if err != nil {
@@ -332,7 +333,7 @@ func (a *APIExtractor) getBaseURL(fullURL string) string {
 }
 
 func (a *APIExtractor) readResponseBody(resp *http.Response) (string, error) {
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Limit response size to prevent memory issues
 	const maxBodySize = 10 * 1024 * 1024 // 10MB

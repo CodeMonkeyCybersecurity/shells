@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"regexp"
 	"strings"
@@ -166,7 +167,7 @@ func (a *AzureDiscovery) checkBlobContainer(ctx context.Context, accountName, co
 	if err != nil {
 		return container
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	switch resp.StatusCode {
 	case 200:
@@ -294,7 +295,7 @@ func (a *AzureDiscovery) checkAzureApp(ctx context.Context, url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode != 404
 }
@@ -356,7 +357,7 @@ func (a *AzureDiscovery) checkContainerRegistry(ctx context.Context, registryNam
 	if err != nil {
 		return registry
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	switch resp.StatusCode {
 	case 200:
@@ -439,7 +440,7 @@ func (a *AzureDiscovery) checkAzureFunction(ctx context.Context, url string) boo
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Functions typically return 401 or custom response, not 404
 	return resp.StatusCode != 404
@@ -498,7 +499,7 @@ func (a *AzureDiscovery) checkKeyVault(ctx context.Context, vaultName string) *K
 	if err != nil {
 		return vault
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Key Vaults return 401/403 if they exist
 	vault.Exists = resp.StatusCode == 401 || resp.StatusCode == 403

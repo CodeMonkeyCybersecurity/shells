@@ -200,14 +200,14 @@ func TestIsPrivateIP(t *testing.T) {
 		ip       string
 		expected bool
 	}{
-		{"127.0.0.1", true},       // Loopback
-		{"10.0.0.1", true},        // Private
-		{"172.16.0.1", true},      // Private
-		{"192.168.1.1", true},     // Private
-		{"169.254.1.1", true},     // Link-local
-		{"8.8.8.8", false},        // Public (Google DNS)
-		{"1.1.1.1", false},        // Public (Cloudflare DNS)
-		{"93.184.216.34", false},  // Public (example.com)
+		{"127.0.0.1", true},      // Loopback
+		{"10.0.0.1", true},       // Private
+		{"172.16.0.1", true},     // Private
+		{"192.168.1.1", true},    // Private
+		{"169.254.1.1", true},    // Link-local
+		{"8.8.8.8", false},       // Public (Google DNS)
+		{"1.1.1.1", false},       // Public (Cloudflare DNS)
+		{"93.184.216.34", false}, // Public (example.com)
 	}
 
 	for _, tt := range tests {

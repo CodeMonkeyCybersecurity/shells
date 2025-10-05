@@ -4,6 +4,7 @@ package scanner
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"sort"
@@ -834,7 +835,7 @@ func (s *IntelligentScanner) testHTTPOrigin(ctx context.Context, ip, domain stri
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check if we got a valid response
 	return resp.StatusCode < 400

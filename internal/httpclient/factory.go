@@ -23,7 +23,7 @@ type SecureClientConfig struct {
 func DefaultConfig() SecureClientConfig {
 	return SecureClientConfig{
 		Timeout:         30 * time.Second,
-		EnableSSRF:      true,  // SSRF protection enabled by default
+		EnableSSRF:      true, // SSRF protection enabled by default
 		FollowRedirects: true,
 		MaxRedirects:    10,
 	}
@@ -245,7 +245,8 @@ func DoWithContext(ctx context.Context, client *http.Client, req *http.Request) 
 // This is critical for connection pool health - unclosed bodies leak HTTP connections.
 //
 // Usage:
-//   defer httpclient.CloseBody(resp)
+//
+//	defer httpclient.CloseBody(resp)
 //
 // Philosophy alignment: Transparent error handling (human-centric principle)
 func CloseBody(resp *http.Response) {

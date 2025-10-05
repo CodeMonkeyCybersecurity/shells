@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"strings"
 	"time"
@@ -52,7 +53,7 @@ func (c *BugcrowdClient) GetProgram(ctx context.Context, handle string) (*Progra
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return c.getPublicProgram(ctx, handle)

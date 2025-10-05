@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"regexp"
@@ -283,7 +284,7 @@ func (a *AWSDetector) testS3Bucket(ctx context.Context, url, bucket, region stri
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
@@ -442,7 +443,7 @@ func (a *AWSDetector) testCloudFrontDistribution(ctx context.Context, candidate 
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check for CloudFront headers
 	cfHeaders := []string{

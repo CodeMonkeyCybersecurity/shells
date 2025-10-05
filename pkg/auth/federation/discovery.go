@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"time"
 
@@ -183,7 +184,7 @@ func (d *FederationDiscoverer) parseSAMLMetadata(url string) *FederationProvider
 		d.logger.Debug("Failed to fetch SAML metadata", "url", url, "error", err)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		d.logger.Debug("SAML metadata not found", "url", url, "status", resp.StatusCode)
@@ -245,7 +246,7 @@ func (d *FederationDiscoverer) parseOIDCConfiguration(url string) *FederationPro
 		d.logger.Debug("Failed to fetch OIDC configuration", "url", url, "error", err)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		d.logger.Debug("OIDC configuration not found", "url", url, "status", resp.StatusCode)
@@ -323,7 +324,7 @@ func (d *FederationDiscoverer) parseFederationMetadata(url string) *FederationPr
 		d.logger.Debug("Failed to fetch federation metadata", "url", url, "error", err)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		d.logger.Debug("Federation metadata not found", "url", url, "status", resp.StatusCode)
@@ -337,12 +338,12 @@ func (d *FederationDiscoverer) parseFederationMetadata(url string) *FederationPr
 	}
 
 	// Try to parse as XML
-	resp.Body.Close()
+	httpclient.CloseBody(resp)
 	resp, err = d.httpClient.Get(url)
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var xmlMetadata map[string]interface{}
 	if err := xml.NewDecoder(resp.Body).Decode(&xmlMetadata); err == nil {

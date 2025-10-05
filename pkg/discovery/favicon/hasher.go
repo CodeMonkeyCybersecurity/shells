@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -98,7 +99,7 @@ func (h *FaviconHasher) DownloadAndHash(faviconURL string) (*HashResult, error) 
 			return nil, fmt.Errorf("failed to download favicon: %v", err)
 		}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check response
 	if resp.StatusCode != http.StatusOK {
@@ -196,7 +197,7 @@ func (h *FaviconHasher) discoverFromHTML(baseURL string) []string {
 	if err != nil {
 		return favicons
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return favicons

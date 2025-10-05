@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
@@ -216,7 +217,7 @@ func (s *SSLAnalyzer) AnalyzeSSL(ctx context.Context, target string) *SSLInfo {
 		s.logger.Debug("SSL analysis failed", "target", target, "error", err)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Get TLS connection state
 	if resp.TLS == nil {
@@ -350,7 +351,7 @@ func (c *CDNDetector) DetectCDN(ctx context.Context, target string) *CDNInfo {
 	if err != nil {
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	cdnInfo := &CDNInfo{
 		Headers: []string{},
@@ -487,7 +488,7 @@ func (t *TechDetector) DetectTechnologies(ctx context.Context, target string) []
 	if err != nil {
 		return []Technology{}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	technologies := []Technology{}
 

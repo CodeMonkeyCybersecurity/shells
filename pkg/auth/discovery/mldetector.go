@@ -4,6 +4,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"strings"
 	"time"
@@ -268,7 +269,7 @@ func (m *MLAuthDetectorEngine) probeEndpoint(ctx context.Context, endpoint strin
 	if err != nil {
 		return detected
 	}
-	defer resp1.Body.Close()
+	defer httpclient.CloseBody(resp1)
 
 	// Analyze response
 	indicators := m.extractIndicators(resp1)
@@ -308,7 +309,7 @@ func (m *MLAuthDetectorEngine) probeEndpoint(ctx context.Context, endpoint strin
 			detected = append(detected, *pattern)
 		}
 
-		resp2.Body.Close()
+		httpclient.CloseBody(resp2)
 	}
 
 	return detected
@@ -362,7 +363,7 @@ func (m *MLAuthDetectorEngine) testRedirectFlow(ctx context.Context, target *Tar
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		// Check if we got redirected to a login page
 		if resp.StatusCode >= 300 && resp.StatusCode < 400 {

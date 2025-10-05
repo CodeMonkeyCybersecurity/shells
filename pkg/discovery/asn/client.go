@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"strconv"
@@ -204,7 +205,7 @@ func (a *ASNClient) queryRIPEstat(ctx context.Context, ip string) (*IPInfo, erro
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Data struct {
@@ -245,7 +246,7 @@ func (a *ASNClient) queryASNInfo(ctx context.Context, asn int) (*ASNInfo, error)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Data struct {
@@ -281,7 +282,7 @@ func (a *ASNClient) queryASNPrefixes(ctx context.Context, asn int) ([]string, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Data struct {
@@ -317,7 +318,7 @@ func (a *ASNClient) searchASNsByOrg(ctx context.Context, org string) ([]int, err
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Data struct {
@@ -354,7 +355,7 @@ func (a *ASNClient) GetPeerASNs(ctx context.Context, asn int) ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Data struct {
@@ -467,7 +468,7 @@ func (a *ASNClient) GetBGPRoutes(ctx context.Context, asn int) ([]BGPRoute, erro
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Data struct {

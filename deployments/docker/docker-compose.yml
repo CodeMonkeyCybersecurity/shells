@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: shells
+      POSTGRES_USER: shells
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shells_dev_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shells"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     ports:
@@ -32,11 +49,16 @@ services:
       dockerfile: deployments/docker/Dockerfile
     command: ["worker", "--config", "/app/config.yaml"]
     depends_on:
-      - redis
-      - otel-collector
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
     environment:
       WEBSCAN_REDIS_ADDR: redis:6379
-      WEBSCAN_DATABASE_DSN: "shells.db"
+      WEBSCAN_DATABASE_DRIVER: postgres
+      WEBSCAN_DATABASE_DSN: "postgres://shells:${POSTGRES_PASSWORD:-shells_dev_password}@postgres:5432/shells?sslmode=disable"
       WEBSCAN_TELEMETRY_ENDPOINT: otel-collector:4317
     volumes:
       - ./config.yaml:/app/config.yaml
@@ -60,4 +82,5 @@ services:
     command: ["zap.sh", "-daemon", "-port", "8090", "-host", "0.0.0.0", "-config", "api.key=webscan-api-key"]
     
 volumes:
+  postgres_data:
   redis_data:

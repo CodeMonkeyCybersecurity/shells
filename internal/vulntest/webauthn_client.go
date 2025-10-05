@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"strings"
 )
 
@@ -251,7 +252,7 @@ func (w *WebAuthnClient) testMaliciousOrigin(endpoint, maliciousOrigin string) b
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// If the server accepts this malicious origin request, it's vulnerable
 	return resp.StatusCode == 200
@@ -276,7 +277,7 @@ func (w *WebAuthnClient) testWeakUserVerification(endpoint string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode == 200
 }
@@ -300,7 +301,7 @@ func (w *WebAuthnClient) testAttestationBypass(endpoint string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode == 200
 }
@@ -325,7 +326,7 @@ func (w *WebAuthnClient) testCredentialManipulation(endpoint string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Should reject fake credentials, if it accepts them it's vulnerable
 	return resp.StatusCode == 200

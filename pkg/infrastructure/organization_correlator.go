@@ -290,7 +290,7 @@ func (o *OrganizationCorrelator) getProfileFromClearbit(domain string) *CompanyP
 		if err != nil {
 			return nil
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode != 200 {
 			return nil

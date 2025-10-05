@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"strings"
@@ -104,7 +105,7 @@ func (c *CrossProtocolAnalyzer) discoverAuthEndpoints(target string) (*AuthConfi
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			endpoint := c.classifyEndpoint(endpointURL.String(), resp)

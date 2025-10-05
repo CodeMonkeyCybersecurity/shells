@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"strings"
@@ -359,7 +360,7 @@ func (s *interactshScanner) checkEndpoint(ctx context.Context, endpoint string) 
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Consider 200, 401, 403, 302 as existing endpoints
 	return resp.StatusCode == 200 || resp.StatusCode == 401 ||
@@ -641,7 +642,7 @@ func (c *InteractshClient) Register(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var regResp RegistrationResponse
 	if err := json.NewDecoder(resp.Body).Decode(&regResp); err != nil {
@@ -683,7 +684,7 @@ func (c *InteractshClient) Deregister(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	c.registered = false
 	return nil
@@ -737,10 +738,10 @@ func (c *InteractshClient) Poll(ctx context.Context, interactions chan<- Interac
 
 			var pollResp PollResponse
 			if err := json.NewDecoder(resp.Body).Decode(&pollResp); err != nil {
-				resp.Body.Close()
+				httpclient.CloseBody(resp)
 				continue
 			}
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 
 			for _, interaction := range pollResp.Data {
 				select {

@@ -4,6 +4,7 @@ package ml
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"regexp"
@@ -178,7 +179,7 @@ func (tsa *TechStackAnalyzer) AnalyzeTechStack(ctx context.Context, target strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze target: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Detect technologies
 	technologies := tsa.detectTechnologies(resp)
@@ -724,7 +725,7 @@ func (tsa *TechStackAnalyzer) makeRequest(ctx context.Context, target string) (*
 
 	// Read and buffer the body so it can be read multiple times
 	bodyBytes, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	httpclient.CloseBody(resp)
 	if err != nil {
 		return nil, err
 	}

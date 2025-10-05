@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -594,7 +595,7 @@ func (r *RaceConditionTester) attemptLogin(endpoint string, credentials map[stri
 	if err != nil {
 		return LoginResult{Success: false, WorkerID: workerID}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	responseTime := time.Since(startTime)
 
@@ -628,7 +629,7 @@ func (r *RaceConditionTester) requestPasswordReset(endpoint string, email string
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Extract token from response (simplified)
 	body, _ := io.ReadAll(resp.Body)
@@ -650,7 +651,7 @@ func (r *RaceConditionTester) processPayment(endpoint string, paymentData map[st
 	if err != nil {
 		return PaymentResult{Success: false, WorkerID: workerID}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Parse response
 	body, _ := io.ReadAll(resp.Body)
@@ -686,7 +687,7 @@ func (r *RaceConditionTester) addToCart(endpoint string, productID string, quant
 	if err != nil {
 		return CartResult{Success: false}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return CartResult{
 		Success:  resp.StatusCode == 200,
@@ -711,7 +712,7 @@ func (r *RaceConditionTester) removeFromCart(endpoint string, productID string, 
 	if err != nil {
 		return CartResult{Success: false}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return CartResult{
 		Success:  resp.StatusCode == 200,
@@ -730,7 +731,7 @@ func (r *RaceConditionTester) getCartContents(endpoint string) CartContents {
 	if err != nil {
 		return CartContents{}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -758,7 +759,7 @@ func (r *RaceConditionTester) allocateResource(endpoint string, resourceID strin
 	if err != nil {
 		return AllocationResult{Success: false, WorkerID: workerID}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	result := AllocationResult{
 		Success:    resp.StatusCode == 200,
@@ -786,7 +787,7 @@ func (r *RaceConditionTester) makeRateLimitedRequest(endpoint string, workerID i
 	if err != nil {
 		return LimitTestResult{Success: false, WorkerID: workerID}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 	duration := time.Since(startTime)

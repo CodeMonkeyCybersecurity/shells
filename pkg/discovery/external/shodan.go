@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"time"
 
@@ -107,7 +108,7 @@ func (s *ShodanClient) SearchIP(ctx context.Context, ip string) (*ShodanHost, er
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Shodan API error: %d", resp.StatusCode)
@@ -187,7 +188,7 @@ func (s *ShodanClient) GetExploits(ctx context.Context, query string) ([]Exploit
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Matches []Exploit `json:"matches"`
@@ -228,7 +229,7 @@ func (s *ShodanClient) search(ctx context.Context, query string) ([]ShodanHost, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Shodan API error: %d", resp.StatusCode)
@@ -259,7 +260,7 @@ func (s *ShodanClient) GetAPIInfo(ctx context.Context) (map[string]interface{}, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var info map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
@@ -294,7 +295,7 @@ func (s *ShodanClient) SearchFacets(ctx context.Context, query string, facets []
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result struct {
 		Facets map[string][]FacetResult `json:"facets"`
@@ -338,7 +339,7 @@ func (s *ShodanClient) GetDNSResolve(ctx context.Context, hostnames []string) (m
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result map[string]string
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -373,7 +374,7 @@ func (s *ShodanClient) GetDNSReverse(ctx context.Context, ips []string) (map[str
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var result map[string][]string
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

@@ -4,6 +4,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"strings"
 
@@ -410,7 +411,7 @@ func (a *AuthDiscoveryModule) checkEndpointExists(url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Consider 200-399 as success
 	return resp.StatusCode >= 200 && resp.StatusCode < 400

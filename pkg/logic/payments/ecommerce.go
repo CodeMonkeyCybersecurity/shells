@@ -2,6 +2,7 @@ package payments
 
 import (
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"sync"
@@ -783,7 +784,7 @@ func (s *ShoppingCartTester) getCartTotal(endpoint string) float64 {
 	if err != nil {
 		return 0
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Parse total from response (simplified)
 	return 100.0 // Mock value

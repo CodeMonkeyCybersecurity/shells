@@ -381,7 +381,7 @@ func (t *TechFingerprinter) FingerprintURL(ctx context.Context, url string) ([]T
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Read body (limited to prevent memory issues)
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024)) // 1MB limit

@@ -3,6 +3,7 @@ package whois
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net"
 	"net/http"
@@ -302,7 +303,7 @@ func (w *WhoisClient) searchDomainsByEmail(email string) []string {
 		w.logger.Debug("Reverse WHOIS by email failed", "email", email, "error", err)
 		return []string{}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 	domains := w.extractDomainsFromHTML(string(body))
@@ -324,7 +325,7 @@ func (w *WhoisClient) searchDomainsByOrg(org string) []string {
 		w.logger.Debug("Reverse WHOIS by org failed", "org", org, "error", err)
 		return domains
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 	domains = w.extractDomainsFromHTML(string(body))
@@ -540,7 +541,7 @@ func (w *WhoisClient) FindExpiredDomains(org string) []string {
 		w.logger.Debug("Expired domains search failed", "org", org, "error", err)
 		return domains
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	body, _ := io.ReadAll(resp.Body)
 

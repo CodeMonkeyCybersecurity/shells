@@ -4,6 +4,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
@@ -306,7 +307,7 @@ func (sc *ServiceClassifier) analyzeHTTP(ctx context.Context, target string, tc 
 			return
 		}
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -350,7 +351,7 @@ func (sc *ServiceClassifier) analyzeHTTP(ctx context.Context, target string, tc 
 					tc.IsMailServer = true
 				}
 			}
-			resp.Body.Close()
+			httpclient.CloseBody(resp)
 		}
 	}
 }

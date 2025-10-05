@@ -4,6 +4,7 @@ package archive
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -515,7 +516,7 @@ func (a *ArchiveIntel) checkEndpointExists(url string) (bool, int) {
 	if err != nil {
 		return false, 0
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode < 500, resp.StatusCode
 }

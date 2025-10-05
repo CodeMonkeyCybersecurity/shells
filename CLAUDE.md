@@ -560,9 +560,14 @@ shells results search --term "Golden SAML"
 
 - **No emojis in code or documentation**: Keep it professional and parseable
 - **Prefer editing existing files over creating new ones**: Avoid file proliferation
-- **Documentation files only for strategic changes**: Don't create docs for every small change
-- **Inline comments for tactical notes**: Documentation should live at the exact place in code where it's needed, not in separate files
-- **Inline notation is a strong preference**: Keeps context close to implementation
+- **ALL documentation must be inline in code files** (ENFORCED):
+  - Strategic documentation: Header comments in relevant package/file
+  - Tactical notes: Inline comments at exact location in code
+  - Architecture decisions: Document in main package file (e.g., pkg/hera/hera.go)
+  - Fix summaries: Inline with ADVERSARIAL REVIEW STATUS blocks
+  - NEVER create standalone .md files for fix summaries, architecture docs, implementation status, or code review results
+  - ONLY create standalone .md for: README.md, CLAUDE.md, CONTRIBUTING.md
+  - When asked to document work, default to inline comments in code
 
 ### Priority System
 

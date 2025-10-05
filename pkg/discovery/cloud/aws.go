@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"regexp"
 	"strings"
@@ -162,7 +163,7 @@ func (a *AWSDiscovery) checkS3Bucket(ctx context.Context, bucketName string) *S3
 	if err != nil {
 		return bucket
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	bucket.Exists = resp.StatusCode != 404
 
@@ -232,7 +233,7 @@ func (a *AWSDiscovery) tryURL(ctx context.Context, url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode == 200
 }
@@ -307,7 +308,7 @@ func (a *AWSDiscovery) checkCloudFrontDomain(ctx context.Context, domain string)
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode != 404
 }
@@ -367,7 +368,7 @@ func (a *AWSDiscovery) checkMetadataEndpoint(ctx context.Context, baseURL, path 
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			// Read limited response
@@ -435,7 +436,7 @@ func (a *AWSDiscovery) checkElasticBeanstalkApp(ctx context.Context, url string)
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// EB apps usually return 200 or redirect
 	return resp.StatusCode == 200 || resp.StatusCode == 301 || resp.StatusCode == 302
@@ -538,7 +539,7 @@ func (a *AWSDiscovery) checkLambdaURL(ctx context.Context, url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Lambda URLs typically return 200, 403, or custom responses
 	return resp.StatusCode != 404

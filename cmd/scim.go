@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"os"
 	"strings"
@@ -419,7 +420,7 @@ func performBasicSCIMCheck(target string) {
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 500 {
 			fmt.Printf("✅ SCIM endpoint found: %s [%d]\n", path, resp.StatusCode)

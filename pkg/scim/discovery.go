@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"strings"
@@ -134,7 +135,7 @@ func (d *Discoverer) testServiceProviderConfig(ctx context.Context, baseURL stri
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == http.StatusOK {
 			body, err := io.ReadAll(resp.Body)
@@ -235,7 +236,7 @@ func (d *Discoverer) testSCIMResource(ctx context.Context, resourceURL string) b
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Check response headers for SCIM indicators
 	contentType := resp.Header.Get("Content-Type")
@@ -412,7 +413,7 @@ func (d *Discoverer) discoverResourceTypes(ctx context.Context, endpoint *SCIMEn
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
@@ -460,7 +461,7 @@ func (d *Discoverer) discoverSupportedOperations(ctx context.Context, endpoint *
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// If not 404/405, the method is likely supported
 		if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusMethodNotAllowed {
@@ -487,7 +488,7 @@ func (d *Discoverer) discoverSchemas(ctx context.Context, endpoint *SCIMEndpoint
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == http.StatusOK {
 		body, err := io.ReadAll(resp.Body)

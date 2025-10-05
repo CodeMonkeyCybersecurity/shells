@@ -1,9 +1,18 @@
 database:
-  type: sqlite
+  driver: sqlite3
   dsn: "shells_demo.db"
+
 logger:
   level: info
   format: console
+
 discovery:
   timeout: 30s
   max_depth: 3
+
+security:
+  rate_limit:
+    requests_per_second: 10
+    burst_size: 20
+  enable_auth: true
+  # API key will be loaded from SHELLS_API_KEY env var

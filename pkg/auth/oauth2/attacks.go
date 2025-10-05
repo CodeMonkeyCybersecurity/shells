@@ -2,6 +2,7 @@ package oauth2
 
 import (
 	"encoding/json"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"net/url"
 	"strings"
@@ -87,7 +88,7 @@ func (d *OAuth2Discoverer) discoverOIDCConfiguration(target string) *OIDCConfigu
 		d.logger.Debug("OIDC discovery failed", "url", discoveryURL, "error", err)
 		return nil
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		d.logger.Debug("OIDC discovery endpoint not found", "url", discoveryURL, "status", resp.StatusCode)
@@ -206,7 +207,7 @@ func (d *OAuth2Discoverer) discoverOAuth2Endpoints(config *common.AuthConfigurat
 		if err != nil {
 			continue
 		}
-		resp.Body.Close()
+		httpclient.CloseBody(resp)
 
 		// Check if endpoint exists (may return 400 for missing parameters)
 		if resp.StatusCode == 200 || resp.StatusCode == 400 || resp.StatusCode == 302 {
@@ -474,7 +475,7 @@ func (g *OAuth2AttackGenerator) executeGetAttack(attack OAuth2Attack, endpoint c
 		g.logger.Debug("GET attack failed", "error", err)
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Analyze response for signs of successful attack
 	return g.analyzeResponse(resp, attack)
@@ -487,7 +488,7 @@ func (g *OAuth2AttackGenerator) executePostAttack(attack OAuth2Attack, endpoint 
 		g.logger.Debug("POST attack failed", "error", err)
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Analyze response for signs of successful attack
 	return g.analyzeResponse(resp, attack)

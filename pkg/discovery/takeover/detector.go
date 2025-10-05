@@ -3,6 +3,7 @@ package takeover
 import (
 	"context"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
@@ -369,7 +370,7 @@ func (t *TakeoverDetector) checkHTTPResponse(ctx context.Context, domain string,
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		// Read limited body
 		body := make([]byte, 50000) // 50KB should be enough

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"regexp"
@@ -414,7 +415,7 @@ func (g *GCPDiscovery) checkGCSBucket(ctx context.Context, bucketName string) *G
 	if err != nil {
 		return bucket
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	switch resp.StatusCode {
 	case 200:
@@ -545,7 +546,7 @@ func (g *GCPDiscovery) checkAppEngine(ctx context.Context, url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// App Engine apps typically return 200 or redirect
 	return resp.StatusCode == 200 || resp.StatusCode == 301 || resp.StatusCode == 302
@@ -616,7 +617,7 @@ func (g *GCPDiscovery) checkCloudRun(ctx context.Context, url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Cloud Run services return 200, 401, 403, or custom responses
 	return resp.StatusCode != 404
@@ -698,7 +699,7 @@ func (g *GCPDiscovery) checkCloudFunction(ctx context.Context, url string) bool 
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Cloud Functions typically return 200, 401, 403, or function responses
 	return resp.StatusCode != 404
@@ -779,7 +780,7 @@ func (g *GCPDiscovery) checkFirebaseHosting(ctx context.Context, url string) boo
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	return resp.StatusCode == 200 || resp.StatusCode == 301 || resp.StatusCode == 302
 }
@@ -797,7 +798,7 @@ func (g *GCPDiscovery) checkFirebaseDatabase(ctx context.Context, url string) bo
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// Database exists if we get 200 (public) or 401 (auth required)
 	return resp.StatusCode == 200 || resp.StatusCode == 401
@@ -1218,7 +1219,7 @@ func (g *GCPDiscovery) checkMetadataEndpoint(ctx context.Context, baseURL, path 
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
+		defer httpclient.CloseBody(resp)
 
 		if resp.StatusCode == 200 {
 			// Read limited response
@@ -1299,7 +1300,7 @@ func (g *GCPDiscovery) checkAPIEndpoint(ctx context.Context, url string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	// API endpoints typically return 200, 401, 403, or custom responses
 	return resp.StatusCode != 404
@@ -1553,7 +1554,7 @@ func (g *GCPDiscovery) fetchURL(ctx context.Context, url string) string {
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode == 200 {
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 1024*1024)) // Limit to 1MB

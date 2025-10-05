@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -52,7 +53,7 @@ func (w *WaybackMachine) GetSnapshots(ctx context.Context, domain string) ([]Sna
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CDX data: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("CDX API returned status %d", resp.StatusCode)
@@ -132,7 +133,7 @@ func (w *WaybackMachine) GetContent(ctx context.Context, originalURL string, tim
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch content: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("Wayback Machine returned status %d", resp.StatusCode)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -139,7 +140,7 @@ func (b *BingEngine) Search(ctx context.Context, query string) ([]SearchResult, 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var bingResp struct {
 		WebPages struct {
@@ -210,7 +211,7 @@ func (d *DuckDuckGoEngine) Search(ctx context.Context, query string) ([]SearchRe
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	var ddgResp struct {
 		RelatedTopics []struct {
@@ -422,7 +423,7 @@ func (c *CommonCrawlEngine) Search(ctx context.Context, domain string) ([]Search
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer httpclient.CloseBody(resp)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("common crawl returned status %d", resp.StatusCode)
