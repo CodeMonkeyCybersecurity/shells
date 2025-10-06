@@ -5,17 +5,17 @@ import (
 )
 
 type Config struct {
-	Logger       LoggerConfig         `mapstructure:"logger"`
-	Database     DatabaseConfig       `mapstructure:"database"`
-	Redis        RedisConfig          `mapstructure:"redis"`
-	Worker       WorkerConfig         `mapstructure:"worker"`
-	Telemetry    TelemetryConfig      `mapstructure:"telemetry"`
-	Security     SecurityConfig       `mapstructure:"security"`
-	Tools        ToolsConfig          `mapstructure:"tools"`
-	Platforms    BugBountyPlatforms   `mapstructure:"platforms"`
-	ShodanAPIKey string               `mapstructure:"shodan_api_key"`
-	CensysAPIKey string               `mapstructure:"censys_api_key"`
-	CensysSecret string               `mapstructure:"censys_secret"`
+	Logger       LoggerConfig       `mapstructure:"logger"`
+	Database     DatabaseConfig     `mapstructure:"database"`
+	Redis        RedisConfig        `mapstructure:"redis"`
+	Worker       WorkerConfig       `mapstructure:"worker"`
+	Telemetry    TelemetryConfig    `mapstructure:"telemetry"`
+	Security     SecurityConfig     `mapstructure:"security"`
+	Tools        ToolsConfig        `mapstructure:"tools"`
+	Platforms    BugBountyPlatforms `mapstructure:"platforms"`
+	ShodanAPIKey string             `mapstructure:"shodan_api_key"`
+	CensysAPIKey string             `mapstructure:"censys_api_key"`
+	CensysSecret string             `mapstructure:"censys_secret"`
 }
 
 type LoggerConfig struct {
@@ -331,34 +331,34 @@ type FaviconConfig struct {
 
 // BugBountyPlatforms contains configuration for all bug bounty platform integrations
 type BugBountyPlatforms struct {
-	HackerOne HackerOneConfig `mapstructure:"hackerone"`
-	Bugcrowd  BugcrowdConfig  `mapstructure:"bugcrowd"`
-	AWS       AWSBountyConfig `mapstructure:"aws"`
+	HackerOne HackerOneConfig   `mapstructure:"hackerone"`
+	Bugcrowd  BugcrowdConfig    `mapstructure:"bugcrowd"`
+	AWS       AWSBountyConfig   `mapstructure:"aws"`
 	Azure     AzureBountyConfig `mapstructure:"azure"`
-	GCP       GCPBountyConfig `mapstructure:"gcp"`
+	GCP       GCPBountyConfig   `mapstructure:"gcp"`
 }
 
 // HackerOneConfig configures HackerOne API integration
 type HackerOneConfig struct {
-	Enabled       bool          `mapstructure:"enabled"`
-	APIUsername   string        `mapstructure:"api_username"`
-	APIToken      string        `mapstructure:"api_token"`
-	BaseURL       string        `mapstructure:"base_url"`
-	Timeout       time.Duration `mapstructure:"timeout"`
-	AutoSubmit    bool          `mapstructure:"auto_submit"`
-	MinimumSeverity string      `mapstructure:"minimum_severity"` // critical, high, medium, low
-	DraftMode     bool          `mapstructure:"draft_mode"`       // Create as draft instead of submitting
+	Enabled         bool          `mapstructure:"enabled"`
+	APIUsername     string        `mapstructure:"api_username"`
+	APIToken        string        `mapstructure:"api_token"`
+	BaseURL         string        `mapstructure:"base_url"`
+	Timeout         time.Duration `mapstructure:"timeout"`
+	AutoSubmit      bool          `mapstructure:"auto_submit"`
+	MinimumSeverity string        `mapstructure:"minimum_severity"` // critical, high, medium, low
+	DraftMode       bool          `mapstructure:"draft_mode"`       // Create as draft instead of submitting
 }
 
 // BugcrowdConfig configures Bugcrowd API integration
 type BugcrowdConfig struct {
-	Enabled       bool          `mapstructure:"enabled"`
-	APIToken      string        `mapstructure:"api_token"`
-	BaseURL       string        `mapstructure:"base_url"`
-	Timeout       time.Duration `mapstructure:"timeout"`
-	AutoSubmit    bool          `mapstructure:"auto_submit"`
-	MinimumSeverity string      `mapstructure:"minimum_severity"` // P1, P2, P3, P4, P5
-	DraftMode     bool          `mapstructure:"draft_mode"`
+	Enabled         bool          `mapstructure:"enabled"`
+	APIToken        string        `mapstructure:"api_token"`
+	BaseURL         string        `mapstructure:"base_url"`
+	Timeout         time.Duration `mapstructure:"timeout"`
+	AutoSubmit      bool          `mapstructure:"auto_submit"`
+	MinimumSeverity string        `mapstructure:"minimum_severity"` // P1, P2, P3, P4, P5
+	DraftMode       bool          `mapstructure:"draft_mode"`
 }
 
 // AWSBountyConfig configures AWS Vulnerability Research Program integration (via HackerOne)

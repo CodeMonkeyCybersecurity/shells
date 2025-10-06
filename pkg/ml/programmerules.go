@@ -20,8 +20,10 @@ type ProgramRules struct {
 	ipResolver    *IPResolver
 	domainMatcher *DomainMatcher
 	config        ProgramRulesConfig
-	logger        interface{ Errorw(msg string, keysAndValues ...interface{}) } // Optional logger for structured logging
-	mu            sync.RWMutex
+	logger        interface {
+		Errorw(msg string, keysAndValues ...interface{})
+	} // Optional logger for structured logging
+	mu sync.RWMutex
 }
 
 // ProgramRulesConfig holds configuration for program rules

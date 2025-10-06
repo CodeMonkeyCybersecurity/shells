@@ -86,7 +86,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate TLS configuration
-	if (tlsCert != "" || tlsKey != "") {
+	if tlsCert != "" || tlsKey != "" {
 		if tlsCert == "" || tlsKey == "" {
 			return fmt.Errorf("both --tls-cert and --tls-key must be provided for TLS")
 		}
@@ -355,4 +355,3 @@ func startWorkerService(log *logger.Logger, port int) (*exec.Cmd, error) {
 
 	return cmd, nil
 }
-

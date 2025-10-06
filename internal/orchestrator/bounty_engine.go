@@ -5,14 +5,17 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
-	"strings"
-
+	configpkg "github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/api"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nmap"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nuclei"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/progress"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/ratelimit"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
@@ -40,6 +43,11 @@ type BugBountyEngine struct {
 	webauthnScanner *webauthn.WebAuthnScanner
 	scimScanner     core.Scanner
 	authDiscovery   *auth.AuthDiscoveryEngine
+
+	// Additional scanners
+	nmapScanner    core.Scanner // Nmap port scanning and service fingerprinting
+	nucleiScanner  core.Scanner // Nuclei vulnerability scanning
+	graphqlScanner core.Scanner // GraphQL introspection and testing
 
 	// Configuration
 	config BugBountyConfig
@@ -69,19 +77,20 @@ type BugBountyConfig struct {
 	EnableServiceFingerprint bool // Deep service version detection on open ports
 
 	// Comprehensive testing settings
-	EnableAuthTesting   bool // SAML, OAuth2, WebAuthn, JWT
-	EnableAPITesting    bool // REST API security
-	EnableLogicTesting  bool // Business logic flaws
-	EnableSSRFTesting   bool // Server-side request forgery
-	EnableAccessControl bool // IDOR, broken access control
-	EnableSCIMTesting   bool // SCIM provisioning vulnerabilities
+	EnableAuthTesting    bool // SAML, OAuth2, WebAuthn, JWT
+	EnableAPITesting     bool // REST API security
+	EnableLogicTesting   bool // Business logic flaws
+	EnableSSRFTesting    bool // Server-side request forgery
+	EnableAccessControl  bool // IDOR, broken access control
+	EnableSCIMTesting    bool // SCIM provisioning vulnerabilities
 	EnableGraphQLTesting bool // GraphQL introspection, injection, DoS
 	EnableIDORTesting    bool // Insecure Direct Object Reference testing
 	EnableSQLiTesting    bool // SQL injection detection
 	EnableXSSTesting     bool // Cross-site scripting detection
+	EnableNucleiScan     bool // Nuclei vulnerability templates (CVEs, misconfigurations)
 
 	// Database and persistence
-	EnableTemporalSnapshots bool // Track changes over time (historical comparison)
+	EnableTemporalSnapshots bool          // Track changes over time (historical comparison)
 	SnapshotInterval        time.Duration // How often to snapshot (for repeated scans)
 
 	// Rate limiting settings
@@ -128,6 +137,7 @@ func DefaultBugBountyConfig() BugBountyConfig {
 		EnableIDORTesting:    true, // Insecure Direct Object Reference (sequential IDs, UUIDs)
 		EnableSQLiTesting:    true, // SQL injection detection and exploitation
 		EnableXSSTesting:     true, // Reflected, stored, DOM-based XSS
+		EnableNucleiScan:     true, // Nuclei vulnerability scanner (CVEs, misconfigurations, exposures)
 
 		// Database and persistence - track everything over time
 		EnableTemporalSnapshots: true,           // Save snapshots for historical comparison
@@ -162,6 +172,45 @@ func NewBugBountyEngine(
 
 	// Initialize SCIM scanner (implements core.Scanner interface)
 	var scimScanner core.Scanner = scim.NewScanner()
+
+	// Initialize Nmap scanner for service fingerprinting (if enabled)
+	var nmapScanner core.Scanner
+	if config.EnableServiceFingerprint {
+		nmapCfg := configpkg.NmapConfig{
+			BinaryPath: "nmap", // Use system nmap
+			Timeout:    2 * time.Minute,
+			Profiles: map[string]string{
+				"default": "-sV --version-intensity 2 -T4", // Quick service detection
+				"quick":   "-sV --version-intensity 2 -T4",
+				"full":    "-sV --version-all -T4",
+			},
+		}
+		nmapScanner = nmap.NewScanner(nmapCfg, samlLogger)
+		logger.Infow("Nmap scanner initialized", "component", "orchestrator")
+	}
+
+	// Initialize Nuclei scanner (if enabled)
+	var nucleiScanner core.Scanner
+	if config.EnableNucleiScan {
+		nucleiConfig := nuclei.NucleiConfig{
+			BinaryPath:    "nuclei",
+			TemplatesPath: "", // Use default
+			Timeout:       config.ScanTimeout,
+			RateLimit:     int(config.RateLimitPerSecond),
+			BulkSize:      25,
+			Concurrency:   25,
+			Retries:       2,
+		}
+		nucleiScanner = nuclei.NewScanner(nucleiConfig, samlLogger)
+		logger.Infow("Nuclei scanner initialized", "component", "orchestrator")
+	}
+
+	// Initialize GraphQL scanner (if enabled)
+	var graphqlScanner core.Scanner
+	if config.EnableGraphQLTesting {
+		graphqlScanner = api.NewGraphQLScanner(samlLogger)
+		logger.Infow("GraphQL scanner initialized", "component", "orchestrator")
+	}
 
 	// Initialize auth discovery engine
 	authDiscoveryConfig := auth.DiscoveryConfig{
@@ -218,6 +267,9 @@ func NewBugBountyEngine(
 		webauthnScanner: webauthnScanner,
 		scimScanner:     scimScanner,
 		authDiscovery:   authDiscovery,
+		nmapScanner:     nmapScanner,
+		nucleiScanner:   nucleiScanner,
+		graphqlScanner:  graphqlScanner,
 		config:          config,
 	}, nil
 }
@@ -673,6 +725,15 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 	if e.config.EnableAPITesting {
 		totalTests++
 	}
+	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
+		totalTests++
+	}
+	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
+		totalTests++
+	}
+	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
+		totalTests++
+	}
 
 	updateTestProgress := func() {
 		mu.Lock()
@@ -722,6 +783,48 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["api"] = result
+			mu.Unlock()
+			updateTestProgress()
+		}()
+	}
+
+	// Nmap Service Fingerprinting
+	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			findings, result := e.runNmapScans(ctx, assets)
+			mu.Lock()
+			allFindings = append(allFindings, findings...)
+			phaseResults["nmap"] = result
+			mu.Unlock()
+			updateTestProgress()
+		}()
+	}
+
+	// Nuclei Vulnerability Scanning
+	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			findings, result := e.runNucleiScans(ctx, assets)
+			mu.Lock()
+			allFindings = append(allFindings, findings...)
+			phaseResults["nuclei"] = result
+			mu.Unlock()
+			updateTestProgress()
+		}()
+	}
+
+	// GraphQL Testing
+	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			findings, result := e.runGraphQLTests(ctx, assets)
+			mu.Lock()
+			allFindings = append(allFindings, findings...)
+			phaseResults["graphql"] = result
 			mu.Unlock()
 			updateTestProgress()
 		}()
@@ -1053,6 +1156,205 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 	e.logger.Infow("API testing completed", "findings", len(findings), "duration", phase.Duration)
 
 	return findings, phase
+}
+
+// runNmapScans performs service fingerprinting and port scanning
+func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phase := PhaseResult{
+		Phase:     "nmap",
+		Status:    "running",
+		StartTime: time.Now(),
+	}
+
+	e.logger.Infow("Running Nmap service fingerprinting")
+
+	var findings []types.Finding
+
+	// Scan each asset's host
+	scannedHosts := make(map[string]bool) // Deduplicate hosts
+	for _, asset := range assets {
+		// Extract host from URL
+		host := extractHost(asset.Asset.Value)
+		if host == "" || scannedHosts[host] {
+			continue
+		}
+		scannedHosts[host] = true
+
+		e.logger.Debugw("Scanning host with Nmap",
+			"host", host,
+			"component", "nmap_scanner",
+		)
+
+		// Run Nmap scan
+		results, err := e.nmapScanner.Scan(ctx, host, nil)
+		if err != nil {
+			e.logger.Errorw("Nmap scan failed",
+				"error", err,
+				"host", host,
+				"component", "nmap_scanner",
+			)
+			continue
+		}
+
+		// Convert results to findings
+		findings = append(findings, results...)
+
+		e.logger.Infow("Nmap scan completed",
+			"host", host,
+			"findings", len(results),
+			"component", "nmap_scanner",
+		)
+	}
+
+	phase.EndTime = time.Now()
+	phase.Duration = phase.EndTime.Sub(phase.StartTime)
+	phase.Status = "completed"
+	phase.Findings = len(findings)
+
+	e.logger.Infow("Nmap scanning completed",
+		"findings", len(findings),
+		"duration", phase.Duration,
+		"hosts_scanned", len(scannedHosts),
+	)
+
+	return findings, phase
+}
+
+// runNucleiScans performs vulnerability scanning with Nuclei templates
+func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phase := PhaseResult{
+		Phase:     "nuclei",
+		Status:    "running",
+		StartTime: time.Now(),
+	}
+
+	e.logger.Infow("Running Nuclei vulnerability scanner")
+
+	var findings []types.Finding
+
+	// Scan high-priority assets
+	for _, asset := range assets {
+		e.logger.Debugw("Scanning with Nuclei",
+			"target", asset.Asset.Value,
+			"score", asset.Score,
+			"component", "nuclei_scanner",
+		)
+
+		// Run Nuclei scan
+		results, err := e.nucleiScanner.Scan(ctx, asset.Asset.Value, nil)
+		if err != nil {
+			e.logger.Errorw("Nuclei scan failed",
+				"error", err,
+				"target", asset.Asset.Value,
+				"component", "nuclei_scanner",
+			)
+			continue
+		}
+
+		// Convert results to findings
+		findings = append(findings, results...)
+
+		e.logger.Infow("Nuclei scan completed",
+			"target", asset.Asset.Value,
+			"findings", len(results),
+			"component", "nuclei_scanner",
+		)
+	}
+
+	phase.EndTime = time.Now()
+	phase.Duration = phase.EndTime.Sub(phase.StartTime)
+	phase.Status = "completed"
+	phase.Findings = len(findings)
+
+	e.logger.Infow("Nuclei scanning completed",
+		"findings", len(findings),
+		"duration", phase.Duration,
+		"targets_scanned", len(assets),
+	)
+
+	return findings, phase
+}
+
+// runGraphQLTests performs GraphQL security testing
+func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phase := PhaseResult{
+		Phase:     "graphql",
+		Status:    "running",
+		StartTime: time.Now(),
+	}
+
+	e.logger.Infow("Running GraphQL security tests")
+
+	var findings []types.Finding
+
+	// Find GraphQL endpoints
+	graphqlCount := 0
+	for _, asset := range assets {
+		url := asset.Asset.Value
+		// Check if URL likely contains GraphQL endpoint
+		if !strings.Contains(strings.ToLower(url), "graphql") &&
+			!strings.Contains(strings.ToLower(url), "/api") {
+			continue
+		}
+
+		graphqlCount++
+		e.logger.Debugw("Testing GraphQL endpoint",
+			"url", url,
+			"component", "graphql_scanner",
+		)
+
+		// Run GraphQL scan
+		results, err := e.graphqlScanner.Scan(ctx, url, nil)
+		if err != nil {
+			e.logger.Errorw("GraphQL scan failed",
+				"error", err,
+				"url", url,
+				"component", "graphql_scanner",
+			)
+			continue
+		}
+
+		// Convert results to findings
+		findings = append(findings, results...)
+
+		e.logger.Infow("GraphQL scan completed",
+			"url", url,
+			"findings", len(results),
+			"component", "graphql_scanner",
+		)
+	}
+
+	phase.EndTime = time.Now()
+	phase.Duration = phase.EndTime.Sub(phase.StartTime)
+	phase.Status = "completed"
+	phase.Findings = len(findings)
+
+	e.logger.Infow("GraphQL testing completed",
+		"findings", len(findings),
+		"duration", phase.Duration,
+		"endpoints_tested", graphqlCount,
+	)
+
+	return findings, phase
+}
+
+// extractHost extracts the host from a URL
+func extractHost(urlStr string) string {
+	// Simple extraction - just get the host part
+	if !strings.Contains(urlStr, "://") {
+		urlStr = "http://" + urlStr
+	}
+
+	// Parse URL
+	parts := strings.Split(urlStr, "://")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	hostPort := strings.Split(parts[1], "/")[0]
+	host := strings.Split(hostPort, ":")[0]
+
+	return host
 }
 
 // storeResults saves scan results to the database

@@ -42,11 +42,11 @@ func (c *Client) ValidateCredentials(ctx context.Context) error {
 func (c *Client) GetPrograms(ctx context.Context) ([]*platforms.Program, error) {
 	programs := []*platforms.Program{
 		{
-			Handle:   "azure",
-			Name:     "Microsoft Azure Bounty Program",
-			Platform: "azure",
-			URL:      "https://www.microsoft.com/en-us/msrc/bounty-microsoft-azure",
-			IsActive: true,
+			Handle:      "azure",
+			Name:        "Microsoft Azure Bounty Program",
+			Platform:    "azure",
+			URL:         "https://www.microsoft.com/en-us/msrc/bounty-microsoft-azure",
+			IsActive:    true,
 			Description: "The Microsoft Azure Bounty Program rewards researchers for identifying and reporting security vulnerabilities in Azure services.",
 			Scope: []platforms.Asset{
 				{
@@ -67,11 +67,11 @@ func (c *Client) GetPrograms(ctx context.Context) ([]*platforms.Program, error) 
 			},
 		},
 		{
-			Handle:   "azure-devops",
-			Name:     "Microsoft Azure DevOps Bounty Program",
-			Platform: "azure",
-			URL:      "https://www.microsoft.com/en-us/msrc/bounty-azure-devops",
-			IsActive: true,
+			Handle:      "azure-devops",
+			Name:        "Microsoft Azure DevOps Bounty Program",
+			Platform:    "azure",
+			URL:         "https://www.microsoft.com/en-us/msrc/bounty-azure-devops",
+			IsActive:    true,
 			Description: "The Azure DevOps Bounty Program covers Azure DevOps services and related infrastructure.",
 			Scope: []platforms.Asset{
 				{
@@ -140,10 +140,10 @@ func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityRepo
 			c.config.ReportingEmail),
 		SubmittedAt: time.Now(),
 		PlatformData: map[string]interface{}{
-			"reporting_email": c.config.ReportingEmail,
-			"program_type":    c.config.ProgramType,
-			"severity":        severity,
-			"email_body":      emailBody,
+			"reporting_email":            c.config.ReportingEmail,
+			"program_type":               c.config.ProgramType,
+			"severity":                   severity,
+			"email_body":                 emailBody,
 			"requires_manual_submission": true,
 		},
 	}, nil

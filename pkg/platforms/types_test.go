@@ -100,11 +100,11 @@ func TestVulnerabilityReport_Validation(t *testing.T) {
 
 func TestSubmissionResponse_Validation(t *testing.T) {
 	response := &SubmissionResponse{
-		Success:  true,
-		ReportID: "12345",
+		Success:   true,
+		ReportID:  "12345",
 		ReportURL: "https://example.com/reports/12345",
-		Status:   "pending",
-		Message:  "Success",
+		Status:    "pending",
+		Message:   "Success",
 	}
 
 	if !response.Success {

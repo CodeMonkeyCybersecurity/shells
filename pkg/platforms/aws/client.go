@@ -12,7 +12,7 @@ import (
 // Client implements the AWS Vulnerability Research Program client
 // AWS uses HackerOne for their bug bounty program
 type Client struct {
-	config         config.AWSBountyConfig
+	config          config.AWSBountyConfig
 	hackerOneClient *hackerone.Client
 }
 
@@ -31,7 +31,7 @@ func NewClient(cfg config.AWSBountyConfig) *Client {
 	}
 
 	return &Client{
-		config:         cfg,
+		config:          cfg,
 		hackerOneClient: hackerone.NewClient(h1Config),
 	}
 }

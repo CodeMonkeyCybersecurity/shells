@@ -27,11 +27,11 @@ type Platform interface {
 // VulnerabilityReport represents a standardized vulnerability report
 type VulnerabilityReport struct {
 	// Basic information
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Severity    string    `json:"severity"`
-	CVSSScore   float64   `json:"cvss_score,omitempty"`
-	CWE         string    `json:"cwe,omitempty"`
+	Title       string  `json:"title"`
+	Description string  `json:"description"`
+	Severity    string  `json:"severity"`
+	CVSSScore   float64 `json:"cvss_score,omitempty"`
+	CWE         string  `json:"cwe,omitempty"`
 
 	// Target information
 	ProgramHandle string `json:"program_handle"`
@@ -39,22 +39,22 @@ type VulnerabilityReport struct {
 	AssetType     string `json:"asset_type,omitempty"` // domain, ip, mobile_app, etc.
 
 	// Technical details
-	ProofOfConcept  string   `json:"proof_of_concept"`
-	ReproSteps      []string `json:"repro_steps"`
-	Impact          string   `json:"impact"`
-	Remediation     string   `json:"remediation,omitempty"`
+	ProofOfConcept string   `json:"proof_of_concept"`
+	ReproSteps     []string `json:"repro_steps"`
+	Impact         string   `json:"impact"`
+	Remediation    string   `json:"remediation,omitempty"`
 
 	// Supporting data
-	Attachments     []Attachment `json:"attachments,omitempty"`
-	References      []string     `json:"references,omitempty"`
+	Attachments []Attachment `json:"attachments,omitempty"`
+	References  []string     `json:"references,omitempty"`
 
 	// Metadata
-	DiscoveredAt    time.Time `json:"discovered_at"`
-	ScanID          string    `json:"scan_id,omitempty"`
-	ToolName        string    `json:"tool_name,omitempty"`
+	DiscoveredAt time.Time `json:"discovered_at"`
+	ScanID       string    `json:"scan_id,omitempty"`
+	ToolName     string    `json:"tool_name,omitempty"`
 
 	// Platform-specific fields
-	PlatformData    map[string]interface{} `json:"platform_data,omitempty"`
+	PlatformData map[string]interface{} `json:"platform_data,omitempty"`
 }
 
 // Validate checks if the vulnerability report has all required fields
@@ -87,12 +87,12 @@ type Attachment struct {
 
 // SubmissionResponse represents the response from submitting a report
 type SubmissionResponse struct {
-	Success      bool      `json:"success"`
-	ReportID     string    `json:"report_id"`
-	ReportURL    string    `json:"report_url"`
-	Status       string    `json:"status"` // draft, pending, accepted, etc.
-	Message      string    `json:"message,omitempty"`
-	SubmittedAt  time.Time `json:"submitted_at"`
+	Success      bool                   `json:"success"`
+	ReportID     string                 `json:"report_id"`
+	ReportURL    string                 `json:"report_url"`
+	Status       string                 `json:"status"` // draft, pending, accepted, etc.
+	Message      string                 `json:"message,omitempty"`
+	SubmittedAt  time.Time              `json:"submitted_at"`
 	PlatformData map[string]interface{} `json:"platform_data,omitempty"`
 }
 

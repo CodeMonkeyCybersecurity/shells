@@ -46,11 +46,11 @@ func NewWorkflowManager(cfg *config.Config) *WorkflowManager {
 
 // SubmissionResult represents the result of a platform submission
 type SubmissionResult struct {
-	Platform  string
-	Success   bool
-	Response  *platforms.SubmissionResponse
-	Error     error
-	Skipped   bool
+	Platform   string
+	Success    bool
+	Response   *platforms.SubmissionResponse
+	Error      error
+	Skipped    bool
 	SkipReason string
 }
 

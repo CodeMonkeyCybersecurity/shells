@@ -144,11 +144,11 @@ func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityRepo
 		Data: createReportData{
 			Type: "report",
 			Attributes: reportAttributes{
-				TeamHandle:           report.ProgramHandle,
-				Title:                report.Title,
+				TeamHandle:               report.ProgramHandle,
+				Title:                    report.Title,
 				VulnerabilityInformation: report.Description + "\n\n" + report.ProofOfConcept,
-				Severity:             severity,
-				ImpactDescription:    report.Impact,
+				Severity:                 severity,
+				ImpactDescription:        report.Impact,
 			},
 		},
 	}

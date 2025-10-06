@@ -352,7 +352,9 @@ atomic:
 type ConfigManager struct {
 	configPath string
 	validator  *ConfigValidator
-	logger     interface{ Warnw(msg string, keysAndValues ...interface{}) } // Optional logger for structured logging
+	logger     interface {
+		Warnw(msg string, keysAndValues ...interface{})
+	} // Optional logger for structured logging
 }
 
 // NewConfigManager creates a new configuration manager

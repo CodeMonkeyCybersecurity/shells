@@ -112,13 +112,13 @@ type Finding struct {
 
 // TestResult represents the result of a single security test
 type TestResult struct {
-	Name        string    `json:"name"`
+	Name        string       `json:"name"`
 	Protocol    AuthProtocol `json:"protocol"`
-	Vulnerable  bool      `json:"vulnerable"`
-	Severity    string    `json:"severity"`
-	Description string    `json:"description"`
-	Evidence    []Evidence `json:"evidence,omitempty"`
-	ExecutedAt  time.Time `json:"executed_at"`
+	Vulnerable  bool         `json:"vulnerable"`
+	Severity    string       `json:"severity"`
+	Description string       `json:"description"`
+	Evidence    []Evidence   `json:"evidence,omitempty"`
+	ExecutedAt  time.Time    `json:"executed_at"`
 }
 
 // AuthReport represents the main authentication report

@@ -11,9 +11,9 @@ type programResponse struct {
 }
 
 type programData struct {
-	ID            string             `json:"id"`
-	Type          string             `json:"type"`
-	Attributes    programAttributes  `json:"attributes"`
+	ID            string               `json:"id"`
+	Type          string               `json:"type"`
+	Attributes    programAttributes    `json:"attributes"`
 	Relationships programRelationships `json:"relationships,omitempty"`
 }
 
@@ -33,8 +33,8 @@ type structuredScopes struct {
 }
 
 type scopeData struct {
-	ID         string         `json:"id"`
-	Type       string         `json:"type"`
+	ID         string          `json:"id"`
+	Type       string          `json:"type"`
 	Attributes scopeAttributes `json:"attributes"`
 }
 
@@ -70,8 +70,8 @@ type createReportResponse struct {
 }
 
 type createReportResponseData struct {
-	ID         string                       `json:"id"`
-	Type       string                       `json:"type"`
+	ID         string                         `json:"id"`
+	Type       string                         `json:"type"`
 	Attributes createReportResponseAttributes `json:"attributes"`
 }
 
