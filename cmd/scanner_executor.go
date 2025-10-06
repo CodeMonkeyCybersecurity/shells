@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
@@ -130,7 +131,8 @@ func executeAuthScanner(ctx context.Context, rec discovery.ScannerRecommendation
 	log.Infow("Running authentication security tests")
 
 	// Get Nomad client
-	nomadClient, useNomad := getNomadClient()
+	executor := scanners.NewScanExecutor(log, store, cfg)
+	nomadClient, useNomad := executor.GetNomadClient()
 
 	for _, target := range rec.Targets {
 		scanID := fmt.Sprintf("auth-scan-%s-%d", strings.ReplaceAll(target, ".", "-"), time.Now().Unix())
