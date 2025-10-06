@@ -45,9 +45,11 @@ AUTHENTICATION:
     - Auto-generated for local development (see security warning)
 
 Example:
-  shells serve                                      # Start everything on default ports
+  shells serve                                      # Start in foreground (Ctrl+C to stop)
+  shells serve -d                                   # Start in background (daemon mode)
+  shells serve --daemon                             # Same as -d
   shells serve --port 8080 --workers-port 5000     # Custom ports
-  SHELLS_API_KEY=secret shells serve               # Production with API key
+  SHELLS_API_KEY=secret shells serve -d            # Production daemon with API key
   shells serve --tls-cert cert.pem --tls-key key.pem # HTTPS mode
 `,
 	RunE: runServe,
@@ -60,10 +62,37 @@ var (
 	tlsCert     string
 	tlsKey      string
 	workersPort int
+	daemonMode  bool
 )
+
+var serveStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop a running Shells server",
+	Long:  `Stop a Shells server running in daemon mode by finding and killing the process.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		port, _ := cmd.Flags().GetInt("port")
+
+		// Find process using the port
+		output, err := exec.Command("lsof", "-ti", fmt.Sprintf(":%d", port)).Output()
+		if err != nil {
+			return fmt.Errorf("no server found on port %d", port)
+		}
+
+		pid := string(output)
+		pid = pid[:len(pid)-1] // Remove trailing newline
+
+		if err := exec.Command("kill", pid).Run(); err != nil {
+			return fmt.Errorf("failed to stop server (PID %s): %w", pid, err)
+		}
+
+		fmt.Printf("✅ Shells server stopped (PID: %s)\n", pid)
+		return nil
+	},
+}
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
+	serveCmd.AddCommand(serveStopCmd)
 
 	// No config file flag needed - using flags + env vars from root.go
 	serveCmd.Flags().IntVar(&serverPort, "port", 8080, "Port to listen on")
@@ -72,9 +101,51 @@ func init() {
 	serveCmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Path to TLS certificate (optional)")
 	serveCmd.Flags().StringVar(&tlsKey, "tls-key", "", "Path to TLS private key (optional)")
 	serveCmd.Flags().IntVar(&workersPort, "workers-port", 5000, "Port for worker service")
+	serveCmd.Flags().BoolVarP(&daemonMode, "daemon", "d", false, "Run in background (daemon mode)")
+
+	serveStopCmd.Flags().Int("port", 8080, "Port the server is running on")
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
+	// Handle daemon mode - fork process and exit parent
+	if daemonMode {
+		if os.Getenv("SHELLS_DAEMON_CHILD") != "1" {
+			// Parent process - fork and exit
+			selfExec, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("failed to get executable path: %w", err)
+			}
+
+			// Rebuild args without -d/--daemon flag
+			newArgs := []string{}
+			for _, arg := range os.Args[1:] {
+				if arg != "-d" && arg != "--daemon" {
+					newArgs = append(newArgs, arg)
+				}
+			}
+
+			procCmd := exec.Command(selfExec, newArgs...)
+			procCmd.Env = append(os.Environ(), "SHELLS_DAEMON_CHILD=1")
+			procCmd.Stdout = nil
+			procCmd.Stderr = nil
+			procCmd.Stdin = nil
+
+			if err := procCmd.Start(); err != nil {
+				return fmt.Errorf("failed to start daemon: %w", err)
+			}
+
+			fmt.Printf("✅ Shells server started in background (PID: %d)\n", procCmd.Process.Pid)
+			fmt.Printf("   Web UI:      http://localhost:%d\n", serverPort)
+			fmt.Printf("   API:         http://localhost:%d/api/v1/\n", serverPort)
+			fmt.Printf("   Health:      http://localhost:%d/health\n", serverPort)
+			fmt.Printf("   Workers:     http://localhost:%d\n", workersPort)
+			fmt.Printf("\nTo stop: kill %d\n", procCmd.Process.Pid)
+
+			return nil // Parent exits
+		}
+		// Child process continues below
+	}
+
 	// Configuration comes from flags + env vars (set in root.go init())
 	// No YAML files needed
 	viper.AutomaticEnv()
@@ -285,6 +356,12 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	select {
 	case err := <-serverErrors:
+		log.Errorw("HTTP server failed to start",
+			"error", err,
+			"address", addr,
+			"port", serverPort,
+			"hint", "Port may already be in use - try: lsof -i :"+fmt.Sprintf("%d", serverPort),
+		)
 		return fmt.Errorf("server error: %w", err)
 
 	case sig := <-shutdown:
