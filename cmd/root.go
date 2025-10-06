@@ -83,15 +83,21 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/credentials"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/checkpoint"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/shutdown"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var (
-	cfg   *config.Config
-	log   *logger.Logger
-	store core.ResultStore
+	cfg              *config.Config
+	log              *logger.Logger
+	store            core.ResultStore
+	shutdownHandler  *shutdown.Handler
+	checkpointMgr    *checkpoint.Manager
+	currentScanID    string // Track current scan for checkpointing on shutdown
+	currentCheckpoint *checkpoint.State // Track current checkpoint state
 )
 
 // GetStore returns the initialized database store
@@ -179,6 +185,38 @@ The main command runs the COMPREHENSIVE orchestrated pipeline:
 		// Point-and-click mode: Use intelligent orchestrator
 		target := args[0]
 
+		// Initialize checkpoint manager
+		var err error
+		checkpointMgr, err = checkpoint.NewManager()
+		if err != nil {
+			log.Warnw("Failed to initialize checkpoint manager - checkpointing disabled",
+				"error", err,
+			)
+		}
+
+		// Initialize shutdown handler
+		shutdownHandler = shutdown.NewHandler()
+
+		// Register checkpoint save on shutdown
+		if checkpointMgr != nil && currentCheckpoint != nil {
+			shutdownHandler.RegisterShutdownFunc(func() error {
+				if currentCheckpoint != nil && currentScanID != "" {
+					ctx := context.Background()
+					if err := checkpointMgr.Save(ctx, currentCheckpoint); err != nil {
+						log.Errorw("Failed to save checkpoint on shutdown", "error", err)
+						return err
+					}
+					log.Infow("Checkpoint saved successfully",
+						"scan_id", currentScanID,
+						"progress", currentCheckpoint.Progress,
+					)
+					color.Green("\n  Progress saved to checkpoint: %s\n", currentScanID)
+					color.White("  Resume with: shells resume %s\n\n", currentScanID)
+				}
+				return nil
+			})
+		}
+
 		// Set up context with cancellation for Ctrl+C handling
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -191,7 +229,10 @@ The main command runs the COMPREHENSIVE orchestrated pipeline:
 		go func() {
 			sig := <-sigChan
 			color.Yellow("\n\n  Received %s - shutting down gracefully...\n", sig)
-			color.White("   Partial results will be saved to database.\n\n")
+
+			// Trigger graceful shutdown
+			shutdownHandler.Shutdown()
+
 			cancel()
 		}()
 
