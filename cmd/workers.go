@@ -76,10 +76,10 @@ and install all dependencies. This only needs to be run once.`,
 		// Update requirements.txt files for Python 3.12 compatibility
 		log.Info("🔧 Updating requirements for Python 3.12 compatibility...", "component", "workers")
 		if err := updateGraphCrawlerRequirements(graphCrawlerDir); err != nil {
-			log.Warnw("⚠️  Warning: Failed to update GraphCrawler requirements", "error", err, "component", "workers")
+			log.Warnw("  Warning: Failed to update GraphCrawler requirements", "error", err, "component", "workers")
 		}
 		if err := updateIDORDRequirements(idordDir); err != nil {
-			log.Warnw("⚠️  Warning: Failed to update IDORD requirements", "error", err, "component", "workers")
+			log.Warnw("  Warning: Failed to update IDORD requirements", "error", err, "component", "workers")
 		}
 
 		// Create Python virtual environment
@@ -115,7 +115,7 @@ and install all dependencies. This only needs to be run once.`,
 			installCmd.Stdout = os.Stdout
 			installCmd.Stderr = os.Stderr
 			if err := installCmd.Run(); err != nil {
-				log.Warnw("⚠️  Warning: Failed to install GraphCrawler requirements", "error", err, "component", "workers")
+				log.Warnw("  Warning: Failed to install GraphCrawler requirements", "error", err, "component", "workers")
 			}
 		}
 
@@ -126,7 +126,7 @@ and install all dependencies. This only needs to be run once.`,
 			installCmd.Stdout = os.Stdout
 			installCmd.Stderr = os.Stderr
 			if err := installCmd.Run(); err != nil {
-				log.Warnw("⚠️  Warning: Failed to install IDORD requirements", "error", err, "component", "workers")
+				log.Warnw("  Warning: Failed to install IDORD requirements", "error", err, "component", "workers")
 			}
 		}
 
@@ -174,7 +174,7 @@ var workersStartCmd = &cobra.Command{
 		// Save PID for stopping later
 		pidFile := filepath.Join(workersDir, "worker.pid")
 		if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d", startCmd.Process.Pid)), 0644); err != nil {
-			log.Warnw("⚠️  Warning: Failed to save PID file", "error", err, "component", "workers")
+			log.Warnw("  Warning: Failed to save PID file", "error", err, "component", "workers")
 		}
 
 		// Wait for service to be ready

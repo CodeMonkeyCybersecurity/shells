@@ -134,7 +134,7 @@ func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityRepo
 			fmt.Sprintf("Azure Security Vulnerability: %s", report.Title) +
 			"&body=" + emailBody,
 		Status: "requires_manual_email", // User must click mailto link or copy email body
-		Message: fmt.Sprintf("⚠️  MANUAL ACTION REQUIRED: Report formatted but NOT submitted.\n"+
+		Message: fmt.Sprintf("  MANUAL ACTION REQUIRED: Report formatted but NOT submitted.\n"+
 			"Please click the mailto: link above or manually email the report to %s\n"+
 			"The email body has been formatted according to MSRC guidelines.",
 			c.config.ReportingEmail),

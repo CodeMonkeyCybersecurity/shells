@@ -241,7 +241,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 			"security_warning", "For production, set SHELLS_API_KEY environment variable",
 			"component", "api_server",
 		)
-		log.Warn("⚠️  SECURITY WARNING: Using auto-generated API key for local development")
+		log.Warn("  SECURITY WARNING: Using auto-generated API key for local development")
 		log.Warn("   For production use, set SHELLS_API_KEY environment variable")
 		log.Warn("   Example: export SHELLS_API_KEY=$(openssl rand -hex 32)")
 	} else {

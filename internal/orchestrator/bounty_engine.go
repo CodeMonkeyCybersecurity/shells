@@ -376,7 +376,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 			"time_until_deadline", time.Until(deadline).String(),
 		)
 	} else {
-		e.logger.Warnw("⚠️  No deadline on parent context - unexpected!")
+		e.logger.Warnw("  No deadline on parent context - unexpected!")
 	}
 
 	// Phase 1: Asset Discovery (or skip if configured)
@@ -664,7 +664,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 			"parent_deadline_seconds", time.Until(deadline).Seconds(),
 		)
 	} else {
-		e.logger.Warnw("⚠️  No parent context deadline - unexpected!",
+		e.logger.Warnw("  No parent context deadline - unexpected!",
 			"target", target,
 		)
 	}
@@ -1130,27 +1130,48 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 
 // runAuthenticationTests executes all authentication vulnerability tests
 func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target string, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "authentication",
 		Status:    "running",
-		StartTime: time.Now(),
+		StartTime: phaseStart,
 	}
 
-	e.logger.Infow("Testing authentication vulnerabilities", "target", target)
+	e.logger.Infow("🔐 Starting authentication testing phase",
+		"target", target,
+		"asset_count", len(assets),
+		"component", "auth_scanner",
+	)
+
+	// Check context status
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		e.logger.Infow("⏰ Context status at auth phase start",
+			"remaining_time", remaining.String(),
+			"remaining_seconds", remaining.Seconds(),
+			"context_healthy", remaining > 0,
+			"component", "auth_scanner",
+		)
+	}
 
 	var findings []types.Finding
 
 	// Discover authentication endpoints
-	e.logger.Infow(" Discovering authentication endpoints",
+	discoveryStart := time.Now()
+	e.logger.Infow("🔍 Discovering authentication endpoints",
 		"target", target,
 		"component", "auth_scanner",
 	)
 
 	authInventory, err := e.authDiscovery.DiscoverAllAuth(ctx, target)
+	discoveryDuration := time.Since(discoveryStart)
+
 	if err != nil {
-		e.logger.Errorw("Authentication discovery failed",
+		e.logger.Errorw("❌ Authentication discovery failed",
 			"error", err,
 			"target", target,
+			"discovery_duration", discoveryDuration.String(),
+			"elapsed_since_phase_start", time.Since(phaseStart).String(),
 			"component", "auth_scanner",
 		)
 		phase.Status = "failed"
@@ -1161,10 +1182,25 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 	}
 
 	// Log discovery results
-	e.logger.Infow("Authentication endpoint discovery complete",
+	protocolsFound := []string{}
+	if authInventory.SAML != nil {
+		protocolsFound = append(protocolsFound, "SAML")
+	}
+	if authInventory.OAuth2 != nil {
+		protocolsFound = append(protocolsFound, "OAuth2/OIDC")
+	}
+	if authInventory.WebAuthn != nil {
+		protocolsFound = append(protocolsFound, "WebAuthn/FIDO2")
+	}
+
+	e.logger.Infow("✅ Authentication endpoint discovery complete",
 		"saml_found", authInventory.SAML != nil,
 		"oauth2_found", authInventory.OAuth2 != nil,
 		"webauthn_found", authInventory.WebAuthn != nil,
+		"protocols_found", protocolsFound,
+		"protocol_count", len(protocolsFound),
+		"discovery_duration", discoveryDuration.String(),
+		"elapsed_since_phase_start", time.Since(phaseStart).String(),
 		"component", "auth_scanner",
 	)
 
@@ -1324,13 +1360,28 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 // runSCIMTests executes SCIM vulnerability tests in parallel
 func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "scim",
 		Status:    "running",
-		StartTime: time.Now(),
+		StartTime: phaseStart,
 	}
 
-	e.logger.Infow("Testing SCIM endpoints")
+	e.logger.Infow("🔍 Starting SCIM testing phase",
+		"asset_count", len(assets),
+		"component", "scim_scanner",
+	)
+
+	// Check context status
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		e.logger.Infow("⏰ Context status at SCIM phase start",
+			"remaining_time", remaining.String(),
+			"remaining_seconds", remaining.Seconds(),
+			"context_healthy", remaining > 0,
+			"component", "scim_scanner",
+		)
+	}
 
 	var findings []types.Finding
 	var mu sync.Mutex
@@ -1393,7 +1444,12 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow("SCIM testing completed", "findings", len(findings), "duration", phase.Duration)
+	e.logger.Infow("🎉 SCIM testing phase completed",
+		"total_findings", len(findings),
+		"phase_duration", phase.Duration.String(),
+		"elapsed_since_phase_start", time.Since(phaseStart).String(),
+		"component", "scim_scanner",
+	)
 
 	return findings, phase
 }
@@ -1482,7 +1538,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 			)
 		}
 	} else {
-		e.logger.Warnw("⚠️  No deadline on context before Nmap - unexpected!",
+		e.logger.Warnw("  No deadline on context before Nmap - unexpected!",
 			"component", "nmap_scanner",
 		)
 	}
