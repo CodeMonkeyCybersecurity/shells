@@ -110,6 +110,17 @@ type Finding struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
+// TestResult represents the result of a single security test
+type TestResult struct {
+	Name        string    `json:"name"`
+	Protocol    AuthProtocol `json:"protocol"`
+	Vulnerable  bool      `json:"vulnerable"`
+	Severity    string    `json:"severity"`
+	Description string    `json:"description"`
+	Evidence    []Evidence `json:"evidence,omitempty"`
+	ExecutedAt  time.Time `json:"executed_at"`
+}
+
 // AuthReport represents the main authentication report
 type AuthReport struct {
 	Target          string                 `json:"target"`
@@ -118,6 +129,7 @@ type AuthReport struct {
 	Configuration   AuthConfiguration      `json:"configuration"`
 	Vulnerabilities []Vulnerability        `json:"vulnerabilities"`
 	AttackChains    []AttackChain          `json:"attack_chains"`
+	Tests           []TestResult           `json:"tests"` // Individual test results for audit trail
 	Summary         ReportSummary          `json:"summary"`
 	Protocols       map[string]interface{} `json:"protocols"`
 }

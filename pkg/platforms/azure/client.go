@@ -125,22 +125,26 @@ func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityRepo
 	// For now, we return the formatted report
 	reportID := fmt.Sprintf("azure-%d", time.Now().Unix())
 
-	// P0-5: TODO: This should return Success: false since report is NOT actually submitted
-	// User must manually email the report. Currently misleading users that it's submitted.
+	// P0-5 FIX: Report is NOT automatically submitted - user must manually send email
+	// Success: false to indicate manual action required
 	return &platforms.SubmissionResponse{
-		Success:  true, // TODO: Change to false - report is not actually submitted!
+		Success:  false, // CRITICAL: Report is NOT submitted - user must manually email
 		ReportID: reportID,
 		ReportURL: "mailto:" + c.config.ReportingEmail + "?subject=" +
 			fmt.Sprintf("Azure Security Vulnerability: %s", report.Title) +
 			"&body=" + emailBody,
-		Status:      "pending_email", // TODO: Change to "pending_manual_email"
-		Message:     fmt.Sprintf("Report formatted for email submission to %s", c.config.ReportingEmail), // TODO: Add warning that manual action required
+		Status: "requires_manual_email", // User must click mailto link or copy email body
+		Message: fmt.Sprintf("⚠️  MANUAL ACTION REQUIRED: Report formatted but NOT submitted.\n"+
+			"Please click the mailto: link above or manually email the report to %s\n"+
+			"The email body has been formatted according to MSRC guidelines.",
+			c.config.ReportingEmail),
 		SubmittedAt: time.Now(),
 		PlatformData: map[string]interface{}{
 			"reporting_email": c.config.ReportingEmail,
 			"program_type":    c.config.ProgramType,
 			"severity":        severity,
 			"email_body":      emailBody,
+			"requires_manual_submission": true,
 		},
 	}, nil
 }

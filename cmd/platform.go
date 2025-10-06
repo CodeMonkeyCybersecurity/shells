@@ -42,9 +42,15 @@ var platformProgramsCmd = &cobra.Command{
 	Use:   "programs",
 	Short: "List available bug bounty programs",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// P0-2: TODO: Fix silent error suppression - check flag parsing errors
-		platform, _ := cmd.Flags().GetString("platform")
-		output, _ := cmd.Flags().GetString("output")
+		// P0-2 FIX: Check flag parsing errors
+		platform, err := cmd.Flags().GetString("platform")
+		if err != nil {
+			return fmt.Errorf("invalid --platform flag: %w", err)
+		}
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			return fmt.Errorf("invalid --output flag: %w", err)
+		}
 
 		client, err := getPlatformClient(platform)
 		if err != nil {
@@ -60,8 +66,11 @@ var platformProgramsCmd = &cobra.Command{
 		}
 
 		if output == "json" {
-			// P0-3: TODO: Fix silent error suppression - check JSON marshaling errors
-			jsonData, _ := json.MarshalIndent(programs, "", "  ")
+			// P0-3 FIX: Check JSON marshaling errors
+			jsonData, err := json.MarshalIndent(programs, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal programs to JSON: %w", err)
+			}
 			fmt.Println(string(jsonData))
 		} else {
 			printPrograms(programs)
@@ -77,10 +86,19 @@ var platformSubmitCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		findingID := args[0]
-		// P0-2: TODO: Fix silent error suppression - check flag parsing errors
-		platform, _ := cmd.Flags().GetString("platform")
-		programHandle, _ := cmd.Flags().GetString("program")
-		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		// P0-2 FIX: Check flag parsing errors
+		platform, err := cmd.Flags().GetString("platform")
+		if err != nil {
+			return fmt.Errorf("invalid --platform flag: %w", err)
+		}
+		programHandle, err := cmd.Flags().GetString("program")
+		if err != nil {
+			return fmt.Errorf("invalid --program flag: %w", err)
+		}
+		dryRun, err := cmd.Flags().GetBool("dry-run")
+		if err != nil {
+			return fmt.Errorf("invalid --dry-run flag: %w", err)
+		}
 
 		store := GetStore()
 		if store == nil {
@@ -112,7 +130,10 @@ var platformSubmitCmd = &cobra.Command{
 
 		if dryRun {
 			log.Info("DRY RUN - Report would be submitted:", "component", "platform")
-			reportJSON, _ := json.MarshalIndent(report, "", "  ")
+			reportJSON, err := json.MarshalIndent(report, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal report to JSON: %w", err)
+			}
 			fmt.Println(string(reportJSON))
 			return nil
 		}

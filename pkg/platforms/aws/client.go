@@ -69,14 +69,14 @@ func (c *Client) GetProgramByHandle(ctx context.Context, handle string) (*platfo
 
 // Submit submits a vulnerability report to AWS VRP via HackerOne
 func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityReport) (*platforms.SubmissionResponse, error) {
-	// P0-4: TODO: Add validation call here
-	// if err := report.Validate(); err != nil {
-	//     return nil, fmt.Errorf("invalid report: %w", err)
-	// }
-
 	// Ensure the report is for the AWS program
 	if report.ProgramHandle == "" {
 		report.ProgramHandle = c.config.ProgramHandle
+	}
+
+	// P0-4 FIX: Validate report before submission
+	if err := report.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid report: %w", err)
 	}
 
 	// Add AWS-specific context to the report

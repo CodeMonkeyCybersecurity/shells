@@ -130,10 +130,10 @@ func (c *Client) GetProgramByHandle(ctx context.Context, handle string) (*platfo
 
 // Submit submits a vulnerability report to HackerOne
 func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityReport) (*platforms.SubmissionResponse, error) {
-	// P0-4: TODO: Add validation call here
-	// if err := report.Validate(); err != nil {
-	//     return nil, fmt.Errorf("invalid report: %w", err)
-	// }
+	// P0-4 FIX: Validate report before submission
+	if err := report.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid report: %w", err)
+	}
 
 	// Map severity to HackerOne format
 	mapping := platforms.GetSeverityMapping("hackerone")
