@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/bugbounty"
 	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
@@ -363,6 +364,13 @@ func (o *Orchestrator) runComprehensiveScanning(ctx context.Context, session *di
 	fmt.Printf("\n Monitor job progress with: nomad job status <job_id>\n")
 	fmt.Printf(" Results will be automatically stored in the database upon completion\n\n")
 
+	// Run Bug Bounty Vulnerability Testing locally (Nomad jobs handle distributed scanning)
+	o.log.Info("Running bug bounty vulnerability testing")
+	tester := bugbounty.New(o.log, o.store)
+	if err := tester.RunVulnTesting(ctx, session); err != nil {
+		o.log.Error("Bug bounty vulnerability testing failed", "error", err)
+	}
+
 	return nil
 }
 
@@ -441,6 +449,13 @@ func (o *Orchestrator) runComprehensiveScanningLocal(ctx context.Context, sessio
 				o.log.Error("Authentication testing failed", "target", target, "error", err)
 			}
 		}
+	}
+
+	// Run Bug Bounty Vulnerability Testing
+	o.log.Info("Running bug bounty vulnerability testing")
+	tester := bugbounty.New(o.log, o.store)
+	if err := tester.RunVulnTesting(ctx, session); err != nil {
+		o.log.Error("Bug bounty vulnerability testing failed", "error", err)
 	}
 
 	return nil

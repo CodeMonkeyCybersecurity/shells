@@ -1,9 +1,23 @@
-package cmd
+// Package bugbounty provides targeted vulnerability testing for bug bounty hunting.
+// This package contains all bug bounty specific testing logic extracted from cmd/vuln_testing.go.
+//
+// Extracted as part of Phase 5 refactoring (2025-10-06) to isolate new feature into its own package.
+//
+// EXTRACTION SUMMARY (2025-10-06):
+// - Moved all 1,324 lines from cmd/vuln_testing.go to cmd/bugbounty/mode.go
+// - Created BugBountyTester struct to encapsulate functionality
+// - Converted 31 functions to methods with dependency injection
+// - Integrated with orchestrator.go for both Nomad and local execution
+// - Deleted original cmd/vuln_testing.go file
+// - All tests compile and build successfully
+//
+// This makes "bug bounty mode" an explicit, maintainable feature that can be
+// independently developed and tested without affecting other scanning modes.
+package bugbounty
 
 import (
 	"context"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
 	"regexp"
@@ -12,17 +26,34 @@ import (
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/vulntest"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
-// runBugBountyVulnTesting runs targeted vulnerability testing for bug bounty hunting
-func runBugBountyVulnTesting(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger, store core.ResultStore) error {
+// BugBountyTester coordinates bug bounty vulnerability testing.
+// It encapsulates all vulnerability testing logic and dependencies.
+type BugBountyTester struct {
+	log   *logger.Logger
+	store core.ResultStore
+}
+
+// New creates a new bug bounty tester with the required dependencies.
+func New(log *logger.Logger, store core.ResultStore) *BugBountyTester {
+	return &BugBountyTester{
+		log:   log,
+		store: store,
+	}
+}
+
+// RunVulnTesting runs targeted vulnerability testing for bug bounty hunting.
+// This is the main entry point for bug bounty mode vulnerability testing.
+func (b *BugBountyTester) RunVulnTesting(ctx context.Context, session *discovery.DiscoverySession) error {
 	fmt.Printf("\n%s=== Phase 2: High-Value Vulnerability Testing ===%s\n", "\033[1;34m", "\033[0m")
 
 	// Detect target type for specialized tests
-	targetType := detectPrimaryTargetType(session)
+	targetType := b.detectPrimaryTargetType(session)
 	fmt.Printf("Target type: %s\n\n", targetType)
 
 	var totalFindings []types.Finding
@@ -31,20 +62,20 @@ func runBugBountyVulnTesting(ctx context.Context, session *discovery.DiscoverySe
 	// Run tests based on target type with progress indicators
 	switch targetType {
 	case "mail":
-		totalFindings = runMailServerTestSuite(ctx, session, log, store)
+		totalFindings = b.runMailServerTestSuite(ctx, session)
 	case "api":
-		totalFindings = runAPITestSuite(ctx, session, log, store)
+		totalFindings = b.runAPITestSuite(ctx, session)
 	default:
-		totalFindings = runWebAppTestSuite(ctx, session, log, store)
+		totalFindings = b.runWebAppTestSuite(ctx, session)
 	}
 
 	// Always run authentication testing regardless of target type
 	// (mail servers, APIs, and web apps can all have auth mechanisms)
 	fmt.Printf("\n%s=== Cross-Cutting Security Tests ===%s\n", "\033[1;35m", "\033[0m")
 	fmt.Printf("[+] Testing authentication mechanisms... ")
-	authFindings := testWebAuthentication(ctx, session, log)
+	authFindings := b.testWebAuthentication(ctx, session)
 	totalFindings = append(totalFindings, authFindings...)
-	printTestResult(len(authFindings))
+	b.printTestResult(len(authFindings))
 
 	// Display summary
 	fmt.Printf("\n%sVulnerability Testing Complete%s\n", "\033[1;32m", "\033[0m")
@@ -53,13 +84,13 @@ func runBugBountyVulnTesting(ctx context.Context, session *discovery.DiscoverySe
 
 	// Display findings breakdown
 	if len(totalFindings) > 0 {
-		displayVulnerabilityFindings(totalFindings)
+		b.displayVulnerabilityFindings(totalFindings)
 	}
 
 	// Save all findings
 	if len(totalFindings) > 0 {
-		if err := store.SaveFindings(ctx, totalFindings); err != nil {
-			log.Error("Failed to save findings", "error", err)
+		if err := b.store.SaveFindings(ctx, totalFindings); err != nil {
+			b.log.Error("Failed to save findings", "error", err)
 		}
 	}
 
@@ -67,7 +98,7 @@ func runBugBountyVulnTesting(ctx context.Context, session *discovery.DiscoverySe
 }
 
 // detectPrimaryTargetType analyzes discovered assets to determine the primary target type
-func detectPrimaryTargetType(session *discovery.DiscoverySession) string {
+func (b *BugBountyTester) detectPrimaryTargetType(session *discovery.DiscoverySession) string {
 	// TODO: Improve detection logic based on discovered services
 	target := strings.ToLower(session.Target.Value)
 
@@ -87,112 +118,112 @@ func detectPrimaryTargetType(session *discovery.DiscoverySession) string {
 }
 
 // runMailServerTestSuite runs comprehensive mail server vulnerability tests
-func runMailServerTestSuite(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger, store core.ResultStore) []types.Finding {
+func (b *BugBountyTester) runMailServerTestSuite(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var allFindings []types.Finding
 
 	// Test 1: Default Credentials
 	fmt.Printf("[1/5] Testing default credentials... ")
-	defaultCredFindings := testMailDefaultCredentials(ctx, session, log)
+	defaultCredFindings := b.testMailDefaultCredentials(ctx, session)
 	allFindings = append(allFindings, defaultCredFindings...)
-	printTestResult(len(defaultCredFindings))
+	b.printTestResult(len(defaultCredFindings))
 
 	// Test 2: Open Relay
 	fmt.Printf("[2/5] Testing for open relay... ")
-	openRelayFindings := testMailOpenRelay(ctx, session, log)
+	openRelayFindings := b.testMailOpenRelay(ctx, session)
 	allFindings = append(allFindings, openRelayFindings...)
-	printTestResult(len(openRelayFindings))
+	b.printTestResult(len(openRelayFindings))
 
 	// Test 3: Webmail XSS
 	fmt.Printf("[3/5] Testing webmail for XSS... ")
-	xssFindings := testWebmailXSS(ctx, session, log)
+	xssFindings := b.testWebmailXSS(ctx, session)
 	allFindings = append(allFindings, xssFindings...)
-	printTestResult(len(xssFindings))
+	b.printTestResult(len(xssFindings))
 
 	// Test 4: Mail Header Injection
 	fmt.Printf("[4/5] Testing mail header injection... ")
-	headerFindings := testMailHeaderInjection(ctx, session, log)
+	headerFindings := b.testMailHeaderInjection(ctx, session)
 	allFindings = append(allFindings, headerFindings...)
-	printTestResult(len(headerFindings))
+	b.printTestResult(len(headerFindings))
 
 	// Test 5: SMTP Auth Bypass
 	fmt.Printf("[5/5] Testing SMTP authentication bypass... ")
-	authFindings := testSMTPAuthBypass(ctx, session, log)
+	authFindings := b.testSMTPAuthBypass(ctx, session)
 	allFindings = append(allFindings, authFindings...)
-	printTestResult(len(authFindings))
+	b.printTestResult(len(authFindings))
 
 	return allFindings
 }
 
 // runAPITestSuite runs comprehensive API vulnerability tests
-func runAPITestSuite(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger, store core.ResultStore) []types.Finding {
+func (b *BugBountyTester) runAPITestSuite(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var allFindings []types.Finding
 
 	// Test 1: GraphQL Introspection
 	fmt.Printf("[1/4] Testing GraphQL introspection... ")
-	graphqlFindings := testGraphQLIntrospection(ctx, session, log)
+	graphqlFindings := b.testGraphQLIntrospection(ctx, session)
 	allFindings = append(allFindings, graphqlFindings...)
-	printTestResult(len(graphqlFindings))
+	b.printTestResult(len(graphqlFindings))
 
 	// Test 2: JWT Vulnerabilities
 	fmt.Printf("[2/4] Testing JWT security... ")
-	jwtFindings := testJWTVulnerabilities(ctx, session, log)
+	jwtFindings := b.testJWTVulnerabilities(ctx, session)
 	allFindings = append(allFindings, jwtFindings...)
-	printTestResult(len(jwtFindings))
+	b.printTestResult(len(jwtFindings))
 
 	// Test 3: API Authorization
 	fmt.Printf("[3/4] Testing API authorization... ")
-	authzFindings := testAPIAuthorization(ctx, session, log)
+	authzFindings := b.testAPIAuthorization(ctx, session)
 	allFindings = append(allFindings, authzFindings...)
-	printTestResult(len(authzFindings))
+	b.printTestResult(len(authzFindings))
 
 	// Test 4: Rate Limiting
 	fmt.Printf("[4/4] Testing rate limiting... ")
-	rateFindings := testAPIRateLimiting(ctx, session, log)
+	rateFindings := b.testAPIRateLimiting(ctx, session)
 	allFindings = append(allFindings, rateFindings...)
-	printTestResult(len(rateFindings))
+	b.printTestResult(len(rateFindings))
 
 	return allFindings
 }
 
 // runWebAppTestSuite runs comprehensive web app vulnerability tests
-func runWebAppTestSuite(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger, store core.ResultStore) []types.Finding {
+func (b *BugBountyTester) runWebAppTestSuite(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var allFindings []types.Finding
 
 	// Test 1: SQL Injection
 	fmt.Printf("[1/5] Testing for SQL injection... ")
-	sqliFindings := testSQLInjection(ctx, session, log)
+	sqliFindings := b.testSQLInjection(ctx, session)
 	allFindings = append(allFindings, sqliFindings...)
-	printTestResult(len(sqliFindings))
+	b.printTestResult(len(sqliFindings))
 
 	// Test 2: XSS
 	fmt.Printf("[2/5] Testing for XSS... ")
-	xssFindings := testXSS(ctx, session, log)
+	xssFindings := b.testXSS(ctx, session)
 	allFindings = append(allFindings, xssFindings...)
-	printTestResult(len(xssFindings))
+	b.printTestResult(len(xssFindings))
 
 	// Test 3: IDOR
 	fmt.Printf("[3/5] Testing for IDOR... ")
-	idorFindings := testIDOR(ctx, session, log)
+	idorFindings := b.testIDOR(ctx, session)
 	allFindings = append(allFindings, idorFindings...)
-	printTestResult(len(idorFindings))
+	b.printTestResult(len(idorFindings))
 
 	// Test 4: SSRF
 	fmt.Printf("[4/5] Testing for SSRF... ")
-	ssrfFindings := testSSRF(ctx, session, log)
+	ssrfFindings := b.testSSRF(ctx, session)
 	allFindings = append(allFindings, ssrfFindings...)
-	printTestResult(len(ssrfFindings))
+	b.printTestResult(len(ssrfFindings))
 
 	// Test 5: Open Redirect
 	fmt.Printf("[5/5] Testing for open redirects... ")
-	redirectFindings := testOpenRedirect(ctx, session, log)
+	redirectFindings := b.testOpenRedirect(ctx, session)
 	allFindings = append(allFindings, redirectFindings...)
-	printTestResult(len(redirectFindings))
+	b.printTestResult(len(redirectFindings))
 
 	return allFindings
 }
 
-// Helper function to print test results
-func printTestResult(count int) {
+// printTestResult prints a colored test result indicator
+func (b *BugBountyTester) printTestResult(count int) {
 	if count > 0 {
 		fmt.Printf("%s✓ Found %d vulnerabilities%s\n", "\033[1;31m", count, "\033[0m")
 	} else {
@@ -202,7 +233,7 @@ func printTestResult(count int) {
 
 // Mail Server Test Implementations
 
-func testMailDefaultCredentials(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testMailDefaultCredentials(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 	foundPanels := make(map[string]bool) // Track already found admin panels to avoid duplicates
 
@@ -310,7 +341,7 @@ func testMailDefaultCredentials(ctx context.Context, session *discovery.Discover
 						UpdatedAt: time.Now(),
 					})
 
-					log.WithScanID(session.ID).Warnw("Default credentials found",
+					b.log.WithScanID(session.ID).Warnw("Default credentials found",
 						"url", url,
 						"username", cred.username,
 						"password", cred.password,
@@ -326,7 +357,7 @@ func testMailDefaultCredentials(ctx context.Context, session *discovery.Discover
 	return findings
 }
 
-func testMailOpenRelay(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testMailOpenRelay(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	target := session.Target.Value
@@ -367,7 +398,7 @@ func testMailOpenRelay(ctx context.Context, session *discovery.DiscoverySession,
 				UpdatedAt: time.Now(),
 			})
 
-			log.WithScanID(session.ID).Warnw("Open mail relay detected",
+			b.log.WithScanID(session.ID).Warnw("Open mail relay detected",
 				"host", target,
 				"port", port,
 				"evidence", evidence,
@@ -378,7 +409,7 @@ func testMailOpenRelay(ctx context.Context, session *discovery.DiscoverySession,
 	return findings
 }
 
-func testWebmailXSS(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testWebmailXSS(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	target := session.Target.Value
@@ -452,7 +483,7 @@ func testWebmailXSS(ctx context.Context, session *discovery.DiscoverySession, lo
 								UpdatedAt: time.Now(),
 							})
 
-							log.WithScanID(session.ID).Warnw("XSS vulnerability found",
+							b.log.WithScanID(session.ID).Warnw("XSS vulnerability found",
 								"url", testURL,
 								"parameter", param,
 								"payload", payload,
@@ -470,7 +501,7 @@ func testWebmailXSS(ctx context.Context, session *discovery.DiscoverySession, lo
 	return findings
 }
 
-func testMailHeaderInjection(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testMailHeaderInjection(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	target := session.Target.Value
@@ -589,7 +620,7 @@ func testMailHeaderInjection(ctx context.Context, session *discovery.DiscoverySe
 							UpdatedAt: time.Now(),
 						})
 
-						log.WithScanID(session.ID).Warnw("Potential mail header injection",
+						b.log.WithScanID(session.ID).Warnw("Potential mail header injection",
 							"url", baseURL,
 							"field", field,
 							"payload", payload,
@@ -606,7 +637,7 @@ func testMailHeaderInjection(ctx context.Context, session *discovery.DiscoverySe
 	return findings
 }
 
-func testSMTPAuthBypass(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testSMTPAuthBypass(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	target := session.Target.Value
@@ -669,7 +700,7 @@ func testSMTPAuthBypass(ctx context.Context, session *discovery.DiscoverySession
 					UpdatedAt: time.Now(),
 				})
 
-				log.WithScanID(session.ID).Warnw("SMTP authentication bypass",
+				b.log.WithScanID(session.ID).Warnw("SMTP authentication bypass",
 					"host", target,
 					"port", port,
 					"username", cred.username,
@@ -684,7 +715,7 @@ func testSMTPAuthBypass(ctx context.Context, session *discovery.DiscoverySession
 
 // API Test Implementations
 
-func testGraphQLIntrospection(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testGraphQLIntrospection(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	// Check for GraphQL endpoints
@@ -718,7 +749,7 @@ func testGraphQLIntrospection(ctx context.Context, session *discovery.DiscoveryS
 	return findings
 }
 
-func testJWTVulnerabilities(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testJWTVulnerabilities(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	target := session.Target.Value
@@ -748,7 +779,7 @@ func testJWTVulnerabilities(ctx context.Context, session *discovery.DiscoverySes
 			testURL := fmt.Sprintf("%s://%s%s", scheme, target, endpoint)
 
 			// Try to get a JWT token by attempting login
-			token := attemptJWTExtraction(httpClient, testURL)
+			token := b.attemptJWTExtraction(httpClient, testURL)
 			if token == "" {
 				continue
 			}
@@ -784,7 +815,7 @@ func testJWTVulnerabilities(ctx context.Context, session *discovery.DiscoverySes
 					UpdatedAt: time.Now(),
 				})
 
-				log.WithScanID(session.ID).Warnw("JWT vulnerability found",
+				b.log.WithScanID(session.ID).Warnw("JWT vulnerability found",
 					"url", testURL,
 					"vulnerability", vulnDetails,
 				)
@@ -796,7 +827,7 @@ func testJWTVulnerabilities(ctx context.Context, session *discovery.DiscoverySes
 }
 
 // attemptJWTExtraction tries to extract JWT tokens from authentication endpoints
-func attemptJWTExtraction(httpClient *vulntest.HTTPClient, loginURL string) string {
+func (b *BugBountyTester) attemptJWTExtraction(httpClient *vulntest.HTTPClient, loginURL string) string {
 	// Try common test credentials to get a JWT
 	testCredentials := []struct {
 		username string
@@ -810,13 +841,13 @@ func attemptJWTExtraction(httpClient *vulntest.HTTPClient, loginURL string) stri
 
 	for _, cred := range testCredentials {
 		// Try form-based login
-		token := tryFormLogin(httpClient, loginURL, cred.username, cred.password)
+		token := b.tryFormLogin(httpClient, loginURL, cred.username, cred.password)
 		if token != "" {
 			return token
 		}
 
 		// Try JSON API login
-		token = tryJSONLogin(httpClient, loginURL, cred.username, cred.password)
+		token = b.tryJSONLogin(httpClient, loginURL, cred.username, cred.password)
 		if token != "" {
 			return token
 		}
@@ -825,7 +856,7 @@ func attemptJWTExtraction(httpClient *vulntest.HTTPClient, loginURL string) stri
 	return ""
 }
 
-func tryFormLogin(httpClient *vulntest.HTTPClient, loginURL, username, password string) string {
+func (b *BugBountyTester) tryFormLogin(httpClient *vulntest.HTTPClient, loginURL, username, password string) string {
 	formData := fmt.Sprintf("username=%s&password=%s", username, password)
 	resp, err := httpClient.Client.Post(loginURL, "application/x-www-form-urlencoded", strings.NewReader(formData))
 	if err != nil {
@@ -833,10 +864,10 @@ func tryFormLogin(httpClient *vulntest.HTTPClient, loginURL, username, password 
 	}
 	defer httpclient.CloseBody(resp)
 
-	return extractJWTFromResponse(resp)
+	return b.extractJWTFromResponse(resp)
 }
 
-func tryJSONLogin(httpClient *vulntest.HTTPClient, loginURL, username, password string) string {
+func (b *BugBountyTester) tryJSONLogin(httpClient *vulntest.HTTPClient, loginURL, username, password string) string {
 	jsonData := fmt.Sprintf(`{"username":"%s","password":"%s"}`, username, password)
 	resp, err := httpClient.Client.Post(loginURL, "application/json", strings.NewReader(jsonData))
 	if err != nil {
@@ -844,15 +875,15 @@ func tryJSONLogin(httpClient *vulntest.HTTPClient, loginURL, username, password 
 	}
 	defer httpclient.CloseBody(resp)
 
-	return extractJWTFromResponse(resp)
+	return b.extractJWTFromResponse(resp)
 }
 
-func extractJWTFromResponse(resp *http.Response) string {
+func (b *BugBountyTester) extractJWTFromResponse(resp *http.Response) string {
 	// Check Authorization header
 	if authHeader := resp.Header.Get("Authorization"); authHeader != "" {
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			token := strings.TrimPrefix(authHeader, "Bearer ")
-			if isValidJWT(token) {
+			if b.isValidJWT(token) {
 				return token
 			}
 		}
@@ -869,7 +900,7 @@ func extractJWTFromResponse(resp *http.Response) string {
 	// Look for JWT patterns in JSON response
 	jwtRegex := regexp.MustCompile(`"(?:token|access_token|jwt|authToken)":"([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*)"`)
 	if matches := jwtRegex.FindStringSubmatch(bodyStr); len(matches) > 1 {
-		if isValidJWT(matches[1]) {
+		if b.isValidJWT(matches[1]) {
 			return matches[1]
 		}
 	}
@@ -878,7 +909,7 @@ func extractJWTFromResponse(resp *http.Response) string {
 	rawJWTRegex := regexp.MustCompile(`[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*`)
 	if matches := rawJWTRegex.FindAllString(bodyStr, -1); len(matches) > 0 {
 		for _, match := range matches {
-			if isValidJWT(match) && len(match) > 50 { // Filter out short false positives
+			if b.isValidJWT(match) && len(match) > 50 { // Filter out short false positives
 				return match
 			}
 		}
@@ -887,45 +918,45 @@ func extractJWTFromResponse(resp *http.Response) string {
 	return ""
 }
 
-func isValidJWT(token string) bool {
+func (b *BugBountyTester) isValidJWT(token string) bool {
 	parts := strings.Split(token, ".")
 	return len(parts) == 3 && len(parts[0]) > 0 && len(parts[1]) > 0
 }
 
-func testAPIAuthorization(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testAPIAuthorization(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	// Placeholder - would test API authorization bypass
 	return []types.Finding{}
 }
 
-func testAPIRateLimiting(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testAPIRateLimiting(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	// Placeholder - would test rate limiting
 	return []types.Finding{}
 }
 
 // Web App Test Implementations
 
-func testWebAuthentication(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testWebAuthentication(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	target := session.Target.Value
 
 	// Test OAuth2/OIDC vulnerabilities
-	oauth2Findings := testOAuth2Vulnerabilities(ctx, target, session.ID, log)
+	oauth2Findings := b.testOAuth2Vulnerabilities(ctx, target, session.ID)
 	findings = append(findings, oauth2Findings...)
 
 	// Test SAML vulnerabilities
-	samlFindings := testSAMLVulnerabilities(ctx, target, session.ID, log)
+	samlFindings := b.testSAMLVulnerabilities(ctx, target, session.ID)
 	findings = append(findings, samlFindings...)
 
 	// Test WebAuthn/FIDO2 vulnerabilities
-	webauthnFindings := testWebAuthnVulnerabilities(ctx, target, session.ID, log)
+	webauthnFindings := b.testWebAuthnVulnerabilities(ctx, target, session.ID)
 	findings = append(findings, webauthnFindings...)
 
 	return findings
 }
 
 // testOAuth2Vulnerabilities tests for OAuth2/OIDC vulnerabilities
-func testOAuth2Vulnerabilities(ctx context.Context, target, sessionID string, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testOAuth2Vulnerabilities(ctx context.Context, target, sessionID string) []types.Finding {
 	var findings []types.Finding
 
 	oauth2Client := vulntest.NewOAuth2Client()
@@ -1010,7 +1041,7 @@ func testOAuth2Vulnerabilities(ctx context.Context, target, sessionID string, lo
 }
 
 // testSAMLVulnerabilities tests for SAML vulnerabilities
-func testSAMLVulnerabilities(ctx context.Context, target, sessionID string, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testSAMLVulnerabilities(ctx context.Context, target, sessionID string) []types.Finding {
 	var findings []types.Finding
 
 	samlClient := vulntest.NewSAMLClient()
@@ -1078,7 +1109,7 @@ func testSAMLVulnerabilities(ctx context.Context, target, sessionID string, log 
 }
 
 // testWebAuthnVulnerabilities tests for WebAuthn/FIDO2 vulnerabilities
-func testWebAuthnVulnerabilities(ctx context.Context, target, sessionID string, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testWebAuthnVulnerabilities(ctx context.Context, target, sessionID string) []types.Finding {
 	var findings []types.Finding
 
 	webauthnClient := vulntest.NewWebAuthnClient()
@@ -1175,7 +1206,7 @@ func testWebAuthnVulnerabilities(ctx context.Context, target, sessionID string, 
 	return findings
 }
 
-func testSQLInjection(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testSQLInjection(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	var findings []types.Finding
 
 	// Simulate finding SQL injection in login form
@@ -1204,28 +1235,28 @@ func testSQLInjection(ctx context.Context, session *discovery.DiscoverySession, 
 	return findings
 }
 
-func testXSS(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testXSS(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	// Placeholder - would test for XSS
 	return []types.Finding{}
 }
 
-func testIDOR(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testIDOR(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	// Placeholder - would test for IDOR
 	return []types.Finding{}
 }
 
-func testSSRF(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testSSRF(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	// Placeholder - would test for SSRF
 	return []types.Finding{}
 }
 
-func testOpenRedirect(ctx context.Context, session *discovery.DiscoverySession, log *logger.Logger) []types.Finding {
+func (b *BugBountyTester) testOpenRedirect(ctx context.Context, session *discovery.DiscoverySession) []types.Finding {
 	// Placeholder - would test for open redirects
 	return []types.Finding{}
 }
 
 // displayVulnerabilityFindings shows a summary of found vulnerabilities
-func displayVulnerabilityFindings(findings []types.Finding) {
+func (b *BugBountyTester) displayVulnerabilityFindings(findings []types.Finding) {
 	// Group by severity
 	critical := 0
 	high := 0
@@ -1273,7 +1304,7 @@ func displayVulnerabilityFindings(findings []types.Finding) {
 	// Simple sort - critical first
 	for i := 0; i < len(sortedFindings); i++ {
 		for j := i + 1; j < len(sortedFindings); j++ {
-			if severityValue(sortedFindings[j].Severity) > severityValue(sortedFindings[i].Severity) {
+			if b.severityValue(sortedFindings[j].Severity) > b.severityValue(sortedFindings[i].Severity) {
 				sortedFindings[i], sortedFindings[j] = sortedFindings[j], sortedFindings[i]
 			}
 		}
@@ -1308,7 +1339,7 @@ func displayVulnerabilityFindings(findings []types.Finding) {
 	}
 }
 
-func severityValue(s types.Severity) int {
+func (b *BugBountyTester) severityValue(s types.Severity) int {
 	switch s {
 	case types.SeverityCritical:
 		return 4
