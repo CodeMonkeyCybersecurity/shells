@@ -80,7 +80,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "logic")
 			os.Exit(1)
 		}
 
@@ -177,7 +177,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "logic")
 			os.Exit(1)
 		}
 
@@ -216,8 +216,8 @@ Examples:
 
 		// Show workflow diagram
 		if verbose {
-			fmt.Println("\n Workflow Diagram:")
-			fmt.Println("═══════════════════")
+			log.Info("\n Workflow Diagram:", "component", "logic")
+			log.Info("═══════════════════", "component", "logic")
 			fmt.Println(results.Diagram)
 		}
 	},
@@ -267,7 +267,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "logic")
 			os.Exit(1)
 		}
 
@@ -371,7 +371,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "logic")
 			os.Exit(1)
 		}
 
@@ -491,7 +491,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "logic")
 			os.Exit(1)
 		}
 
@@ -614,7 +614,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "logic")
 			os.Exit(1)
 		}
 
@@ -736,7 +736,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "logic")
 			os.Exit(1)
 		}
 
@@ -825,7 +825,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" && findingsFile == "" {
-			fmt.Println("Error: specify --target or --findings")
+			log.Info("Error: specify --target or --findings", "component", "logic")
 			os.Exit(1)
 		}
 

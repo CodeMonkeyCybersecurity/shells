@@ -30,7 +30,7 @@ var workersSetupCmd = &cobra.Command{
 	Long: `Clone GraphCrawler and IDORD repositories, create Python virtual environment,
 and install all dependencies. This only needs to be run once.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println(" Setting up worker environment...")
+		log.Info("✅ Setting up worker environment...", "component", "workers")
 
 		// Get project root
 		projectRoot, err := os.Getwd()
@@ -46,7 +46,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Clone GraphCrawler
-		fmt.Println(" Cloning GraphCrawler...")
+		log.Info("📦 Cloning GraphCrawler...", "component", "workers")
 		graphCrawlerDir := filepath.Join(workersDir, "GraphCrawler")
 		if _, err := os.Stat(graphCrawlerDir); os.IsNotExist(err) {
 			cloneCmd := exec.Command("git", "clone", "https://github.com/gsmith257-cyber/GraphCrawler.git", graphCrawlerDir)
@@ -56,11 +56,11 @@ and install all dependencies. This only needs to be run once.`,
 				return fmt.Errorf("failed to clone GraphCrawler: %w", err)
 			}
 		} else {
-			fmt.Println("   GraphCrawler already exists, skipping clone")
+			log.Info("   GraphCrawler already exists, skipping clone", "component", "workers")
 		}
 
 		// Clone IDORD (AyemunHossain/IDORD - actively maintained version)
-		fmt.Println(" Cloning IDORD...")
+		log.Info("📦 Cloning IDORD...", "component", "workers")
 		idordDir := filepath.Join(workersDir, "IDORD")
 		if _, err := os.Stat(idordDir); os.IsNotExist(err) {
 			cloneCmd := exec.Command("git", "clone", "https://github.com/AyemunHossain/IDORD.git", idordDir)
@@ -70,20 +70,20 @@ and install all dependencies. This only needs to be run once.`,
 				return fmt.Errorf("failed to clone IDORD: %w", err)
 			}
 		} else {
-			fmt.Println("   IDORD already exists, skipping clone")
+			log.Info("   IDORD already exists, skipping clone", "component", "workers")
 		}
 
 		// Update requirements.txt files for Python 3.12 compatibility
-		fmt.Println(" Updating requirements for Python 3.12 compatibility...")
+		log.Info("🔧 Updating requirements for Python 3.12 compatibility...", "component", "workers")
 		if err := updateGraphCrawlerRequirements(graphCrawlerDir); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to update GraphCrawler requirements: %v\n", err)
+			log.Warnw("⚠️  Warning: Failed to update GraphCrawler requirements", "error", err, "component", "workers")
 		}
 		if err := updateIDORDRequirements(idordDir); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to update IDORD requirements: %v\n", err)
+			log.Warnw("⚠️  Warning: Failed to update IDORD requirements", "error", err, "component", "workers")
 		}
 
 		// Create Python virtual environment
-		fmt.Println(" Creating Python virtual environment...")
+		log.Info("🐍 Creating Python virtual environment...", "component", "workers")
 		venvDir := filepath.Join(workersDir, "venv")
 		if _, err := os.Stat(venvDir); os.IsNotExist(err) {
 			venvCmd := exec.Command("python3", "-m", "venv", venvDir)
@@ -93,11 +93,11 @@ and install all dependencies. This only needs to be run once.`,
 				return fmt.Errorf("failed to create virtual environment: %w", err)
 			}
 		} else {
-			fmt.Println("   Virtual environment already exists, skipping creation")
+			log.Info("   Virtual environment already exists, skipping creation", "component", "workers")
 		}
 
 		// Install dependencies
-		fmt.Println(" Installing dependencies...")
+		log.Info("📦 Installing dependencies...", "component", "workers")
 		pipBin := filepath.Join(venvDir, "bin", "pip")
 
 		// Install FastAPI and dependencies
@@ -115,7 +115,7 @@ and install all dependencies. This only needs to be run once.`,
 			installCmd.Stdout = os.Stdout
 			installCmd.Stderr = os.Stderr
 			if err := installCmd.Run(); err != nil {
-				fmt.Printf("⚠️  Warning: Failed to install GraphCrawler requirements: %v\n", err)
+				log.Warnw("⚠️  Warning: Failed to install GraphCrawler requirements", "error", err, "component", "workers")
 			}
 		}
 
@@ -126,14 +126,14 @@ and install all dependencies. This only needs to be run once.`,
 			installCmd.Stdout = os.Stdout
 			installCmd.Stderr = os.Stderr
 			if err := installCmd.Run(); err != nil {
-				fmt.Printf("⚠️  Warning: Failed to install IDORD requirements: %v\n", err)
+				log.Warnw("⚠️  Warning: Failed to install IDORD requirements", "error", err, "component", "workers")
 			}
 		}
 
-		fmt.Println("\n Worker environment setup complete!")
-		fmt.Println("\nNext steps:")
-		fmt.Println("  shells workers start    - Start the worker service")
-		fmt.Println("  shells serve --workers  - Start API and workers together")
+		log.Info("✅ Worker environment setup complete!", "component", "workers")
+		log.Info("\nNext steps:", "component", "workers")
+		log.Info("  shells workers start    - Start the worker service", "component", "workers")
+		log.Info("  shells serve --workers  - Start API and workers together", "component", "workers")
 
 		return nil
 	},
@@ -144,7 +144,7 @@ var workersStartCmd = &cobra.Command{
 	Short: "Start the worker service",
 	Long:  `Start the FastAPI worker service that provides GraphQL and IDOR scanning.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println(" Starting worker service...")
+		log.Info("🚀 Starting worker service...", "component", "workers")
 
 		// Get project root
 		projectRoot, err := os.Getwd()
@@ -174,14 +174,17 @@ var workersStartCmd = &cobra.Command{
 		// Save PID for stopping later
 		pidFile := filepath.Join(workersDir, "worker.pid")
 		if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d", startCmd.Process.Pid)), 0644); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to save PID file: %v\n", err)
+			log.Warnw("⚠️  Warning: Failed to save PID file", "error", err, "component", "workers")
 		}
 
 		// Wait for service to be ready
 		time.Sleep(2 * time.Second)
 
-		fmt.Println(" Worker service started on http://localhost:5000")
-		fmt.Println("\nCheck health: curl http://localhost:5000/health")
+		log.Infow("✅ Worker service started",
+			"url", "http://localhost:5000",
+			"component", "workers",
+		)
+		log.Info("\nCheck health: curl http://localhost:5000/health", "component", "workers")
 
 		return startCmd.Wait()
 	},
@@ -192,7 +195,7 @@ var workersStopCmd = &cobra.Command{
 	Short: "Stop the worker service",
 	Long:  `Stop the running worker service.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("🛑 Stopping worker service...")
+		log.Info("🛑 Stopping worker service...", "component", "workers")
 
 		projectRoot, err := os.Getwd()
 		if err != nil {
@@ -207,7 +210,7 @@ var workersStopCmd = &cobra.Command{
 			if err := killCmd.Run(); err != nil {
 				return fmt.Errorf("no worker service found running")
 			}
-			fmt.Println(" Worker service stopped")
+			log.Info("✅ Worker service stopped", "component", "workers")
 			return nil
 		}
 
@@ -220,7 +223,7 @@ var workersStopCmd = &cobra.Command{
 		// Remove PID file
 		os.Remove(pidFile)
 
-		fmt.Println(" Worker service stopped")
+		log.Info("✅ Worker service stopped", "component", "workers")
 		return nil
 	},
 }
@@ -233,13 +236,13 @@ var workersStatusCmd = &cobra.Command{
 		client := workers.NewClient("http://localhost:5000")
 
 		if err := client.Health(); err != nil {
-			fmt.Println("❌ Worker service is not healthy")
+			log.Error("❌ Worker service is not healthy", "component", "workers")
 			return err
 		}
 
-		fmt.Println(" Worker service is healthy")
-		fmt.Println("🌐 URL: http://localhost:5000")
-		fmt.Println(" API docs: http://localhost:5000/docs")
+		log.Info("✅ Worker service is healthy", "component", "workers")
+		log.Info("🌐 URL: http://localhost:5000", "component", "workers")
+		log.Info("📚 API docs: http://localhost:5000/docs", "component", "workers")
 
 		return nil
 	},

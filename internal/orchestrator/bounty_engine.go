@@ -45,14 +45,14 @@ type BugBountyEngine struct {
 	config BugBountyConfig
 }
 
-// BugBountyConfig contains configuration for bug bounty scans
+// BugBountyConfig contains configuration for comprehensive bug bounty scans
 type BugBountyConfig struct {
 	// Timeouts
 	DiscoveryTimeout time.Duration
 	ScanTimeout      time.Duration
 	TotalTimeout     time.Duration
 
-	// Discovery settings
+	// Comprehensive discovery settings
 	MaxAssets      int
 	MaxDepth       int
 	EnablePortScan bool
@@ -60,13 +60,29 @@ type BugBountyConfig struct {
 	EnableDNS      bool
 	SkipDiscovery  bool // If true, use target directly without discovery
 
-	// Testing settings
-	EnableAuthTesting   bool
-	EnableAPITesting    bool
-	EnableLogicTesting  bool
-	EnableSSRFTesting   bool
-	EnableAccessControl bool
-	EnableSCIMTesting   bool
+	// Advanced discovery features
+	EnableSubdomainEnum      bool // Subdomain enumeration via DNS, certs, search engines
+	EnableCertTransparency   bool // Certificate transparency logs for related domains
+	EnableAdjacentIPScan     bool // Scan neighboring IPs in same subnet
+	EnableRelatedDomainDisc  bool // Find related domains (same org, same cert, same email)
+	EnableWHOISAnalysis      bool // WHOIS data for organization footprinting
+	EnableServiceFingerprint bool // Deep service version detection on open ports
+
+	// Comprehensive testing settings
+	EnableAuthTesting   bool // SAML, OAuth2, WebAuthn, JWT
+	EnableAPITesting    bool // REST API security
+	EnableLogicTesting  bool // Business logic flaws
+	EnableSSRFTesting   bool // Server-side request forgery
+	EnableAccessControl bool // IDOR, broken access control
+	EnableSCIMTesting   bool // SCIM provisioning vulnerabilities
+	EnableGraphQLTesting bool // GraphQL introspection, injection, DoS
+	EnableIDORTesting    bool // Insecure Direct Object Reference testing
+	EnableSQLiTesting    bool // SQL injection detection
+	EnableXSSTesting     bool // Cross-site scripting detection
+
+	// Database and persistence
+	EnableTemporalSnapshots bool // Track changes over time (historical comparison)
+	SnapshotInterval        time.Duration // How often to snapshot (for repeated scans)
 
 	// Rate limiting settings
 	RateLimitPerSecond float64
@@ -77,31 +93,53 @@ type BugBountyConfig struct {
 	Verbose      bool
 }
 
-// DefaultBugBountyConfig returns optimized configuration for bug bounty hunting
+// DefaultBugBountyConfig returns comprehensive configuration for full asset discovery and testing
+// This is the "point and click" mode - discover everything, test everything, save everything
 func DefaultBugBountyConfig() BugBountyConfig {
 	return BugBountyConfig{
-		DiscoveryTimeout: 30 * time.Second,
-		ScanTimeout:      5 * time.Minute,
-		TotalTimeout:     10 * time.Minute,
+		// Generous timeouts for comprehensive scanning
+		DiscoveryTimeout: 5 * time.Minute,  // DNS, subdomain enum, cert transparency takes time
+		ScanTimeout:      15 * time.Minute, // Deep testing of all discovered assets
+		TotalTimeout:     30 * time.Minute, // Full comprehensive scan
 
-		MaxAssets:      50,
-		MaxDepth:       1,
-		EnablePortScan: true,
-		EnableWebCrawl: true,
-		EnableDNS:      false, // Too slow for bug bounty
+		// Comprehensive discovery settings
+		MaxAssets:      500,  // Discover and test up to 500 assets (subdomains, IPs, APIs)
+		MaxDepth:       3,    // Deep crawl for login pages, API endpoints, admin panels
+		EnablePortScan: true, // Find all exposed services
+		EnableWebCrawl: true, // Deep crawl to find auth endpoints, APIs, admin panels
+		EnableDNS:      true, // CRITICAL: Subdomain enum, related domains, cert transparency, WHOIS
 
-		EnableAuthTesting:   true,
-		EnableAPITesting:    true,
-		EnableLogicTesting:  true,
-		EnableSSRFTesting:   true,
-		EnableAccessControl: true,
-		EnableSCIMTesting:   true,
+		// Advanced discovery features - ENABLE EVERYTHING
+		EnableSubdomainEnum:      true, // Subdomain brute force, DNS records, search engines
+		EnableCertTransparency:   true, // Certificate transparency logs (crt.sh, etc.)
+		EnableAdjacentIPScan:     true, // Scan neighboring IPs in /24 subnet
+		EnableRelatedDomainDisc:  true, // Find domains: same org, same cert issuer, same registrant email
+		EnableWHOISAnalysis:      true, // WHOIS for org name, registrant, admin contact, tech contact
+		EnableServiceFingerprint: true, // Nmap service version detection on all open ports
 
+		// Enable ALL vulnerability testing
+		EnableAuthTesting:    true, // SAML, OAuth2, WebAuthn, JWT, session handling
+		EnableAPITesting:     true, // REST API security, rate limiting, auth bypass
+		EnableLogicTesting:   true, // Business logic flaws, privilege escalation
+		EnableSSRFTesting:    true, // Server-side request forgery, cloud metadata access
+		EnableAccessControl:  true, // Horizontal/vertical privilege escalation
+		EnableSCIMTesting:    true, // SCIM provisioning vulnerabilities
+		EnableGraphQLTesting: true, // GraphQL introspection, injection, DoS, batching attacks
+		EnableIDORTesting:    true, // Insecure Direct Object Reference (sequential IDs, UUIDs)
+		EnableSQLiTesting:    true, // SQL injection detection and exploitation
+		EnableXSSTesting:     true, // Reflected, stored, DOM-based XSS
+
+		// Database and persistence - track everything over time
+		EnableTemporalSnapshots: true,           // Save snapshots for historical comparison
+		SnapshotInterval:        24 * time.Hour, // Daily snapshots for repeated scans
+
+		// Respectful rate limiting (won't trigger WAFs but still comprehensive)
 		RateLimitPerSecond: 10.0, // 10 requests per second
-		RateLimitBurst:     5,    // Allow bursts of 5
+		RateLimitBurst:     20,   // Allow bursts of 20 for parallel operations
 
-		ShowProgress: true,
-		Verbose:      false,
+		// User experience
+		ShowProgress: true,  // Show real-time progress updates
+		Verbose:      false, // Concise output (use --log-level debug for verbose)
 	}
 }
 
@@ -215,7 +253,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	e.logger.Infow("Starting bug bounty scan", "target", target)
 
 	// Initialize progress tracker
-	tracker := progress.New(e.config.ShowProgress)
+	tracker := progress.New(e.config.ShowProgress, e.logger)
 	tracker.AddPhase("discovery", "Discovering assets")
 	tracker.AddPhase("prioritization", "Prioritizing targets")
 	tracker.AddPhase("testing", "Testing for vulnerabilities")
@@ -708,8 +746,18 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 	var findings []types.Finding
 
 	// Discover authentication endpoints
+	e.logger.Infow("🔍 Discovering authentication endpoints",
+		"target", target,
+		"component", "auth_scanner",
+	)
+
 	authInventory, err := e.authDiscovery.DiscoverAllAuth(ctx, target)
 	if err != nil {
+		e.logger.Errorw("Authentication discovery failed",
+			"error", err,
+			"target", target,
+			"component", "auth_scanner",
+		)
 		phase.Status = "failed"
 		phase.Error = err.Error()
 		phase.EndTime = time.Now()
@@ -717,9 +765,21 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		return findings, phase
 	}
 
+	// Log discovery results
+	e.logger.Infow("Authentication endpoint discovery complete",
+		"saml_found", authInventory.SAML != nil,
+		"oauth2_found", authInventory.OAuth2 != nil,
+		"webauthn_found", authInventory.WebAuthn != nil,
+		"component", "auth_scanner",
+	)
+
 	// Test SAML if discovered
 	if authInventory.SAML != nil && authInventory.SAML.MetadataURL != "" {
-		e.logger.Infow("Testing SAML endpoints", "metadata_url", authInventory.SAML.MetadataURL)
+		e.logger.Infow("🔐 Testing SAML authentication security",
+			"metadata_url", authInventory.SAML.MetadataURL,
+			"tests", []string{"Golden SAML", "XML Signature Wrapping", "Assertion manipulation"},
+			"component", "auth_scanner",
+		)
 
 		samlOptions := map[string]interface{}{
 			"metadata_url": authInventory.SAML.MetadataURL,
@@ -728,18 +788,57 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		}
 
 		report, err := e.samlScanner.Scan(target, samlOptions)
-		if err == nil && report != nil {
+		if err != nil {
+			e.logger.Warnw("SAML scanning failed",
+				"error", err,
+				"target", target,
+				"component", "auth_scanner",
+			)
+		} else if report != nil {
+			e.logger.Infow("SAML scan complete",
+				"vulnerabilities_found", len(report.Vulnerabilities),
+				"tests_run", len(report.Tests),
+				"component", "auth_scanner",
+			)
+
+			// Log each test result for audit trail
+			for _, test := range report.Tests {
+				e.logger.Infow("SAML test result",
+					"test_name", test.Name,
+					"vulnerable", test.Vulnerable,
+					"severity", test.Severity,
+					"component", "auth_scanner",
+				)
+			}
+
 			// Convert vulnerabilities to findings
 			for _, vuln := range report.Vulnerabilities {
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
+
+				e.logger.Infow("🚨 SAML vulnerability found",
+					"type", vuln.Type,
+					"severity", vuln.Severity,
+					"title", vuln.Title,
+					"component", "auth_scanner",
+				)
 			}
 		}
+	} else {
+		e.logger.Infow("No SAML endpoints discovered - skipping SAML tests",
+			"target", target,
+			"component", "auth_scanner",
+		)
 	}
 
 	// Test OAuth2 if discovered
 	if authInventory.OAuth2 != nil && authInventory.OAuth2.AuthorizationURL != "" {
-		e.logger.Infow("Testing OAuth2 endpoints", "auth_url", authInventory.OAuth2.AuthorizationURL)
+		e.logger.Infow("🔐 Testing OAuth2/OIDC authentication security",
+			"authorization_url", authInventory.OAuth2.AuthorizationURL,
+			"token_url", authInventory.OAuth2.TokenURL,
+			"tests", []string{"JWT algorithm confusion", "PKCE bypass", "State validation", "Scope escalation"},
+			"component", "auth_scanner",
+		)
 
 		oauth2Options := map[string]interface{}{
 			"authorization_url": authInventory.OAuth2.AuthorizationURL,
@@ -749,17 +848,56 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		}
 
 		report, err := e.oauth2Scanner.Scan(target, oauth2Options)
-		if err == nil && report != nil {
+		if err != nil {
+			e.logger.Warnw("OAuth2 scanning failed",
+				"error", err,
+				"target", target,
+				"component", "auth_scanner",
+			)
+		} else if report != nil {
+			e.logger.Infow("OAuth2 scan complete",
+				"vulnerabilities_found", len(report.Vulnerabilities),
+				"tests_run", len(report.Tests),
+				"component", "auth_scanner",
+			)
+
+			// Log each test result for audit trail
+			for _, test := range report.Tests {
+				e.logger.Infow("OAuth2 test result",
+					"test_name", test.Name,
+					"vulnerable", test.Vulnerable,
+					"severity", test.Severity,
+					"component", "auth_scanner",
+				)
+			}
+
 			for _, vuln := range report.Vulnerabilities {
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
+
+				e.logger.Infow("🚨 OAuth2 vulnerability found",
+					"type", vuln.Type,
+					"severity", vuln.Severity,
+					"title", vuln.Title,
+					"component", "auth_scanner",
+				)
 			}
 		}
+	} else {
+		e.logger.Infow("No OAuth2 endpoints discovered - skipping OAuth2 tests",
+			"target", target,
+			"component", "auth_scanner",
+		)
 	}
 
 	// Test WebAuthn if discovered
 	if authInventory.WebAuthn != nil && authInventory.WebAuthn.RegisterURL != "" {
-		e.logger.Infow("Testing WebAuthn endpoints", "register_url", authInventory.WebAuthn.RegisterURL)
+		e.logger.Infow("🔐 Testing WebAuthn/FIDO2 authentication security",
+			"register_url", authInventory.WebAuthn.RegisterURL,
+			"login_url", authInventory.WebAuthn.LoginURL,
+			"tests", []string{"Virtual authenticator", "Credential substitution", "Challenge reuse", "Origin validation"},
+			"component", "auth_scanner",
+		)
 
 		webauthnOptions := map[string]interface{}{
 			"register_url": authInventory.WebAuthn.RegisterURL,
@@ -767,12 +905,46 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		}
 
 		report, err := e.webauthnScanner.Scan(target, webauthnOptions)
-		if err == nil && report != nil {
+		if err != nil {
+			e.logger.Warnw("WebAuthn scanning failed",
+				"error", err,
+				"target", target,
+				"component", "auth_scanner",
+			)
+		} else if report != nil {
+			e.logger.Infow("WebAuthn scan complete",
+				"vulnerabilities_found", len(report.Vulnerabilities),
+				"tests_run", len(report.Tests),
+				"component", "auth_scanner",
+			)
+
+			// Log each test result for audit trail
+			for _, test := range report.Tests {
+				e.logger.Infow("WebAuthn test result",
+					"test_name", test.Name,
+					"vulnerable", test.Vulnerable,
+					"severity", test.Severity,
+					"component", "auth_scanner",
+				)
+			}
+
 			for _, vuln := range report.Vulnerabilities {
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
+
+				e.logger.Infow("🚨 WebAuthn vulnerability found",
+					"type", vuln.Type,
+					"severity", vuln.Severity,
+					"title", vuln.Title,
+					"component", "auth_scanner",
+				)
 			}
 		}
+	} else {
+		e.logger.Infow("No WebAuthn endpoints discovered - skipping WebAuthn tests",
+			"target", target,
+			"component", "auth_scanner",
+		)
 	}
 
 	phase.EndTime = time.Now()

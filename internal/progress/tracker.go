@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // Tracker provides simple progress tracking for multi-phase operations
@@ -14,6 +16,7 @@ type Tracker struct {
 	startTime    time.Time
 	mu           sync.Mutex
 	enabled      bool
+	logger       *logger.Logger
 }
 
 // Phase represents a single phase of work
@@ -37,12 +40,13 @@ const (
 )
 
 // New creates a new progress tracker
-func New(enabled bool) *Tracker {
+func New(enabled bool, log *logger.Logger) *Tracker {
 	return &Tracker{
 		phases:       []Phase{},
 		currentPhase: 0,
 		startTime:    time.Now(),
 		enabled:      enabled,
+		logger:       log,
 	}
 }
 
@@ -131,7 +135,9 @@ func (t *Tracker) FailPhase(name string, err error) {
 			t.phases[i].Status = StatusFailed
 			t.phases[i].EndTime = time.Now()
 			t.render()
-			fmt.Printf("\n❌ Phase failed: %v\n", err)
+			if t.logger != nil {
+				t.logger.Errorw("❌ Phase failed", "error", err, "phase", name, "component", "progress")
+			}
 			return
 		}
 	}
@@ -142,9 +148,6 @@ func (t *Tracker) render() {
 	if !t.enabled {
 		return
 	}
-
-	// Clear previous lines (simple version - just print newline)
-	fmt.Print("\r\033[K") // Clear current line
 
 	totalPhases := len(t.phases)
 	completedPhases := 0
@@ -173,9 +176,11 @@ func (t *Tracker) render() {
 
 	// Current phase info
 	currentPhaseInfo := ""
+	currentPhaseName := ""
 	if t.currentPhase < len(t.phases) {
 		phase := t.phases[t.currentPhase]
 		currentPhaseInfo = fmt.Sprintf("%s (%d%%)", phase.Description, phase.Progress)
+		currentPhaseName = phase.Name
 	}
 
 	// Calculate ETA
@@ -187,13 +192,18 @@ func (t *Tracker) render() {
 		eta = formatDuration(remaining)
 	}
 
-	// Print progress line
-	fmt.Printf("[%s] %d%% | %s | ETA: %s",
-		bar,
-		overallProgress,
-		currentPhaseInfo,
-		eta,
-	)
+	// Log progress with structured fields
+	if t.logger != nil {
+		t.logger.Infow(fmt.Sprintf("[%s] %d%% | %s | ETA: %s", bar, overallProgress, currentPhaseInfo, eta),
+			"progress_pct", overallProgress,
+			"phase", currentPhaseName,
+			"completed_phases", completedPhases,
+			"total_phases", totalPhases,
+			"eta", eta,
+			"elapsed", formatDuration(elapsed),
+			"component", "progress",
+		)
+	}
 }
 
 // Complete marks all phases as complete and shows final summary
@@ -205,30 +215,37 @@ func (t *Tracker) Complete() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	fmt.Print("\r\033[K") // Clear current line
-
 	elapsed := time.Since(t.startTime)
 
-	fmt.Printf("\n Scan completed in %s\n\n", formatDuration(elapsed))
+	if t.logger != nil {
+		t.logger.Infow("✅ Scan completed",
+			"duration", formatDuration(elapsed),
+			"component", "progress",
+		)
 
-	// Show phase breakdown
-	fmt.Println("Phase Summary:")
-	for _, phase := range t.phases {
-		status := ""
-		if phase.Status == StatusFailed {
-			status = "❌"
-		} else if phase.Status == StatusPending {
-			status = "⏸️"
+		// Show phase breakdown
+		t.logger.Info("Phase Summary:", "component", "progress")
+		for _, phase := range t.phases {
+			status := "✅"
+			if phase.Status == StatusFailed {
+				status = "❌"
+			} else if phase.Status == StatusPending {
+				status = "⏸️"
+			}
+
+			duration := ""
+			if !phase.EndTime.IsZero() {
+				duration = formatDuration(phase.EndTime.Sub(phase.StartTime))
+			}
+
+			t.logger.Infow(fmt.Sprintf("  %s %s", status, phase.Name),
+				"phase", phase.Name,
+				"status", status,
+				"duration", duration,
+				"component", "progress",
+			)
 		}
-
-		duration := ""
-		if !phase.EndTime.IsZero() {
-			duration = fmt.Sprintf(" (%s)", formatDuration(phase.EndTime.Sub(phase.StartTime)))
-		}
-
-		fmt.Printf("  %s %s%s\n", status, phase.Name, duration)
 	}
-	fmt.Println()
 }
 
 // formatDuration formats a duration in human-readable form

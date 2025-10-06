@@ -104,12 +104,12 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "atomic")
 			os.Exit(1)
 		}
 
 		if vulnType == "" && technique == "" {
-			fmt.Println("Error: either --vuln-type or --technique is required")
+			log.Info("Error: either --vuln-type or --technique is required", "component", "atomic")
 			os.Exit(1)
 		}
 
@@ -189,7 +189,7 @@ Examples:
 		output, _ := cmd.Flags().GetString("output")
 
 		if technique == "" && testFile == "" && !validateAll {
-			fmt.Println("Error: specify --technique, --test-file, or --all")
+			log.Info("Error: specify --technique, --test-file, or --all", "component", "atomic")
 			os.Exit(1)
 		}
 
@@ -272,7 +272,7 @@ Examples:
 		format, _ := cmd.Flags().GetString("format")
 
 		if findingsFile == "" && vulnType == "" {
-			fmt.Println("Error: specify --findings file or --vuln-type")
+			log.Info("Error: specify --findings file or --vuln-type", "component", "atomic")
 			os.Exit(1)
 		}
 

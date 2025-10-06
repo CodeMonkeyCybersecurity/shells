@@ -97,10 +97,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	)
 
 	fmt.Println()
-	fmt.Println(" Shells updated successfully!")
+	log.Info(" Shells updated successfully!", "component", "self")
 	fmt.Printf("   Duration: %s\n", duration.Round(time.Second))
 	fmt.Println()
-	fmt.Println("Run 'shells --version' to verify the new version")
+	log.Info("Run 'shells --version' to verify the new version", "component", "self")
 
 	return nil
 }

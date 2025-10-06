@@ -91,27 +91,27 @@ func (m *Manager) CheckAndPromptForCircl() error {
 		return nil
 	}
 
-	fmt.Println("\n🔑 CIRCL API Configuration")
-	fmt.Println("─────────────────────────")
-	fmt.Println("CIRCL provides free passive DNS data that enhances discovery capabilities.")
-	fmt.Println("Register at: https://www.circl.lu/services/passive-dns/")
-	fmt.Println("\nWould you like to configure CIRCL API credentials now? [Y/n]: ")
+	m.logger.Info("🔑 CIRCL API Configuration", "component", "credentials")
+	m.logger.Info("─────────────────────────", "component", "credentials")
+	m.logger.Info("CIRCL provides free passive DNS data that enhances discovery capabilities.", "component", "credentials")
+	m.logger.Info("Register at: https://www.circl.lu/services/passive-dns/", "component", "credentials")
+	m.logger.Info("\nWould you like to configure CIRCL API credentials now? [Y/n]: ", "component", "credentials")
 
 	reader := bufio.NewReader(os.Stdin)
 	response, _ := reader.ReadString('\n')
 	response = strings.TrimSpace(strings.ToLower(response))
 
 	if response != "y" && response != "yes" && response != "" {
-		fmt.Println("ℹ️  Skipping CIRCL configuration. You can configure it later with 'shells config api-keys'")
+		m.logger.Info("ℹ️  Skipping CIRCL configuration. You can configure it later with 'shells config api-keys'", "component", "credentials")
 		return nil
 	}
 
 	// Prompt for credentials
-	fmt.Print("Enter CIRCL username: ")
+	m.logger.Info("Enter CIRCL username: ", "component", "credentials")
 	username, _ := reader.ReadString('\n')
 	username = strings.TrimSpace(username)
 
-	fmt.Print("Enter CIRCL password: ")
+	m.logger.Info("Enter CIRCL password: ", "component", "credentials")
 	password, err := readPassword()
 	if err != nil {
 		return fmt.Errorf("failed to read password: %w", err)
@@ -119,7 +119,7 @@ func (m *Manager) CheckAndPromptForCircl() error {
 
 	// Validate credentials
 	if username == "" || password == "" {
-		fmt.Println("❌ Username and password cannot be empty")
+		m.logger.Error("❌ Username and password cannot be empty", "component", "credentials")
 		return fmt.Errorf("invalid credentials")
 	}
 
@@ -132,16 +132,16 @@ func (m *Manager) CheckAndPromptForCircl() error {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
 
-	fmt.Println(" CIRCL credentials saved securely")
+	m.logger.Info("✅ CIRCL credentials saved securely", "component", "credentials")
 	return nil
 }
 
 // PromptForAllAPIs provides an interactive prompt for all supported APIs
 func (m *Manager) PromptForAllAPIs() error {
-	fmt.Println("\n🔐 API Credentials Configuration")
-	fmt.Println("═══════════════════════════════")
-	fmt.Println("Configure API keys for enhanced discovery capabilities.")
-	fmt.Println("All credentials are encrypted and stored locally.")
+	m.logger.Info("\n🔐 API Credentials Configuration", "component", "credentials")
+	m.logger.Info("═══════════════════════════════", "component", "credentials")
+	m.logger.Info("Configure API keys for enhanced discovery capabilities.", "component", "credentials")
+	m.logger.Info("All credentials are encrypted and stored locally.", "component", "credentials")
 
 	apis := []struct {
 		name        string
@@ -205,17 +205,23 @@ func (m *Manager) PromptForAllAPIs() error {
 	reader := bufio.NewReader(os.Stdin)
 
 	for _, api := range apis {
-		fmt.Printf("\n📌 %s\n", api.name)
-		fmt.Printf("   %s\n", api.description)
-		fmt.Printf("   Get API key: %s\n", api.url)
-		fmt.Print("   Configure? [y/N]: ")
+		m.logger.Infow("📌 API Configuration",
+			"api", api.name,
+			"description", api.description,
+			"url", api.url,
+			"component", "credentials",
+		)
+		m.logger.Info("   Configure? [y/N]: ", "component", "credentials")
 
 		response, _ := reader.ReadString('\n')
 		response = strings.TrimSpace(strings.ToLower(response))
 
 		if response == "y" || response == "yes" {
 			for _, field := range api.fields {
-				fmt.Printf("   Enter %s: ", field.prompt)
+				m.logger.Infow("   Enter credential",
+					"field", field.prompt,
+					"component", "credentials",
+				)
 
 				var value string
 				var err error
@@ -243,7 +249,7 @@ func (m *Manager) PromptForAllAPIs() error {
 		if err := m.Save(); err != nil {
 			return fmt.Errorf("failed to save credentials: %w", err)
 		}
-		fmt.Println("\n API credentials saved securely")
+		m.logger.Info("✅ API credentials saved securely", "component", "credentials")
 	}
 
 	return nil
@@ -436,7 +442,7 @@ func isInteractive() bool {
 func readPassword() (string, error) {
 	// Read password without echoing
 	password, err := terminal.ReadPassword(int(syscall.Stdin))
-	fmt.Println() // New line after password
+	// Note: New line after password is handled by terminal package
 	if err != nil {
 		return "", err
 	}

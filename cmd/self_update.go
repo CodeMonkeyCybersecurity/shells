@@ -45,7 +45,7 @@ func init() {
 }
 
 func runSelfUpdate(cmd *cobra.Command, args []string) error {
-	fmt.Println("🔄 Starting shells self-update...")
+	log.Info("🔄 Starting shells self-update...", "component", "self_update")
 
 	// Get current binary path
 	currentBinary, err := os.Executable()
@@ -83,27 +83,27 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	defer os.Chdir(originalDir)
 
 	// Check if we have a clean working directory
-	fmt.Println(" Checking git status...")
+	log.Info(" Checking git status...", "component", "self_update")
 	if err := checkGitStatus(); err != nil {
 		return fmt.Errorf("git repository has uncommitted changes: %w", err)
 	}
 
 	// Pull latest changes
-	fmt.Println("⬇️  Pulling latest changes from GitHub...")
+	log.Info("⬇️  Pulling latest changes from GitHub...", "component", "self_update")
 	if err := pullLatestChanges(); err != nil {
 		return fmt.Errorf("failed to pull latest changes: %w", err)
 	}
 
 	// Always rebuild after pulling latest changes to ensure binary is up to date
-	fmt.Println(" Building latest version...")
+	log.Info(" Building latest version...", "component", "self_update")
 
 	if dryRun {
-		fmt.Println("   (dry-run mode: would rebuild and install binary)")
-		fmt.Println("🎯 Run without --dry-run to perform the actual update.")
+		log.Info("   (dry-run mode: would rebuild and install binary)", "component", "self_update")
+		log.Info("🎯 Run without --dry-run to perform the actual update.", "component", "self_update")
 		return nil
 	}
 
-	fmt.Println("   Building and installing new binary...")
+	log.Info("   Building and installing new binary...", "component", "self_update")
 
 	// Check if install.sh exists
 	installScript := "./install.sh"
@@ -117,8 +117,8 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run install script
-	fmt.Println("🔨 Running install script...")
-	fmt.Println("   Note: This may require sudo privileges...")
+	log.Info("🔨 Running install script...", "component", "self_update")
+	log.Info("   Note: This may require sudo privileges...", "component", "self_update")
 	installCmd := exec.Command("bash", "./install.sh")
 	installCmd.Stdout = os.Stdout
 	installCmd.Stderr = os.Stderr
@@ -135,7 +135,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 
 	// Compare hashes
 	if currentHash == newHash {
-		fmt.Println("ℹ️  Binary hash unchanged - no code changes affected the compiled binary.")
+		log.Info("ℹ️  Binary hash unchanged - no code changes affected the compiled binary.", "component", "self_update")
 	} else {
 		fmt.Printf(" Update successful!\n")
 		fmt.Printf("   Old SHA256: %s\n", currentHash)
@@ -151,7 +151,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
 	fmt.Printf("📏 New binary size: %.2f MB\n", sizeMB)
 
-	fmt.Println(" Self-update completed successfully!")
+	log.Info(" Self-update completed successfully!", "component", "self_update")
 	return nil
 }
 

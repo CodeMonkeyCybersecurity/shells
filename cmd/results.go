@@ -237,7 +237,7 @@ func init() {
 
 func printScanList(scans []*types.ScanRequest) {
 	if len(scans) == 0 {
-		fmt.Println("No scans found")
+		log.Info("No scans found", "component", "results")
 		return
 	}
 
@@ -622,7 +622,7 @@ func init() {
 
 func printQueryResults(findings []types.Finding, query core.FindingQuery) {
 	if len(findings) == 0 {
-		fmt.Println("No findings match your query")
+		log.Info("No findings match your query", "component", "results")
 		return
 	}
 
@@ -778,13 +778,13 @@ func init() {
 func listSessionsWithChains(output string) error {
 	// This would typically query the database for sessions with identity chain metadata
 	// For now, show a message about how to use the command
-	fmt.Println("🔗 Identity Vulnerability Chain Analysis")
+	log.Info("🔗 Identity Vulnerability Chain Analysis", "component", "results")
 	fmt.Println()
-	fmt.Println("Identity chains are automatically discovered during point-and-click scanning:")
-	fmt.Println("1. Run: shells example.com")
-	fmt.Println("2. After discovery completes, use: shells results identity-chains [session-id]")
+	log.Info("Identity chains are automatically discovered during point-and-click scanning:", "component", "results")
+	log.Info("1. Run: shells example.com", "component", "results")
+	log.Info("2. After discovery completes, use: shells results identity-chains [session-id]", "component", "results")
 	fmt.Println()
-	fmt.Println("Note: Identity chain analysis requires 2+ identity-related assets to be discovered")
+	log.Info("Note: Identity chain analysis requires 2+ identity-related assets to be discovered", "component", "results")
 	fmt.Println()
 	return nil
 }
@@ -795,27 +795,27 @@ func showIdentityChains(sessionID, severityFilter string, verbose bool, output s
 	// Note: In a full implementation, this would query the discovery engine
 	// for the session and extract the identity chains from session metadata
 
-	fmt.Println(" Identity Chain Analysis Summary:")
-	fmt.Println("   • SAML XML Wrapping Chains: Available")
-	fmt.Println("   • OAuth JWT Attack Chains: Available")
-	fmt.Println("   • Federation Confusion Chains: Available")
-	fmt.Println("   • Privilege Escalation Chains: Available")
-	fmt.Println("   • Cross-Protocol Attack Chains: Available")
+	log.Info(" Identity Chain Analysis Summary:", "component", "results")
+	log.Info("   • SAML XML Wrapping Chains: Available", "component", "results")
+	log.Info("   • OAuth JWT Attack Chains: Available", "component", "results")
+	log.Info("   • Federation Confusion Chains: Available", "component", "results")
+	log.Info("   • Privilege Escalation Chains: Available", "component", "results")
+	log.Info("   • Cross-Protocol Attack Chains: Available", "component", "results")
 	fmt.Println()
 
-	fmt.Println(" Chain Detection Features:")
-	fmt.Println("   ✓ Maps identity asset relationships")
-	fmt.Println("   ✓ Detects trust relationship vulnerabilities")
-	fmt.Println("   ✓ Identifies attack path chaining opportunities")
-	fmt.Println("   ✓ Analyzes cross-protocol vulnerabilities")
-	fmt.Println("   ✓ Provides proof-of-concept payloads")
+	log.Info(" Chain Detection Features:", "component", "results")
+	log.Info("   ✓ Maps identity asset relationships", "component", "results")
+	log.Info("   ✓ Detects trust relationship vulnerabilities", "component", "results")
+	log.Info("   ✓ Identifies attack path chaining opportunities", "component", "results")
+	log.Info("   ✓ Analyzes cross-protocol vulnerabilities", "component", "results")
+	log.Info("   ✓ Provides proof-of-concept payloads", "component", "results")
 	fmt.Println()
 
-	fmt.Println("💡 Next Steps:")
-	fmt.Println("   1. Run discovery with: shells [target]")
-	fmt.Println("   2. Identity chains will be automatically analyzed")
-	fmt.Println("   3. High-impact chains will be logged in real-time")
-	fmt.Println("   4. Query findings with: shells results query --tool identity-chain-analyzer")
+	log.Info("💡 Next Steps:", "component", "results")
+	log.Info("   1. Run discovery with: shells [target]", "component", "results")
+	log.Info("   2. Identity chains will be automatically analyzed", "component", "results")
+	log.Info("   3. High-impact chains will be logged in real-time", "component", "results")
+	log.Info("   4. Query findings with: shells results query --tool identity-chain-analyzer", "component", "results")
 
 	return nil
 }

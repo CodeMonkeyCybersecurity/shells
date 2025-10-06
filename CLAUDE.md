@@ -172,56 +172,117 @@ This is a security tool - when contributing:
 
 ## Intelligent Asset Discovery & Point-and-Click Mode
 
-**shells** supports intelligent asset discovery where users can run `shells [target]` and the tool automatically discovers and tests all associated assets. The target can be:
+**shells** is designed as a comprehensive "point and click" security scanner. Run `shells cybermonkey.net.au` and the tool automatically:
 
+1. **Discovers everything** related to the target
+2. **Tests everything** for vulnerabilities
+3. **Saves everything** to PostgreSQL for historical analysis
+
+The target can be:
 - **Company name**: "Acme Corporation"
-- **Email address**: "admin@acme.com" 
+- **Email address**: "admin@acme.com"
 - **Domain**: "acme.com"
 - **IP address**: "192.168.1.1"
 - **IP range**: "192.168.1.0/24"
 
-### Implementation Requirements
+### Comprehensive Asset Discovery Pipeline
 
-When implementing the main discovery command, the tool should:
+When you run `shells [target]`, the tool executes the FULL discovery pipeline:
 
-1. **Parse and classify the input target**:
-   - Detect if input is company name, email, domain, IP, or IP range
-   - Use appropriate discovery techniques based on input type
+#### Phase 1: Organization Footprinting
+- **WHOIS Analysis**: Organization name, registrant email, admin contact, technical contact
+- **Certificate Transparency**: Find ALL domains with same certificate, same issuer, same organization
+- **Email-based Discovery**: Find domains registered to same email address
+- **Related Domain Discovery**: Same organization, same registrant, same name servers
 
-2. **Asset Discovery Pipeline**:
-   - **From company name**: Use search engines, certificate transparency, WHOIS, DNS
-   - **From email**: Extract domain, perform DNS enumeration, find related domains
-   - **From domain**: DNS enumeration, subdomain discovery, related domain finding
-   - **From IP**: Reverse DNS, network scanning, neighboring IP discovery
-   - **From IP range**: Network enumeration, service discovery
+#### Phase 2: Network Discovery
+- **Subdomain Enumeration**:
+  - DNS brute force (wordlist-based)
+  - Certificate transparency logs (crt.sh, Censys)
+  - Search engine dorking (Google, Bing, Shodan)
+  - DNS records (MX, TXT, NS, SOA for clues)
+- **Adjacent IP Scanning**: Scan neighboring IPs in /24 subnet (e.g., if target is 192.168.1.50, scan 192.168.1.0-255)
+- **Reverse DNS**: Find other domains hosted on same IP
+- **Port Scanning**: Scan all 65535 ports (or top 1000 for speed)
+- **Service Fingerprinting**: Nmap version detection on all open ports
 
-3. **Spider out to find related assets**:
-   - DNS enumeration (subdomains, related domains)
-   - Certificate transparency logs
-   - Search engine dorking
-   - WHOIS data analysis
-   - Network range discovery
-   - Technology stack fingerprinting
+#### Phase 3: Application Discovery
+- **Deep Web Crawling** (MaxDepth: 3):
+  - Find login pages, registration forms
+  - Discover API endpoints (REST, GraphQL, SOAP)
+  - Locate admin panels, debug pages
+  - Identify file upload capabilities
+  - Map authentication flows
+- **Technology Stack Detection**:
+  - Framework identification (Django, Rails, Laravel, Express)
+  - CMS detection (WordPress, Drupal, Joomla)
+  - Cloud provider detection (AWS, Azure, GCP)
+  - CDN and WAF identification
 
-4. **Apply all available testing functionality**:
-   - Run all scanner plugins automatically
-   - Apply business logic testing framework
-   - Execute authentication testing (OAuth2, SAML, WebAuthn)
-   - Perform infrastructure scanning (Nmap, Nuclei, SSL)
-   - Test for HTTP request smuggling and SCIM vulnerabilities
-   - Apply favicon analysis and AWS/cloud asset discovery
+### Comprehensive Vulnerability Testing
 
-5. **Intelligent prioritization**:
-   - Prioritize high-value targets (login pages, admin panels, APIs)
-   - Focus on authentication endpoints for business logic testing
-   - Identify and test payment/e-commerce functionality
-   - Look for privilege escalation opportunities
+After discovery, shells automatically tests EVERYTHING for vulnerabilities:
 
-6. **Comprehensive reporting**:
-   - Aggregate all findings across discovered assets
-   - Show asset relationships and discovery chain
-   - Provide actionable remediation guidance
-   - Generate business impact assessments
+#### Authentication Testing
+- **SAML**: Golden SAML, XML signature wrapping, assertion manipulation
+- **OAuth2/OIDC**: JWT algorithm confusion, PKCE bypass, state validation, scope escalation
+- **WebAuthn/FIDO2**: Virtual authenticator attacks, credential substitution, challenge reuse
+- **Session Handling**: Fixation, hijacking, weak tokens
+
+#### API Security Testing
+- **GraphQL**: Introspection, injection, DoS via nested queries, batching attacks
+- **REST**: Authentication bypass, rate limiting, IDOR on endpoints
+- **SOAP**: XXE, WSDL disclosure, injection
+
+#### Access Control Testing
+- **IDOR**: Sequential ID enumeration, UUID prediction
+- **Horizontal Privilege Escalation**: Access other users' resources
+- **Vertical Privilege Escalation**: Admin function access
+- **SCIM**: Unauthorized provisioning, filter injection, bulk operations
+
+#### Injection Testing
+- **SQL Injection**: Error-based, blind, time-based, out-of-band
+- **XSS**: Reflected, stored, DOM-based
+- **SSRF**: Internal network access, cloud metadata exploitation
+
+#### Business Logic Testing
+- **Payment Manipulation**: Price tampering, currency mismatch
+- **Workflow Bypass**: Step skipping, state manipulation
+- **Rate Limiting**: Brute force protection, account enumeration
+
+### Temporal Snapshots & Historical Analysis
+
+**CRITICAL**: All scan results are saved to PostgreSQL with temporal tracking:
+
+- **First Scan**: Baseline snapshot of discovered assets and vulnerabilities
+- **Subsequent Scans**: Compare to previous snapshots, track:
+  - New assets discovered (new subdomains, new IPs, new services)
+  - Assets that disappeared (services shut down, domains expired)
+  - New vulnerabilities found
+  - Fixed vulnerabilities (no longer present)
+  - Changes in service versions, SSL certificates, DNS records
+
+#### Database Schema Supports:
+- Asset discovery history (when first seen, last seen, status changes)
+- Vulnerability lifecycle (discovered date, fixed date, reappeared date)
+- Service version tracking (detect outdated services over time)
+- Certificate expiry monitoring
+- Port change detection
+
+#### Query Historical Data:
+```bash
+# View all scans for a target
+shells results query --target example.com --show-history
+
+# Compare current vs last scan
+shells results diff scan-12345 scan-12346
+
+# Find new vulnerabilities since last month
+shells results query --target example.com --since 30d --status new
+
+# Track vulnerability fix rate
+shells results stats --target example.com --metric fix-rate
+```
 
 ### Technical Implementation Notes
 
@@ -273,13 +334,144 @@ shells resume scan-12345
 - Uses SQLite for lightweight, embedded storage
 - Database file is created automatically on first run 
 
-## Debugging Tips
+## Logging Standards
 
-- Use structured logging with otelzap (opentelemetry and zap logging) traces for distributed tracing
-- Enable debug logging by default
-- Use OpenTelemetry 
+**CRITICAL: ALL output must use structured otelzap logging - no fmt.Print/Printf/Println anywhere**
+
+### Structured Logging with OpenTelemetry
+
+shells uses **otelzap** (OpenTelemetry + Zap) for ALL output, including user-facing messages. This provides:
+- Distributed tracing across services
+- Structured JSON logs for parsing/analysis
+- Machine-readable output for automation
+- Consistent log levels and formatting
+- Integration with observability platforms
+
+### Logger Initialization
+
+Every package should initialize a logger with a component name:
+
+```go
+import "github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+
+// In main/command functions
+log, err := logger.New(cfg.Logger)
+if err != nil {
+    return fmt.Errorf("failed to initialize logger: %w", err)
+}
+log = log.WithComponent("scanner")
+```
+
+### Logging Patterns
+
+#### User-Facing Messages (CLI Output)
+
+Use `logger.Info()` for user-facing messages (NOT fmt.Print):
+
+```go
+// ❌ WRONG - Never use fmt.Print
+fmt.Println("✅ Scan completed!")
+fmt.Printf("Found %d vulnerabilities\n", count)
+
+// ✅ CORRECT - Always use structured logging
+log.Info("✅ Scan completed!")
+log.Infow("Scan results",
+    "vulnerabilities_found", count,
+    "scan_duration", duration,
+    "target", target,
+)
+```
+
+#### Background/Service Logging
+
+Use structured fields for machine-parseable data:
+
+```go
+// Informational logging
+log.Infow("Worker started",
+    "worker_id", id,
+    "queue", queue,
+    "component", "worker",
+)
+
+// Warning logging
+log.Warnw("Rate limit approaching",
+    "current_rate", rate,
+    "limit", maxRate,
+    "component", "api",
+)
+
+// Error logging
+log.Errorw("Database query failed",
+    "error", err,
+    "query", query,
+    "duration_ms", duration,
+    "component", "database",
+)
+```
+
+#### Progress and Status Updates
+
+Use structured logging for progress (NOT progress bars):
+
+```go
+// ❌ WRONG - No ANSI progress bars
+fmt.Printf("\r[████░░░░] 50%%")
+
+// ✅ CORRECT - Structured progress logging
+log.Infow("Scan progress",
+    "phase", "discovery",
+    "progress_pct", 50,
+    "assets_found", assetCount,
+    "elapsed_seconds", elapsed.Seconds(),
+)
+```
+
+#### Interactive Prompts
+
+Even interactive prompts should log structured data:
+
+```go
+// Before prompting user
+log.Infow("API key configuration needed",
+    "api", "CIRCL",
+    "prompt", "interactive",
+    "component", "credentials",
+)
+
+// After user response
+log.Infow("API key configured",
+    "api", "CIRCL",
+    "source", "user_input",
+    "component", "credentials",
+)
+```
+
+### Log Levels
+
+- **Debug** (`log.Debug`, `log.Debugw`): Development/troubleshooting details
+- **Info** (`log.Info`, `log.Infow`): Normal operations, user messages, status updates
+- **Warn** (`log.Warn`, `log.Warnw`): Degraded functionality, recoverable errors
+- **Error** (`log.Error`, `log.Errorw`): Errors that prevent operations
+
+### Migration Rules
+
+When migrating from fmt.Print to otelzap:
+
+1. **User-facing messages** → `log.Info()` or `log.Infow()`
+2. **Error messages** → `log.Errorw()` with structured error field
+3. **Debug output** → `log.Debugw()` with context fields
+4. **Progress bars** → Periodic `log.Infow()` with progress percentage
+5. **Interactive prompts** → Log intent before/after, use `log.Info()` for messages
+
+### Debugging Tips
+
+- Use structured logging with otelzap for all output (no fmt.Print)
+- Enable debug logging: `--log-level debug`
+- Use OpenTelemetry tracing for distributed operations
 - Check worker logs for scanning issues
 - Monitor Redis queue for job status
+- Parse JSON logs for automation: `shells scan example.com --log-format json | jq`
 
 ## Important Files
 
@@ -560,6 +752,11 @@ shells results search --term "Golden SAML"
 
 - **No emojis in code or documentation**: Keep it professional and parseable
 - **Prefer editing existing files over creating new ones**: Avoid file proliferation
+- **ALL output must use structured otelzap logging**: No fmt.Print/Printf/Println anywhere in codebase
+  - CLI user output: Use `log.Info()` and `log.Infow()` with structured fields
+  - Backend logging: Use `log.Debugw()`, `log.Warnw()`, `log.Errorw()` with component tags
+  - Progress updates: Use periodic `log.Infow()` with progress_pct field
+  - Interactive prompts: Log intent before/after using structured logging
 - **ALL documentation must be inline in code files** (ENFORCED):
   - Strategic documentation: Header comments in relevant package/file
   - Tactical notes: Inline comments at exact location in code

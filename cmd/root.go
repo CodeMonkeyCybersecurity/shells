@@ -104,11 +104,37 @@ Point-and-Click Mode:
   shells 192.168.1.1          # Discover network and test services
   shells 192.168.1.0/24       # Scan IP range and test discovered hosts
 
-The main command runs the full orchestrated pipeline:
-  1. Asset Discovery (DNS, subdomains, ports, services, tech stack)
-  2. Intelligent Prioritization (auth endpoints, APIs, admin panels)
-  3. Vulnerability Testing (SAML, OAuth2, WebAuthn, SCIM, API security)
-  4. Results Storage & Reporting`,
+The main command runs the COMPREHENSIVE orchestrated pipeline:
+  1. Asset Discovery:
+     • Subdomain enumeration (DNS, cert transparency, search engines)
+     • Related domain discovery (same org, same cert, same registrant email)
+     • Adjacent IP scanning (neighboring IPs in /24 subnet)
+     • WHOIS analysis (organization footprinting)
+     • Port scanning (all exposed services)
+     • Service fingerprinting (Nmap version detection)
+     • Deep web crawling (login pages, APIs, admin panels)
+
+  2. Intelligent Prioritization:
+     • Authentication endpoints (SAML, OAuth2, WebAuthn)
+     • API endpoints (REST, GraphQL, SOAP)
+     • Admin panels and privileged functions
+     • File upload capabilities
+     • Payment and transaction flows
+
+  3. Comprehensive Vulnerability Testing:
+     • Authentication: SAML, OAuth2, WebAuthn, JWT, session handling
+     • API Security: GraphQL introspection, REST API auth bypass
+     • Access Control: IDOR, privilege escalation (horizontal/vertical)
+     • Injection: SQL injection, XSS (reflected, stored, DOM)
+     • SSRF: Server-side request forgery, cloud metadata access
+     • Business Logic: Payment manipulation, workflow bypass
+     • SCIM: Provisioning vulnerabilities, user enumeration
+
+  4. Temporal Snapshots & Reporting:
+     • All findings saved to PostgreSQL
+     • Historical comparison (track changes over time)
+     • Exportable reports (JSON, CSV, HTML, Markdown)
+     • Query interface for finding analysis`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		// Allow subcommands to handle their own args
 		if len(args) == 0 {
@@ -195,9 +221,13 @@ The main command runs the full orchestrated pipeline:
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if log != nil {
+			// Sync logger - ignore EINVAL errors from stdout/stderr on Linux
 			if err := log.Sync(); err != nil {
-				// Log sync errors are not critical, just warn
-				fmt.Fprintf(os.Stderr, "Warning: failed to sync logger: %v\n", err)
+				// Sync errors on stdout/stderr are expected on Linux and can be safely ignored
+				// Only log if it's a real error (not "invalid argument" from stdout/stderr)
+				if err.Error() != "sync /dev/stdout: invalid argument" && err.Error() != "sync /dev/stderr: invalid argument" {
+					fmt.Fprintf(os.Stderr, "Warning: failed to sync logger: %v\n", err)
+				}
 			}
 		}
 		if store != nil {
@@ -2442,7 +2472,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 	session.Assets[targetAsset.ID] = targetAsset
 
 	// Wait for discovery to complete
-	fmt.Println("⏳ Discovery in progress (30s timeout)...")
+	log.Info("⏳ Discovery in progress (30s timeout)...", "component", "root")
 	var discoveredAssets []*discovery.Asset
 
 	// FIXME: Add progress indicator with time remaining
@@ -2503,7 +2533,7 @@ discoveryDone:
 	switch targetType {
 	case "mail":
 		// TODO: Implement mail-specific vulnerability tests
-		fmt.Println("📧 Detected mail server - running specialized tests...")
+		log.Info("📧 Detected mail server - running specialized tests...", "component", "root")
 		// FIXME: Add these tests:
 		// - SMTP AUTH bypass
 		// - Webmail XSS/CSRF
@@ -2512,13 +2542,13 @@ discoveryDone:
 		// - Default credentials (admin:admin, postmaster:postmaster)
 	case "api":
 		// TODO: API-specific tests
-		fmt.Println("🔌 Detected API endpoint - running API security tests...")
+		log.Info("🔌 Detected API endpoint - running API security tests...", "component", "root")
 	case "webapp":
 		// TODO: Web app tests
-		fmt.Println("🌐 Detected web application - running web security tests...")
+		log.Info("🌐 Detected web application - running web security tests...", "component", "root")
 	default:
 		// Run general tests
-		fmt.Println(" Running general vulnerability tests...")
+		log.Info(" Running general vulnerability tests...", "component", "root")
 	}
 
 	// Run targeted vulnerability testing instead of comprehensive scanning
@@ -2630,7 +2660,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 	}
 
 	// Initialize scope management
-	fmt.Println("🔐 Initializing scope management...")
+	log.Info("🔐 Initializing scope management...", "component", "root")
 	scopeManager := createScopeManager()
 
 	// Check if we have any programs configured
@@ -2653,7 +2683,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 	}
 
 	// Start comprehensive discovery
-	fmt.Println(" Starting comprehensive asset discovery and scanning...")
+	log.Info(" Starting comprehensive asset discovery and scanning...", "component", "root")
 
 	// Create discovery config with all features enabled
 	discoveryConfig := discovery.DefaultDiscoveryConfig()
@@ -2691,7 +2721,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 
 	// Wait for discovery to complete and collect discovered assets
 	log.Infow("Waiting for discovery to complete...", "session_id", session.ID)
-	fmt.Println("⏳ Discovery in progress...")
+	log.Info("⏳ Discovery in progress...", "component", "root")
 
 	var discoveredAssets []*discovery.Asset
 	ticker := time.NewTicker(2 * time.Second)
@@ -2717,14 +2747,14 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 			}
 
 			if session.Status == discovery.StatusCompleted {
-				fmt.Println("\n Discovery completed!")
+				log.Info("\n Discovery completed!", "component", "root")
 				// Collect all discovered assets
 				for _, asset := range session.Assets {
 					discoveredAssets = append(discoveredAssets, asset)
 				}
 				goto discoveryComplete
 			} else if session.Status == discovery.StatusFailed {
-				fmt.Println("\n❌ Discovery failed!")
+				log.Info("\n❌ Discovery failed!", "component", "root")
 				if len(session.Errors) > 0 {
 					for _, err := range session.Errors {
 						log.Error("Discovery error", "error", err)
@@ -2734,7 +2764,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 			}
 
 		case <-timeout:
-			fmt.Println("\n Discovery timeout reached")
+			log.Info("\n Discovery timeout reached", "component", "root")
 			log.Warn("Discovery timeout", "session_id", session.ID)
 			// Still collect what we found
 			for _, asset := range session.Assets {
@@ -2842,7 +2872,7 @@ discoveryComplete:
 	}
 
 	// Run all available scanners
-	fmt.Println(" Running comprehensive security scans on all discovered assets...")
+	log.Info(" Running comprehensive security scans on all discovered assets...", "component", "root")
 
 	// Run comprehensive scanning on discovered assets
 	if err := runComprehensiveScanning(ctx, session, orgContext, log, store); err != nil {
@@ -2850,7 +2880,7 @@ discoveryComplete:
 		return fmt.Errorf("comprehensive scanning failed: %w", err)
 	}
 
-	fmt.Println(" Comprehensive scanning completed!")
+	log.Info(" Comprehensive scanning completed!", "component", "root")
 	fmt.Printf("📈 View results with: shells results query --scan-id %s\n", session.ID)
 
 	return nil

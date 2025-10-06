@@ -133,10 +133,10 @@ var configShowCmd = &cobra.Command{
 		// Load and display configured APIs
 		keys := credManager.GetAPIKeys()
 
-		fmt.Println("\n Current Configuration")
-		fmt.Println("═══════════════════════")
+		log.Info("\n Current Configuration", "component", "config")
+		log.Info("═══════════════════════", "component", "config")
 
-		fmt.Println("\n📡 API Keys:")
+		log.Info("\n📡 API Keys:", "component", "config")
 		apis := map[string]string{
 			"CirclUsername":        "CIRCL",
 			"PassiveTotalUsername": "PassiveTotal",
@@ -175,15 +175,15 @@ var configClearCmd = &cobra.Command{
 		force, _ := cmd.Flags().GetBool("force")
 
 		if !force {
-			fmt.Println("  This will delete all stored API credentials.")
-			fmt.Print("Are you sure? [y/N]: ")
+			log.Info("  This will delete all stored API credentials.", "component", "config")
+			log.Info("Are you sure? [y/N]: ", "component", "config")
 
 			var response string
 			fmt.Scanln(&response)
 			response = strings.TrimSpace(strings.ToLower(response))
 
 			if response != "y" && response != "yes" {
-				fmt.Println("Cancelled.")
+				log.Info("Cancelled.", "component", "config")
 				return nil
 			}
 		}
@@ -204,7 +204,7 @@ var configClearCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "You may need to manually delete this file\n")
 		}
 
-		fmt.Println(" API credentials cleared")
+		log.Info(" API credentials cleared", "component", "config")
 
 		return nil
 	},

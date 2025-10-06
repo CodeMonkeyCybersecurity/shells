@@ -234,7 +234,7 @@ func runScopeList(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(programs) == 0 {
-		fmt.Println("No programs imported yet. Use 'shells scope import' to add programs.")
+		log.Info("No programs imported yet. Use 'shells scope import' to add programs.", "component", "scope")
 		return nil
 	}
 
@@ -292,7 +292,7 @@ func runScopeShow(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	if len(program.Scope) > 0 {
-		fmt.Println("📋 IN SCOPE:")
+		log.Info("📋 IN SCOPE:", "component", "scope")
 		for _, item := range program.Scope {
 			fmt.Printf("   • %s (%s)", item.Value, item.Type)
 			if item.Description != "" {
@@ -307,7 +307,7 @@ func runScopeShow(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(program.OutOfScope) > 0 {
-		fmt.Println("🚫 OUT OF SCOPE:")
+		log.Info("🚫 OUT OF SCOPE:", "component", "scope")
 		for _, item := range program.OutOfScope {
 			fmt.Printf("   • %s (%s)", item.Value, item.Type)
 			if item.Description != "" {
@@ -319,7 +319,7 @@ func runScopeShow(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(program.Rules) > 0 {
-		fmt.Println("📏 RULES:")
+		log.Info("📏 RULES:", "component", "scope")
 		for _, rule := range program.Rules {
 			fmt.Printf("   • %s: %s\n", rule.Type, rule.Description)
 		}
@@ -327,7 +327,7 @@ func runScopeShow(cmd *cobra.Command, args []string) error {
 	}
 
 	if program.TestingGuidelines != "" {
-		fmt.Println(" TESTING GUIDELINES:")
+		log.Info(" TESTING GUIDELINES:", "component", "scope")
 		fmt.Println(wrapText(program.TestingGuidelines, 80))
 	}
 
@@ -379,7 +379,7 @@ func runScopeValidate(cmd *cobra.Command, args []string) error {
 	}
 
 	if verbose && len(result.ApplicableRules) > 0 {
-		fmt.Println("   Applicable Rules:")
+		log.Info("   Applicable Rules:", "component", "scope")
 		for _, rule := range result.ApplicableRules {
 			fmt.Printf("     • %s: %s\n", rule.Type, rule.Description)
 		}
@@ -395,17 +395,17 @@ func runScopeSync(cmd *cobra.Command, args []string) error {
 	scopeManager := createScopeManager()
 
 	if all {
-		fmt.Println("🔄 Syncing all programs...")
+		log.Info("🔄 Syncing all programs...", "component", "scope")
 		if err := scopeManager.SyncAllPrograms(); err != nil {
 			return err
 		}
-		fmt.Println(" Sync completed")
+		log.Info(" Sync completed", "component", "scope")
 	} else if programID != "" {
 		fmt.Printf("🔄 Syncing program %s...\n", programID)
 		if err := scopeManager.SyncProgram(programID); err != nil {
 			return err
 		}
-		fmt.Println(" Sync completed")
+		log.Info(" Sync completed", "component", "scope")
 	} else {
 		return fmt.Errorf("specify --all or --program")
 	}
@@ -419,7 +419,7 @@ func runScopeMonitor(cmd *cobra.Command, args []string) error {
 	scopeManager := createScopeManager()
 
 	fmt.Printf("👁️  Starting scope monitoring (interval: %s)\n", interval)
-	fmt.Println("Press Ctrl+C to stop")
+	log.Info("Press Ctrl+C to stop", "component", "scope")
 
 	// Update config with interval
 	if manager, ok := scopeManager.(*scope.Manager); ok {

@@ -177,17 +177,17 @@ func runHuntCommand(cmd *cobra.Command, args []string) error {
 func printHuntBanner(target string) {
 	blue := color.New(color.FgCyan, color.Bold)
 	fmt.Println()
-	fmt.Println("══════════════════════════════════════════════════════════════════════")
+	log.Info("══════════════════════════════════════════════════════════════════════", "component", "hunt")
 	blue.Println("🎯 Shells Bug Bounty Hunter")
 	fmt.Printf("   Target: %s\n", target)
 	fmt.Printf("   Time: %s\n", time.Now().Format("15:04:05"))
-	fmt.Println("══════════════════════════════════════════════════════════════════════")
+	log.Info("══════════════════════════════════════════════════════════════════════", "component", "hunt")
 	fmt.Println()
 }
 
 func displayHuntResults(result *orchestrator.BugBountyResult) {
 	fmt.Println()
-	fmt.Println("═══ Scan Summary ═══")
+	log.Info("═══ Scan Summary ═══", "component", "hunt")
 	fmt.Printf("Status: %s\n", colorStatus(result.Status))
 	fmt.Printf("Duration: %s\n", result.Duration.Round(time.Second))
 	fmt.Printf("Assets Discovered: %d\n", result.DiscoveredAt)
@@ -197,7 +197,7 @@ func displayHuntResults(result *orchestrator.BugBountyResult) {
 
 	// Display phase results
 	if len(result.PhaseResults) > 0 {
-		fmt.Println("═══ Phase Results ═══")
+		log.Info("═══ Phase Results ═══", "component", "hunt")
 		for phase, pr := range result.PhaseResults {
 			status := colorPhaseStatus(pr.Status)
 			fmt.Printf("[%s] %s - %s (%d findings, %s)\n",
@@ -216,7 +216,7 @@ func displayHuntResults(result *orchestrator.BugBountyResult) {
 
 	// Display findings by severity
 	if len(result.Findings) > 0 {
-		fmt.Println("═══ Findings by Severity ═══")
+		log.Info("═══ Findings by Severity ═══", "component", "hunt")
 		bySeverity := groupFindingsBySeverity(result.Findings)
 		for _, severity := range []types.Severity{
 			types.SeverityCritical,
@@ -233,7 +233,7 @@ func displayHuntResults(result *orchestrator.BugBountyResult) {
 		fmt.Println()
 
 		// Display top findings
-		fmt.Println("═══ Top Findings ═══")
+		log.Info("═══ Top Findings ═══", "component", "hunt")
 		displayTopFindings(result.Findings, 5)
 	} else {
 		color.New(color.FgGreen).Println("✓ No vulnerabilities found")

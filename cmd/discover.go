@@ -77,7 +77,7 @@ func runDiscoveryOnly(target string) error {
 	}
 
 	// Monitor discovery progress
-	fmt.Println("⏳ Discovery in progress...")
+	log.Info("⏳ Discovery in progress...", "component", "discover")
 
 	for {
 		session, err := engine.GetSession(session.ID)
@@ -92,11 +92,11 @@ func runDiscoveryOnly(target string) error {
 
 		if session.Status == discovery.StatusCompleted {
 			if discoverVerbose {
-				fmt.Println("\n Discovery completed!")
+				log.Info("\n Discovery completed!", "component", "discover")
 			}
 			break
 		} else if session.Status == discovery.StatusFailed {
-			fmt.Println("\n❌ Discovery failed!")
+			log.Info("\n❌ Discovery failed!", "component", "discover")
 			for _, errMsg := range session.Errors {
 				fmt.Printf("   Error: %s\n", errMsg)
 			}

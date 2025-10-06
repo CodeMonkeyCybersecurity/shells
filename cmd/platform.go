@@ -111,7 +111,7 @@ var platformSubmitCmd = &cobra.Command{
 		report := convertFindingToReport(&finding, programHandle)
 
 		if dryRun {
-			fmt.Println("DRY RUN - Report would be submitted:")
+			log.Info("DRY RUN - Report would be submitted:", "component", "platform")
 			reportJSON, _ := json.MarshalIndent(report, "", "  ")
 			fmt.Println(string(reportJSON))
 			return nil
@@ -209,7 +209,7 @@ This command will:
 		}
 
 		if len(findings) == 0 {
-			fmt.Println("No findings match the criteria")
+			log.Info("No findings match the criteria", "component", "platform")
 			return nil
 		}
 
@@ -500,7 +500,7 @@ func storeSubmission(store *database.Store, findingID, platform string, response
 
 // printPrograms prints programs in a table format
 func printPrograms(programs []*platforms.Program) {
-	fmt.Println("\nBug Bounty Programs:")
+	log.Info("\nBug Bounty Programs:", "component", "platform")
 	fmt.Println(strings.Repeat("=", 80))
 	for _, p := range programs {
 		fmt.Printf("\n📋 %s (%s)\n", p.Name, p.Handle)

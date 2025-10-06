@@ -62,7 +62,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "auth")
 			os.Exit(1)
 		}
 
@@ -170,7 +170,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "auth")
 			os.Exit(1)
 		}
 
@@ -263,7 +263,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "auth")
 			os.Exit(1)
 		}
 
@@ -346,7 +346,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			fmt.Println("Error: --target is required")
+			log.Info("Error: --target is required", "component", "auth")
 			os.Exit(1)
 		}
 

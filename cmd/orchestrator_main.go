@@ -154,19 +154,19 @@ func printOrchestratorBanner(target string, config orchestrator.BugBountyConfig)
 	}
 
 	fmt.Println()
-	fmt.Println("══════════════════════════════════════════════════════════════════════")
+	log.Info("══════════════════════════════════════════════════════════════════════", "component", "orchestrator_main")
 	cyan.Println("🎯 Shells - Intelligent Bug Bounty Automation")
 	fmt.Printf("   Target: %s\n", target)
 	fmt.Printf("   Mode: %s\n", mode)
 	fmt.Printf("   Time: %s\n", time.Now().Format("15:04:05"))
-	fmt.Println("══════════════════════════════════════════════════════════════════════")
+	log.Info("══════════════════════════════════════════════════════════════════════", "component", "orchestrator_main")
 	fmt.Println()
 }
 
 // displayOrchestratorResults displays results from the orchestrator
 func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orchestrator.BugBountyConfig) {
 	fmt.Println()
-	fmt.Println("═══ Orchestrator Summary ═══")
+	log.Info("═══ Orchestrator Summary ═══", "component", "orchestrator_main")
 	fmt.Printf("Status: %s\n", colorStatus(result.Status))
 	fmt.Printf("Duration: %s\n", result.Duration.Round(time.Second))
 	fmt.Printf("Assets Discovered: %d\n", result.DiscoveredAt)
@@ -176,7 +176,7 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 
 	// Display phase results
 	if len(result.PhaseResults) > 0 {
-		fmt.Println("═══ Pipeline Phases ═══")
+		log.Info("═══ Pipeline Phases ═══", "component", "orchestrator_main")
 
 		// Display in order: discovery, prioritization, testing phases
 		phaseOrder := []string{"discovery", "auth", "scim", "api"}
@@ -208,7 +208,7 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 
 	// Display findings by severity
 	if len(result.Findings) > 0 {
-		fmt.Println("═══ Findings by Severity ═══")
+		log.Info("═══ Findings by Severity ═══", "component", "orchestrator_main")
 		bySeverity := groupFindingsBySeverity(result.Findings)
 
 		for _, severity := range []types.Severity{
@@ -226,17 +226,17 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 		fmt.Println()
 
 		// Display top findings
-		fmt.Println("═══ Top Findings ═══")
+		log.Info("═══ Top Findings ═══", "component", "orchestrator_main")
 		displayTopFindings(result.Findings, 10)
 
 		if len(result.Findings) > 10 {
 			fmt.Printf("\n... and %d more findings\n", len(result.Findings)-10)
-			fmt.Println("\nUse 'shells results query' to see all findings")
+			log.Info("\nUse 'shells results query' to see all findings", "component", "orchestrator_main")
 		}
 	} else {
 		color.New(color.FgYellow).Println("ℹ No high-severity vulnerabilities found")
-		fmt.Println("  The target appears to have good security posture,")
-		fmt.Println("  or may require authenticated testing.")
+		log.Info("  The target appears to have good security posture,", "component", "orchestrator_main")
+		log.Info("  or may require authenticated testing.", "component", "orchestrator_main")
 	}
 
 	fmt.Println()
