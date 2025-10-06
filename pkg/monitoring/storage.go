@@ -9,19 +9,21 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/lib/pq" // PostgreSQL driver
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
-// SQLiteStorage implements MonitoringStorage using SQLite3
+// SQLiteStorage implements MonitoringStorage using PostgreSQL
+// Note: Name kept for backward compatibility but now uses PostgreSQL
 type SQLiteStorage struct {
 	db     *sqlx.DB
 	logger *logger.Logger
 }
 
-// NewSQLiteStorage creates a new SQLite storage backend for monitoring
+// NewSQLiteStorage creates a new PostgreSQL storage backend for monitoring
+// Note: Name kept for backward compatibility but now uses PostgreSQL
 func NewSQLiteStorage(dsn string) (*SQLiteStorage, error) {
 	// Initialize logger
 	log, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
@@ -30,10 +32,10 @@ func NewSQLiteStorage(dsn string) (*SQLiteStorage, error) {
 	}
 	log = log.WithComponent("monitoring-storage")
 
-	// Connect to SQLite database
-	db, err := sqlx.Connect("sqlite3", dsn)
+	// Connect to PostgreSQL database
+	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to SQLite database: %w", err)
+		return nil, fmt.Errorf("failed to connect to PostgreSQL database: %w", err)
 	}
 
 	storage := &SQLiteStorage{

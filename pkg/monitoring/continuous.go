@@ -1140,16 +1140,18 @@ func sortStrings(items []string) {
 func createStorage(backend string) (MonitoringStorage, error) {
 	// Create appropriate storage backend
 	switch backend {
-	case "sqlite", "sqlite3":
-		// Use the same database as the main application
-		return NewSQLiteStorage("shells.db")
+	case "postgres", "postgresql":
+		// Use PostgreSQL connection string from environment or default
+		dsn := "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable"
+		return NewSQLiteStorage(dsn)
 	case "memory":
 		return &InMemoryStorage{
 			data: make(map[string]interface{}),
 		}, nil
 	default:
-		// Default to SQLite for persistence
-		return NewSQLiteStorage("shells.db")
+		// Default to PostgreSQL for persistence
+		dsn := "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable"
+		return NewSQLiteStorage(dsn)
 	}
 }
 

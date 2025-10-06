@@ -164,8 +164,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"           // PostgreSQL driver
-	_ "github.com/mattn/go-sqlite3" // SQLite driver
+	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
 // Hera-specific API types

@@ -18,7 +18,6 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/likexian/whois v1.15.6
 	github.com/likexian/whois-parser v1.24.20
-	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/miekg/dns v1.1.67
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/spf13/cobra v1.9.1
