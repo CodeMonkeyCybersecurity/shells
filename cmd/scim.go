@@ -53,7 +53,7 @@ Examples:
   shells scim discover https://example.com --auth-token "Bearer xyz"
   shells scim discover https://example.com --auth-type basic --username admin --password secret`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 
 		// Get flags
@@ -86,10 +86,9 @@ Examples:
 			if strings.Contains(err.Error(), "context deadline exceeded") {
 				fmt.Printf("  SCIM discovery timed out, performing basic endpoint check\n")
 				performBasicSCIMCheck(target)
-				return
+				return nil
 			}
-			fmt.Printf("Error during SCIM discovery: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("SCIM discovery failed: %w", err)
 		}
 
 		// Output results
@@ -98,6 +97,7 @@ Examples:
 		} else {
 			printSCIMDiscoveryResults(findings, verbose)
 		}
+		return nil
 	},
 }
 
@@ -120,7 +120,7 @@ Examples:
   shells scim test https://example.com/scim/v2 --test-filters --test-bulk
   shells scim test https://example.com/scim/v2 --test-all --output results.json`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 
 		// Get flags
@@ -176,8 +176,7 @@ Examples:
 
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
-			fmt.Printf("Error during SCIM testing: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("SCIM testing failed: %w", err)
 		}
 
 		// Output results
@@ -186,6 +185,7 @@ Examples:
 		} else {
 			printSCIMTestResults(findings, verbose)
 		}
+		return nil
 	},
 }
 
@@ -205,7 +205,7 @@ Examples:
   shells scim provision https://example.com/scim/v2/Users --auth-token "Bearer xyz"
   shells scim provision https://example.com/scim/v2/Users --test-privesc`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 
 		// Get flags
@@ -243,8 +243,7 @@ Examples:
 
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
-			fmt.Printf("Error during SCIM provisioning test: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("SCIM provisioning test failed: %w", err)
 		}
 
 		// Output results
@@ -253,6 +252,7 @@ Examples:
 		} else {
 			printSCIMProvisionResults(findings, verbose)
 		}
+		return nil
 	},
 }
 

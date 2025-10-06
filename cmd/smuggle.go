@@ -13,11 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TECHNICAL DEBT: This file contains 2 remaining os.Exit(1) calls that should be replaced
-// with proper error returns for better composability and testing.
-// Pattern to fix: fmt.Printf("Error..."); os.Exit(1) -> return fmt.Errorf("...")
-// Locations: lines ~143, ~186 (search for "os.Exit" to find exact lines)
-// Priority: P1 (improves testability but not critical for users)
+// All commands in this file use RunE pattern for proper error handling and testability.
 
 var smuggleCmd = &cobra.Command{
 	Use:   "smuggle",
@@ -56,7 +52,7 @@ Examples:
   shells smuggle detect https://example.com --technique all --differential
   shells smuggle detect https://example.com --timeout 30s --no-verify-ssl`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 
 		// Get flags
@@ -88,9 +84,7 @@ Examples:
 
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
-			// TODO(P1): Convert this command to use RunE instead of Run to return errors properly
-			fmt.Fprintf(os.Stderr, "Error: smuggling detection failed: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("smuggling detection failed: %w", err)
 		}
 
 		// Output results
@@ -99,6 +93,7 @@ Examples:
 		} else {
 			printSmugglingDetectionResults(findings, verbose)
 		}
+		return nil
 	},
 }
 
@@ -118,7 +113,7 @@ Examples:
   shells smuggle exploit https://example.com --technique te.cl --target-path /admin
   shells smuggle exploit https://example.com --generate-poc --output exploit.txt`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 
 		// Get flags
@@ -146,8 +141,7 @@ Examples:
 
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
-			fmt.Printf("Error during smuggling exploitation: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("smuggling exploitation failed: %w", err)
 		}
 
 		// Output results
@@ -156,6 +150,7 @@ Examples:
 		} else {
 			printSmugglingExploitResults(findings, verbose)
 		}
+		return nil
 	},
 }
 
@@ -175,7 +170,7 @@ Examples:
   shells smuggle poc https://example.com --technique all --output pocs.txt
   shells smuggle poc https://example.com --technique te.cl --target-path /admin`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
 
 		// Get flags
@@ -189,8 +184,7 @@ Examples:
 		// Output results
 		if output != "" {
 			if err := os.WriteFile(output, []byte(strings.Join(pocs, "\n\n")), 0644); err != nil {
-				fmt.Printf("Error writing PoCs to file: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("failed to write PoCs to file: %w", err)
 			}
 			fmt.Printf("PoCs written to %s\n", output)
 		} else {
@@ -200,6 +194,7 @@ Examples:
 				fmt.Printf("%s\n\n", poc)
 			}
 		}
+		return nil
 	},
 }
 

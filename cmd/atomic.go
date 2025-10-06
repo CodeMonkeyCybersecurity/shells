@@ -45,7 +45,7 @@ Examples:
   shells atomic list --vuln-type SSRF
   shells atomic list --category credential-access
   shells atomic list --tactic discovery`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		vulnType, _ := cmd.Flags().GetString("vuln-type")
 		_ = vulnType // Use the variable
 		output, _ := cmd.Flags().GetString("output")
@@ -61,8 +61,7 @@ Examples:
 
 		client, err := atomic.NewAtomicClient(config)
 		if err != nil {
-			fmt.Printf("Error initializing atomic client: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to initialize atomic client: %w", err)
 		}
 
 		techniques := client.ListSafeTechniques()
@@ -79,6 +78,7 @@ Examples:
 		} else {
 			printTechniquesTable(techniques, client, verbose)
 		}
+		return nil
 	},
 }
 
@@ -94,7 +94,7 @@ Examples:
   shells atomic demo --vuln-type SSRF --target https://example.com
   shells atomic demo --technique T1552.001 --target https://example.com --dry-run
   shells atomic demo --finding CVE-2023-1234 --target https://example.com --sandbox`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		vulnType, _ := cmd.Flags().GetString("vuln-type")
 		technique, _ := cmd.Flags().GetString("technique")
 		target, _ := cmd.Flags().GetString("target")
@@ -104,13 +104,11 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "atomic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		if vulnType == "" && technique == "" {
-			log.Info("Error: either --vuln-type or --technique is required", "component", "atomic")
-			os.Exit(1)
+			return fmt.Errorf("either --vuln-type or --technique is required")
 		}
 
 		// Initialize atomic client
@@ -123,8 +121,7 @@ Examples:
 
 		client, err := atomic.NewAtomicClient(config)
 		if err != nil {
-			fmt.Printf("Error initializing atomic client: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to initialize atomic client: %w", err)
 		}
 
 		targetObj := atomic.Target{
@@ -147,16 +144,14 @@ Examples:
 			// Demonstrate specific technique
 			demo, err := runTechniqueDemo(client, technique, targetObj)
 			if err != nil {
-				fmt.Printf("Error demonstrating technique %s: %v\n", technique, err)
-				os.Exit(1)
+				return fmt.Errorf("failed to demonstrate technique %s: %w", technique, err)
 			}
 			demonstrations = append(demonstrations, *demo)
 		} else {
 			// Map vulnerability to techniques and demonstrate
 			demos, err := runVulnerabilityDemo(client, vulnType, targetObj)
 			if err != nil {
-				fmt.Printf("Error demonstrating vulnerability %s: %v\n", vulnType, err)
-				os.Exit(1)
+				return fmt.Errorf("failed to demonstrate vulnerability %s: %w", vulnType, err)
 			}
 			demonstrations = demos
 		}
@@ -167,6 +162,7 @@ Examples:
 		} else {
 			printDemonstrationsTable(demonstrations, verbose)
 		}
+		return nil
 	},
 }
 
@@ -182,15 +178,14 @@ Examples:
   shells atomic validate --technique T1552.001
   shells atomic validate --test-file /path/to/custom-test.yaml
   shells atomic validate --all`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		technique, _ := cmd.Flags().GetString("technique")
 		testFile, _ := cmd.Flags().GetString("test-file")
 		validateAll, _ := cmd.Flags().GetBool("all")
 		output, _ := cmd.Flags().GetString("output")
 
 		if technique == "" && testFile == "" && !validateAll {
-			log.Info("Error: specify --technique, --test-file, or --all", "component", "atomic")
-			os.Exit(1)
+			return fmt.Errorf("specify --technique, --test-file, or --all")
 		}
 
 		// Initialize atomic client
@@ -201,16 +196,14 @@ Examples:
 
 		client, err := atomic.NewAtomicClient(config)
 		if err != nil {
-			fmt.Printf("Error initializing atomic client: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to initialize atomic client: %w", err)
 		}
 
 		if technique != "" {
 			// Validate specific technique
 			report, err := client.ValidateTestSafety(technique)
 			if err != nil {
-				fmt.Printf("Error validating technique %s: %v\n", technique, err)
-				os.Exit(1)
+				return fmt.Errorf("failed to validate technique %s: %w", technique, err)
 			}
 
 			if output == "json" {
@@ -248,6 +241,7 @@ Examples:
 
 			fmt.Printf("\n Validation Summary: %d passed, %d failed\n", passed, failed)
 		}
+		return nil
 	},
 }
 
@@ -263,7 +257,7 @@ Examples:
   shells atomic report --findings findings.json --output report.html
   shells atomic report --findings findings.json --navigator navigator.json
   shells atomic report --vuln-type SSRF --target https://example.com --format pdf`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		findingsFile, _ := cmd.Flags().GetString("findings")
 		vulnType, _ := cmd.Flags().GetString("vuln-type")
 		target, _ := cmd.Flags().GetString("target")
@@ -272,8 +266,7 @@ Examples:
 		format, _ := cmd.Flags().GetString("format")
 
 		if findingsFile == "" && vulnType == "" {
-			log.Info("Error: specify --findings file or --vuln-type", "component", "atomic")
-			os.Exit(1)
+			return fmt.Errorf("specify --findings file or --vuln-type")
 		}
 
 		var findings []atomic.Finding
@@ -284,8 +277,7 @@ Examples:
 			var err error
 			findings, err = loadFindingsFromFile(findingsFile)
 			if err != nil {
-				fmt.Printf("Error loading findings: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("failed to load findings: %w", err)
 			}
 		} else {
 			// Create finding from vulnerability type
@@ -310,8 +302,7 @@ Examples:
 
 		client, err := atomic.NewAtomicClient(config)
 		if err != nil {
-			fmt.Printf("Error initializing client: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to initialize client: %w", err)
 		}
 
 		for _, finding := range findings {
@@ -364,30 +355,27 @@ Examples:
 				atomicReporter := atomic.NewAtomicReporter()
 				err := atomicReporter.GenerateHTMLReport(&report.ATTACKReport, outputFile)
 				if err != nil {
-					fmt.Printf("Error generating HTML report: %v\n", err)
-					os.Exit(1)
+					return fmt.Errorf("failed to generate HTML report: %w", err)
 				}
 				fmt.Printf("📄 HTML report saved to: %s\n", outputFile)
 			case "json":
 				data, err := json.MarshalIndent(report, "", "  ")
 				if err != nil {
-					fmt.Printf("Error marshaling report: %v\n", err)
-					os.Exit(1)
+					return fmt.Errorf("failed to marshal report: %w", err)
 				}
 				err = os.WriteFile(outputFile, data, 0644)
 				if err != nil {
-					fmt.Printf("Error saving report: %v\n", err)
-					os.Exit(1)
+					return fmt.Errorf("failed to save report: %w", err)
 				}
 				fmt.Printf("📄 JSON report saved to: %s\n", outputFile)
 			default:
-				fmt.Printf("Error: unsupported format %s (use html or json)\n", format)
-				os.Exit(1)
+				return fmt.Errorf("unsupported format %s (use html or json)", format)
 			}
 		} else {
 			// Print summary to console
 			printAtomicReportSummary(report)
 		}
+		return nil
 	},
 }
 

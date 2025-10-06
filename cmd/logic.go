@@ -69,7 +69,7 @@ Examples:
   shells logic reset --target https://example.com --test-entropy --samples 200
   shells logic reset --target https://example.com --test-host-header
   shells logic reset --target https://example.com --output json`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		testAll, _ := cmd.Flags().GetBool("test-all")
@@ -80,8 +80,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		// Configure test settings
@@ -131,6 +130,7 @@ Examples:
 		} else {
 			fmt.Printf(" Good: Password reset flow appears secure\n")
 		}
+		return nil
 	},
 }
 
@@ -167,7 +167,7 @@ Examples:
   shells logic workflow --target https://example.com/checkout
   shells logic workflow --target https://example.com/register --max-depth 10
   shells logic workflow --target https://example.com/admin --test-privileges`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		maxDepth, _ := cmd.Flags().GetInt("max-depth")
@@ -177,8 +177,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		config := &logic.TestConfig{
@@ -220,6 +219,7 @@ Examples:
 			log.Info("═══════════════════", "component", "logic")
 			fmt.Println(results.Diagram)
 		}
+		return nil
 	},
 }
 
@@ -257,7 +257,7 @@ Examples:
   shells logic race --target https://example.com --workers 20
   shells logic race --target https://example.com/api/payment --test-payments
   shells logic race --target https://example.com/cart --test-inventory`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		workers, _ := cmd.Flags().GetInt("workers")
@@ -267,8 +267,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		config := &logic.TestConfig{
@@ -326,6 +325,7 @@ Examples:
 		} else {
 			fmt.Printf(" No race condition vulnerabilities found\n")
 		}
+		return nil
 	},
 }
 
@@ -362,7 +362,7 @@ Examples:
   shells logic mfa --target https://example.com --test-bypasses
   shells logic mfa --target https://example.com --test-tokens
   shells logic mfa --target https://example.com --test-recovery`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		testBypasses, _ := cmd.Flags().GetBool("test-bypasses")
@@ -371,8 +371,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		config := &logic.TestConfig{
@@ -439,6 +438,7 @@ Examples:
 		} else {
 			fmt.Printf(" MFA implementation appears secure\n")
 		}
+		return nil
 	},
 }
 
@@ -480,7 +480,7 @@ Examples:
   shells logic payment --target https://shop.example.com --test-all
   shells logic payment --target https://shop.example.com --test-cart
   shells logic payment --target https://shop.example.com --test-pricing`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		testAll, _ := cmd.Flags().GetBool("test-all")
@@ -491,8 +491,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		config := &logic.TestConfig{
@@ -561,6 +560,7 @@ Examples:
 		} else {
 			fmt.Printf(" Payment logic appears secure\n")
 		}
+		return nil
 	},
 }
 
@@ -602,7 +602,7 @@ Examples:
   shells logic recovery --target https://example.com --test-all
   shells logic recovery --target https://example.com --test-password-reset
   shells logic recovery --target https://example.com --test-security-questions`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		testAll, _ := cmd.Flags().GetBool("test-all")
@@ -614,8 +614,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		config := &logic.TestConfig{
@@ -690,6 +689,7 @@ Examples:
 		} else {
 			fmt.Printf(" Account recovery appears secure\n")
 		}
+		return nil
 	},
 }
 
@@ -728,7 +728,7 @@ Examples:
   shells logic all --target https://example.com
   shells logic all --target https://example.com --output json
   shells logic all --target https://example.com --include-business-impact`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		includeBusiness, _ := cmd.Flags().GetBool("include-business-impact")
@@ -736,8 +736,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		fmt.Printf(" Running comprehensive business logic tests for: %s\n", target)
@@ -785,6 +784,7 @@ Examples:
 		} else {
 			fmt.Printf(" SECURE: No significant business logic vulnerabilities found\n")
 		}
+		return nil
 	},
 }
 
@@ -816,7 +816,7 @@ Examples:
   shells logic report --target https://example.com --output report.html
   shells logic report --findings findings.json --format pdf
   shells logic report --target https://example.com --include-business-impact`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		outputFile, _ := cmd.Flags().GetString("output")
 		findingsFile, _ := cmd.Flags().GetString("findings")
@@ -825,8 +825,7 @@ Examples:
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" && findingsFile == "" {
-			log.Info("Error: specify --target or --findings", "component", "logic")
-			os.Exit(1)
+			return fmt.Errorf("specify --target or --findings")
 		}
 
 		fmt.Printf("📋 Generating business logic security report...\n")
@@ -838,8 +837,7 @@ Examples:
 			var err error
 			vulnerabilities, err = loadVulnerabilitiesFromFile(findingsFile)
 			if err != nil {
-				fmt.Printf("Error loading findings: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("failed to load findings: %w", err)
 			}
 			fmt.Printf("📁 Loaded %d vulnerabilities from %s\n", len(vulnerabilities), findingsFile)
 		} else {
@@ -856,13 +854,13 @@ Examples:
 		if outputFile != "" {
 			err := saveReport(report, outputFile, format)
 			if err != nil {
-				fmt.Printf("Error saving report: %v\n", err)
-				os.Exit(1)
+				return fmt.Errorf("failed to save report: %w", err)
 			}
 			fmt.Printf("📄 Report saved to: %s\n", outputFile)
 		} else {
 			printReportSummary(report, verbose)
 		}
+		return nil
 	},
 }
 

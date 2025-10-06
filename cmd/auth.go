@@ -56,14 +56,13 @@ Examples:
   shells auth discover --target https://example.com
   shells auth discover --target https://example.com --verbose
   shells auth discover --target https://example.com --output json`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "auth")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		// Create logger
@@ -87,8 +86,7 @@ Examples:
 		engine := discovery.NewEngine(log, discoveryConfig)
 		discoveryResult, err := engine.Discover(cmd.Context(), target)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("discovery failed: %w", err)
 		}
 
 		// Also run legacy discovery for federation
@@ -143,6 +141,7 @@ Examples:
 		} else {
 			printComprehensiveDiscoveryResults(result)
 		}
+		return nil
 	},
 }
 
@@ -163,15 +162,14 @@ Examples:
   shells auth test --target https://example.com --protocol oauth2
   shells auth test --target https://example.com --protocol webauthn
   shells auth test --target https://example.com --protocol all`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		protocol, _ := cmd.Flags().GetString("protocol")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "auth")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		if protocol == "" {
@@ -201,13 +199,11 @@ Examples:
 		case "all":
 			report, err = runAllTests(target, logger)
 		default:
-			fmt.Printf("Error: Unknown protocol '%s'. Supported: saml, oauth2, webauthn, all\n", protocol)
-			os.Exit(1)
+			return fmt.Errorf("unknown protocol '%s'. Supported: saml, oauth2, webauthn, all", protocol)
 		}
 
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("authentication tests failed: %w", err)
 		}
 
 		// Save results to database
@@ -236,6 +232,7 @@ Examples:
 		} else {
 			printTestResults(report)
 		}
+		return nil
 	},
 }
 
@@ -256,15 +253,14 @@ Examples:
   shells auth chain --target https://example.com
   shells auth chain --target https://example.com --max-depth 5
   shells auth chain --target https://example.com --output json`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		maxDepth, _ := cmd.Flags().GetInt("max-depth")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "auth")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		if maxDepth <= 0 {
@@ -281,8 +277,7 @@ Examples:
 		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
 		config, err := crossAnalyzer.AnalyzeTarget(target)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("target analysis failed: %w", err)
 		}
 
 		// Find attack chains
@@ -319,6 +314,7 @@ Examples:
 		} else {
 			printChainResults(result)
 		}
+		return nil
 	},
 }
 
@@ -339,15 +335,14 @@ Examples:
   shells auth all --target https://example.com
   shells auth all --target https://example.com --output json
   shells auth all --target https://example.com --save-report report.json`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		target, _ := cmd.Flags().GetString("target")
 		output, _ := cmd.Flags().GetString("output")
 		saveReport, _ := cmd.Flags().GetString("save-report")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if target == "" {
-			log.Info("Error: --target is required", "component", "auth")
-			os.Exit(1)
+			return fmt.Errorf("--target is required")
 		}
 
 		// Create logger
@@ -359,8 +354,7 @@ Examples:
 		// Run comprehensive analysis
 		report, err := runComprehensiveAnalysis(target, logger)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("comprehensive analysis failed: %w", err)
 		}
 
 		// Save results to database
@@ -386,6 +380,7 @@ Examples:
 		} else {
 			printComprehensiveResults(report)
 		}
+		return nil
 	},
 }
 
