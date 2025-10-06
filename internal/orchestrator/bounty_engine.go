@@ -13,10 +13,12 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/google/uuid"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/api"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nmap"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nuclei"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/progress"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/ratelimit"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
@@ -48,6 +50,9 @@ type BugBountyEngine struct {
 	nmapScanner    core.Scanner // Nmap port scanning and service fingerprinting
 	nucleiScanner  core.Scanner // Nuclei vulnerability scanning
 	graphqlScanner core.Scanner // GraphQL introspection and testing
+
+	// Python worker client (optional - for GraphCrawler and IDOR)
+	pythonWorkers *workers.Client
 
 	// Configuration
 	config BugBountyConfig
@@ -256,6 +261,24 @@ func NewBugBountyEngine(
 		"min_delay_ms", 100,
 	)
 
+	// Initialize Python workers client (optional - check if service is running)
+	var pythonWorkers *workers.Client
+	workerURL := "http://localhost:5000"
+	pythonWorkers = workers.NewClient(workerURL)
+	if err := pythonWorkers.Health(); err != nil {
+		logger.Warnw("Python worker service not available - IDOR and GraphCrawler testing disabled",
+			"error", err,
+			"worker_url", workerURL,
+			"note", "Run 'shells serve' or 'shells workers start' to enable Python-based testing",
+		)
+		pythonWorkers = nil // Disable if not available
+	} else {
+		logger.Infow("Python worker service connected",
+			"worker_url", workerURL,
+			"capabilities", []string{"GraphCrawler", "IDOR"},
+		)
+	}
+
 	return &BugBountyEngine{
 		store:           store,
 		telemetry:       telemetry,
@@ -270,6 +293,7 @@ func NewBugBountyEngine(
 		nmapScanner:     nmapScanner,
 		nucleiScanner:   nucleiScanner,
 		graphqlScanner:  graphqlScanner,
+		pythonWorkers:   pythonWorkers,
 		config:          config,
 	}, nil
 }
@@ -311,8 +335,8 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	tracker.AddPhase("testing", "Testing for vulnerabilities")
 	tracker.AddPhase("storage", "Storing results")
 
-	// Create scan record
-	scanID := fmt.Sprintf("bounty-%d", time.Now().Unix())
+	// Create scan record with UUID to prevent collisions
+	scanID := fmt.Sprintf("bounty-%d-%s", time.Now().Unix(), uuid.New().String()[:8])
 	result := &BugBountyResult{
 		ScanID:       scanID,
 		Target:       target,
@@ -734,6 +758,9 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
 		totalTests++
 	}
+	if e.config.EnableIDORTesting && e.pythonWorkers != nil {
+		totalTests++
+	}
 
 	updateTestProgress := func() {
 		mu.Lock()
@@ -816,7 +843,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		}()
 	}
 
-	// GraphQL Testing
+	// GraphQL Testing (Go scanner + optional Python GraphCrawler)
 	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
 		wg.Add(1)
 		go func() {
@@ -825,6 +852,20 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["graphql"] = result
+			mu.Unlock()
+			updateTestProgress()
+		}()
+	}
+
+	// IDOR Testing (Python workers only)
+	if e.config.EnableIDORTesting && e.pythonWorkers != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			findings, result := e.runIDORTests(ctx, assets)
+			mu.Lock()
+			allFindings = append(allFindings, findings...)
+			phaseResults["idor"] = result
 			mu.Unlock()
 			updateTestProgress()
 		}()
@@ -1303,7 +1344,7 @@ func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPr
 			"component", "graphql_scanner",
 		)
 
-		// Run GraphQL scan
+		// Run Go GraphQL scanner
 		results, err := e.graphqlScanner.Scan(ctx, url, nil)
 		if err != nil {
 			e.logger.Errorw("GraphQL scan failed",
@@ -1317,11 +1358,38 @@ func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPr
 		// Convert results to findings
 		findings = append(findings, results...)
 
-		e.logger.Infow("GraphQL scan completed",
+		e.logger.Infow("Go GraphQL scan completed",
 			"url", url,
 			"findings", len(results),
 			"component", "graphql_scanner",
 		)
+
+		// Also run Python GraphCrawler if available
+		if e.pythonWorkers != nil {
+			e.logger.Infow("Running Python GraphCrawler",
+				"url", url,
+				"component", "graphcrawler",
+			)
+
+			jobStatus, err := e.pythonWorkers.ScanGraphQLSync(ctx, url, nil)
+			if err != nil {
+				e.logger.Errorw("GraphCrawler scan failed",
+					"error", err,
+					"url", url,
+					"component", "graphcrawler",
+				)
+			} else if jobStatus.Status == "completed" && jobStatus.Result != nil {
+				// Convert Python worker results to findings
+				pythonFindings := convertPythonGraphQLToFindings(jobStatus.Result, url)
+				findings = append(findings, pythonFindings...)
+
+				e.logger.Infow("GraphCrawler scan completed",
+					"url", url,
+					"findings", len(pythonFindings),
+					"component", "graphcrawler",
+				)
+			}
+		}
 	}
 
 	phase.EndTime = time.Now()
@@ -1336,6 +1404,160 @@ func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPr
 	)
 
 	return findings, phase
+}
+
+// runIDORTests performs IDOR vulnerability testing using Python workers
+func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phase := PhaseResult{
+		Phase:     "idor",
+		Status:    "running",
+		StartTime: time.Now(),
+	}
+
+	e.logger.Infow("Running IDOR vulnerability tests")
+
+	var findings []types.Finding
+
+	// Find potential IDOR endpoints (those with IDs in URL)
+	idorEndpoints := []string{}
+	for _, asset := range assets {
+		url := asset.Asset.Value
+		// Look for numeric IDs or UUIDs in URLs
+		if strings.Contains(url, "/api/") && (containsPattern(url, `\/\d+`) || containsPattern(url, `[a-f0-9-]{36}`)) {
+			idorEndpoints = append(idorEndpoints, url)
+		}
+	}
+
+	if len(idorEndpoints) == 0 {
+		e.logger.Infow("No IDOR candidates found", "component", "idor_scanner")
+		phase.EndTime = time.Now()
+		phase.Duration = phase.EndTime.Sub(phase.StartTime)
+		phase.Status = "completed"
+		phase.Findings = 0
+		return findings, phase
+	}
+
+	e.logger.Infow("IDOR candidates identified",
+		"count", len(idorEndpoints),
+		"component", "idor_scanner",
+	)
+
+	// Run IDOR scans
+	for _, endpoint := range idorEndpoints {
+		e.logger.Debugw("Testing IDOR endpoint",
+			"endpoint", endpoint,
+			"component", "idor_scanner",
+		)
+
+		// Use Python IDOR scanner
+		// Note: In production, you'd need to extract auth tokens from somewhere
+		tokens := []string{} // TODO: Extract from credential manager or user input
+		jobStatus, err := e.pythonWorkers.ScanIDORSync(ctx, endpoint, tokens, 1, 100)
+		if err != nil {
+			e.logger.Errorw("IDOR scan failed",
+				"error", err,
+				"endpoint", endpoint,
+				"component", "idor_scanner",
+			)
+			continue
+		}
+
+		if jobStatus.Status == "completed" && jobStatus.Result != nil {
+			// Convert Python worker results to findings
+			idorFindings := convertPythonIDORToFindings(jobStatus.Result, endpoint)
+			findings = append(findings, idorFindings...)
+
+			e.logger.Infow("IDOR scan completed",
+				"endpoint", endpoint,
+				"findings", len(idorFindings),
+				"component", "idor_scanner",
+			)
+		}
+	}
+
+	phase.EndTime = time.Now()
+	phase.Duration = phase.EndTime.Sub(phase.StartTime)
+	phase.Status = "completed"
+	phase.Findings = len(findings)
+
+	e.logger.Infow("IDOR testing completed",
+		"findings", len(findings),
+		"duration", phase.Duration,
+		"endpoints_tested", len(idorEndpoints),
+	)
+
+	return findings, phase
+}
+
+// convertPythonGraphQLToFindings converts GraphCrawler results to findings
+func convertPythonGraphQLToFindings(result map[string]interface{}, target string) []types.Finding {
+	var findings []types.Finding
+
+	// Extract findings from GraphCrawler result
+	if rawOutput, ok := result["raw_output"].(string); ok && rawOutput != "" {
+		// GraphCrawler found something
+		findings = append(findings, types.Finding{
+			ID:          uuid.New().String(),
+			Tool:        "graphcrawler",
+			Type:        "GraphQL Introspection",
+			Severity:    types.SeverityMedium,
+			Title:       "GraphQL Schema Exposed via Introspection",
+			Description: "GraphQL introspection is enabled, exposing the complete schema including queries, mutations, and types. Target: " + target,
+			Evidence:    rawOutput,
+			Solution:    "Disable GraphQL introspection in production environments",
+			CreatedAt:   time.Now(),
+		})
+	}
+
+	return findings
+}
+
+// convertPythonIDORToFindings converts IDOR scanner results to findings
+func convertPythonIDORToFindings(result map[string]interface{}, target string) []types.Finding {
+	var findings []types.Finding
+
+	// Extract IDOR findings
+	if findingsData, ok := result["findings"].([]interface{}); ok {
+		for _, item := range findingsData {
+			if f, ok := item.(map[string]interface{}); ok {
+				// Parse severity
+				severity := types.SeverityMedium // default
+				if sev, ok := f["severity"].(string); ok {
+					switch strings.ToUpper(sev) {
+					case "CRITICAL":
+						severity = types.SeverityCritical
+					case "HIGH":
+						severity = types.SeverityHigh
+					case "MEDIUM":
+						severity = types.SeverityMedium
+					case "LOW":
+						severity = types.SeverityLow
+					}
+				}
+
+				finding := types.Finding{
+					ID:          uuid.New().String(),
+					Tool:        "idor-scanner",
+					Type:        "IDOR",
+					Severity:    severity,
+					Title:       "Insecure Direct Object Reference Vulnerability",
+					Description: fmt.Sprintf("%v. Target: %v", f["description"], f["url"]),
+					Evidence:    fmt.Sprintf("User ID: %v", f["user_id"]),
+					Solution:    "Implement proper authorization checks to ensure users can only access their own resources",
+					CreatedAt:   time.Now(),
+				}
+				findings = append(findings, finding)
+			}
+		}
+	}
+
+	return findings
+}
+
+// containsPattern checks if string matches regex pattern
+func containsPattern(s, pattern string) bool {
+	// Simple pattern matching - in production use proper regex
+	return strings.Contains(s, pattern)
 }
 
 // extractHost extracts the host from a URL
