@@ -327,7 +327,7 @@ func runScopeShow(cmd *cobra.Command, args []string) error {
 	}
 
 	if program.TestingGuidelines != "" {
-		fmt.Println("📖 TESTING GUIDELINES:")
+		fmt.Println(" TESTING GUIDELINES:")
 		fmt.Println(wrapText(program.TestingGuidelines, 80))
 	}
 

@@ -97,7 +97,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Install dependencies
-		fmt.Println("📚 Installing dependencies...")
+		fmt.Println(" Installing dependencies...")
 		pipBin := filepath.Join(venvDir, "bin", "pip")
 
 		// Install FastAPI and dependencies
@@ -239,7 +239,7 @@ var workersStatusCmd = &cobra.Command{
 
 		fmt.Println(" Worker service is healthy")
 		fmt.Println("🌐 URL: http://localhost:5000")
-		fmt.Println("📚 API docs: http://localhost:5000/docs")
+		fmt.Println(" API docs: http://localhost:5000/docs")
 
 		return nil
 	},

@@ -589,7 +589,7 @@ main() {
   log INFO "   Or env vars:     export SHELLS_DATABASE_DSN=\"postgres://...\""
   log INFO "   Database (auto): postgres://shells:shells_password@localhost:5432/shells"
   echo
-  log INFO "📖 Get Help:"
+  log INFO " Get Help:"
   log INFO "   shells --help               # All commands and flags"
   log INFO "   shells serve --help         # Server-specific options"
   log INFO "   shells self-update          # Update to latest version"
