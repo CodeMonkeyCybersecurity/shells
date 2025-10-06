@@ -392,52 +392,25 @@ type GCPBountyConfig struct {
 	MinimumSeverity string        `mapstructure:"minimum_severity"`
 }
 
+// Validate is deprecated - configuration now comes from flags + env vars with defaults set in cmd/root.go
+// Kept for backward compatibility but does nothing
 func (c *Config) Validate() error {
-	if c.Logger.Level == "" {
-		c.Logger.Level = "info"
-	}
-
-	if c.Logger.Format == "" {
-		c.Logger.Format = "json"
-	}
-
-	// Always use SQLite3
-	c.Database.Driver = "sqlite3"
-
-	if c.Redis.Addr == "" {
-		c.Redis.Addr = "localhost:6379"
-	}
-
-	if c.Worker.Count < 1 {
-		c.Worker.Count = 1
-	}
-
-	if c.Worker.QueuePollInterval == 0 {
-		c.Worker.QueuePollInterval = 5 * time.Second
-	}
-
-	if c.Security.RateLimit.RequestsPerSecond == 0 {
-		c.Security.RateLimit.RequestsPerSecond = 10
-	}
-
-	if c.Telemetry.ServiceName == "" {
-		c.Telemetry.ServiceName = "shells"
-	}
-
 	return nil
 }
 
+// DefaultConfig is deprecated - defaults are now set in cmd/root.go via viper.SetDefault()
+// Kept for backward compatibility with tests that may call it directly
 func DefaultConfig() *Config {
 	return &Config{
 		Logger: LoggerConfig{
-			Level:       "info",
-			Format:      "json",
+			Level:       "error",
+			Format:      "console",
 			OutputPaths: []string{"stdout"},
 		},
 		Database: DatabaseConfig{
-			Driver:          "sqlite3",
-			DSN:             "shells.db",
-			MaxConnections:  10,
+			Driver:          "postgres",
+			DSN:             "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable",
+			MaxConnections:  25,
 			MaxIdleConns:    5,
 			ConnMaxLifetime: 1 * time.Hour,
 		},

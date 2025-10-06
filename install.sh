@@ -477,20 +477,9 @@ setup_postgresql() {
     fi
   fi
 
-  # Update .shells.yaml with correct DSN
-  local config_file="$Shells_SRC_DIR/.shells.yaml"
-  if [ -f "$config_file" ]; then
-    log INFO " Updating database configuration in .shells.yaml..."
-    if $IS_MAC; then
-      # macOS: Use local socket connection
-      sed -i '' 's|dsn:.*|dsn: "host=localhost user='"$USER"' dbname=shells sslmode=disable"|' "$config_file" 2>/dev/null || true
-    else
-      # Linux: Use password authentication
-      sed -i 's|dsn:.*|dsn: "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable"|' "$config_file" 2>/dev/null || true
-    fi
-  fi
-
+  # No YAML config files needed - shells uses flags + env vars only
   log INFO " PostgreSQL setup complete"
+  log INFO " Use --db-dsn flag or SHELLS_DATABASE_DSN environment variable to configure connection"
 }
 
 check_docker_postgres() {

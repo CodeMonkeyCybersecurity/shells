@@ -105,10 +105,10 @@ func runHuntCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
 
-	// Initialize database
+	// P1 FIX: Initialize database with PostgreSQL (deprecated command)
 	dbConfig := config.DatabaseConfig{
-		Driver: "sqlite3",
-		DSN:    "shells.db",
+		Driver: "postgres",
+		DSN:    "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable",
 	}
 	store, err := database.NewStore(dbConfig)
 	if err != nil {

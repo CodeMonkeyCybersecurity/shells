@@ -205,8 +205,9 @@ func generateScheduledJobHCL(name, target, cronExpr, scanType, duration, profile
       env {
         SHELLS_LOG_LEVEL = "info"
         SHELLS_LOG_FORMAT = "json"
-        SHELLS_DATABASE_DRIVER = "sqlite3"
-        SHELLS_DATABASE_DSN = "/data/shells.db"
+        # P2 FIX: Updated to PostgreSQL
+        SHELLS_DATABASE_DRIVER = "postgres"
+        SHELLS_DATABASE_DSN = "postgres://shells:shells_password@postgres:5432/shells?sslmode=disable"
         OTEL_EXPORTER_OTLP_ENDPOINT = "http://otel-collector:4317"
         SHELLS_SCHEDULED_MODE = "true"
         SHELLS_MAX_DURATION = "%s"

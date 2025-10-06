@@ -74,10 +74,9 @@ import (
 )
 
 var (
-	cfgFile string
-	cfg     *config.Config
-	log     *logger.Logger
-	store   core.ResultStore
+	cfg   *config.Config
+	log   *logger.Logger
+	store core.ResultStore
 )
 
 // GetStore returns the initialized database store
@@ -214,10 +213,45 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.shells.yaml)")
-	// Default to console format and error level for cleaner bug bounty output
+	// Logging configuration
 	rootCmd.PersistentFlags().String("log-level", "error", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("log-format", "console", "log format (json, console)")
+	viper.BindPFlag("logger.level", rootCmd.PersistentFlags().Lookup("log-level"))
+	viper.BindPFlag("logger.format", rootCmd.PersistentFlags().Lookup("log-format"))
+	viper.BindEnv("logger.level", "SHELLS_LOG_LEVEL")
+	viper.BindEnv("logger.format", "SHELLS_LOG_FORMAT")
+
+	// Database configuration
+	rootCmd.PersistentFlags().String("db-dsn", "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable", "PostgreSQL connection string")
+	rootCmd.PersistentFlags().Int("db-max-conns", 25, "Maximum database connections")
+	rootCmd.PersistentFlags().Int("db-max-idle", 5, "Maximum idle database connections")
+	viper.BindPFlag("database.dsn", rootCmd.PersistentFlags().Lookup("db-dsn"))
+	viper.BindPFlag("database.max_connections", rootCmd.PersistentFlags().Lookup("db-max-conns"))
+	viper.BindPFlag("database.max_idle_conns", rootCmd.PersistentFlags().Lookup("db-max-idle"))
+	viper.BindEnv("database.dsn", "SHELLS_DATABASE_DSN", "DATABASE_URL")
+	viper.BindEnv("database.max_connections", "SHELLS_DB_MAX_CONNECTIONS")
+
+	// Redis configuration
+	rootCmd.PersistentFlags().String("redis-addr", "localhost:6379", "Redis server address")
+	rootCmd.PersistentFlags().String("redis-password", "", "Redis password")
+	rootCmd.PersistentFlags().Int("redis-db", 0, "Redis database number")
+	viper.BindPFlag("redis.addr", rootCmd.PersistentFlags().Lookup("redis-addr"))
+	viper.BindPFlag("redis.password", rootCmd.PersistentFlags().Lookup("redis-password"))
+	viper.BindPFlag("redis.db", rootCmd.PersistentFlags().Lookup("redis-db"))
+	viper.BindEnv("redis.addr", "SHELLS_REDIS_ADDR", "REDIS_URL")
+	viper.BindEnv("redis.password", "SHELLS_REDIS_PASSWORD")
+
+	// Worker configuration
+	rootCmd.PersistentFlags().Int("workers", 3, "Number of worker processes")
+	viper.BindPFlag("worker.count", rootCmd.PersistentFlags().Lookup("workers"))
+	viper.BindEnv("worker.count", "SHELLS_WORKERS")
+
+	// Security/Rate limiting
+	rootCmd.PersistentFlags().Int("rate-limit", 10, "Requests per second rate limit")
+	rootCmd.PersistentFlags().Int("rate-burst", 20, "Rate limit burst size")
+	viper.BindPFlag("security.rate_limit.requests_per_second", rootCmd.PersistentFlags().Lookup("rate-limit"))
+	viper.BindPFlag("security.rate_limit.burst_size", rootCmd.PersistentFlags().Lookup("rate-burst"))
+	viper.BindEnv("security.rate_limit.requests_per_second", "SHELLS_RATE_LIMIT")
 
 	// Bug bounty specific flags
 	rootCmd.PersistentFlags().Bool("quick", false, "Quick scan mode - critical vulnerabilities only")
@@ -225,38 +259,58 @@ func init() {
 	rootCmd.PersistentFlags().Duration("timeout", 5*time.Minute, "Maximum scan time")
 	rootCmd.PersistentFlags().String("scope", "", "Scope file defining authorized targets (.scope file)")
 
-	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
-	viper.BindPFlag("log.format", rootCmd.PersistentFlags().Lookup("log-format"))
+	// API keys (environment variables only, never flags)
+	viper.BindEnv("shodan_api_key", "SHODAN_API_KEY")
+	viper.BindEnv("censys_api_key", "CENSYS_API_KEY")
+	viper.BindEnv("censys_secret", "CENSYS_SECRET")
+	viper.BindEnv("security.api_key", "SHELLS_API_KEY")
+
+	// Set sensible defaults
+	viper.SetDefault("database.driver", "postgres")
+	viper.SetDefault("database.conn_max_lifetime", "1h")
+	viper.SetDefault("redis.max_retries", 3)
+	viper.SetDefault("redis.dial_timeout", "5s")
+	viper.SetDefault("redis.read_timeout", "3s")
+	viper.SetDefault("redis.write_timeout", "3s")
+	viper.SetDefault("worker.queue_poll_interval", "5s")
+	viper.SetDefault("worker.max_retries", 3)
+	viper.SetDefault("worker.retry_delay", "10s")
+	viper.SetDefault("telemetry.enabled", true)
+	viper.SetDefault("telemetry.service_name", "shells")
+	viper.SetDefault("telemetry.exporter_type", "otlp")
+	viper.SetDefault("telemetry.endpoint", "localhost:4317")
+	viper.SetDefault("telemetry.sample_rate", 1.0)
+	viper.SetDefault("logger.output_paths", []string{"stdout"})
 }
 
 func initConfig() error {
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return err
-		}
-
-		viper.AddConfigPath(home)
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".shells")
-	}
-
+	// No YAML files - configuration from flags + env vars only
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("SHELLS")
-
-	if err := viper.ReadInConfig(); err == nil {
-		// Silent - no need to show config file in bug bounty mode
-	}
 
 	cfg = &config.Config{}
 	if err := viper.Unmarshal(cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	return cfg.Validate()
+	// Apply sensible defaults programmatically (no YAML needed)
+	if cfg.Database.Driver == "" {
+		cfg.Database.Driver = "postgres"
+	}
+	if cfg.Logger.Level == "" {
+		cfg.Logger.Level = "error"
+	}
+	if cfg.Logger.Format == "" {
+		cfg.Logger.Format = "console"
+	}
+	if cfg.Security.RateLimit.RequestsPerSecond == 0 {
+		cfg.Security.RateLimit.RequestsPerSecond = 10
+	}
+	if cfg.Telemetry.ServiceName == "" {
+		cfg.Telemetry.ServiceName = "shells"
+	}
+
+	return nil
 }
 
 func GetConfig() *config.Config {

@@ -50,7 +50,7 @@ var (
 func init() {
 	rootCmd.AddCommand(serveCmd)
 
-	serveCmd.Flags().StringVar(&cfgFile, "config", "", "config file path (default is .shells.yaml)")
+	// No config file flag needed - using flags + env vars from root.go
 	serveCmd.Flags().IntVar(&serverPort, "port", 8080, "Port to listen on")
 	serveCmd.Flags().StringVar(&serverHost, "host", "0.0.0.0", "Host to bind to")
 	serveCmd.Flags().BoolVar(&enableCORS, "cors", true, "Enable CORS for browser extensions")
@@ -60,27 +60,10 @@ func init() {
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
-	// Load configuration using viper (same as root.go)
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			viper.AddConfigPath(home)
-		}
-		viper.AddConfigPath(".")
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".shells")
-	}
-
+	// Configuration comes from flags + env vars (set in root.go init())
+	// No YAML files needed
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("SHELLS")
-
-	// Read config file
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Could not read config file: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Using default configuration\n")
-	}
 
 	var cfg config.Config
 	if err := viper.Unmarshal(&cfg); err != nil {
@@ -155,13 +138,8 @@ func runServe(cmd *cobra.Command, args []string) error {
 		"driver", cfg.Database.Driver,
 	)
 
-	// Warn if using SQLite (concurrency limitations)
-	if cfg.Database.Driver == "sqlite3" {
-		log.Warnw("Using SQLite database",
-			"warning", "SQLite has concurrency limitations",
-			"recommendation", "Use PostgreSQL for production with multiple Hera instances",
-		)
-	}
+	// P2 FIX: Removed sqlite3-specific warning (PostgreSQL-only now)
+	// PostgreSQL handles concurrency natively
 
 	// Validate API key is configured
 	apiKey := cfg.Security.APIKey

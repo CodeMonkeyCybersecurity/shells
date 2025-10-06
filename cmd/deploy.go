@@ -68,7 +68,8 @@ Example:
 			return fmt.Errorf("failed to deploy OpenTelemetry collector: %w", err)
 		}
 
-		if err := deployComponent(ctx, client, "sqlite3"); err != nil {
+		// P2 FIX: PostgreSQL-only - removed sqlite3 deployment
+		if err := deployComponent(ctx, client, "postgres"); err != nil {
 			return fmt.Errorf("failed to deploy SQLite3: %w", err)
 		}
 
@@ -87,7 +88,7 @@ Example:
 		}
 
 		log.Info("Successfully deployed shells to Nomad",
-			"components", []string{"otel-collector", "sqlite3", "scanner-web", "scanner-workers"},
+			"components", []string{"otel-collector", "postgres", "scanner-web", "scanner-workers"},
 			"scheduled", scheduled)
 
 		return nil
@@ -137,7 +138,7 @@ var deployStatusCmd = &cobra.Command{
 		ctx := context.Background()
 
 		// Check status of each component
-		components := []string{"otel-collector", "shells-sqlite3", "shells-scanner-web", "shells-scanner-workers"}
+		components := []string{"otel-collector", "shells-postgres", "shells-scanner-web", "shells-scanner-workers"}
 
 		fmt.Printf("\n🔍 Shells Deployment Status\n")
 		fmt.Printf("===========================\n\n")
@@ -178,7 +179,7 @@ var deployStopCmd = &cobra.Command{
 		}
 
 		// Stop all components
-		components := []string{"shells-scheduled-scans", "shells-scanner-workers", "shells-scanner-web", "shells-sqlite3", "otel-collector"}
+		components := []string{"shells-scheduled-scans", "shells-scanner-workers", "shells-scanner-web", "shells-postgres", "otel-collector"}
 
 		fmt.Printf("\n🛑 Stopping shells deployment...\n\n")
 

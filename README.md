@@ -87,13 +87,13 @@ shells serve --port 8080
 3. ✅ Installs Go 1.24.4
 4. ✅ **Installs PostgreSQL** (brew on macOS, apt/dnf on Linux)
 5. ✅ **Creates database and user** (`shells` database with `shells` user)
-6. ✅ **Configures connection string** in `.shells.yaml`
-7. ✅ Builds the `shells` binary
-8. ✅ Installs to `/usr/local/bin/shells`
-9. ✅ Sets up Python workers (GraphCrawler, IDORD)
-10. ✅ Creates config/log/secret directories
+6. ✅ Builds the `shells` binary
+7. ✅ Installs to `/usr/local/bin/shells`
+8. ✅ Sets up Python workers (GraphCrawler, IDORD)
 
 **No manual PostgreSQL setup needed!** The script detects if you have Docker and offers to use a container, or installs PostgreSQL natively. Everything just works.
+
+**No configuration files needed!** Like `kubectl`, `gh`, and other modern CLI tools, shells uses command-line flags and environment variables - no YAML files to manage.
 
 **After installation:**
 ```bash
@@ -258,21 +258,34 @@ shells workers stop
 
 ### Configuration
 
-Create `.shells.yaml` in your home directory:
+**No config files needed!** Configure via flags or environment variables:
 
-```yaml
-logger:
-  level: info
-  format: json
+```bash
+# Using flags
+shells example.com --log-level debug --rate-limit 20 --workers 5
 
-database:
-  driver: sqlite3
-  dsn: "~/.shells/shells.db"
+# Using environment variables
+export SHELLS_LOG_LEVEL=debug
+export SHELLS_DATABASE_DSN="postgres://user:pass@localhost:5432/shells"
+export SHELLS_REDIS_ADDR="localhost:6379"
+export SHELLS_WORKERS=5
+export SHELLS_RATE_LIMIT=20
+shells example.com
 
-scanning:
-  rate_limit: 10  # requests per second
-  timeout: 30s
-  max_depth: 3    # asset discovery depth
+# Common configuration flags
+shells --help
+  --db-dsn              PostgreSQL connection (default: postgres://shells:shells_password@localhost:5432/shells)
+  --log-level           Log level: debug, info, warn, error (default: error)
+  --log-format          Log format: json, console (default: console)
+  --redis-addr          Redis server address (default: localhost:6379)
+  --workers             Number of worker processes (default: 3)
+  --rate-limit          Requests per second (default: 10)
+  --rate-burst          Rate limit burst size (default: 20)
+
+# API keys (environment variables only - never use flags!)
+export SHODAN_API_KEY="your-key"
+export CENSYS_API_KEY="your-key"
+export CENSYS_SECRET="your-secret"
 ```
 
 ## Architecture
@@ -280,8 +293,8 @@ scanning:
 ### Directory Structure
 - `/cmd/` - CLI commands (Cobra)
 - `/internal/` - Internal packages
-  - `config/` - Configuration management
-  - `database/` - SQLite storage layer
+  - `config/` - Configuration structs (populated from flags/env vars)
+  - `database/` - PostgreSQL storage layer
   - `discovery/` - Asset discovery modules
   - `orchestrator/` - Bug bounty workflow engine
   - `logger/` - Structured logging (otelzap)
@@ -293,8 +306,8 @@ scanning:
 
 ### Key Technologies
 - **Go**: Performance and reliability
-- **SQLite**: Embedded database (no external dependencies)
-- **Cobra**: CLI framework
+- **PostgreSQL**: Production-ready database with ACID compliance
+- **Cobra + Viper**: CLI framework with flags/env var support
 - **OpenTelemetry**: Observability and tracing
 - **Context**: Proper cancellation and timeouts
 
