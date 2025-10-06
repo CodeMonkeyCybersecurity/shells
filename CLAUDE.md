@@ -370,11 +370,11 @@ Use `logger.Info()` for user-facing messages (NOT fmt.Print):
 
 ```go
 // ❌ WRONG - Never use fmt.Print
-fmt.Println("✅ Scan completed!")
+fmt.Println(" Scan completed!")
 fmt.Printf("Found %d vulnerabilities\n", count)
 
-// ✅ CORRECT - Always use structured logging
-log.Info("✅ Scan completed!")
+//  CORRECT - Always use structured logging
+log.Info(" Scan completed!")
 log.Infow("Scan results",
     "vulnerabilities_found", count,
     "scan_duration", duration,
@@ -418,7 +418,7 @@ Use structured logging for progress (NOT progress bars):
 // ❌ WRONG - No ANSI progress bars
 fmt.Printf("\r[████░░░░] 50%%")
 
-// ✅ CORRECT - Structured progress logging
+//  CORRECT - Structured progress logging
 log.Infow("Scan progress",
     "phase", "discovery",
     "progress_pct", 50,

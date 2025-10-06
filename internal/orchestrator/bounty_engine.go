@@ -13,12 +13,10 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/google/uuid"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/api"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nmap"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nuclei"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/progress"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/ratelimit"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
@@ -26,6 +24,8 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
+	"github.com/google/uuid"
 )
 
 // BugBountyEngine orchestrates the full bug bounty scanning pipeline
@@ -326,7 +326,19 @@ type PhaseResult struct {
 
 // Execute runs the full bug bounty pipeline
 func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBountyResult, error) {
-	e.logger.Infow("Starting bug bounty scan", "target", target)
+	execStart := time.Now()
+
+	e.logger.Infow("🎯 Starting bug bounty scan",
+		"target", target,
+		"config_discovery_timeout", e.config.DiscoveryTimeout.String(),
+		"config_scan_timeout", e.config.ScanTimeout.String(),
+		"config_total_timeout", e.config.TotalTimeout.String(),
+		"max_assets", e.config.MaxAssets,
+		"max_depth", e.config.MaxDepth,
+		"enable_dns", e.config.EnableDNS,
+		"enable_port_scan", e.config.EnablePortScan,
+		"enable_web_crawl", e.config.EnableWebCrawl,
+	)
 
 	// Initialize progress tracker
 	tracker := progress.New(e.config.ShowProgress, e.logger)
@@ -346,9 +358,26 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		Findings:     []types.Finding{},
 	}
 
+	e.logger.Infow("📋 Scan initialized",
+		"scan_id", scanID,
+		"start_time", result.StartTime.Format(time.RFC3339),
+	)
+
 	// Apply total timeout
 	ctx, cancel := context.WithTimeout(ctx, e.config.TotalTimeout)
 	defer cancel()
+
+	// Log initial context state
+	if deadline, ok := ctx.Deadline(); ok {
+		e.logger.Infow("⏰ Total timeout context created",
+			"total_timeout", e.config.TotalTimeout.String(),
+			"deadline", deadline.Format(time.RFC3339),
+			"deadline_unix", deadline.Unix(),
+			"time_until_deadline", time.Until(deadline).String(),
+		)
+	} else {
+		e.logger.Warnw("⚠️  No deadline on parent context - unexpected!")
+	}
 
 	// Phase 1: Asset Discovery (or skip if configured)
 	var assets []*discovery.Asset
@@ -356,7 +385,10 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 
 	if e.config.SkipDiscovery {
 		// Quick mode: Use target directly without discovery
-		e.logger.Infow("Skipping discovery (quick mode)", "target", target)
+		e.logger.Infow("⏭️  Skipping discovery (quick mode)",
+			"target", target,
+			"reason", "quick mode enabled - testing target directly",
+		)
 		tracker.StartPhase("discovery")
 
 		// Normalize target to URL
@@ -385,12 +417,35 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		tracker.CompletePhase("discovery")
 	} else {
 		// Normal/Deep mode: Run full discovery
+		discoveryStart := time.Now()
+		e.logger.Infow("🔍 Phase 1: Starting full discovery",
+			"target", target,
+			"discovery_timeout", e.config.DiscoveryTimeout.String(),
+			"enable_dns", e.config.EnableDNS,
+			"enable_subdomain_enum", e.config.EnableSubdomainEnum,
+			"enable_cert_transparency", e.config.EnableCertTransparency,
+			"elapsed_since_scan_start", time.Since(execStart).String(),
+		)
+
 		tracker.StartPhase("discovery")
 		assets, phaseResult = e.executeDiscoveryPhase(ctx, target, tracker)
+
+		discoveryDuration := time.Since(discoveryStart)
+		e.logger.Infow(" Discovery phase completed",
+			"status", phaseResult.Status,
+			"assets_discovered", len(assets),
+			"discovery_duration", discoveryDuration.String(),
+			"elapsed_since_scan_start", time.Since(execStart).String(),
+		)
+
 		result.PhaseResults["discovery"] = phaseResult
 		result.DiscoveredAt = len(assets)
 
 		if phaseResult.Status == "failed" {
+			e.logger.Errorw("❌ Discovery phase failed",
+				"error", phaseResult.Error,
+				"duration", discoveryDuration.String(),
+			)
 			tracker.FailPhase("discovery", fmt.Errorf("%s", phaseResult.Error))
 			result.Status = "failed"
 			result.EndTime = time.Now()
@@ -400,29 +455,96 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		tracker.CompletePhase("discovery")
 	}
 
+	// Log context status after discovery
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		e.logger.Infow("⏰ Context status after discovery",
+			"remaining_time", remaining.String(),
+			"remaining_seconds", remaining.Seconds(),
+			"elapsed_since_scan_start", time.Since(execStart).String(),
+			"context_healthy", remaining > 0,
+		)
+		if remaining <= 0 {
+			e.logger.Errorw("🚨 CRITICAL: Context already expired after discovery!",
+				"expired_by", (-remaining).String(),
+			)
+		}
+	}
+
 	// Phase 2: Asset Prioritization
+	prioritizationStart := time.Now()
+	e.logger.Infow("🎯 Phase 2: Starting asset prioritization",
+		"total_assets", len(assets),
+		"elapsed_since_scan_start", time.Since(execStart).String(),
+	)
+
 	tracker.StartPhase("prioritization")
 	prioritized := e.executePrioritizationPhase(assets)
-	e.logger.Infow("Prioritized assets", "count", len(prioritized), "target", target)
+
+	e.logger.Infow(" Prioritization completed",
+		"high_priority_assets", len(prioritized),
+		"prioritization_duration", time.Since(prioritizationStart).String(),
+		"elapsed_since_scan_start", time.Since(execStart).String(),
+	)
 	tracker.CompletePhase("prioritization")
 
 	// Phase 3: Vulnerability Testing (parallel)
-	tracker.StartPhase("testing")
+	testingStart := time.Now()
 
-	// DIAGNOSTIC: Check context status before testing
-	select {
-	case <-ctx.Done():
-		e.logger.Errorw("DIAGNOSTIC: Context already cancelled before testing phase",
-			"error", ctx.Err(),
-			"elapsed_time", time.Since(result.StartTime),
-		)
-	default:
-		e.logger.Infow("DIAGNOSTIC: Context still valid before testing phase",
-			"elapsed_time", time.Since(result.StartTime),
-		)
+	// Log enabled scanners
+	enabledScanners := []string{}
+	if e.config.EnableAuthTesting {
+		enabledScanners = append(enabledScanners, "auth")
+	}
+	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
+		enabledScanners = append(enabledScanners, "nmap")
+	}
+	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
+		enabledScanners = append(enabledScanners, "nuclei")
+	}
+	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
+		enabledScanners = append(enabledScanners, "graphql")
+	}
+	if e.config.EnableSCIMTesting {
+		enabledScanners = append(enabledScanners, "scim")
 	}
 
+	e.logger.Infow("🔬 Phase 3: Starting vulnerability testing",
+		"assets_to_test", len(prioritized),
+		"enabled_scanners", enabledScanners,
+		"scanner_count", len(enabledScanners),
+		"scan_timeout", e.config.ScanTimeout.String(),
+		"elapsed_since_scan_start", time.Since(execStart).String(),
+	)
+
+	// Check context status before testing
+	select {
+	case <-ctx.Done():
+		e.logger.Errorw("🚨 CRITICAL: Context already cancelled before testing phase",
+			"error", ctx.Err(),
+			"elapsed_time", time.Since(execStart).String(),
+		)
+	default:
+		if deadline, ok := ctx.Deadline(); ok {
+			remaining := time.Until(deadline)
+			e.logger.Infow("⏰ Context valid before testing",
+				"remaining_time", remaining.String(),
+				"remaining_seconds", remaining.Seconds(),
+				"elapsed_time", time.Since(execStart).String(),
+			)
+		}
+	}
+
+	tracker.StartPhase("testing")
 	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized, tracker)
+
+	testingDuration := time.Since(testingStart)
+	e.logger.Infow(" Testing phase completed",
+		"total_findings", len(findings),
+		"testing_duration", testingDuration.String(),
+		"elapsed_since_scan_start", time.Since(execStart).String(),
+	)
+
 	for phase, pr := range phaseResults {
 		result.PhaseResults[phase] = pr
 	}
@@ -431,11 +553,46 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	tracker.CompletePhase("testing")
 
 	// Phase 4: Store results
+	storageStart := time.Now()
+	e.logger.Infow("💾 Phase 4: Storing results to database",
+		"scan_id", scanID,
+		"findings_count", len(result.Findings),
+		"elapsed_since_scan_start", time.Since(execStart).String(),
+	)
+
+	// Check context status before storage
+	select {
+	case <-ctx.Done():
+		e.logger.Errorw("🚨 CRITICAL: Context already cancelled before storage phase",
+			"error", ctx.Err(),
+			"elapsed_time", time.Since(execStart).String(),
+		)
+	default:
+		if deadline, ok := ctx.Deadline(); ok {
+			remaining := time.Until(deadline)
+			e.logger.Infow("⏰ Context valid before storage",
+				"remaining_time", remaining.String(),
+				"remaining_seconds", remaining.Seconds(),
+				"elapsed_time", time.Since(execStart).String(),
+			)
+		}
+	}
+
 	tracker.StartPhase("storage")
 	if err := e.storeResults(ctx, scanID, result); err != nil {
-		e.logger.Errorw("Failed to store results", "error", err, "scan_id", scanID)
+		e.logger.Errorw("❌ Failed to store results",
+			"error", err,
+			"scan_id", scanID,
+			"storage_duration", time.Since(storageStart).String(),
+			"elapsed_since_scan_start", time.Since(execStart).String(),
+		)
 		tracker.FailPhase("storage", err)
 	} else {
+		e.logger.Infow("✅ Results stored successfully",
+			"scan_id", scanID,
+			"storage_duration", time.Since(storageStart).String(),
+			"elapsed_since_scan_start", time.Since(execStart).String(),
+		)
 		tracker.CompletePhase("storage")
 	}
 
@@ -447,11 +604,43 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	// Show final summary
 	tracker.Complete()
 
-	e.logger.Infow("Bug bounty scan completed",
+	// Count findings by severity for final report
+	criticalCount := 0
+	highCount := 0
+	mediumCount := 0
+	lowCount := 0
+	infoCount := 0
+
+	for _, finding := range result.Findings {
+		switch strings.ToUpper(string(finding.Severity)) {
+		case "CRITICAL":
+			criticalCount++
+		case "HIGH":
+			highCount++
+		case "MEDIUM":
+			mediumCount++
+		case "LOW":
+			lowCount++
+		default:
+			infoCount++
+		}
+	}
+
+	e.logger.Infow("🎉 Bug bounty scan completed successfully",
 		"target", target,
 		"scan_id", scanID,
-		"findings", result.TotalFindings,
-		"duration", result.Duration,
+		"total_findings", result.TotalFindings,
+		"critical", criticalCount,
+		"high", highCount,
+		"medium", mediumCount,
+		"low", lowCount,
+		"info", infoCount,
+		"assets_discovered", result.DiscoveredAt,
+		"assets_tested", result.TestedAssets,
+		"total_duration", result.Duration.String(),
+		"scan_start", result.StartTime.Format(time.RFC3339),
+		"scan_end", result.EndTime.Format(time.RFC3339),
+		"phases_completed", "discovery,prioritization,testing,storage",
 	)
 
 	return result, nil
@@ -1215,73 +1404,132 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 
 // runNmapScans performs service fingerprinting and port scanning
 func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "nmap",
 		Status:    "running",
-		StartTime: time.Now(),
+		StartTime: phaseStart,
 	}
 
-	e.logger.Infow("Running Nmap service fingerprinting")
+	e.logger.Infow("🔍 Starting Nmap service fingerprinting phase",
+		"asset_count", len(assets),
+		"component", "nmap_scanner",
+	)
 
 	// DIAGNOSTIC: Check context before Nmap execution
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow("DIAGNOSTIC: Context deadline before Nmap execution",
-			"deadline", deadline,
+		e.logger.Infow("⏰ Context status at Nmap phase start",
+			"deadline", deadline.Format(time.RFC3339),
+			"deadline_unix", deadline.Unix(),
 			"remaining_seconds", remaining.Seconds(),
 			"remaining_duration", remaining.String(),
+			"context_healthy", remaining > 0,
+			"component", "nmap_scanner",
 		)
+		if remaining <= 0 {
+			e.logger.Errorw("🚨 CRITICAL: Context already expired before Nmap phase!",
+				"expired_by", (-remaining).String(),
+				"component", "nmap_scanner",
+			)
+		}
 	} else {
-		e.logger.Warnw("DIAGNOSTIC: No deadline on context before Nmap - this is unexpected!")
+		e.logger.Warnw("⚠️  No deadline on context before Nmap - unexpected!",
+			"component", "nmap_scanner",
+		)
 	}
 
 	var findings []types.Finding
 
 	// Scan each asset's host
 	scannedHosts := make(map[string]bool) // Deduplicate hosts
+	totalHosts := 0
 	for _, asset := range assets {
-		// Extract host from URL
 		host := extractHost(asset.Asset.Value)
-		if host == "" || scannedHosts[host] {
-			continue
+		if host != "" && !scannedHosts[host] {
+			totalHosts++
+			scannedHosts[host] = true
 		}
-		scannedHosts[host] = true
+	}
 
-		e.logger.Debugw("Scanning host with Nmap",
+	e.logger.Infow("📋 Nmap scan targets prepared",
+		"total_assets", len(assets),
+		"unique_hosts", totalHosts,
+		"component", "nmap_scanner",
+	)
+
+	scannedCount := 0
+	for host := range scannedHosts {
+		scannedCount++
+		scanStart := time.Now()
+
+		e.logger.Infow("🎯 Scanning host with Nmap",
 			"host", host,
+			"progress", fmt.Sprintf("%d/%d", scannedCount, totalHosts),
+			"elapsed_since_phase_start", time.Since(phaseStart).String(),
 			"component", "nmap_scanner",
 		)
 
 		// DIAGNOSTIC: Check context status immediately before each Nmap call
 		select {
 		case <-ctx.Done():
-			e.logger.Errorw("DIAGNOSTIC: Context already cancelled before Nmap.Scan()",
+			e.logger.Errorw("🚨 CRITICAL: Context cancelled before Nmap.Scan()",
 				"error", ctx.Err(),
 				"host", host,
+				"scanned_count", scannedCount,
+				"total_hosts", totalHosts,
+				"elapsed_since_phase_start", time.Since(phaseStart).String(),
+				"component", "nmap_scanner",
 			)
+			phase.Status = "failed"
+			phase.Error = fmt.Sprintf("context cancelled: %v", ctx.Err())
+			return findings, phase
 		default:
-			e.logger.Debugw("DIAGNOSTIC: Context still valid before Nmap.Scan()",
-				"host", host,
-			)
+			if deadline, ok := ctx.Deadline(); ok {
+				remaining := time.Until(deadline)
+				e.logger.Infow("⏰ Context valid before Nmap.Scan()",
+					"host", host,
+					"remaining_time", remaining.String(),
+					"remaining_seconds", remaining.Seconds(),
+					"component", "nmap_scanner",
+				)
+			}
 		}
 
 		// Run Nmap scan
 		results, err := e.nmapScanner.Scan(ctx, host, nil)
+		scanDuration := time.Since(scanStart)
+
 		if err != nil {
-			e.logger.Errorw("Nmap scan failed",
+			e.logger.Errorw("❌ Nmap scan failed",
 				"error", err,
 				"host", host,
+				"scan_duration", scanDuration.String(),
+				"elapsed_since_phase_start", time.Since(phaseStart).String(),
 				"component", "nmap_scanner",
 			)
+
+			// Check if error was due to context cancellation
+			if ctx.Err() != nil {
+				e.logger.Errorw("🚨 Nmap scan failed due to context cancellation",
+					"context_error", ctx.Err(),
+					"scan_error", err,
+					"host", host,
+					"component", "nmap_scanner",
+				)
+			}
 			continue
 		}
 
 		// Convert results to findings
 		findings = append(findings, results...)
 
-		e.logger.Infow("Nmap scan completed",
+		e.logger.Infow("✅ Nmap scan completed",
 			"host", host,
 			"findings", len(results),
+			"scan_duration", scanDuration.String(),
+			"progress", fmt.Sprintf("%d/%d", scannedCount, totalHosts),
+			"elapsed_since_phase_start", time.Since(phaseStart).String(),
 			"component", "nmap_scanner",
 		)
 	}
@@ -1291,10 +1539,13 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow("Nmap scanning completed",
-		"findings", len(findings),
-		"duration", phase.Duration,
-		"hosts_scanned", len(scannedHosts),
+	e.logger.Infow("🎉 Nmap scanning phase completed",
+		"total_findings", len(findings),
+		"phase_duration", phase.Duration.String(),
+		"hosts_scanned", scannedCount,
+		"total_hosts", totalHosts,
+		"avg_scan_time", fmt.Sprintf("%.2fs", phase.Duration.Seconds()/float64(scannedCount)),
+		"component", "nmap_scanner",
 	)
 
 	return findings, phase
@@ -1302,41 +1553,109 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 
 // runNucleiScans performs vulnerability scanning with Nuclei templates
 func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "nuclei",
 		Status:    "running",
-		StartTime: time.Now(),
+		StartTime: phaseStart,
 	}
 
-	e.logger.Infow("Running Nuclei vulnerability scanner")
+	e.logger.Infow("🔍 Starting Nuclei vulnerability scanning phase",
+		"asset_count", len(assets),
+		"component", "nuclei_scanner",
+	)
+
+	// Check context status at phase start
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		e.logger.Infow("⏰ Context status at Nuclei phase start",
+			"remaining_time", remaining.String(),
+			"remaining_seconds", remaining.Seconds(),
+			"context_healthy", remaining > 0,
+			"component", "nuclei_scanner",
+		)
+		if remaining <= 0 {
+			e.logger.Errorw("🚨 CRITICAL: Context already expired before Nuclei phase!",
+				"expired_by", (-remaining).String(),
+				"component", "nuclei_scanner",
+			)
+		}
+	}
 
 	var findings []types.Finding
+	totalAssets := len(assets)
 
 	// Scan high-priority assets
-	for _, asset := range assets {
-		e.logger.Debugw("Scanning with Nuclei",
+	for idx, asset := range assets {
+		scanStart := time.Now()
+		progress := fmt.Sprintf("%d/%d", idx+1, totalAssets)
+
+		e.logger.Infow("🎯 Scanning target with Nuclei",
 			"target", asset.Asset.Value,
-			"score", asset.Score,
+			"priority_score", asset.Score,
+			"progress", progress,
+			"elapsed_since_phase_start", time.Since(phaseStart).String(),
 			"component", "nuclei_scanner",
 		)
 
-		// Run Nuclei scan
-		results, err := e.nucleiScanner.Scan(ctx, asset.Asset.Value, nil)
-		if err != nil {
-			e.logger.Errorw("Nuclei scan failed",
-				"error", err,
+		// Check context status before each scan
+		select {
+		case <-ctx.Done():
+			e.logger.Errorw("🚨 CRITICAL: Context cancelled before Nuclei scan",
+				"error", ctx.Err(),
 				"target", asset.Asset.Value,
+				"progress", progress,
+				"elapsed_since_phase_start", time.Since(phaseStart).String(),
 				"component", "nuclei_scanner",
 			)
+			phase.Status = "failed"
+			phase.Error = fmt.Sprintf("context cancelled: %v", ctx.Err())
+			return findings, phase
+		default:
+			if deadline, ok := ctx.Deadline(); ok {
+				remaining := time.Until(deadline)
+				e.logger.Debugw("⏰ Context valid before Nuclei scan",
+					"target", asset.Asset.Value,
+					"remaining_time", remaining.String(),
+					"component", "nuclei_scanner",
+				)
+			}
+		}
+
+		// Run Nuclei scan
+		results, err := e.nucleiScanner.Scan(ctx, asset.Asset.Value, nil)
+		scanDuration := time.Since(scanStart)
+
+		if err != nil {
+			e.logger.Errorw("❌ Nuclei scan failed",
+				"error", err,
+				"target", asset.Asset.Value,
+				"scan_duration", scanDuration.String(),
+				"elapsed_since_phase_start", time.Since(phaseStart).String(),
+				"component", "nuclei_scanner",
+			)
+
+			// Check if error was due to context cancellation
+			if ctx.Err() != nil {
+				e.logger.Errorw("🚨 Nuclei scan failed due to context cancellation",
+					"context_error", ctx.Err(),
+					"scan_error", err,
+					"target", asset.Asset.Value,
+					"component", "nuclei_scanner",
+				)
+			}
 			continue
 		}
 
 		// Convert results to findings
 		findings = append(findings, results...)
 
-		e.logger.Infow("Nuclei scan completed",
+		e.logger.Infow("✅ Nuclei scan completed",
 			"target", asset.Asset.Value,
 			"findings", len(results),
+			"scan_duration", scanDuration.String(),
+			"progress", progress,
+			"elapsed_since_phase_start", time.Since(phaseStart).String(),
 			"component", "nuclei_scanner",
 		)
 	}
@@ -1346,10 +1665,17 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow("Nuclei scanning completed",
-		"findings", len(findings),
-		"duration", phase.Duration,
-		"targets_scanned", len(assets),
+	avgScanTime := "N/A"
+	if totalAssets > 0 {
+		avgScanTime = fmt.Sprintf("%.2fs", phase.Duration.Seconds()/float64(totalAssets))
+	}
+
+	e.logger.Infow("🎉 Nuclei scanning phase completed",
+		"total_findings", len(findings),
+		"phase_duration", phase.Duration.String(),
+		"targets_scanned", totalAssets,
+		"avg_scan_time", avgScanTime,
+		"component", "nuclei_scanner",
 	)
 
 	return findings, phase
@@ -1629,7 +1955,7 @@ func (e *BugBountyEngine) storeResults(ctx context.Context, scanID string, resul
 		Type:        types.ScanTypeAuth, // Using ScanTypeAuth for now
 		Status:      types.ScanStatusCompleted,
 		CreatedAt:   result.StartTime,
-		StartedAt:   &startedAt,   // Set started time for duration calculation
+		StartedAt:   &startedAt, // Set started time for duration calculation
 		CompletedAt: &completedAt,
 	}
 

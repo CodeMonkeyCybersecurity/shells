@@ -284,7 +284,7 @@ func (su *ShellsUpdater) PullLatestCode() error {
 			su.logger.Info("Already Up to Date!")
 			su.logger.Info(strings.Repeat("=", 70))
 			su.logger.Info("")
-			su.logger.Info("✅ You're running the latest version of shells")
+			su.logger.Info(" You're running the latest version of shells")
 			su.logger.Info("")
 			su.logger.Info("Quick Start:")
 			su.logger.Info("  shells serve              - Start web dashboard and API")

@@ -30,7 +30,7 @@ var workersSetupCmd = &cobra.Command{
 	Long: `Clone GraphCrawler and IDORD repositories, create Python virtual environment,
 and install all dependencies. This only needs to be run once.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log.Info("✅ Setting up worker environment...", "component", "workers")
+		log.Info(" Setting up worker environment...", "component", "workers")
 
 		// Get project root
 		projectRoot, err := os.Getwd()
@@ -130,7 +130,7 @@ and install all dependencies. This only needs to be run once.`,
 			}
 		}
 
-		log.Info("✅ Worker environment setup complete!", "component", "workers")
+		log.Info(" Worker environment setup complete!", "component", "workers")
 		log.Info("\nNext steps:", "component", "workers")
 		log.Info("  shells workers start    - Start the worker service", "component", "workers")
 		log.Info("  shells serve --workers  - Start API and workers together", "component", "workers")
@@ -180,7 +180,7 @@ var workersStartCmd = &cobra.Command{
 		// Wait for service to be ready
 		time.Sleep(2 * time.Second)
 
-		log.Infow("✅ Worker service started",
+		log.Infow(" Worker service started",
 			"url", "http://localhost:5000",
 			"component", "workers",
 		)
@@ -210,7 +210,7 @@ var workersStopCmd = &cobra.Command{
 			if err := killCmd.Run(); err != nil {
 				return fmt.Errorf("no worker service found running")
 			}
-			log.Info("✅ Worker service stopped", "component", "workers")
+			log.Info(" Worker service stopped", "component", "workers")
 			return nil
 		}
 
@@ -223,7 +223,7 @@ var workersStopCmd = &cobra.Command{
 		// Remove PID file
 		os.Remove(pidFile)
 
-		log.Info("✅ Worker service stopped", "component", "workers")
+		log.Info(" Worker service stopped", "component", "workers")
 		return nil
 	},
 }
@@ -240,7 +240,7 @@ var workersStatusCmd = &cobra.Command{
 			return err
 		}
 
-		log.Info("✅ Worker service is healthy", "component", "workers")
+		log.Info(" Worker service is healthy", "component", "workers")
 		log.Info("🌐 URL: http://localhost:5000", "component", "workers")
 		log.Info("📚 API docs: http://localhost:5000/docs", "component", "workers")
 

@@ -27,10 +27,10 @@ var serveCmd = &cobra.Command{
 	Long: `Start the all-in-one Shells server that provides:
 
 AUTOMATIC SERVICES:
-  ✅ PostgreSQL database setup and migrations
-  ✅ Web dashboard at http://localhost:8080
-  ✅ Python worker service for GraphQL/IDOR scanning
-  ✅ REST API at http://localhost:8080/api/v1/*
+   PostgreSQL database setup and migrations
+   Web dashboard at http://localhost:8080
+   Python worker service for GraphQL/IDOR scanning
+   REST API at http://localhost:8080/api/v1/*
 
 API ENDPOINTS:
   - /api/v1/hera/*          - Hera browser extension (phishing detection)
@@ -85,7 +85,7 @@ var serveStopCmd = &cobra.Command{
 			return fmt.Errorf("failed to stop server (PID %s): %w", pid, err)
 		}
 
-		fmt.Printf("✅ Shells server stopped (PID: %s)\n", pid)
+		fmt.Printf(" Shells server stopped (PID: %s)\n", pid)
 		return nil
 	},
 }
@@ -134,7 +134,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("failed to start daemon: %w", err)
 			}
 
-			fmt.Printf("✅ Shells server started in background (PID: %d)\n", procCmd.Process.Pid)
+			fmt.Printf(" Shells server started in background (PID: %d)\n", procCmd.Process.Pid)
 			fmt.Printf("   Web UI:      http://localhost:%d\n", serverPort)
 			fmt.Printf("   API:         http://localhost:%d/api/v1/\n", serverPort)
 			fmt.Printf("   Health:      http://localhost:%d/health\n", serverPort)

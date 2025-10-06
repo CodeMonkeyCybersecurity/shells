@@ -218,7 +218,7 @@ func (t *Tracker) Complete() {
 	elapsed := time.Since(t.startTime)
 
 	if t.logger != nil {
-		t.logger.Infow("✅ Scan completed",
+		t.logger.Infow(" Scan completed",
 			"duration", formatDuration(elapsed),
 			"component", "progress",
 		)
@@ -226,7 +226,7 @@ func (t *Tracker) Complete() {
 		// Show phase breakdown
 		t.logger.Info("Phase Summary:", "component", "progress")
 		for _, phase := range t.phases {
-			status := "✅"
+			status := ""
 			if phase.Status == StatusFailed {
 				status = "❌"
 			} else if phase.Status == StatusPending {
