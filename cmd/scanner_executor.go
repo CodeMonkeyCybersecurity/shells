@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/utils"
 	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
@@ -36,7 +37,7 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 		}
 
 		log.Infow("Executing scanner",
-			"position", fmt.Sprintf("%d/%d", i+1, min(len(recommendations), 10)),
+			"position", fmt.Sprintf("%d/%d", i+1, utils.Min(len(recommendations), 10)),
 			"scanner", rec.Scanner,
 			"reason", rec.Reason,
 			"targets", strings.Join(rec.Targets, ", "))
@@ -427,12 +428,4 @@ func executeCloudEnumScanner(ctx context.Context, rec discovery.ScannerRecommend
 	}
 
 	return nil
-}
-
-// Helper function
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

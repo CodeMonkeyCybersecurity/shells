@@ -323,6 +323,10 @@ func buildAuthInventoryEvidence(inventory *authdiscovery.AuthInventory) string {
 	return evidence.String()
 }
 
+// buildCorrelationEvidence builds evidence string from correlation insight
+// NOTE: This is a simplified version. There's a more detailed implementation
+// in cmd/scanners/ml_correlation.go that handles specific InsightTypes.
+// TODO: Consolidate these two implementations
 func buildCorrelationEvidence(insight correlation.CorrelatedInsight) string {
 	var evidence strings.Builder
 
@@ -350,6 +354,10 @@ func buildCorrelationEvidence(insight correlation.CorrelatedInsight) string {
 	return evidence.String()
 }
 
+// buildCorrelationSolution builds solution recommendations from correlation insight
+// NOTE: This is a simplified version. There's a more detailed implementation
+// in cmd/scanners/ml_correlation.go that handles specific InsightTypes.
+// TODO: Consolidate these two implementations
 func buildCorrelationSolution(insight correlation.CorrelatedInsight) string {
 	// Default solution based on insight type
 	solutions := map[string]string{

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/utils"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/passive"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
@@ -102,7 +103,7 @@ func (e *ScanExecutor) runCertificateIntelligence(ctx context.Context, target st
 			Title:       fmt.Sprintf("Certificate Transparency Discovery (%d certificates)", len(certs)),
 			Description: fmt.Sprintf("Discovered %d certificates from CT logs for domain %s", len(certs), domain),
 			Tool:        "cert-intel",
-			Evidence:    fmt.Sprintf("Total certificates: %d, Unique domains: %d", len(certs), len(uniqueStrings(allDomains))),
+			Evidence:    fmt.Sprintf("Total certificates: %d, Unique domains: %d", len(certs), len(utils.UniqueStrings(allDomains))),
 			Solution:    "Review exposed certificate information for sensitive domain names",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -116,10 +117,10 @@ func (e *ScanExecutor) runCertificateIntelligence(ctx context.Context, target st
 				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
 				Type:        "Wildcard Certificate",
 				Severity:    types.SeverityMedium,
-				Title:       fmt.Sprintf("Wildcard Certificates Detected (%d)", len(uniqueStrings(wildcardDomains))),
+				Title:       fmt.Sprintf("Wildcard Certificates Detected (%d)", len(utils.UniqueStrings(wildcardDomains))),
 				Description: "Wildcard certificates found which may expose internal subdomains",
 				Tool:        "cert-intel",
-				Evidence:    fmt.Sprintf("Wildcard domains: %s", strings.Join(uniqueStrings(wildcardDomains), ", ")),
+				Evidence:    fmt.Sprintf("Wildcard domains: %s", strings.Join(utils.UniqueStrings(wildcardDomains), ", ")),
 				Solution:    "Review wildcard certificate usage and consider more specific certificates",
 				CreatedAt:   time.Now(),
 				UpdatedAt:   time.Now(),
@@ -134,10 +135,10 @@ func (e *ScanExecutor) runCertificateIntelligence(ctx context.Context, target st
 				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
 				Type:        "Internal Domain Exposure",
 				Severity:    types.SeverityHigh,
-				Title:       fmt.Sprintf("Internal Domains in Certificates (%d)", len(uniqueStrings(internalDomains))),
+				Title:       fmt.Sprintf("Internal Domains in Certificates (%d)", len(utils.UniqueStrings(internalDomains))),
 				Description: "Internal-looking domain names found in public certificates",
 				Tool:        "cert-intel",
-				Evidence:    fmt.Sprintf("Internal domains: %s", strings.Join(uniqueStrings(internalDomains), ", ")),
+				Evidence:    fmt.Sprintf("Internal domains: %s", strings.Join(utils.UniqueStrings(internalDomains), ", ")),
 				Solution:    "Review internal domain exposure and consider using internal CAs for internal services",
 				CreatedAt:   time.Now(),
 				UpdatedAt:   time.Now(),
@@ -280,17 +281,4 @@ func (e *ScanExecutor) runCodeRepositoryIntelligence(ctx context.Context, target
 		"domain", domain, "findings", len(findings))
 
 	return findings
-}
-
-// uniqueStrings returns unique strings from a slice
-func uniqueStrings(strs []string) []string {
-	seen := make(map[string]bool)
-	var result []string
-	for _, str := range strs {
-		if !seen[str] && str != "" {
-			seen[str] = true
-			result = append(result, str)
-		}
-	}
-	return result
 }
