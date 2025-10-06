@@ -2,6 +2,14 @@ package cmd
 
 // Shells Root Command - Main Entry Point
 //
+// MODULARIZATION (2025-10-06):
+//   Extracted reusable code into cmd/internal packages:
+//   - cmd/internal/display: Color formatting, finding display (117 lines)
+//   - cmd/internal/converters: Type conversions for findings (387 lines)
+//   - cmd/internal/helpers: Asset prioritization utilities (137 lines)
+//   All functions re-exported via cmd/display_helpers.go for backward compatibility
+//   Deleted redundant files: root_enhanced_simplified.go, root_helpers.go
+//
 // ADVERSARIAL REVIEW STATUS (2025-10-05):
 //
 //  FIXED (P0 - Critical):
@@ -10,10 +18,10 @@ package cmd
 //   - File write errors in protocol.go properly checked
 //
 //   KNOWN ISSUES (Documented):
-//   - FILE SIZE: 3,196 lines, 78 functions (NEEDS REFACTORING)
-//     Industry standard: <500 lines per file
-//     This is 6.4x too large - violates single responsibility
-//     Timeline: 2-3 weeks to refactor into cmd/discovery/, cmd/scan/, cmd/workflow/
+//   - FILE SIZE: 3,196 lines, 78 functions (PARTIAL FIX - see Modularization above)
+//     Extracted 641 lines to internal packages, reducing duplication
+//     Remaining: Further split into cmd/discovery/, cmd/scan/, cmd/workflow/
+//     Timeline: 1-2 weeks for remaining refactoring
 //
 //   - OS.EXIT CALLS: 44 calls prevent integration testing
 //     Should use RunE pattern with error returns instead

@@ -1,10 +1,12 @@
-package cmd
+// Package helpers provides utility functions for Shells CLI commands.
+package helpers
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"strings"
 )
 
 // BugBountyAssetPriority represents a prioritized asset for bug bounty testing
@@ -23,8 +25,8 @@ type AssetFeatures struct {
 	HasUserData       bool
 }
 
-// prioritizeAssetsForBugBounty assigns priority scores to discovered assets
-func prioritizeAssetsForBugBounty(assets []*discovery.Asset, log *logger.Logger) []*BugBountyAssetPriority {
+// PrioritizeAssetsForBugBounty assigns priority scores to discovered assets
+func PrioritizeAssetsForBugBounty(assets []*discovery.Asset, log *logger.Logger) []*BugBountyAssetPriority {
 	var prioritized []*BugBountyAssetPriority
 
 	for _, asset := range assets {
@@ -34,7 +36,6 @@ func prioritizeAssetsForBugBounty(assets []*discovery.Asset, log *logger.Logger)
 			Reasons: []string{},
 		}
 
-		// Score based on asset value patterns
 		value := strings.ToLower(asset.Value)
 
 		// Authentication endpoints (highest priority)
@@ -109,8 +110,8 @@ func prioritizeAssetsForBugBounty(assets []*discovery.Asset, log *logger.Logger)
 	return prioritized
 }
 
-// displayTopBugBountyTargets displays the top high-value targets
-func displayTopBugBountyTargets(assets []*BugBountyAssetPriority) {
+// DisplayTopBugBountyTargets displays the top high-value targets
+func DisplayTopBugBountyTargets(assets []*BugBountyAssetPriority) {
 	fmt.Printf("\n%sTop High-Value Targets:%s\n", "\033[1;33m", "\033[0m")
 	for i, asset := range assets {
 		scoreColor := "\033[0m"
@@ -125,7 +126,11 @@ func displayTopBugBountyTargets(assets []*BugBountyAssetPriority) {
 
 		// Show reasons
 		if len(asset.Reasons) > 0 {
-			fmt.Printf("   → %s\n", strings.Join(asset.Reasons[:min(2, len(asset.Reasons))], ", "))
+			maxReasons := 2
+			if len(asset.Reasons) < maxReasons {
+				maxReasons = len(asset.Reasons)
+			}
+			fmt.Printf("   → %s\n", strings.Join(asset.Reasons[:maxReasons], ", "))
 		}
 	}
 }

@@ -174,11 +174,10 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 	fmt.Printf("Total Findings: %d\n", result.TotalFindings)
 	fmt.Println()
 
-	// Display phase results
+	// Display phase results using modularized display functions
 	if len(result.PhaseResults) > 0 {
 		log.Info("═══ Pipeline Phases ═══", "component", "orchestrator_main")
 
-		// Display in order: discovery, prioritization, testing phases
 		phaseOrder := []string{"discovery", "auth", "scim", "api"}
 		for _, phaseName := range phaseOrder {
 			if pr, ok := result.PhaseResults[phaseName]; ok {
@@ -206,7 +205,7 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 		fmt.Println()
 	}
 
-	// Display findings by severity
+	// Display findings by severity using modularized display functions
 	if len(result.Findings) > 0 {
 		log.Info("═══ Findings by Severity ═══", "component", "orchestrator_main")
 		bySeverity := groupFindingsBySeverity(result.Findings)
@@ -225,7 +224,7 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 		}
 		fmt.Println()
 
-		// Display top findings
+		// Display top findings using modularized display function
 		log.Info("═══ Top Findings ═══", "component", "orchestrator_main")
 		displayTopFindings(result.Findings, 10)
 
@@ -243,8 +242,7 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 	fmt.Printf("✓ Scan complete in %s\n", result.Duration.Round(time.Second))
 	fmt.Printf("  Scan ID: %s\n", result.ScanID)
 
-	// Print results location
-	dbPath := "~/.shells/shells.db" // Default database path
+	dbPath := "~/.shells/shells.db"
 	fmt.Printf("\n Results saved to: %s\n", color.CyanString(dbPath))
 	fmt.Printf("\nQuery results with:\n")
 	fmt.Printf("  shells results query --scan-id %s\n", result.ScanID)
