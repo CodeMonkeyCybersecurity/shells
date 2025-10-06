@@ -23,17 +23,32 @@ import (
 
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "Start the Shells HTTP API server",
-	Long: `Start the HTTP API server for Shells.
+	Short: "Start the Shells API server (web dashboard + worker service + API endpoints)",
+	Long: `Start the all-in-one Shells server that provides:
 
-This server provides:
-- Hera browser extension endpoints (/api/v1/hera/*)
-- Future API endpoints for remote scanning
-- Health checks and metrics
+AUTOMATIC SERVICES:
+  ✅ PostgreSQL database setup and migrations
+  ✅ Web dashboard at http://localhost:8080
+  ✅ Python worker service for GraphQL/IDOR scanning
+  ✅ REST API at http://localhost:8080/api/v1/*
+
+API ENDPOINTS:
+  - /api/v1/hera/*          - Hera browser extension (phishing detection)
+                              Real-time URL analysis, WHOIS lookups, threat intel
+  - /health                 - Health check and database status
+  - /                       - Web dashboard for scan results
+
+AUTHENTICATION:
+  API endpoints require API key via:
+    - Authorization: Bearer <key> header
+    - SHELLS_API_KEY environment variable
+    - Auto-generated for local development (see security warning)
 
 Example:
-  shells serve --port 8080
-  shells serve --config config.yaml --tls-cert cert.pem --tls-key key.pem
+  shells serve                                      # Start everything on default ports
+  shells serve --port 8080 --workers-port 5000     # Custom ports
+  SHELLS_API_KEY=secret shells serve               # Production with API key
+  shells serve --tls-cert cert.pem --tls-key key.pem # HTTPS mode
 `,
 	RunE: runServe,
 }
@@ -141,24 +156,34 @@ func runServe(cmd *cobra.Command, args []string) error {
 	// P2 FIX: Removed sqlite3-specific warning (PostgreSQL-only now)
 	// PostgreSQL handles concurrency natively
 
-	// Validate API key is configured
+	// API key for authentication (optional for local development)
 	apiKey := cfg.Security.APIKey
 	if apiKey == "" {
-		// Try to get from environment variable
 		apiKey = os.Getenv("SHELLS_API_KEY")
-		if apiKey == "" {
-			return fmt.Errorf("API key not configured: set SHELLS_API_KEY environment variable or configure security.api_key in config file")
-		}
 	}
 
-	log.Infow("API key loaded",
-		"source", func() string {
-			if cfg.Security.APIKey != "" {
-				return "config file"
-			}
-			return "environment variable"
-		}(),
-	)
+	if apiKey == "" {
+		// Auto-generate for local development
+		apiKey = "dev-local-" + fmt.Sprintf("%d", time.Now().Unix())
+		log.Warnw("No API key configured - using auto-generated key for local development",
+			"auto_generated_key", apiKey,
+			"security_warning", "For production, set SHELLS_API_KEY environment variable",
+			"component", "api_server",
+		)
+		log.Warn("⚠️  SECURITY WARNING: Using auto-generated API key for local development")
+		log.Warn("   For production use, set SHELLS_API_KEY environment variable")
+		log.Warn("   Example: export SHELLS_API_KEY=$(openssl rand -hex 32)")
+	} else {
+		log.Infow("API key loaded",
+			"source", func() string {
+				if cfg.Security.APIKey != "" {
+					return "config"
+				}
+				return "environment variable"
+			}(),
+			"component", "api_server",
+		)
+	}
 
 	// Set Gin mode
 	if os.Getenv("GIN_MODE") == "" {
