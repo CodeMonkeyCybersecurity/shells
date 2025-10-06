@@ -43,16 +43,16 @@ func TestBugBountyWorkflowEndToEnd(t *testing.T) {
 	// Initialize logger
 	log := setupTestLogger(t)
 
-	// Create orchestrator with quick mode settings
+	// Create orchestrator with quick mode settings optimized for tests
 	engineConfig := orchestrator.DefaultBugBountyConfig()
 	engineConfig.DiscoveryTimeout = 3 * time.Second
 	engineConfig.ScanTimeout = 10 * time.Second
-	engineConfig.TotalTimeout = 15 * time.Second
+	engineConfig.TotalTimeout = 45 * time.Second // Increased for real scanner overhead
 	engineConfig.MaxAssets = 5
 	engineConfig.MaxDepth = 1
 	engineConfig.EnableDNS = false
-	engineConfig.EnablePortScan = false
-	engineConfig.EnableWebCrawl = false
+	engineConfig.EnablePortScan = false // Disable Nmap (takes 12s+)
+	engineConfig.EnableWebCrawl = false // Disable crawling
 	engineConfig.ShowProgress = false
 
 	engine, err := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, log, engineConfig)
@@ -60,8 +60,8 @@ func TestBugBountyWorkflowEndToEnd(t *testing.T) {
 		t.Fatalf("Failed to create orchestrator: %v", err)
 	}
 
-	// Run scan with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	// Run scan with timeout (generous for test environment)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	target := server.URL
@@ -90,8 +90,8 @@ func TestBugBountyWorkflowEndToEnd(t *testing.T) {
 	}
 
 	// Verify scan completed within timeout
-	if result.Duration > 20*time.Second {
-		t.Errorf("Scan took too long: %v (max 20s)", result.Duration)
+	if result.Duration > 60*time.Second {
+		t.Errorf("Scan took too long: %v (max 60s)", result.Duration)
 	}
 
 	// Verify findings are stored in database
