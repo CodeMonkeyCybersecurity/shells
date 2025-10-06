@@ -704,7 +704,7 @@ func printComprehensiveDiscoveryResults(result struct {
 			}
 
 			if len(impl.Vulnerabilities) > 0 {
-				fmt.Printf("     ⚠️  Vulnerabilities: %d found\n", len(impl.Vulnerabilities))
+				fmt.Printf("       Vulnerabilities: %d found\n", len(impl.Vulnerabilities))
 			}
 			fmt.Println()
 		}

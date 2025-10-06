@@ -351,7 +351,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 	}
 
 	// Supported features
-	fmt.Printf("\n🔧 Supported Features:\n")
+	fmt.Printf("\n Supported Features:\n")
 
 	if responseTypes, ok := discoveryDoc["response_types_supported"].([]interface{}); ok {
 		fmt.Printf("   Response Types: %v\n", responseTypes)
@@ -371,7 +371,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 	// Check PKCE support
 	pkceMethods, hasPKCE := discoveryDoc["code_challenge_methods_supported"].([]interface{})
 	if !hasPKCE || len(pkceMethods) == 0 {
-		fmt.Printf("   ⚠️  PKCE not supported - vulnerable to authorization code interception\n")
+		fmt.Printf("     PKCE not supported - vulnerable to authorization code interception\n")
 	} else {
 		fmt.Printf("    PKCE supported with methods: %v\n", pkceMethods)
 	}
@@ -386,7 +386,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if hasImplicit {
-			fmt.Printf("   ⚠️  Implicit flow supported - consider deprecating\n")
+			fmt.Printf("     Implicit flow supported - consider deprecating\n")
 		}
 	}
 
@@ -400,7 +400,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if hasNone {
-			fmt.Printf("   ⚠️  'none' auth method supported at token endpoint\n")
+			fmt.Printf("     'none' auth method supported at token endpoint\n")
 		}
 	}
 

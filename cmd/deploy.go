@@ -152,7 +152,7 @@ var deployStatusCmd = &cobra.Command{
 
 			statusIcon := ""
 			if status.Status != "running" && status.Status != "complete" {
-				statusIcon = "⚠️"
+				statusIcon = ""
 			}
 
 			fmt.Printf("%s %s: %s\n", statusIcon, component, status.Status)

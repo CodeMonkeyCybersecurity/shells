@@ -365,7 +365,7 @@ func runFaviconAdd(cmd *cobra.Command, args []string) error {
 	// Save to custom database if specified
 	if customDatabase != "" {
 		if err := database.SaveToFile(customDatabase); err != nil {
-			fmt.Printf("⚠️  Warning: Failed to save to custom database: %v\n", err)
+			fmt.Printf("  Warning: Failed to save to custom database: %v\n", err)
 		} else {
 			fmt.Printf("💾 Saved to custom database: %s\n", customDatabase)
 		}
@@ -426,7 +426,7 @@ func runFaviconStats(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Total Scans: %d\n", stats.TotalScans)
 
 	// Show top technologies
-	fmt.Printf("\n🔧 Available Technologies (sample):\n")
+	fmt.Printf("\n Available Technologies (sample):\n")
 	for i, tech := range technologies {
 		if i >= 10 { // Show first 10
 			fmt.Printf("... and %d more\n", len(technologies)-10)

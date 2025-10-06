@@ -563,7 +563,7 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 	if len(report.Warnings) > 0 {
 		fmt.Printf("Warnings:\n")
 		for _, warning := range report.Warnings {
-			fmt.Printf("  ⚠️  %s\n", warning)
+			fmt.Printf("    %s\n", warning)
 		}
 		fmt.Println()
 	}

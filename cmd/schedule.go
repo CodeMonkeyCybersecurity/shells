@@ -116,7 +116,7 @@ var scheduleListCmd = &cobra.Command{
 
 		statusIcon := ""
 		if status.Status != "running" {
-			statusIcon = "⚠️"
+			statusIcon = ""
 		}
 
 		fmt.Printf("%s shells-scheduled-scans: %s\n", statusIcon, status.Status)

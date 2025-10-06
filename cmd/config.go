@@ -133,7 +133,7 @@ var configShowCmd = &cobra.Command{
 		// Load and display configured APIs
 		keys := credManager.GetAPIKeys()
 
-		fmt.Println("\n🔧 Current Configuration")
+		fmt.Println("\n Current Configuration")
 		fmt.Println("═══════════════════════")
 
 		fmt.Println("\n📡 API Keys:")
@@ -175,7 +175,7 @@ var configClearCmd = &cobra.Command{
 		force, _ := cmd.Flags().GetBool("force")
 
 		if !force {
-			fmt.Println("⚠️  This will delete all stored API credentials.")
+			fmt.Println("  This will delete all stored API credentials.")
 			fmt.Print("Are you sure? [y/N]: ")
 
 			var response string

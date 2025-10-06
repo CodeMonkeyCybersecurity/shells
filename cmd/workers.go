@@ -30,7 +30,7 @@ var workersSetupCmd = &cobra.Command{
 	Long: `Clone GraphCrawler and IDORD repositories, create Python virtual environment,
 and install all dependencies. This only needs to be run once.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("🔧 Setting up worker environment...")
+		fmt.Println(" Setting up worker environment...")
 
 		// Get project root
 		projectRoot, err := os.Getwd()
@@ -73,8 +73,17 @@ and install all dependencies. This only needs to be run once.`,
 			fmt.Println("   IDORD already exists, skipping clone")
 		}
 
+		// Update requirements.txt files for Python 3.12 compatibility
+		fmt.Println(" Updating requirements for Python 3.12 compatibility...")
+		if err := updateGraphCrawlerRequirements(graphCrawlerDir); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to update GraphCrawler requirements: %v\n", err)
+		}
+		if err := updateIDORDRequirements(idordDir); err != nil {
+			fmt.Printf("⚠️  Warning: Failed to update IDORD requirements: %v\n", err)
+		}
+
 		// Create Python virtual environment
-		fmt.Println("🐍 Creating Python virtual environment...")
+		fmt.Println(" Creating Python virtual environment...")
 		venvDir := filepath.Join(workersDir, "venv")
 		if _, err := os.Stat(venvDir); os.IsNotExist(err) {
 			venvCmd := exec.Command("python3", "-m", "venv", venvDir)
@@ -135,7 +144,7 @@ var workersStartCmd = &cobra.Command{
 	Short: "Start the worker service",
 	Long:  `Start the FastAPI worker service that provides GraphQL and IDOR scanning.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("🔧 Starting worker service...")
+		fmt.Println(" Starting worker service...")
 
 		// Get project root
 		projectRoot, err := os.Getwd()
@@ -242,4 +251,80 @@ func init() {
 	workersCmd.AddCommand(workersStartCmd)
 	workersCmd.AddCommand(workersStopCmd)
 	workersCmd.AddCommand(workersStatusCmd)
+}
+
+// updateGraphCrawlerRequirements updates GraphCrawler requirements.txt for Python 3.12 compatibility
+func updateGraphCrawlerRequirements(dir string) error {
+	reqFile := filepath.Join(dir, "requirements.txt")
+
+	// Python 3.12-compatible versions
+	content := `aiohttp>=3.9.0
+aiosignal>=1.3.1
+async-timeout>=4.0.3
+attrs>=23.1.0
+backoff>=2.2.1
+certifi>=2023.7.22
+charset-normalizer>=3.3.0
+frozenlist>=1.4.0
+gql>=3.5.0
+graphql-core>=3.2.3
+idna>=3.4
+multidict>=6.0.4
+requests>=2.31.0
+urllib3>=2.0.7
+yarl>=1.9.3
+`
+
+	return os.WriteFile(reqFile, []byte(content), 0644)
+}
+
+// updateIDORDRequirements updates IDORD requirements.txt for Python 3.12 compatibility
+func updateIDORDRequirements(dir string) error {
+	reqFile := filepath.Join(dir, "requirements.txt")
+
+	// Python 3.12-compatible versions
+	content := `asgiref>=3.7.2
+attrs>=23.1.0
+Automat>=22.10.0
+beautifulsoup4>=4.12.2
+certifi>=2023.7.22
+cffi>=1.16.0
+charset-normalizer>=3.3.0
+constantly>=23.10.4
+cryptography>=41.0.0
+cssselect>=1.2.0
+Django>=4.2.0
+filelock>=3.13.0
+hyperlink>=21.0.0
+idna>=3.4
+incremental>=22.10.0
+itemadapter>=0.8.0
+itemloaders>=1.1.0
+jmespath>=1.0.1
+lxml>=4.9.3
+parsel>=1.8.1
+Protego>=0.3.0
+proxyscrape>=0.3.0
+pyasn1>=0.5.0
+pyasn1-modules>=0.3.0
+pycparser>=2.21
+PyDispatcher>=2.0.7
+pyOpenSSL>=23.3.0
+queuelib>=1.6.2
+requests>=2.31.0
+requests-file>=1.5.1
+Scrapy>=2.11.0
+service-identity>=23.1.0
+six>=1.16.0
+soupsieve>=2.5
+sqlparse>=0.4.4
+tldextract>=5.0.0
+Twisted>=23.10.0
+typing_extensions>=4.8.0
+urllib3>=2.1.0
+w3lib>=2.1.2
+zope.interface>=6.1
+`
+
+	return os.WriteFile(reqFile, []byte(content), 0644)
 }

@@ -9,7 +9,7 @@ package cmd
 //   - Environment config errors now have proper error handling
 //   - File write errors in protocol.go properly checked
 //
-// ⚠️  KNOWN ISSUES (Documented):
+//   KNOWN ISSUES (Documented):
 //   - FILE SIZE: 3,196 lines, 78 functions (NEEDS REFACTORING)
 //     Industry standard: <500 lines per file
 //     This is 6.4x too large - violates single responsibility
@@ -149,7 +149,7 @@ The main command runs the full orchestrated pipeline:
 		// Handle signals in goroutine
 		go func() {
 			sig := <-sigChan
-			color.Yellow("\n\n⚠️  Received %s - shutting down gracefully...\n", sig)
+			color.Yellow("\n\n  Received %s - shutting down gracefully...\n", sig)
 			color.White("   Partial results will be saved to database.\n\n")
 			cancel()
 		}()
@@ -2451,7 +2451,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 		select {
 		case <-discoveryCtx.Done():
 			// Discovery timeout - use what we have
-			fmt.Printf("⚠️ Discovery timeout (30s) reached, proceeding with %d found assets\n", len(session.Assets))
+			fmt.Printf(" Discovery timeout (30s) reached, proceeding with %d found assets\n", len(session.Assets))
 			for _, asset := range session.Assets {
 				discoveredAssets = append(discoveredAssets, asset)
 			}
@@ -2638,7 +2638,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 	if err != nil {
 		log.Warn("Failed to load scope programs", "error", err)
 	} else if len(programs) == 0 {
-		fmt.Printf("⚠️  No bug bounty programs configured for scope validation.\n")
+		fmt.Printf("  No bug bounty programs configured for scope validation.\n")
 		fmt.Printf("   Use 'shells scope import <platform> <program>' to add programs.\n")
 		fmt.Printf("   Continuing without scope validation...\n\n")
 	} else {
@@ -2673,7 +2673,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 		scopeValidator = discovery.NewScopeValidator(scopeManager, log, true)
 		fmt.Printf(" Scope validation enabled for asset filtering\n\n")
 	} else {
-		fmt.Printf("⚠️  Scope validation disabled - all discovered assets will be processed\n\n")
+		fmt.Printf("  Scope validation disabled - all discovered assets will be processed\n\n")
 	}
 
 	// Initialize discovery engine with enhanced discovery and scope validation
@@ -2734,7 +2734,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 			}
 
 		case <-timeout:
-			fmt.Println("\n⚠️ Discovery timeout reached")
+			fmt.Println("\n Discovery timeout reached")
 			log.Warn("Discovery timeout", "session_id", session.ID)
 			// Still collect what we found
 			for _, asset := range session.Assets {

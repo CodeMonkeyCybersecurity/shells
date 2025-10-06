@@ -256,7 +256,7 @@ func runrumbleDiscover(cmd *cobra.Command, args []string) error {
 		}
 
 		if serviceCount > 0 {
-			fmt.Printf("\n⚠️  Found %d exposed services. Use --verbose for details.\n", serviceCount)
+			fmt.Printf("\n  Found %d exposed services. Use --verbose for details.\n", serviceCount)
 		}
 	}
 

@@ -2,7 +2,8 @@
 //
 // ADVERSARIAL REVIEW STATUS (Round 4 - 2025-10-05):
 //
-// ⚠️  WARNING: THIS CODE COMPILES BUT DOES NOT WORK
+//	WARNING: THIS CODE COMPILES BUT DOES NOT WORK
+//
 // Multiple critical database schema mismatches prevent functionality.
 //
 // 🚨 P0 ISSUES (CRITICAL - System Broken):
@@ -37,12 +38,12 @@
 //
 // P0-5: Stats Table Schema Missing Key Columns (Line 417)
 //
-//	Query: INSERT INTO hera_stats (date, verdict, reputation_bucket, pattern, count)
-//	Actual Schema: Only has columns: id, event_type, domain, metadata, created_at
-//	Impact: Statistics logging fails 100% of the time
-//	Fix: Completely redesign stats table schema
+//		Query: INSERT INTO hera_stats (date, verdict, reputation_bucket, pattern, count)
+//		Actual Schema: Only has columns: id, event_type, domain, metadata, created_at
+//		Impact: Statistics logging fails 100% of the time
+//		Fix: Completely redesign stats table schema
 //
-// ⚠️  P1 ISSUES (HIGH - Major Functionality Gaps):
+//	  P1 ISSUES (HIGH - Major Functionality Gaps):
 //
 // P1-1: No Actual WHOIS Integration (Line 234)
 //
@@ -159,7 +160,8 @@
 // ❌ WHOIS lookup fails (schema mismatch)
 // ❌ Threat intel lookup fails (schema mismatch)
 // ❌ Stats logging fails (schema mismatch)
-// ⚠️  Reputation lookup succeeds but returns empty (no data seeded)
+//
+//	Reputation lookup succeeds but returns empty (no data seeded)
 //
 // HONESTY CHECK:
 // Previous rounds claimed "All issues fixed" but the code compiled with fundamental

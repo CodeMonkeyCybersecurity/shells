@@ -352,6 +352,7 @@ atomic:
 type ConfigManager struct {
 	configPath string
 	validator  *ConfigValidator
+	logger     interface{ Warnw(msg string, keysAndValues ...interface{}) } // Optional logger for structured logging
 }
 
 // NewConfigManager creates a new configuration manager
@@ -369,14 +370,16 @@ func (m *ConfigManager) LoadOrCreate() (*Config, error) {
 		return nil, err
 	}
 
-	// Validate for bug bounty usage
+	// Validate for bug bounty usage with structured logging
 	warnings := m.validator.ValidateForBugBounty(config)
 	if len(warnings) > 0 {
-		fmt.Printf("⚠️  Configuration warnings:\n")
-		for _, warning := range warnings {
-			fmt.Printf("   - %s\n", warning)
+		if m.logger != nil {
+			m.logger.Warnw("Atomic Red Team configuration warnings",
+				"warnings", warnings,
+				"component", "atomic_config",
+				"bug_bounty_mode", true,
+			)
 		}
-		fmt.Println()
 	}
 
 	return config, nil

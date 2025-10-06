@@ -84,7 +84,7 @@ Examples:
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
 			if strings.Contains(err.Error(), "context deadline exceeded") {
-				fmt.Printf("⚠️  SCIM discovery timed out, performing basic endpoint check\n")
+				fmt.Printf("  SCIM discovery timed out, performing basic endpoint check\n")
 				performBasicSCIMCheck(target)
 				return
 			}
@@ -367,7 +367,7 @@ func printSCIMProvisionResults(findings []types.Finding, verbose bool) {
 	}
 
 	for _, finding := range findings {
-		fmt.Printf("⚠️  %s\n", finding.Title)
+		fmt.Printf("  %s\n", finding.Title)
 		fmt.Printf("   Severity: %s\n", finding.Severity)
 		fmt.Printf("   Type: %s\n", finding.Type)
 		fmt.Printf("   Description: %s\n", finding.Description)

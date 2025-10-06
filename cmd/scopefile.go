@@ -85,7 +85,7 @@ var scopeFileValidateCmd = &cobra.Command{
 			fmt.Printf("  Normalized: %s\n", result.NormalizedURL)
 
 			if len(result.Warnings) > 0 {
-				color.Yellow("\n⚠️  Warnings:\n")
+				color.Yellow("\n  Warnings:\n")
 				for _, warning := range result.Warnings {
 					fmt.Printf("   • %s\n", warning)
 				}

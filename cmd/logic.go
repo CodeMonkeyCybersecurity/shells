@@ -125,9 +125,9 @@ Examples:
 		fmt.Printf("\n🏆 Security Score: %d/100\n", results.SecurityScore)
 
 		if results.SecurityScore < 70 {
-			fmt.Printf("⚠️  CRITICAL: Significant vulnerabilities detected!\n")
+			fmt.Printf("  CRITICAL: Significant vulnerabilities detected!\n")
 		} else if results.SecurityScore < 85 {
-			fmt.Printf("⚠️  WARNING: Security improvements needed\n")
+			fmt.Printf("  WARNING: Security improvements needed\n")
 		} else {
 			fmt.Printf(" Good: Password reset flow appears secure\n")
 		}
@@ -322,7 +322,7 @@ Examples:
 		fmt.Printf("   Vulnerable endpoints: %d\n", vulnerableCount)
 
 		if vulnerableCount > 0 {
-			fmt.Printf("⚠️  CRITICAL: Race condition vulnerabilities detected!\n")
+			fmt.Printf("  CRITICAL: Race condition vulnerabilities detected!\n")
 		} else {
 			fmt.Printf(" No race condition vulnerabilities found\n")
 		}
@@ -433,7 +433,7 @@ Examples:
 		if criticalCount > 0 {
 			fmt.Printf("🚨 CRITICAL: MFA can be completely bypassed!\n")
 		} else if highCount > 0 {
-			fmt.Printf("⚠️  WARNING: MFA bypass vulnerabilities detected\n")
+			fmt.Printf("  WARNING: MFA bypass vulnerabilities detected\n")
 		} else if len(results) > 0 {
 			fmt.Printf("ℹ️  INFO: Minor MFA implementation issues found\n")
 		} else {
@@ -555,7 +555,7 @@ Examples:
 		if criticalCount > 0 {
 			fmt.Printf("🚨 CRITICAL: Financial exploitation possible!\n")
 		} else if highCount > 0 {
-			fmt.Printf("⚠️  WARNING: Payment logic vulnerabilities detected\n")
+			fmt.Printf("  WARNING: Payment logic vulnerabilities detected\n")
 		} else if len(results) > 0 {
 			fmt.Printf("ℹ️  INFO: Minor payment logic issues found\n")
 		} else {
@@ -684,7 +684,7 @@ Examples:
 		if criticalCount > 0 {
 			fmt.Printf("🚨 CRITICAL: Account recovery can be fully bypassed!\n")
 		} else if highCount > 0 {
-			fmt.Printf("⚠️  WARNING: Recovery bypass vulnerabilities detected\n")
+			fmt.Printf("  WARNING: Recovery bypass vulnerabilities detected\n")
 		} else if len(results) > 0 {
 			fmt.Printf("ℹ️  INFO: Minor recovery implementation issues found\n")
 		} else {
@@ -777,9 +777,9 @@ Examples:
 		if report.Metadata.CriticalCount > 0 {
 			fmt.Printf("🚨 CRITICAL: Immediate action required - %d critical vulnerabilities\n", report.Metadata.CriticalCount)
 		} else if report.Metadata.HighCount > 2 {
-			fmt.Printf("⚠️  HIGH RISK: Significant vulnerabilities detected - %d high-risk issues\n", report.Metadata.HighCount)
+			fmt.Printf("  HIGH RISK: Significant vulnerabilities detected - %d high-risk issues\n", report.Metadata.HighCount)
 		} else if report.Metadata.HighCount > 0 {
-			fmt.Printf("⚠️  WARNING: Some high-risk vulnerabilities - %d issues\n", report.Metadata.HighCount)
+			fmt.Printf("  WARNING: Some high-risk vulnerabilities - %d issues\n", report.Metadata.HighCount)
 		} else if report.Metadata.VulnsFound > 0 {
 			fmt.Printf("ℹ️  INFO: Minor security issues found - %d total\n", report.Metadata.VulnsFound)
 		} else {
@@ -1105,7 +1105,7 @@ func getSeverityEmoji(severity string) string {
 	case logic.SeverityCritical:
 		return "🚨"
 	case logic.SeverityHigh:
-		return "⚠️"
+		return ""
 	case logic.SeverityMedium:
 		return "⚡"
 	case logic.SeverityLow:

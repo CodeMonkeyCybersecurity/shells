@@ -60,7 +60,7 @@ func scanGraphQLExample(ctx context.Context, client *workers.Client) (*workers.J
 			fmt.Printf("  Found %d queries\n", len(queries))
 		}
 		if mutations, ok := result.Result["mutations_enabled"].(bool); ok && mutations {
-			fmt.Println("  ⚠️  Mutations are enabled!")
+			fmt.Println("    Mutations are enabled!")
 		}
 	}
 

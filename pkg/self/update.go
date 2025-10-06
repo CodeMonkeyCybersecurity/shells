@@ -160,33 +160,48 @@ func (su *ShellsUpdater) Update() error {
 		su.logger.Warnw("Post-install verification failed", "error", err)
 	}
 
-	su.logger.Info(" Shells self-update completed successfully!")
-	fmt.Println("\n" + strings.Repeat("=", 70))
-	fmt.Println(" Shells Updated Successfully!")
-	fmt.Println(strings.Repeat("=", 70))
-	fmt.Println()
-	fmt.Println(" Quick Start:")
-	fmt.Println()
-	fmt.Println("   shells serve")
-	fmt.Println()
-	fmt.Println("   This automatically:")
-	fmt.Println("    Connects to PostgreSQL and creates tables")
-	fmt.Println("    Starts web dashboard at http://localhost:8080")
-	fmt.Println("    Starts worker service for scanning")
-	fmt.Println("    Exposes REST API at /api/v1/*")
-	fmt.Println()
-	fmt.Println(" Dashboard: http://localhost:8080")
-	fmt.Println()
-	fmt.Println(" Run Scans:")
-	fmt.Println("   shells example.com          # Full bug bounty pipeline")
-	fmt.Println("   shells \"Acme Corp\"          # Discover company assets")
-	fmt.Println()
-	fmt.Println("  Configuration (No YAML files!):")
-	fmt.Println("   shells serve --port 9000 --workers 5")
-	fmt.Println("   export SHELLS_DATABASE_DSN=\"postgres://...\"")
-	fmt.Println()
-	fmt.Println(strings.Repeat("=", 70))
-	fmt.Println()
+	// Structured logging with otelzap - user-facing success message
+	su.logger.Infow("Self-update completed successfully",
+		"status", "success",
+		"next_steps", []string{
+			"shells serve - Start web dashboard and API",
+			"http://localhost:8080 - Open dashboard in browser",
+			"shells example.com - Run a scan",
+		},
+		"quick_start", "shells serve",
+		"dashboard_url", "http://localhost:8080",
+		"configuration", "Use --flags or SHELLS_* env vars (no YAML files)",
+		"database_auto", "postgres://shells:shells_password@localhost:5432/shells",
+	)
+
+	// User-friendly console output for interactive use
+	su.logger.Info("\n" + strings.Repeat("=", 70))
+	su.logger.Info("Shells Updated Successfully!")
+	su.logger.Info(strings.Repeat("=", 70))
+	su.logger.Info("")
+	su.logger.Info("Quick Start:")
+	su.logger.Info("")
+	su.logger.Info("   shells serve")
+	su.logger.Info("")
+	su.logger.Info("   This automatically:")
+	su.logger.Info("   - Connects to PostgreSQL and creates tables")
+	su.logger.Info("   - Starts web dashboard at http://localhost:8080")
+	su.logger.Info("   - Starts worker service for scanning")
+	su.logger.Info("   - Exposes REST API at /api/v1/*")
+	su.logger.Info("")
+	su.logger.Info("Dashboard: http://localhost:8080")
+	su.logger.Info("")
+	su.logger.Info("Run Scans:")
+	su.logger.Info("   shells example.com          # Full bug bounty pipeline")
+	su.logger.Info("   shells \"Acme Corp\"          # Discover company assets")
+	su.logger.Info("")
+	su.logger.Info("Configuration (No YAML files!):")
+	su.logger.Info("   shells serve --port 9000 --workers 5")
+	su.logger.Info("   export SHELLS_DATABASE_DSN=\"postgres://...\"")
+	su.logger.Info("")
+	su.logger.Info(strings.Repeat("=", 70))
+	su.logger.Info("")
+
 	return nil
 }
 

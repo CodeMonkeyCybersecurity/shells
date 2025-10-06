@@ -40,7 +40,7 @@ func runIntelligentOrchestrator(ctx context.Context, target string, cmd *cobra.C
 
 	// Display warnings if any
 	if len(validationResult.Warnings) > 0 {
-		color.Yellow("\n⚠️  Warnings:\n")
+		color.Yellow("\n  Warnings:\n")
 		for _, warning := range validationResult.Warnings {
 			fmt.Printf("   • %s\n", warning)
 		}

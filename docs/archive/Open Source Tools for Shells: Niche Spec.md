@@ -21,7 +21,7 @@ High payouts for banking/fintech ($3,500+ for critical)
 Perfect for automation (pattern-based testing)
 Found in authenticated areas that scanners miss
 
-🔧 Open Source Tools to Integrate
+ Open Source Tools to Integrate
 Autorize (Burp Suite Extension)
 
 What it does: Automatically tests authorization bypass
@@ -204,7 +204,7 @@ Authorization often broken in nested fields
 Batch requests allow efficient testing
 
 
-🔧 Open Source GraphQL Tools
+ Open Source GraphQL Tools
 GraphCrawler ⭐ MOST POWERFUL
 
 GitHub: https://github.com/gsmith257-cyber/GraphCrawler
@@ -468,7 +468,7 @@ Very few automated tools exist yet
 High payouts ($250-$30,000 range)
 Low competition (for now)
 
-🔧 Building Custom LLM Testing for Shells
+ Building Custom LLM Testing for Shells
 Unfortunately, there aren't many mature open source tools for this yet (opportunity!), so we'll need to build custom:
 Prompt Injection Test Library
 pythonclass PromptInjectionTester:
@@ -647,7 +647,7 @@ pythonclass LLMToolAccessTester:
 
 
 4. OAuth & API Security Testing
-🔧 Open Source Tools
+ Open Source Tools
 OAuth.tools (Testing OAuth Flows)
 
 URL: https://oauth.tools (web-based)
@@ -855,7 +855,7 @@ Complex architecture (many teams, inconsistent security)
 OAuth/Identity everywhere (your strength)
 GraphQL adoption growing
 
-🔧 Azure-Specific Shells Module
+ Azure-Specific Shells Module
 pythonclass AzureSpecialist:
     """
     Specialized module for Microsoft Azure bug bounty

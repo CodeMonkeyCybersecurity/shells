@@ -68,7 +68,7 @@ func init() {
 
 func runHuntCommand(cmd *cobra.Command, args []string) error {
 	// Display deprecation warning
-	color.Yellow("\n⚠️  DEPRECATION WARNING: The 'hunt' command is deprecated.\n")
+	color.Yellow("\n  DEPRECATION WARNING: The 'hunt' command is deprecated.\n")
 	color.White("   Use 'shells %s' instead for the same functionality.\n\n", args[0])
 
 	target := args[0]

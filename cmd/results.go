@@ -706,7 +706,7 @@ func printStats(stats *core.FindingStats, criticalFindings []types.Finding) {
 	}
 
 	// Top tools
-	fmt.Printf("\n🔧 Top Scanning Tools:\n")
+	fmt.Printf("\n Top Scanning Tools:\n")
 	toolCount := 0
 	for tool, count := range stats.ByTool {
 		if toolCount >= 5 {

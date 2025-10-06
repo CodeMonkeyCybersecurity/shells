@@ -225,7 +225,7 @@ This command will:
 		for _, platformName := range platforms {
 			client, err := getPlatformClient(platformName)
 			if err != nil {
-				fmt.Printf("⚠️  Skipping %s: %v\n", platformName, err)
+				fmt.Printf("  Skipping %s: %v\n", platformName, err)
 				continue
 			}
 
@@ -246,7 +246,7 @@ This command will:
 				// Check if already submitted
 				dbStore, ok := store.(*database.Store)
 				if !ok {
-					fmt.Printf("  ⚠️  Database type assertion failed, skipping duplicate check\n")
+					fmt.Printf("    Database type assertion failed, skipping duplicate check\n")
 					continue
 				}
 				alreadySubmitted, _ := checkAlreadySubmitted(dbStore, finding.ID, platformName)

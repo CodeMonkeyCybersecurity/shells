@@ -20,6 +20,7 @@ type ProgramRules struct {
 	ipResolver    *IPResolver
 	domainMatcher *DomainMatcher
 	config        ProgramRulesConfig
+	logger        interface{ Errorw(msg string, keysAndValues ...interface{}) } // Optional logger for structured logging
 	mu            sync.RWMutex
 }
 
@@ -595,8 +596,15 @@ func (pr *ProgramRules) updatePrograms() {
 	for platform, api := range pr.platformAPIs {
 		programs, err := api.ListPrograms()
 		if err != nil {
-			// Log error but continue with other platforms
-			fmt.Printf("Failed to update programs from %s: %v\n", platform, err)
+			// Structured logging with otelzap (if logger configured)
+			if pr.logger != nil {
+				pr.logger.Errorw("Failed to update bug bounty programs from platform",
+					"error", err,
+					"platform", platform,
+					"operation", "program_update",
+					"component", "program_rules",
+				)
+			}
 			continue
 		}
 

@@ -291,7 +291,7 @@ func printSmugglingExploitResults(findings []types.Finding, verbose bool) {
 	}
 
 	for _, finding := range findings {
-		fmt.Printf("⚠️  %s\n", finding.Title)
+		fmt.Printf("  %s\n", finding.Title)
 		fmt.Printf("   Severity: %s\n", finding.Severity)
 		fmt.Printf("   Type: %s\n", finding.Type)
 

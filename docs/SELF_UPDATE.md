@@ -243,7 +243,7 @@ shells self update --branch develop
 ```bash
 shells self update --skip-backup
 ```
-⚠️ **Not recommended** - if the update fails, you won't be able to roll back.
+ **Not recommended** - if the update fails, you won't be able to roll back.
 
 ### Custom Source Directory
 ```bash

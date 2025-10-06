@@ -354,8 +354,13 @@ func (vp *VulnPredictor) updateModelPeriodically() {
 
 	for range ticker.C {
 		if err := vp.updateModel(); err != nil {
-			// Log error but continue
-			fmt.Printf("Failed to update model: %v\n", err)
+			// Structured logging with otelzap
+			vp.logger.Errorw("Failed to update ML prediction model",
+				"error", err,
+				"model_version", vp.model.Version,
+				"operation", "model_update",
+				"component", "ml_predictor",
+			)
 		}
 	}
 }
