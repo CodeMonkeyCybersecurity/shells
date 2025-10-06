@@ -797,19 +797,9 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		} else if report != nil {
 			e.logger.Infow("SAML scan complete",
 				"vulnerabilities_found", len(report.Vulnerabilities),
-				"tests_run", len(report.Tests),
+				"attack_chains", len(report.AttackChains),
 				"component", "auth_scanner",
 			)
-
-			// Log each test result for audit trail
-			for _, test := range report.Tests {
-				e.logger.Infow("SAML test result",
-					"test_name", test.Name,
-					"vulnerable", test.Vulnerable,
-					"severity", test.Severity,
-					"component", "auth_scanner",
-				)
-			}
 
 			// Convert vulnerabilities to findings
 			for _, vuln := range report.Vulnerabilities {
@@ -857,19 +847,9 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		} else if report != nil {
 			e.logger.Infow("OAuth2 scan complete",
 				"vulnerabilities_found", len(report.Vulnerabilities),
-				"tests_run", len(report.Tests),
+				"attack_chains", len(report.AttackChains),
 				"component", "auth_scanner",
 			)
-
-			// Log each test result for audit trail
-			for _, test := range report.Tests {
-				e.logger.Infow("OAuth2 test result",
-					"test_name", test.Name,
-					"vulnerable", test.Vulnerable,
-					"severity", test.Severity,
-					"component", "auth_scanner",
-				)
-			}
 
 			for _, vuln := range report.Vulnerabilities {
 				finding := convertVulnerabilityToFinding(vuln, target)
@@ -914,19 +894,9 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		} else if report != nil {
 			e.logger.Infow("WebAuthn scan complete",
 				"vulnerabilities_found", len(report.Vulnerabilities),
-				"tests_run", len(report.Tests),
+				"attack_chains", len(report.AttackChains),
 				"component", "auth_scanner",
 			)
-
-			// Log each test result for audit trail
-			for _, test := range report.Tests {
-				e.logger.Infow("WebAuthn test result",
-					"test_name", test.Name,
-					"vulnerable", test.Vulnerable,
-					"severity", test.Severity,
-					"component", "auth_scanner",
-				)
-			}
 
 			for _, vuln := range report.Vulnerabilities {
 				finding := convertVulnerabilityToFinding(vuln, target)
