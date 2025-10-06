@@ -274,8 +274,25 @@ func (su *ShellsUpdater) PullLatestCode() error {
 	if err == nil {
 		behind := strings.TrimSpace(string(output))
 		if behind == "0" {
-			su.logger.Info("Already up to date - no updates available")
-			return fmt.Errorf("already up to date")
+			// Already up to date - this is success, not an error
+			su.logger.Infow("Self-update check completed",
+				"status", "up_to_date",
+				"message", "Already running the latest version",
+				"component", "self_update",
+			)
+			su.logger.Info("\n" + strings.Repeat("=", 70))
+			su.logger.Info("Already Up to Date!")
+			su.logger.Info(strings.Repeat("=", 70))
+			su.logger.Info("")
+			su.logger.Info("✅ You're running the latest version of shells")
+			su.logger.Info("")
+			su.logger.Info("Quick Start:")
+			su.logger.Info("  shells serve              - Start web dashboard and API")
+			su.logger.Info("  http://localhost:8080     - Open dashboard in browser")
+			su.logger.Info("  shells example.com        - Run a scan")
+			su.logger.Info("")
+			su.logger.Info(strings.Repeat("=", 70))
+			return nil // Success - no update needed
 		}
 		su.logger.Infow("Updates available", "commits_behind", behind)
 	}
