@@ -8,9 +8,9 @@ package scanners
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
+	nomadpkg "github.com/CodeMonkeyCybersecurity/shells/cmd/nomad"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
@@ -141,181 +141,13 @@ func (e *ScanExecutor) runLocalSSLScan(ctx context.Context, target string) ([]ty
 
 // runNomadScanWrapper integrates with Nomad to execute distributed scans
 func (e *ScanExecutor) runNomadScanWrapper(ctx context.Context, scanType types.ScanType, target string, options map[string]string) ([]types.Finding, error) {
-	nomadClient, useNomad := e.GetNomadClient()
-	if !useNomad {
+	// Create Nomad integration
+	nomadIntegration := nomadpkg.New(e.log)
+	if nomadIntegration == nil || !nomadIntegration.IsAvailable() {
 		e.log.Debugw("Nomad not available, falling back to local execution")
-		// Return empty findings, let caller handle fallback
 		return []types.Finding{}, fmt.Errorf("nomad not available")
 	}
 
-	// Generate unique scan ID
-	scanID := fmt.Sprintf("scan-%s-%d", scanType, time.Now().Unix())
-
-	e.log.Infow("Submitting scan to Nomad",
-		"scan_type", scanType,
-		"target", target,
-		"scan_id", scanID)
-
-	// Submit scan job to Nomad
-	jobID, err := nomadClient.SubmitScan(ctx, scanType, target, scanID, options)
-	if err != nil {
-		e.log.LogError(ctx, err, "Failed to submit scan job to Nomad",
-			"scan_type", scanType,
-			"target", target)
-		return []types.Finding{}, fmt.Errorf("failed to submit nomad job: %w", err)
-	}
-
-	e.log.Infow("Scan job submitted to Nomad", "job_id", jobID, "scan_id", scanID)
-
-	// Wait for job completion with timeout
-	timeout := 10 * time.Minute // Configurable timeout
-	jobStatus, err := nomadClient.WaitForCompletion(ctx, jobID, timeout)
-	if err != nil {
-		e.log.LogError(ctx, err, "Scan job failed or timed out",
-			"job_id", jobID,
-			"timeout", timeout)
-		return []types.Finding{}, fmt.Errorf("job execution failed: %w", err)
-	}
-
-	// Get job logs for parsing results
-	logs, err := nomadClient.GetJobLogs(ctx, jobID)
-	if err != nil {
-		e.log.LogError(ctx, err, "Failed to retrieve scan logs", "job_id", jobID)
-		// Don't fail completely - create a basic finding
-		return e.createBasicNomadFinding(scanType, target, scanID, "Failed to retrieve detailed results"), nil
-	}
-
-	// Parse scan results from logs
-	findings := e.parseScanResults(scanType, target, scanID, logs, jobStatus)
-
-	e.log.Infow("Nomad scan completed",
-		"job_id", jobID,
-		"scan_type", scanType,
-		"findings_count", len(findings),
-		"status", jobStatus.Status)
-
-	return findings, nil
-}
-
-// parseScanResults parses scan output and converts to findings
-func (e *ScanExecutor) parseScanResults(scanType types.ScanType, target, scanID, logs string, jobStatus *nomad.JobStatusResponse) []types.Finding {
-	var findings []types.Finding
-
-	// Create a basic finding with job execution details
-	baseFinding := types.Finding{
-		ID:        fmt.Sprintf("%s-%s", scanType, scanID),
-		ScanID:    scanID,
-		Type:      string(scanType),
-		Tool:      string(scanType),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	// Parse scan-specific results from logs
-	switch scanType {
-	case types.ScanTypePort:
-		findings = append(findings, e.parseNmapResults(baseFinding, logs)...)
-	case types.ScanTypeVuln:
-		findings = append(findings, e.parseNucleiResults(baseFinding, logs)...)
-	case types.ScanTypeSSL:
-		findings = append(findings, e.parseSSLResults(baseFinding, logs)...)
-	default:
-		// Generic finding
-		baseFinding.Title = fmt.Sprintf("%s Scan Complete", scanType)
-		baseFinding.Description = fmt.Sprintf("Nomad job executed successfully for %s scan", scanType)
-		baseFinding.Severity = types.SeverityInfo
-		baseFinding.Evidence = fmt.Sprintf("Job Status: %s\nLogs:\n%s", jobStatus.Status, logs)
-		findings = append(findings, baseFinding)
-	}
-
-	return findings
-}
-
-// parseNmapResults parses Nmap output into findings
-func (e *ScanExecutor) parseNmapResults(baseFinding types.Finding, logs string) []types.Finding {
-	var findings []types.Finding
-
-	// Look for open ports in logs (simplified parsing)
-	if strings.Contains(logs, "open") {
-		baseFinding.Title = "Open Ports Discovered"
-		baseFinding.Description = "Nmap discovered open ports on target"
-		baseFinding.Severity = types.SeverityInfo
-		baseFinding.Evidence = logs
-		findings = append(findings, baseFinding)
-	} else {
-		baseFinding.Title = "Port Scan Complete"
-		baseFinding.Description = "Nmap port scan completed"
-		baseFinding.Severity = types.SeverityInfo
-		baseFinding.Evidence = logs
-		findings = append(findings, baseFinding)
-	}
-
-	return findings
-}
-
-// parseNucleiResults parses Nuclei output into findings
-func (e *ScanExecutor) parseNucleiResults(baseFinding types.Finding, logs string) []types.Finding {
-	var findings []types.Finding
-
-	// Look for vulnerabilities in logs (simplified parsing)
-	if strings.Contains(logs, "critical") || strings.Contains(logs, "high") {
-		baseFinding.Title = "Vulnerabilities Discovered"
-		baseFinding.Description = "Nuclei discovered potential vulnerabilities"
-		baseFinding.Severity = types.SeverityHigh
-		baseFinding.Evidence = logs
-		findings = append(findings, baseFinding)
-	} else if strings.Contains(logs, "medium") || strings.Contains(logs, "low") {
-		baseFinding.Title = "Issues Discovered"
-		baseFinding.Description = "Nuclei discovered potential issues"
-		baseFinding.Severity = types.SeverityMedium
-		baseFinding.Evidence = logs
-		findings = append(findings, baseFinding)
-	} else {
-		baseFinding.Title = "Vulnerability Scan Complete"
-		baseFinding.Description = "Nuclei vulnerability scan completed"
-		baseFinding.Severity = types.SeverityInfo
-		baseFinding.Evidence = logs
-		findings = append(findings, baseFinding)
-	}
-
-	return findings
-}
-
-// parseSSLResults parses SSL scan output into findings
-func (e *ScanExecutor) parseSSLResults(baseFinding types.Finding, logs string) []types.Finding {
-	var findings []types.Finding
-
-	// Look for SSL/TLS issues in logs (simplified parsing)
-	if strings.Contains(logs, "weak") || strings.Contains(logs, "vulnerable") {
-		baseFinding.Title = "SSL/TLS Issues Discovered"
-		baseFinding.Description = "SSL scanner discovered configuration issues"
-		baseFinding.Severity = types.SeverityMedium
-		baseFinding.Evidence = logs
-		findings = append(findings, baseFinding)
-	} else {
-		baseFinding.Title = "SSL/TLS Scan Complete"
-		baseFinding.Description = "SSL/TLS analysis completed"
-		baseFinding.Severity = types.SeverityInfo
-		baseFinding.Evidence = logs
-		findings = append(findings, baseFinding)
-	}
-
-	return findings
-}
-
-// createBasicNomadFinding creates a basic finding for failed nomad jobs
-func (e *ScanExecutor) createBasicNomadFinding(scanType types.ScanType, target, scanID, message string) []types.Finding {
-	finding := types.Finding{
-		ID:          fmt.Sprintf("%s-%s", scanType, scanID),
-		ScanID:      scanID,
-		Type:        string(scanType),
-		Tool:        string(scanType),
-		Title:       fmt.Sprintf("%s Scan Partial", scanType),
-		Description: message,
-		Severity:    types.SeverityInfo,
-		Evidence:    fmt.Sprintf("Nomad job executed but %s", message),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-	return []types.Finding{finding}
+	// Submit scan to Nomad
+	return nomadIntegration.SubmitScan(ctx, scanType, target, options)
 }
