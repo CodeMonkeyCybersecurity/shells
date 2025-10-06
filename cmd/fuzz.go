@@ -256,7 +256,7 @@ func runFuzzDir(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ Fuzzing completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n Fuzzing completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayFuzzResults(findings, verbose)
@@ -329,7 +329,7 @@ func runFuzzParam(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ Parameter fuzzing completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n Parameter fuzzing completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayFuzzResults(findings, verbose)
@@ -391,7 +391,7 @@ func runFuzzVhost(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ Vhost fuzzing completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n Vhost fuzzing completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayFuzzResults(findings, verbose)
@@ -454,7 +454,7 @@ func runFuzzSubdomain(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ Subdomain fuzzing completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n Subdomain fuzzing completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayFuzzResults(findings, verbose)
@@ -487,7 +487,7 @@ func displayFuzzResults(findings []types.Finding, verbose bool) {
 
 	// Display summary
 	if summary != nil {
-		fmt.Printf("\n📊 Fuzzing Summary:\n")
+		fmt.Printf("\n Fuzzing Summary:\n")
 		if summary.Metadata != nil {
 			if totalFound, ok := summary.Metadata["total_found"]; ok {
 				fmt.Printf("   Total discovered: %v\n", totalFound)

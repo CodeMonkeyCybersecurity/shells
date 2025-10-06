@@ -187,7 +187,7 @@ func runrumbleDiscover(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid target: %w", err)
 	}
 
-	fmt.Printf("🔍 Starting rumble discovery of %s\n", target)
+	fmt.Printf(" Starting rumble discovery of %s\n", target)
 	if verbose {
 		fmt.Printf("   Rate: %d pps\n", rate)
 		fmt.Printf("   Timeout: %s\n", timeout)
@@ -216,8 +216,8 @@ func runrumbleDiscover(cmd *cobra.Command, args []string) error {
 	duration := time.Since(start)
 
 	// Display results
-	fmt.Printf("\n✅ Discovery completed in %s\n", duration.Round(time.Second))
-	fmt.Printf("📊 Results:\n")
+	fmt.Printf("\n Discovery completed in %s\n", duration.Round(time.Second))
+	fmt.Printf(" Results:\n")
 
 	// Group findings by type
 	findingsByType := make(map[string][]types.Finding)
@@ -327,7 +327,7 @@ func runrumbleScan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid target: %w", err)
 	}
 
-	fmt.Printf("🔍 Starting rumble comprehensive scan of %s\n", target)
+	fmt.Printf(" Starting rumble comprehensive scan of %s\n", target)
 	if verbose {
 		fmt.Printf("   Rate: %d pps\n", rate)
 		fmt.Printf("   Timeout: %s\n", timeout)
@@ -355,12 +355,12 @@ func runrumbleScan(cmd *cobra.Command, args []string) error {
 	duration := time.Since(start)
 
 	// Display results
-	fmt.Printf("\n✅ Scan completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n Scan completed in %s\n", duration.Round(time.Second))
 
 	// Analyze findings
 	summary := analyzerumbleFindings(findings)
 
-	fmt.Printf("📊 Summary:\n")
+	fmt.Printf(" Summary:\n")
 	fmt.Printf("   Total findings: %d\n", len(findings))
 	fmt.Printf("   Critical: %d\n", summary["CRITICAL"])
 	fmt.Printf("   High: %d\n", summary["HIGH"])
@@ -515,7 +515,7 @@ func runrumbleExport(cmd *cobra.Command, args []string) error {
 		if err := os.WriteFile(output, exportData, 0644); err != nil {
 			return fmt.Errorf("failed to write output: %w", err)
 		}
-		fmt.Printf("✅ Exported %d assets to %s\n", len(assets), output)
+		fmt.Printf(" Exported %d assets to %s\n", len(assets), output)
 	}
 
 	return nil

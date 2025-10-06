@@ -228,7 +228,7 @@ Output:
 [INFO] Shells binary verified successfully
 [INFO] Shells self-update completed successfully
 
-✅ Shells updated successfully!
+ Shells updated successfully!
    Duration: 45s
 
 Run 'shells --version' to verify the new version
@@ -254,12 +254,12 @@ shells self update --source ~/projects/shells
 
 | Component | Updated | Preserved |
 |-----------|---------|-----------|
-| Binary (`/usr/local/bin/shells`) | ✅ Yes | Backup created |
-| Source code (`/opt/shells`) | ✅ Yes | Via git pull |
-| Database | ❌ No | ✅ Preserved |
-| Configuration (`.shells.yaml`) | ❌ No | ✅ Preserved |
-| Logs | ❌ No | ✅ Preserved |
-| Scan results | ❌ No | ✅ Preserved |
+| Binary (`/usr/local/bin/shells`) |  Yes | Backup created |
+| Source code (`/opt/shells`) |  Yes | Via git pull |
+| Database | ❌ No |  Preserved |
+| Configuration (`.shells.yaml`) | ❌ No |  Preserved |
+| Logs | ❌ No |  Preserved |
+| Scan results | ❌ No |  Preserved |
 | Python workers | ❌ No | Re-run `shells workers setup` if needed |
 
 **Important:** Your data is safe! Updates only affect the binary and source code.
@@ -463,14 +463,14 @@ fab production shells.update
 
 | Feature | `install.sh` | `shells self update` |
 |---------|-------------|---------------------|
-| **Installs Go** | ✅ Yes | ❌ No |
-| **Installs PostgreSQL** | ✅ Yes | ❌ No |
-| **Creates database** | ✅ Yes | ❌ No |
-| **Updates binary** | ✅ Yes | ✅ Yes |
-| **Pulls git updates** | ❌ No | ✅ Yes |
-| **Creates backup** | ❌ No | ✅ Yes |
-| **Validates binary** | ❌ No | ✅ Yes |
-| **Automatic rollback** | ❌ No | ✅ Via backup |
+| **Installs Go** |  Yes | ❌ No |
+| **Installs PostgreSQL** |  Yes | ❌ No |
+| **Creates database** |  Yes | ❌ No |
+| **Updates binary** |  Yes |  Yes |
+| **Pulls git updates** | ❌ No |  Yes |
+| **Creates backup** | ❌ No |  Yes |
+| **Validates binary** | ❌ No |  Yes |
+| **Automatic rollback** | ❌ No |  Via backup |
 | **Use case** | Initial install | Regular updates |
 
 **When to use `install.sh`:** First-time installation or major version upgrades

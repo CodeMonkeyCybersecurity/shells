@@ -54,7 +54,7 @@ func init() {
 
 // runDiscoveryOnly runs discovery without testing
 func runDiscoveryOnly(target string) error {
-	fmt.Printf("🔍 Starting asset discovery for: %s\n", target)
+	fmt.Printf(" Starting asset discovery for: %s\n", target)
 
 	// Create discovery configuration
 	config := discovery.DefaultDiscoveryConfig()
@@ -92,7 +92,7 @@ func runDiscoveryOnly(target string) error {
 
 		if session.Status == discovery.StatusCompleted {
 			if discoverVerbose {
-				fmt.Println("\n✅ Discovery completed!")
+				fmt.Println("\n Discovery completed!")
 			}
 			break
 		} else if session.Status == discovery.StatusFailed {
@@ -123,7 +123,7 @@ func runDiscoveryOnly(target string) error {
 
 // outputDiscoveryText outputs discovery results in text format
 func outputDiscoveryText(session *discovery.DiscoverySession) error {
-	fmt.Printf("\n📊 Discovery Results for: %s\n", session.Target.Value)
+	fmt.Printf("\n Discovery Results for: %s\n", session.Target.Value)
 	fmt.Printf("%s\n\n", strings.Repeat("=", len(session.Target.Value)+25))
 
 	fmt.Printf("🎯 Target Information:\n")
@@ -150,7 +150,7 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 
 	// Display assets by type
 	if len(session.Assets) > 0 {
-		fmt.Printf("\n🔍 Discovered Assets:\n")
+		fmt.Printf("\n Discovered Assets:\n")
 
 		// Order of asset types to display
 		typeOrder := []discovery.AssetType{

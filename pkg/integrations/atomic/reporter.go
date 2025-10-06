@@ -377,7 +377,7 @@ const htmlReportTemplate = `
     </div>
 
     <div class="section">
-        <h2>🔍 Security Findings</h2>
+        <h2> Security Findings</h2>
         {{range .Findings}}
         <div class="finding {{.Severity | lower}}">
             <h3>{{.Title}}</h3>
@@ -440,7 +440,7 @@ const htmlReportTemplate = `
     </div>
 
     <div class="section">
-        <h2>📊 Navigator Layer</h2>
+        <h2> Navigator Layer</h2>
         <p>Import the following JSON into the <a href="https://mitre-attack.github.io/attack-navigator/" target="_blank">MITRE ATT&CK Navigator</a> for interactive visualization:</p>
         <pre style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto;">{{.Navigator | json}}</pre>
     </div>

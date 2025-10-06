@@ -83,7 +83,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	defer os.Chdir(originalDir)
 
 	// Check if we have a clean working directory
-	fmt.Println("🔍 Checking git status...")
+	fmt.Println(" Checking git status...")
 	if err := checkGitStatus(); err != nil {
 		return fmt.Errorf("git repository has uncommitted changes: %w", err)
 	}
@@ -95,7 +95,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Always rebuild after pulling latest changes to ensure binary is up to date
-	fmt.Println("🔍 Building latest version...")
+	fmt.Println(" Building latest version...")
 
 	if dryRun {
 		fmt.Println("   (dry-run mode: would rebuild and install binary)")
@@ -137,7 +137,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	if currentHash == newHash {
 		fmt.Println("ℹ️  Binary hash unchanged - no code changes affected the compiled binary.")
 	} else {
-		fmt.Printf("✅ Update successful!\n")
+		fmt.Printf(" Update successful!\n")
 		fmt.Printf("   Old SHA256: %s\n", currentHash)
 		fmt.Printf("   New SHA256: %s\n", newHash)
 	}
@@ -151,7 +151,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
 	fmt.Printf("📏 New binary size: %.2f MB\n", sizeMB)
 
-	fmt.Println("🎉 Self-update completed successfully!")
+	fmt.Println(" Self-update completed successfully!")
 	return nil
 }
 

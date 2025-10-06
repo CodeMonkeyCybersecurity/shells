@@ -2,41 +2,41 @@
 //
 // P0 FIXES COMPLETE (2025-10-06):
 //
-// ✅ P0-1: WHOIS Schema Mismatch - FIXED
-//   Redesigned schema to match queries with columns: registration_date, registrar, age_days, raw_data
-//   See: Lines 249-257 (schema), 362-370 (migration)
+//	P0-1: WHOIS Schema Mismatch - FIXED
+//	 Redesigned schema to match queries with columns: registration_date, registrar, age_days, raw_data
+//	 See: Lines 249-257 (schema), 362-370 (migration)
 //
-// ✅ P0-2: Threat Intel Schema Mismatch - FIXED
-//   Changed from single-row JSON to relational design with UNIQUE(domain, source)
-//   See: Lines 259-269 (schema), 372-382 (migration)
+//	P0-2: Threat Intel Schema Mismatch - FIXED
+//	 Changed from single-row JSON to relational design with UNIQUE(domain, source)
+//	 See: Lines 259-269 (schema), 372-382 (migration)
 //
-// ✅ P0-3: PostgreSQL SQL in SQLite Code - FIXED
-//   Created heraDB helper with driver-specific SQL functions (NOW(), CURRENT_DATE)
-//   See: internal/api/hera.go:47-75 for implementation
+//	P0-3: PostgreSQL SQL in SQLite Code - FIXED
+//	 Created heraDB helper with driver-specific SQL functions (NOW(), CURRENT_DATE)
+//	 See: internal/api/hera.go:47-75 for implementation
 //
-// ✅ P0-4: Placeholder Mismatch - FIXED
-//   Dynamic placeholder generation via getPlaceholder() supports both $1 and ?
-//   See: Line 31-36 (getPlaceholder function)
+//	P0-4: Placeholder Mismatch - FIXED
+//	 Dynamic placeholder generation via getPlaceholder() supports both $1 and ?
+//	 See: Line 31-36 (getPlaceholder function)
 //
-// ✅ P0-5: Stats Table Schema Mismatch - FIXED
-//   Completely redesigned stats table with columns: date, verdict, reputation_bucket, pattern, count
-//   See: Lines 271-278 (schema), 384-391 (migration)
+//	P0-5: Stats Table Schema Mismatch - FIXED
+//	 Completely redesigned stats table with columns: date, verdict, reputation_bucket, pattern, count
+//	 See: Lines 271-278 (schema), 384-391 (migration)
 //
-// ✅ P0-6: Serve Command Not Registered - FIXED
-//   Created complete serve.go with all functionality (267 lines)
-//   See: cmd/serve.go
+//	P0-6: Serve Command Not Registered - FIXED
+//	 Created complete serve.go with all functionality (267 lines)
+//	 See: cmd/serve.go
 //
-// ✅ P0-7: API Files Never Created - FIXED
-//   Actually created hera.go (707 lines) and middleware.go (191 lines)
-//   See: internal/api/hera.go, internal/api/middleware.go
+//	P0-7: API Files Never Created - FIXED
+//	 Actually created hera.go (707 lines) and middleware.go (191 lines)
+//	 See: internal/api/hera.go, internal/api/middleware.go
 //
-// ✅ P0-8: Feedback Missing Metadata Column - FIXED
-//   Added metadata column to both PostgreSQL and SQLite schemas
-//   See: Lines 285, 399
+//	P0-8: Feedback Missing Metadata Column - FIXED
+//	 Added metadata column to both PostgreSQL and SQLite schemas
+//	 See: Lines 285, 399
 //
-// ✅ P0-9: Index on Non-Existent Column - FIXED
-//   Changed index from event_type to verdict column
-//   See: Lines 299, 413
+//	P0-9: Index on Non-Existent Column - FIXED
+//	 Changed index from event_type to verdict column
+//	 See: Lines 299, 413
 //
 // DATABASE TABLES:
 // - hera_detections: Detection events log
@@ -1199,16 +1199,16 @@ func (s *sqlStore) SearchFindings(ctx context.Context, searchTerm string, limit 
 
 // PlatformSubmission represents a bug bounty platform submission
 type PlatformSubmission struct {
-	ID            string                 `db:"id" json:"id"`
-	FindingID     string                 `db:"finding_id" json:"finding_id"`
-	Platform      string                 `db:"platform" json:"platform"`
-	ProgramHandle string                 `db:"program_handle" json:"program_handle,omitempty"`
-	ReportID      string                 `db:"report_id" json:"report_id"`
-	ReportURL     string                 `db:"report_url" json:"report_url,omitempty"`
-	Status        string                 `db:"status" json:"status"`
-	PlatformData  string                 `db:"platform_data" json:"platform_data,omitempty"` // JSON string
-	SubmittedAt   time.Time              `db:"submitted_at" json:"submitted_at"`
-	UpdatedAt     time.Time              `db:"updated_at" json:"updated_at"`
+	ID            string    `db:"id" json:"id"`
+	FindingID     string    `db:"finding_id" json:"finding_id"`
+	Platform      string    `db:"platform" json:"platform"`
+	ProgramHandle string    `db:"program_handle" json:"program_handle,omitempty"`
+	ReportID      string    `db:"report_id" json:"report_id"`
+	ReportURL     string    `db:"report_url" json:"report_url,omitempty"`
+	Status        string    `db:"status" json:"status"`
+	PlatformData  string    `db:"platform_data" json:"platform_data,omitempty"` // JSON string
+	SubmittedAt   time.Time `db:"submitted_at" json:"submitted_at"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // CreateSubmission records a platform submission in the database

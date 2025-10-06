@@ -3,9 +3,9 @@ package smuggling
 // HTTP Request Smuggling Detection
 //
 // ADVERSARIAL REVIEW STATUS (2025-10-05):
-// ✅ FIXED: HTTP body close errors - all resp.Body.Close() now use httpclient.CloseBody()
-// ✅ VERIFIED: No panic() or log.Fatal() in library code
-// ✅ FORMATTED: Code is gofmt compliant
+//  FIXED: HTTP body close errors - all resp.Body.Close() now use httpclient.CloseBody()
+//  VERIFIED: No panic() or log.Fatal() in library code
+//  FORMATTED: Code is gofmt compliant
 // 📋 TODO: Add comprehensive test coverage (currently minimal)
 // 📋 TODO: Add rate limiting to prevent IP bans during smuggling detection
 //

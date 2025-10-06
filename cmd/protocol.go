@@ -192,7 +192,7 @@ func runProtocolTLS(cmd *cobra.Command, args []string) error {
 	output, _ := cmd.Flags().GetString("output")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	fmt.Printf("🔍 Starting TLS security scan for: %s\n", target)
+	fmt.Printf(" Starting TLS security scan for: %s\n", target)
 
 	// Create scanner config
 	config := protocol.Config{
@@ -217,7 +217,7 @@ func runProtocolTLS(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ TLS scan completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n TLS scan completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayProtocolResults(findings, verbose)
@@ -240,7 +240,7 @@ func runProtocolSMTP(cmd *cobra.Command, args []string) error {
 	output, _ := cmd.Flags().GetString("output")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	fmt.Printf("🔍 Starting SMTP security scan for: %s\n", target)
+	fmt.Printf(" Starting SMTP security scan for: %s\n", target)
 
 	// Create scanner config
 	config := protocol.Config{
@@ -263,7 +263,7 @@ func runProtocolSMTP(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ SMTP scan completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n SMTP scan completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayProtocolResults(findings, verbose)
@@ -286,7 +286,7 @@ func runProtocolLDAP(cmd *cobra.Command, args []string) error {
 	output, _ := cmd.Flags().GetString("output")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	fmt.Printf("🔍 Starting LDAP security scan for: %s\n", target)
+	fmt.Printf(" Starting LDAP security scan for: %s\n", target)
 
 	// Create scanner config
 	config := protocol.Config{
@@ -310,7 +310,7 @@ func runProtocolLDAP(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ LDAP scan completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n LDAP scan completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayProtocolResults(findings, verbose)
@@ -332,7 +332,7 @@ func runProtocolAll(cmd *cobra.Command, args []string) error {
 	output, _ := cmd.Flags().GetString("output")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	fmt.Printf("🔍 Starting comprehensive protocol scan for: %s\n", target)
+	fmt.Printf(" Starting comprehensive protocol scan for: %s\n", target)
 
 	// Test configurations
 	tests := []struct {
@@ -392,7 +392,7 @@ func runProtocolAll(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				fmt.Printf("❌ (error: %s)\n", err)
 			} else if len(findings) > 0 {
-				fmt.Printf("✅ (found %d issues)\n", len(findings))
+				fmt.Printf(" (found %d issues)\n", len(findings))
 				allFindings = append(allFindings, findings...)
 			} else {
 				fmt.Printf("➖ (no service)\n")
@@ -400,7 +400,7 @@ func runProtocolAll(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("\n📊 Total findings: %d\n", len(allFindings))
+	fmt.Printf("\n Total findings: %d\n", len(allFindings))
 
 	// Display results
 	if len(allFindings) > 0 {
@@ -443,7 +443,7 @@ func displayProtocolResults(findings []types.Finding, verbose bool) {
 
 	// Display summaries
 	if len(summaries) > 0 {
-		fmt.Printf("\n📊 Scan Summary:\n")
+		fmt.Printf("\n Scan Summary:\n")
 		for _, summary := range summaries {
 			fmt.Printf("   %s\n", summary.Title)
 			if verbose && summary.Description != "" {

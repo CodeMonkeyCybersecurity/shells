@@ -24,11 +24,11 @@ shells serve --port 8080
 ```
 
 **What install.sh does automatically:**
-- ✅ Installs/updates Go 1.24.4
-- ✅ Installs PostgreSQL and creates database
-- ✅ Builds shells binary
-- ✅ Sets up Python workers (GraphCrawler, IDORD)
-- ✅ Configures everything - just run and go!
+-  Installs/updates Go 1.24.4
+-  Installs PostgreSQL and creates database
+-  Builds shells binary
+-  Sets up Python workers (GraphCrawler, IDORD)
+-  Configures everything - just run and go!
 
 **Run scans:**
 
@@ -82,14 +82,14 @@ shells serve --port 8080
 ```
 
 **What install.sh does automatically:**
-1. ✅ Detects your platform (Linux/macOS)
-2. ✅ Updates system packages (if needed)
-3. ✅ Installs Go 1.24.4
-4. ✅ **Installs PostgreSQL** (brew on macOS, apt/dnf on Linux)
-5. ✅ **Creates database and user** (`shells` database with `shells` user)
-6. ✅ Builds the `shells` binary
-7. ✅ Installs to `/usr/local/bin/shells`
-8. ✅ Sets up Python workers (GraphCrawler, IDORD)
+1.  Detects your platform (Linux/macOS)
+2.  Updates system packages (if needed)
+3.  Installs Go 1.24.4
+4.  **Installs PostgreSQL** (brew on macOS, apt/dnf on Linux)
+5.  **Creates database and user** (`shells` database with `shells` user)
+6.  Builds the `shells` binary
+7.  Installs to `/usr/local/bin/shells`
+8.  Sets up Python workers (GraphCrawler, IDORD)
 
 **No manual PostgreSQL setup needed!** The script detects if you have Docker and offers to use a container, or installs PostgreSQL natively. Everything just works.
 
@@ -154,11 +154,11 @@ docker-compose logs -f shells-api
 - `zap`: OWASP ZAP proxy container
 
 **Key Benefits**:
-- ✅ **Single database**: All containers share the same PostgreSQL instance
-- ✅ **No data duplication**: Workers and API use the same dataset
-- ✅ **Scalable**: Increase worker replicas in docker-compose.yml
-- ✅ **Persistent storage**: Database and Redis data survive container restarts
-- ✅ **Network isolation**: All containers in isolated Docker network
+-  **Single database**: All containers share the same PostgreSQL instance
+-  **No data duplication**: Workers and API use the same dataset
+-  **Scalable**: Increase worker replicas in docker-compose.yml
+-  **Persistent storage**: Database and Redis data survive container restarts
+-  **Network isolation**: All containers in isolated Docker network
 
 ```bash
 # Scale workers

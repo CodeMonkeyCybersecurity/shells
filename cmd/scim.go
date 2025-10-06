@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
@@ -286,7 +287,7 @@ func init() {
 
 // printSCIMDiscoveryResults prints SCIM discovery results
 func printSCIMDiscoveryResults(findings []types.Finding, verbose bool) {
-	fmt.Printf("📊 SCIM Discovery Results\n")
+	fmt.Printf(" SCIM Discovery Results\n")
 	fmt.Printf("═══════════════════════════════════\n\n")
 
 	if len(findings) == 0 {
@@ -295,7 +296,7 @@ func printSCIMDiscoveryResults(findings []types.Finding, verbose bool) {
 	}
 
 	for _, finding := range findings {
-		fmt.Printf("🔍 %s\n", finding.Title)
+		fmt.Printf(" %s\n", finding.Title)
 		fmt.Printf("   Severity: %s\n", finding.Severity)
 		fmt.Printf("   Description: %s\n", finding.Description)
 
@@ -313,7 +314,7 @@ func printSCIMTestResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("═══════════════════════════════════\n\n")
 
 	if len(findings) == 0 {
-		fmt.Printf("✅ No SCIM vulnerabilities found\n")
+		fmt.Printf(" No SCIM vulnerabilities found\n")
 		return
 	}
 
@@ -352,7 +353,7 @@ func printSCIMTestResults(findings []types.Finding, verbose bool) {
 		}
 	}
 
-	fmt.Printf("📊 Summary: %d vulnerabilities found\n", len(findings))
+	fmt.Printf(" Summary: %d vulnerabilities found\n", len(findings))
 }
 
 // printSCIMProvisionResults prints SCIM provisioning results
@@ -361,7 +362,7 @@ func printSCIMProvisionResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("═══════════════════════════════════\n\n")
 
 	if len(findings) == 0 {
-		fmt.Printf("✅ No provisioning vulnerabilities found\n")
+		fmt.Printf(" No provisioning vulnerabilities found\n")
 		return
 	}
 
@@ -407,7 +408,7 @@ func outputFindings(findings []types.Finding, filename, format string) {
 
 // performBasicSCIMCheck performs a basic SCIM endpoint check
 func performBasicSCIMCheck(target string) {
-	fmt.Printf("🔍 Basic SCIM Endpoint Discovery for %s\n", target)
+	fmt.Printf(" Basic SCIM Endpoint Discovery for %s\n", target)
 	fmt.Printf("═══════════════════════════════════\n\n")
 
 	scimPaths := []string{"/scim/v2", "/scim", "/api/scim/v2", "/api/scim"}
@@ -423,7 +424,7 @@ func performBasicSCIMCheck(target string) {
 		httpclient.CloseBody(resp)
 
 		if resp.StatusCode < 500 {
-			fmt.Printf("✅ SCIM endpoint found: %s [%d]\n", path, resp.StatusCode)
+			fmt.Printf(" SCIM endpoint found: %s [%d]\n", path, resp.StatusCode)
 			found = true
 		}
 	}
@@ -432,5 +433,5 @@ func performBasicSCIMCheck(target string) {
 		fmt.Printf("❌ No SCIM endpoints discovered\n")
 	}
 
-	fmt.Printf("\n📊 Summary: Basic SCIM endpoint check completed\n")
+	fmt.Printf("\n Summary: Basic SCIM endpoint check completed\n")
 }

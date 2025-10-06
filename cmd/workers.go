@@ -121,7 +121,7 @@ and install all dependencies. This only needs to be run once.`,
 			}
 		}
 
-		fmt.Println("\n✅ Worker environment setup complete!")
+		fmt.Println("\n Worker environment setup complete!")
 		fmt.Println("\nNext steps:")
 		fmt.Println("  shells workers start    - Start the worker service")
 		fmt.Println("  shells serve --workers  - Start API and workers together")
@@ -171,7 +171,7 @@ var workersStartCmd = &cobra.Command{
 		// Wait for service to be ready
 		time.Sleep(2 * time.Second)
 
-		fmt.Println("✅ Worker service started on http://localhost:5000")
+		fmt.Println(" Worker service started on http://localhost:5000")
 		fmt.Println("\nCheck health: curl http://localhost:5000/health")
 
 		return startCmd.Wait()
@@ -198,7 +198,7 @@ var workersStopCmd = &cobra.Command{
 			if err := killCmd.Run(); err != nil {
 				return fmt.Errorf("no worker service found running")
 			}
-			fmt.Println("✅ Worker service stopped")
+			fmt.Println(" Worker service stopped")
 			return nil
 		}
 
@@ -211,7 +211,7 @@ var workersStopCmd = &cobra.Command{
 		// Remove PID file
 		os.Remove(pidFile)
 
-		fmt.Println("✅ Worker service stopped")
+		fmt.Println(" Worker service stopped")
 		return nil
 	},
 }
@@ -228,7 +228,7 @@ var workersStatusCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("✅ Worker service is healthy")
+		fmt.Println(" Worker service is healthy")
 		fmt.Println("🌐 URL: http://localhost:5000")
 		fmt.Println("📚 API docs: http://localhost:5000/docs")
 

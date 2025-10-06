@@ -217,7 +217,7 @@ func runScopeImport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get updated program: %w", err)
 	}
 
-	fmt.Printf("✅ Successfully imported program: %s\n", updatedProgram.Name)
+	fmt.Printf(" Successfully imported program: %s\n", updatedProgram.Name)
 	fmt.Printf("   Platform: %s\n", updatedProgram.Platform)
 	fmt.Printf("   In Scope: %d items\n", len(updatedProgram.Scope))
 	fmt.Printf("   Out of Scope: %d items\n", len(updatedProgram.OutOfScope))
@@ -246,7 +246,7 @@ func runScopeList(cmd *cobra.Command, args []string) error {
 	for _, program := range programs {
 		active := "❌"
 		if program.Active {
-			active = "✅"
+			active = ""
 		}
 
 		lastSync := "Never"
@@ -355,7 +355,7 @@ func runScopeValidate(cmd *cobra.Command, args []string) error {
 	// Text output
 	switch result.Status {
 	case scope.ScopeStatusInScope:
-		fmt.Printf("✅ %s is IN SCOPE\n", asset)
+		fmt.Printf(" %s is IN SCOPE\n", asset)
 	case scope.ScopeStatusOutOfScope:
 		fmt.Printf("❌ %s is OUT OF SCOPE\n", asset)
 	default:
@@ -399,13 +399,13 @@ func runScopeSync(cmd *cobra.Command, args []string) error {
 		if err := scopeManager.SyncAllPrograms(); err != nil {
 			return err
 		}
-		fmt.Println("✅ Sync completed")
+		fmt.Println(" Sync completed")
 	} else if programID != "" {
 		fmt.Printf("🔄 Syncing program %s...\n", programID)
 		if err := scopeManager.SyncProgram(programID); err != nil {
 			return err
 		}
-		fmt.Println("✅ Sync completed")
+		fmt.Println(" Sync completed")
 	} else {
 		return fmt.Errorf("specify --all or --program")
 	}

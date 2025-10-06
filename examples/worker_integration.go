@@ -16,23 +16,23 @@ func main() {
 	ctx := context.Background()
 
 	// Example 1: Scan GraphQL endpoint
-	fmt.Println("🔍 Starting GraphQL scan...")
+	fmt.Println(" Starting GraphQL scan...")
 	graphQLResult, err := scanGraphQLExample(ctx, client)
 	if err != nil {
 		log.Printf("GraphQL scan failed: %v", err)
 	} else {
-		fmt.Printf("✅ GraphQL scan completed: %+v\n", graphQLResult)
+		fmt.Printf(" GraphQL scan completed: %+v\n", graphQLResult)
 	}
 
 	fmt.Println()
 
 	// Example 2: Scan for IDOR
-	fmt.Println("🔍 Starting IDOR scan...")
+	fmt.Println(" Starting IDOR scan...")
 	idorResult, err := scanIDORExample(ctx, client)
 	if err != nil {
 		log.Printf("IDOR scan failed: %v", err)
 	} else {
-		fmt.Printf("✅ IDOR scan completed: %+v\n", idorResult)
+		fmt.Printf(" IDOR scan completed: %+v\n", idorResult)
 	}
 }
 

@@ -97,7 +97,7 @@ Examples:
 
 		fmt.Printf("🔐 Testing password reset flows for: %s\n", target)
 		if config.TestTokenEntropy {
-			fmt.Printf("📊 Token entropy analysis with %d samples\n", samples)
+			fmt.Printf(" Token entropy analysis with %d samples\n", samples)
 		}
 		if config.TestHostHeader {
 			fmt.Printf("🌐 Host header injection testing enabled\n")
@@ -112,7 +112,7 @@ Examples:
 		results := analyzer.AnalyzeResetFlow(target)
 		duration := time.Since(startTime)
 
-		fmt.Printf("✅ Analysis completed in %v\n\n", duration)
+		fmt.Printf(" Analysis completed in %v\n\n", duration)
 
 		// Output results
 		if output == "json" {
@@ -129,7 +129,7 @@ Examples:
 		} else if results.SecurityScore < 85 {
 			fmt.Printf("⚠️  WARNING: Security improvements needed\n")
 		} else {
-			fmt.Printf("✅ Good: Password reset flow appears secure\n")
+			fmt.Printf(" Good: Password reset flow appears secure\n")
 		}
 	},
 }
@@ -191,7 +191,7 @@ Examples:
 		}
 
 		fmt.Printf("🔄 Analyzing workflow starting from: %s\n", target)
-		fmt.Printf("📊 Maximum depth: %d levels\n", maxDepth)
+		fmt.Printf(" Maximum depth: %d levels\n", maxDepth)
 		if testPrivileges {
 			fmt.Printf("🔐 Privilege escalation testing enabled\n")
 		}
@@ -205,7 +205,7 @@ Examples:
 		results := analyzer.AnalyzeWorkflow(target)
 		duration := time.Since(startTime)
 
-		fmt.Printf("✅ Workflow analysis completed in %v\n\n", duration)
+		fmt.Printf(" Workflow analysis completed in %v\n\n", duration)
 
 		// Output results
 		if output == "json" {
@@ -216,7 +216,7 @@ Examples:
 
 		// Show workflow diagram
 		if verbose {
-			fmt.Println("\n📊 Workflow Diagram:")
+			fmt.Println("\n Workflow Diagram:")
 			fmt.Println("═══════════════════")
 			fmt.Println(results.Diagram)
 		}
@@ -300,7 +300,7 @@ Examples:
 		results := tester.TestAllEndpoints(target)
 		duration := time.Since(startTime)
 
-		fmt.Printf("✅ Race condition testing completed in %v\n\n", duration)
+		fmt.Printf(" Race condition testing completed in %v\n\n", duration)
 
 		// Output results
 		if output == "json" {
@@ -317,14 +317,14 @@ Examples:
 			}
 		}
 
-		fmt.Printf("\n📊 Race Condition Summary:\n")
+		fmt.Printf("\n Race Condition Summary:\n")
 		fmt.Printf("   Total endpoints tested: %d\n", len(results))
 		fmt.Printf("   Vulnerable endpoints: %d\n", vulnerableCount)
 
 		if vulnerableCount > 0 {
 			fmt.Printf("⚠️  CRITICAL: Race condition vulnerabilities detected!\n")
 		} else {
-			fmt.Printf("✅ No race condition vulnerabilities found\n")
+			fmt.Printf(" No race condition vulnerabilities found\n")
 		}
 	},
 }
@@ -403,7 +403,7 @@ Examples:
 		results := tester.TestAllMethods(target)
 		duration := time.Since(startTime)
 
-		fmt.Printf("✅ MFA bypass testing completed in %v\n\n", duration)
+		fmt.Printf(" MFA bypass testing completed in %v\n\n", duration)
 
 		// Output results
 		if output == "json" {
@@ -437,7 +437,7 @@ Examples:
 		} else if len(results) > 0 {
 			fmt.Printf("ℹ️  INFO: Minor MFA implementation issues found\n")
 		} else {
-			fmt.Printf("✅ MFA implementation appears secure\n")
+			fmt.Printf(" MFA implementation appears secure\n")
 		}
 	},
 }
@@ -525,7 +525,7 @@ Examples:
 		results := tester.TestAllEcommerceLogic(target)
 		duration := time.Since(startTime)
 
-		fmt.Printf("✅ E-commerce testing completed in %v\n\n", duration)
+		fmt.Printf(" E-commerce testing completed in %v\n\n", duration)
 
 		// Output results
 		if output == "json" {
@@ -559,7 +559,7 @@ Examples:
 		} else if len(results) > 0 {
 			fmt.Printf("ℹ️  INFO: Minor payment logic issues found\n")
 		} else {
-			fmt.Printf("✅ Payment logic appears secure\n")
+			fmt.Printf(" Payment logic appears secure\n")
 		}
 	},
 }
@@ -654,7 +654,7 @@ Examples:
 		results := tester.TestAllMethods(target)
 		duration := time.Since(startTime)
 
-		fmt.Printf("✅ Account recovery testing completed in %v\n\n", duration)
+		fmt.Printf(" Account recovery testing completed in %v\n\n", duration)
 
 		// Output results
 		if output == "json" {
@@ -688,7 +688,7 @@ Examples:
 		} else if len(results) > 0 {
 			fmt.Printf("ℹ️  INFO: Minor recovery implementation issues found\n")
 		} else {
-			fmt.Printf("✅ Account recovery appears secure\n")
+			fmt.Printf(" Account recovery appears secure\n")
 		}
 	},
 }
@@ -740,7 +740,7 @@ Examples:
 			os.Exit(1)
 		}
 
-		fmt.Printf("🔍 Running comprehensive business logic tests for: %s\n", target)
+		fmt.Printf(" Running comprehensive business logic tests for: %s\n", target)
 		fmt.Printf("📋 Test suite includes: password reset, workflow, race conditions, MFA, recovery, and e-commerce\n")
 		fmt.Println()
 
@@ -749,7 +749,7 @@ Examples:
 		vulnerabilities := runComprehensiveTests(target)
 		duration := time.Since(startTime)
 
-		fmt.Printf("✅ Comprehensive testing completed in %v\n\n", duration)
+		fmt.Printf(" Comprehensive testing completed in %v\n\n", duration)
 
 		// Generate report
 		report := generateBusinessLogicReport(vulnerabilities, includeBusiness)
@@ -783,7 +783,7 @@ Examples:
 		} else if report.Metadata.VulnsFound > 0 {
 			fmt.Printf("ℹ️  INFO: Minor security issues found - %d total\n", report.Metadata.VulnsFound)
 		} else {
-			fmt.Printf("✅ SECURE: No significant business logic vulnerabilities found\n")
+			fmt.Printf(" SECURE: No significant business logic vulnerabilities found\n")
 		}
 	},
 }
@@ -844,9 +844,9 @@ Examples:
 			fmt.Printf("📁 Loaded %d vulnerabilities from %s\n", len(vulnerabilities), findingsFile)
 		} else {
 			// Run comprehensive testing
-			fmt.Printf("🔍 Running comprehensive business logic tests for: %s\n", target)
+			fmt.Printf(" Running comprehensive business logic tests for: %s\n", target)
 			vulnerabilities = runComprehensiveTests(target)
-			fmt.Printf("🔍 Found %d vulnerabilities\n", len(vulnerabilities))
+			fmt.Printf(" Found %d vulnerabilities\n", len(vulnerabilities))
 		}
 
 		// Generate report
@@ -877,11 +877,11 @@ func printResetAnalysisTable(analysis *recovery.ResetFlowAnalysis, verbose bool)
 	fmt.Printf("🔐 Password Reset Flow Analysis\n")
 	fmt.Printf("═══════════════════════════════\n\n")
 
-	fmt.Printf("📊 Endpoints discovered: %d\n", len(analysis.Endpoints))
+	fmt.Printf(" Endpoints discovered: %d\n", len(analysis.Endpoints))
 	for _, endpoint := range analysis.Endpoints {
 		status := "❌ Inactive"
 		if endpoint.IsActive {
-			status = "✅ Active"
+			status = " Active"
 		}
 		fmt.Printf("   %s %s (%s)\n", endpoint.Method, endpoint.URL, status)
 	}
@@ -918,7 +918,7 @@ func printWorkflowAnalysisTable(analysis *core.WorkflowAnalysis, verbose bool) {
 	fmt.Printf("🔄 Workflow Analysis Results\n")
 	fmt.Printf("═══════════════════════════\n\n")
 
-	fmt.Printf("📊 Workflow Statistics:\n")
+	fmt.Printf(" Workflow Statistics:\n")
 	fmt.Printf("   Total states: %d\n", len(analysis.States))
 	fmt.Printf("   Vulnerabilities: %d\n", len(analysis.Vulnerabilities))
 	fmt.Printf("   Security score: %d/100\n\n", analysis.SecurityScore)
@@ -951,7 +951,7 @@ func printRaceResultsTable(results []logic.RaceConditionTest, verbose bool) {
 	fmt.Printf("════════════════════════════\n\n")
 
 	for i, result := range results {
-		status := "✅ Safe"
+		status := " Safe"
 		if result.Vulnerable {
 			status = "🚨 VULNERABLE"
 		}
@@ -982,7 +982,7 @@ func printMFAResultsTable(results []logic.Vulnerability, verbose bool) {
 	fmt.Printf("═════════════════════════\n\n")
 
 	if len(results) == 0 {
-		fmt.Printf("✅ No MFA bypass vulnerabilities found\n")
+		fmt.Printf(" No MFA bypass vulnerabilities found\n")
 		return
 	}
 
@@ -1000,7 +1000,7 @@ func printMFAResultsTable(results []logic.Vulnerability, verbose bool) {
 }
 
 func printReportSummary(report *logic.BusinessLogicReport, verbose bool) {
-	fmt.Printf("📊 Business Logic Security Report\n")
+	fmt.Printf(" Business Logic Security Report\n")
 	fmt.Printf("════════════════════════════════\n\n")
 
 	fmt.Printf("🎯 Executive Summary:\n")
@@ -1048,7 +1048,7 @@ func printPaymentResultsTable(results []logic.Vulnerability, verbose bool) {
 	fmt.Printf("════════════════════════════════════════\n\n")
 
 	if len(results) == 0 {
-		fmt.Printf("✅ No e-commerce payment logic vulnerabilities found\n")
+		fmt.Printf(" No e-commerce payment logic vulnerabilities found\n")
 		return
 	}
 
@@ -1078,7 +1078,7 @@ func printRecoveryResultsTable(results []logic.Vulnerability, verbose bool) {
 	fmt.Printf("═══════════════════════════════\n\n")
 
 	if len(results) == 0 {
-		fmt.Printf("✅ No account recovery vulnerabilities found\n")
+		fmt.Printf(" No account recovery vulnerabilities found\n")
 		return
 	}
 

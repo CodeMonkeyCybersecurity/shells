@@ -132,7 +132,7 @@ func (m *Manager) CheckAndPromptForCircl() error {
 		return fmt.Errorf("failed to save credentials: %w", err)
 	}
 
-	fmt.Println("✅ CIRCL credentials saved securely")
+	fmt.Println(" CIRCL credentials saved securely")
 	return nil
 }
 
@@ -243,7 +243,7 @@ func (m *Manager) PromptForAllAPIs() error {
 		if err := m.Save(); err != nil {
 			return fmt.Errorf("failed to save credentials: %w", err)
 		}
-		fmt.Println("\n✅ API credentials saved securely")
+		fmt.Println("\n API credentials saved securely")
 	}
 
 	return nil

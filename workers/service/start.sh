@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 source ../venv/bin/activate
 
 # Start FastAPI service
-echo "🚀 Starting Shells Worker Service on http://localhost:8000"
+echo " Starting Shells Worker Service on http://localhost:8000"
 echo "📚 API docs available at http://localhost:8000/docs"
 echo ""
 

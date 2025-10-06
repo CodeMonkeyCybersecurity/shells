@@ -137,7 +137,7 @@ func runAWSScan(cmd *cobra.Command, args []string) error {
 	}
 
 	if !quiet {
-		fmt.Printf("🔍 Starting AWS security scan with Prowler\n")
+		fmt.Printf(" Starting AWS security scan with Prowler\n")
 		fmt.Printf("Profile: %s\n", awsProfile)
 		if len(prowlerGroups) > 0 {
 			fmt.Printf("Groups: %s\n", strings.Join(prowlerGroups, ", "))
@@ -178,8 +178,8 @@ func runAWSScan(cmd *cobra.Command, args []string) error {
 	findings = filterFindings(findings, severity)
 
 	if !quiet {
-		fmt.Printf("✅ Scan completed in %s\n", duration)
-		fmt.Printf("📊 Found %d security findings\n\n", len(findings))
+		fmt.Printf(" Scan completed in %s\n", duration)
+		fmt.Printf(" Found %d security findings\n\n", len(findings))
 	}
 
 	// Generate summary
@@ -254,7 +254,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize Prowler client: %w", err)
 	}
 
-	fmt.Printf("🔍 Validating AWS security scan setup...\n\n")
+	fmt.Printf(" Validating AWS security scan setup...\n\n")
 
 	// Check Nomad connectivity
 	fmt.Printf("Checking Nomad connectivity (%s)... ", nomadAddr)
@@ -262,12 +262,12 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 		fmt.Printf("❌ Failed\n")
 		return fmt.Errorf("Nomad health check failed: %w", err)
 	}
-	fmt.Printf("✅ OK\n")
+	fmt.Printf(" OK\n")
 
 	// Check Docker image availability
 	fmt.Printf("Checking Prowler Docker image (%s)... ", dockerImage)
 	// This is checked as part of health check
-	fmt.Printf("✅ OK\n")
+	fmt.Printf(" OK\n")
 
 	// Check AWS credentials (if profile specified)
 	if awsProfile != "" {
@@ -292,7 +292,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("AWS credential validation failed")
 		}
 
-		fmt.Printf("✅ Valid\n")
+		fmt.Printf(" Valid\n")
 
 		// Parse and display account info
 		var accountInfo struct {
@@ -306,7 +306,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("\n✅ Setup validation completed successfully!\n")
+	fmt.Printf("\n Setup validation completed successfully!\n")
 	fmt.Printf("Ready to run AWS security scans.\n")
 
 	return nil
@@ -387,7 +387,7 @@ func outputJSONResults(findings []types.Finding, summary AWSScanSummary, filenam
 
 func outputTableResults(findings []types.Finding, summary AWSScanSummary) error {
 	// Display summary
-	fmt.Printf("📊 Scan Summary\n")
+	fmt.Printf(" Scan Summary\n")
 	fmt.Printf("═══════════════\n")
 	fmt.Printf("Total Findings: %d\n", summary.TotalFindings)
 	fmt.Printf("Duration: %s\n\n", summary.Duration)
@@ -412,7 +412,7 @@ func outputTableResults(findings []types.Finding, summary AWSScanSummary) error 
 
 	// Display findings
 	if len(findings) > 0 {
-		fmt.Printf("🔍 Security Findings\n")
+		fmt.Printf(" Security Findings\n")
 		fmt.Printf("══════════════════\n\n")
 
 		for i, finding := range findings {
@@ -518,7 +518,7 @@ func displayServices(format string) error {
 		}
 		fmt.Println(string(data))
 	case "table":
-		fmt.Printf("⚙️  Available AWS Services (%d total)\n", len(services))
+		fmt.Printf("  Available AWS Services (%d total)\n", len(services))
 		fmt.Printf("══════════════════════════════════\n\n")
 
 		for i, service := range services {

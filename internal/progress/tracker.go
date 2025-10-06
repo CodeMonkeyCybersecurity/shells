@@ -209,12 +209,12 @@ func (t *Tracker) Complete() {
 
 	elapsed := time.Since(t.startTime)
 
-	fmt.Printf("\n✅ Scan completed in %s\n\n", formatDuration(elapsed))
+	fmt.Printf("\n Scan completed in %s\n\n", formatDuration(elapsed))
 
 	// Show phase breakdown
 	fmt.Println("Phase Summary:")
 	for _, phase := range t.phases {
-		status := "✅"
+		status := ""
 		if phase.Status == StatusFailed {
 			status = "❌"
 		} else if phase.Status == StatusPending {

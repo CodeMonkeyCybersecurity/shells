@@ -233,11 +233,11 @@ func init() {
 
 // printSmugglingDetectionResults prints smuggling detection results
 func printSmugglingDetectionResults(findings []types.Finding, verbose bool) {
-	fmt.Printf("🔍 HTTP Request Smuggling Detection Results\n")
+	fmt.Printf(" HTTP Request Smuggling Detection Results\n")
 	fmt.Printf("══════════════════════════════════════════\n\n")
 
 	if len(findings) == 0 {
-		fmt.Printf("✅ No request smuggling vulnerabilities detected\n")
+		fmt.Printf(" No request smuggling vulnerabilities detected\n")
 		return
 	}
 
@@ -277,7 +277,7 @@ func printSmugglingDetectionResults(findings []types.Finding, verbose bool) {
 		}
 	}
 
-	fmt.Printf("📊 Summary: %d vulnerabilities found across %d techniques\n", len(findings), len(techniqueGroups))
+	fmt.Printf(" Summary: %d vulnerabilities found across %d techniques\n", len(findings), len(techniqueGroups))
 }
 
 // printSmugglingExploitResults prints smuggling exploitation results

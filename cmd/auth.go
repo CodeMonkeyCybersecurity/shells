@@ -69,7 +69,7 @@ Examples:
 		// Create logger
 		logger := NewLogger(verbose)
 
-		fmt.Printf("🔍 Discovering authentication methods for: %s\n\n", target)
+		fmt.Printf(" Discovering authentication methods for: %s\n\n", target)
 
 		// Use comprehensive authentication discovery
 		discoveryConfig := &discovery.Config{
@@ -226,7 +226,7 @@ Examples:
 		if err := saveAuthResultsToDatabase(target, report, dbScanType); err != nil {
 			fmt.Printf("Warning: Failed to save results to database: %v\n", err)
 		} else {
-			fmt.Printf("✅ Results saved to database\n")
+			fmt.Printf(" Results saved to database\n")
 		}
 
 		// Output results
@@ -275,7 +275,7 @@ Examples:
 		logger := NewLogger(verbose)
 
 		fmt.Printf("🔗 Finding authentication bypass chains for: %s\n", target)
-		fmt.Printf("📊 Maximum chain depth: %d\n\n", maxDepth)
+		fmt.Printf(" Maximum chain depth: %d\n\n", maxDepth)
 
 		// Analyze target for vulnerabilities
 		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
@@ -353,7 +353,7 @@ Examples:
 		// Create logger
 		logger := NewLogger(verbose)
 
-		fmt.Printf("🚀 Running comprehensive authentication security analysis\n")
+		fmt.Printf(" Running comprehensive authentication security analysis\n")
 		fmt.Printf("🎯 Target: %s\n\n", target)
 
 		// Run comprehensive analysis
@@ -367,7 +367,7 @@ Examples:
 		if err := saveAuthResultsToDatabase(target, report, types.ScanTypeAuth); err != nil {
 			fmt.Printf("Warning: Failed to save results to database: %v\n", err)
 		} else {
-			fmt.Printf("✅ Results saved to database\n")
+			fmt.Printf(" Results saved to database\n")
 		}
 
 		// Save report if requested
@@ -449,7 +449,7 @@ func printDiscoveryResults(result struct {
 	Summary    DiscoverySummary                      `json:"summary"`
 	Timestamp  time.Time                             `json:"timestamp"`
 }) {
-	fmt.Printf("📊 Authentication Discovery Results\n")
+	fmt.Printf(" Authentication Discovery Results\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
 	fmt.Printf("🎯 Target: %s\n", result.Target)
@@ -463,19 +463,19 @@ func printDiscoveryResults(result struct {
 
 	fmt.Printf("🔐 Protocols Detected:\n")
 	if result.Summary.HasSAML {
-		fmt.Printf("  ✅ SAML\n")
+		fmt.Printf("   SAML\n")
 	}
 	if result.Summary.HasOAuth2 {
-		fmt.Printf("  ✅ OAuth2\n")
+		fmt.Printf("   OAuth2\n")
 	}
 	if result.Summary.HasOIDC {
-		fmt.Printf("  ✅ OIDC\n")
+		fmt.Printf("   OIDC\n")
 	}
 	if result.Summary.HasWebAuthn {
-		fmt.Printf("  ✅ WebAuthn/FIDO2\n")
+		fmt.Printf("   WebAuthn/FIDO2\n")
 	}
 	if result.Summary.HasFederation {
-		fmt.Printf("  ✅ Federation\n")
+		fmt.Printf("   Federation\n")
 	}
 
 	if len(result.Protocols) == 0 {
@@ -507,7 +507,7 @@ func printTestResults(report *common.AuthReport) {
 	fmt.Printf("🎯 Target: %s\n", report.Target)
 	fmt.Printf("⏱️  Duration: %s\n\n", report.EndTime.Sub(report.StartTime))
 
-	fmt.Printf("📊 Summary:\n")
+	fmt.Printf(" Summary:\n")
 	fmt.Printf("  • Total vulnerabilities: %d\n", report.Summary.TotalVulnerabilities)
 	fmt.Printf("  • Critical: %d\n", report.Summary.BySeverity["CRITICAL"])
 	fmt.Printf("  • High: %d\n", report.Summary.BySeverity["HIGH"])
@@ -526,7 +526,7 @@ func printTestResults(report *common.AuthReport) {
 			fmt.Println()
 		}
 	} else {
-		fmt.Printf("✅ No vulnerabilities found\n\n")
+		fmt.Printf(" No vulnerabilities found\n\n")
 	}
 }
 
@@ -542,7 +542,7 @@ func printChainResults(result struct {
 	fmt.Printf("🎯 Target: %s\n", result.Target)
 	fmt.Printf("🕐 Analyzed: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
 
-	fmt.Printf("📊 Summary:\n")
+	fmt.Printf(" Summary:\n")
 	fmt.Printf("  • Total chains: %d\n", result.Summary.TotalChains)
 	fmt.Printf("  • Critical: %d\n", result.Summary.CriticalChains)
 	fmt.Printf("  • High: %d\n", result.Summary.HighChains)
@@ -560,7 +560,7 @@ func printChainResults(result struct {
 			fmt.Printf("     Steps: %d\n", len(chain.Steps))
 
 			for j, step := range chain.Steps {
-				statusIcon := "✅"
+				statusIcon := ""
 				if !step.Success {
 					statusIcon = "❌"
 				}
@@ -569,12 +569,12 @@ func printChainResults(result struct {
 			fmt.Println()
 		}
 	} else {
-		fmt.Printf("✅ No attack chains found\n\n")
+		fmt.Printf(" No attack chains found\n\n")
 	}
 }
 
 func printComprehensiveResults(report *common.AuthReport) {
-	fmt.Printf("🚀 Comprehensive Authentication Analysis\n")
+	fmt.Printf(" Comprehensive Authentication Analysis\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
 	printTestResults(report)
@@ -676,7 +676,7 @@ func printComprehensiveDiscoveryResults(result struct {
 	Summary              DiscoverySummary                      `json:"summary"`
 	Timestamp            time.Time                             `json:"timestamp"`
 }) {
-	fmt.Printf("📊 Comprehensive Authentication Discovery Results\n")
+	fmt.Printf(" Comprehensive Authentication Discovery Results\n")
 	fmt.Printf("═══════════════════════════════════════════════════\n\n")
 
 	fmt.Printf("🎯 Target: %s\n", result.Target)
@@ -700,7 +700,7 @@ func printComprehensiveDiscoveryResults(result struct {
 			fmt.Printf("     Endpoints: %d\n", len(impl.Endpoints))
 
 			if len(impl.SecurityFeatures) > 0 {
-				fmt.Printf("     ✅ Features: %s\n", strings.Join(impl.SecurityFeatures[:min(3, len(impl.SecurityFeatures))], ", "))
+				fmt.Printf("      Features: %s\n", strings.Join(impl.SecurityFeatures[:min(3, len(impl.SecurityFeatures))], ", "))
 			}
 
 			if len(impl.Vulnerabilities) > 0 {
@@ -711,21 +711,21 @@ func printComprehensiveDiscoveryResults(result struct {
 	}
 
 	// Print protocols detected
-	fmt.Printf("🔍 Protocols Detected:\n")
+	fmt.Printf(" Protocols Detected:\n")
 	if result.Summary.HasSAML {
-		fmt.Printf("  ✅ SAML\n")
+		fmt.Printf("   SAML\n")
 	}
 	if result.Summary.HasOAuth2 {
-		fmt.Printf("  ✅ OAuth2\n")
+		fmt.Printf("   OAuth2\n")
 	}
 	if result.Summary.HasOIDC {
-		fmt.Printf("  ✅ OpenID Connect\n")
+		fmt.Printf("   OpenID Connect\n")
 	}
 	if result.Summary.HasWebAuthn {
-		fmt.Printf("  ✅ WebAuthn/FIDO2\n")
+		fmt.Printf("   WebAuthn/FIDO2\n")
 	}
 	if result.Summary.HasFederation {
-		fmt.Printf("  ✅ Federation\n")
+		fmt.Printf("   Federation\n")
 	}
 	fmt.Println()
 

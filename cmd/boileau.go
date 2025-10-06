@@ -240,10 +240,10 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 	duration := time.Since(start)
 
 	// Display results
-	fmt.Printf("\n✅ %s completed in %s\n", toolName, duration.Round(time.Second))
+	fmt.Printf("\n %s completed in %s\n", toolName, duration.Round(time.Second))
 
 	if result.Success {
-		fmt.Printf("📊 Results:\n")
+		fmt.Printf(" Results:\n")
 		fmt.Printf("   Status: Success\n")
 		fmt.Printf("   Findings: %d\n", len(result.Findings))
 
@@ -254,7 +254,7 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 
 		// Display findings
 		if len(result.Findings) > 0 {
-			fmt.Printf("\n🔍 Findings:\n")
+			fmt.Printf("\n Findings:\n")
 			for i, finding := range result.Findings {
 				emoji := getBoileauSeverityEmoji(finding.Severity)
 				fmt.Printf("\n%d. %s %s\n", i+1, emoji, finding.Title)
@@ -344,7 +344,7 @@ func runboileauBatch(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ Batch completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n Batch completed in %s\n", duration.Round(time.Second))
 
 	// Display summary
 	successCount := 0
@@ -356,14 +356,14 @@ func runboileauBatch(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("📊 Summary:\n")
+	fmt.Printf(" Summary:\n")
 	fmt.Printf("   Tools executed: %d/%d\n", len(results), len(tools))
 	fmt.Printf("   Successful: %d\n", successCount)
 	fmt.Printf("   Total findings: %d\n", totalFindings)
 
 	// Display findings by tool
 	if totalFindings > 0 {
-		fmt.Printf("\n🔍 Findings by Tool:\n")
+		fmt.Printf("\n Findings by Tool:\n")
 		for _, result := range results {
 			if result.Success && len(result.Findings) > 0 {
 				fmt.Printf("\n%s (%d findings):\n", result.Tool, len(result.Findings))

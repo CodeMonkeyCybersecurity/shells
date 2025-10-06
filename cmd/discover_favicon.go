@@ -216,7 +216,7 @@ func runFaviconDiscovery(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize favicon scanner: %w", err)
 	}
 
-	fmt.Printf("🔍 Starting favicon discovery scan\n")
+	fmt.Printf(" Starting favicon discovery scan\n")
 	fmt.Printf("Targets: %d hosts\n", len(targetHosts))
 	fmt.Printf("Concurrency: %d\n", maxConcurrency)
 	if enableShodan {
@@ -242,8 +242,8 @@ func runFaviconDiscovery(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("✅ Scan completed in %s\n", duration)
-	fmt.Printf("📊 Found favicons on %d/%d hosts\n\n", len(successfulResults), len(targetHosts))
+	fmt.Printf(" Scan completed in %s\n", duration)
+	fmt.Printf(" Found favicons on %d/%d hosts\n\n", len(successfulResults), len(targetHosts))
 
 	// Output results
 	switch faviconFormat {
@@ -277,7 +277,7 @@ func runFaviconHash(cmd *cobra.Command, args []string) error {
 	var allResults []*favicon.HashResult
 
 	for _, host := range targetHosts {
-		fmt.Printf("🔍 Processing %s...\n", host)
+		fmt.Printf(" Processing %s...\n", host)
 
 		results, err := hasher.ScanHost(host)
 		if err != nil {
@@ -288,7 +288,7 @@ func runFaviconHash(cmd *cobra.Command, args []string) error {
 		allResults = append(allResults, results...)
 	}
 
-	fmt.Printf("\n✅ Processed %d favicon(s) from %d host(s)\n\n", len(allResults), len(targetHosts))
+	fmt.Printf("\n Processed %d favicon(s) from %d host(s)\n\n", len(allResults), len(targetHosts))
 
 	// Output hash results
 	return outputHashResults(allResults, faviconFormat)
@@ -310,7 +310,7 @@ func runFaviconSearch(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("🔍 Found %d entries for '%s'\n\n", len(entries), searchTech)
+	fmt.Printf(" Found %d entries for '%s'\n\n", len(entries), searchTech)
 
 	// Output search results
 	switch faviconFormat {
@@ -356,7 +356,7 @@ func runFaviconAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to add entry: %w", err)
 	}
 
-	fmt.Printf("✅ Added favicon hash mapping:\n")
+	fmt.Printf(" Added favicon hash mapping:\n")
 	fmt.Printf("   Hash: %s\n", addHash)
 	fmt.Printf("   Technology: %s\n", addTechnology)
 	fmt.Printf("   Category: %s\n", addCategory)
@@ -418,7 +418,7 @@ func runFaviconStats(cmd *cobra.Command, args []string) error {
 	stats := database.GetStatistics()
 	technologies := database.GetAllTechnologies()
 
-	fmt.Printf("📊 Favicon Database Statistics\n")
+	fmt.Printf(" Favicon Database Statistics\n")
 	fmt.Printf("═══════════════════════════════\n\n")
 	fmt.Printf("Total Entries: %d\n", stats.TotalEntries)
 	fmt.Printf("Unique Hashes: %d\n", stats.UniqueHashes)
@@ -528,7 +528,7 @@ func outputFaviconTable(results []*favicon.FaviconResult) error {
 		}
 	}
 
-	fmt.Printf("📊 Favicon Discovery Results\n")
+	fmt.Printf(" Favicon Discovery Results\n")
 	fmt.Printf("═══════════════════════════\n")
 	fmt.Printf("Hosts scanned: %d\n", len(results))
 	fmt.Printf("Successful: %d\n", successCount)
@@ -546,7 +546,7 @@ func outputFaviconTable(results []*favicon.FaviconResult) error {
 			continue
 		}
 
-		fmt.Printf("✅ %s (%d favicon(s))\n", result.Host, len(result.Favicons))
+		fmt.Printf(" %s (%d favicon(s))\n", result.Host, len(result.Favicons))
 
 		if len(result.Technologies) > 0 {
 			for _, tech := range result.Technologies {

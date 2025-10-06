@@ -79,7 +79,7 @@
                  │
                  ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  6. Installation Complete! 🎉                                   │
+│  6. Installation Complete!                                    │
 │                                                                 │
 │  Next steps shown to user:                                     │
 │  • shells serve --port 8080                                    │
@@ -323,16 +323,16 @@ shells serve --port 8080
 
 ## What Makes This "Zero Configuration"?
 
-1. ✅ **Auto-detects platform** - Works on macOS, Debian, RHEL
-2. ✅ **Auto-installs dependencies** - Go, PostgreSQL, Python workers
-3. ✅ **Auto-creates database** - No SQL commands needed
-4. ✅ **Auto-configures connection** - DSN written automatically
-5. ✅ **Auto-detects existing resources** - Uses Docker container if available
-6. ✅ **Auto-starts services** - PostgreSQL started and enabled
-7. ✅ **Auto-sets permissions** - Correct file/directory permissions
-8. ✅ **Auto-builds binary** - No manual compilation
-9. ✅ **Auto-installs to PATH** - Ready to use immediately
-10. ✅ **Auto-verifies installation** - Checks everything works
+1.  **Auto-detects platform** - Works on macOS, Debian, RHEL
+2.  **Auto-installs dependencies** - Go, PostgreSQL, Python workers
+3.  **Auto-creates database** - No SQL commands needed
+4.  **Auto-configures connection** - DSN written automatically
+5.  **Auto-detects existing resources** - Uses Docker container if available
+6.  **Auto-starts services** - PostgreSQL started and enabled
+7.  **Auto-sets permissions** - Correct file/directory permissions
+8.  **Auto-builds binary** - No manual compilation
+9.  **Auto-installs to PATH** - Ready to use immediately
+10.  **Auto-verifies installation** - Checks everything works
 
 ## Advanced: Unattended Installation
 

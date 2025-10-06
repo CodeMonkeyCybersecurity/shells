@@ -35,10 +35,10 @@ Your database and configuration are NOT affected by updates.`,
 }
 
 var (
-	updateBranch      string
-	updateSkipBackup  bool
+	updateBranch       string
+	updateSkipBackup   bool
 	updateSkipValidate bool
-	updateSourceDir   string
+	updateSourceDir    string
 )
 
 func init() {
@@ -97,7 +97,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	)
 
 	fmt.Println()
-	fmt.Println("✅ Shells updated successfully!")
+	fmt.Println(" Shells updated successfully!")
 	fmt.Printf("   Duration: %s\n", duration.Round(time.Second))
 	fmt.Println()
 	fmt.Println("Run 'shells --version' to verify the new version")

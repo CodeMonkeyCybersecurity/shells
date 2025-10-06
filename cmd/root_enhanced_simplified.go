@@ -35,7 +35,7 @@ func runEnhancedDiscovery(cmd *cobra.Command, args []string, log *logger.Logger,
 	target := args[0]
 	ctx := context.Background()
 
-	log.Infow("🚀 Starting enhanced infrastructure discovery and testing", "target", target)
+	log.Infow(" Starting enhanced infrastructure discovery and testing", "target", target)
 
 	// Phase 1: Advanced Infrastructure Discovery
 	log.Info("📡 Phase 1: Advanced Infrastructure Discovery")
@@ -66,7 +66,7 @@ func runEnhancedDiscovery(cmd *cobra.Command, args []string, log *logger.Logger,
 		return fmt.Errorf("comprehensive scanning failed: %w", err)
 	}
 
-	log.Info("✅ Enhanced infrastructure discovery and testing completed successfully")
+	log.Info(" Enhanced infrastructure discovery and testing completed successfully")
 	return nil
 }
 
@@ -246,7 +246,7 @@ func printInfrastructureSummary(report *infrastructure.InfrastructureReport) {
 	fmt.Printf("   Relationships: %d\n\n", len(report.Relationships))
 
 	// Asset breakdown
-	fmt.Printf("📊 Asset Breakdown:\n")
+	fmt.Printf(" Asset Breakdown:\n")
 	for assetType, count := range report.Statistics.AssetsByType {
 		fmt.Printf("   %s: %d\n", assetType, count)
 	}
@@ -271,7 +271,7 @@ func printInfrastructureSummary(report *infrastructure.InfrastructureReport) {
 	fmt.Printf("   SSL Certificates: %d\n\n", report.Statistics.SSLCertificates)
 
 	// Show some example high-priority assets
-	fmt.Printf("🔍 Notable High-Priority Assets:\n")
+	fmt.Printf(" Notable High-Priority Assets:\n")
 	count := 0
 	for _, asset := range report.Assets {
 		if asset.Priority >= infrastructure.PriorityHigh && count < 5 {

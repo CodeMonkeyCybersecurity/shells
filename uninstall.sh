@@ -68,4 +68,4 @@ if [[ "$(uname)" == "Linux" ]]; then
     fi
 fi
 
-echo "✅ Shell has been completely removed from the system."
+echo " Shell has been completely removed from the system."

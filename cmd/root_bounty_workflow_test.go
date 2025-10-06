@@ -147,7 +147,7 @@ func TestBugBountyWorkflowEndToEnd(t *testing.T) {
 		t.Error("Scan was not stored in database")
 	}
 
-	t.Logf("✅ Smoke test passed:")
+	t.Logf(" Smoke test passed:")
 	t.Logf("   Scan ID: %s", result.ScanID)
 	t.Logf("   Status: %s", result.Status)
 	t.Logf("   Duration: %v", result.Duration)
@@ -209,7 +209,7 @@ func TestQuickScanMode(t *testing.T) {
 	}
 
 	if result != nil && result.Status == "completed" {
-		t.Logf("✅ Quick scan completed in %v", duration)
+		t.Logf(" Quick scan completed in %v", duration)
 	}
 }
 
@@ -295,7 +295,7 @@ func TestDatabaseResultsPersistence(t *testing.T) {
 		}
 	}
 
-	t.Log("✅ Database persistence verified")
+	t.Log(" Database persistence verified")
 }
 
 // TestRealWorldQuickScan tests against actual public target
@@ -357,7 +357,7 @@ func TestRealWorldQuickScan(t *testing.T) {
 		t.Errorf("Expected status 'completed', got '%s'", result.Status)
 	}
 
-	t.Logf("✅ Real network scan passed:")
+	t.Logf(" Real network scan passed:")
 	t.Logf("   Target: %s", target)
 	t.Logf("   Duration: %v", duration)
 	t.Logf("   Assets: %d tested", result.TestedAssets)

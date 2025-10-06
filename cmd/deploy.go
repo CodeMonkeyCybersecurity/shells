@@ -114,7 +114,7 @@ var deployScaleCmd = &cobra.Command{
 		fmt.Printf("🔄 Scaling workers to %s instances...\n", args[0])
 		// Note: Implement job scaling functionality in nomad client
 		// This would require modifying the job definition and resubmitting
-		fmt.Printf("✅ Workers scaled to %s instances\n", args[0])
+		fmt.Printf(" Workers scaled to %s instances\n", args[0])
 
 		return nil
 	},
@@ -140,7 +140,7 @@ var deployStatusCmd = &cobra.Command{
 		// Check status of each component
 		components := []string{"otel-collector", "shells-postgres", "shells-scanner-web", "shells-scanner-workers"}
 
-		fmt.Printf("\n🔍 Shells Deployment Status\n")
+		fmt.Printf("\n Shells Deployment Status\n")
 		fmt.Printf("===========================\n\n")
 
 		for _, component := range components {
@@ -150,7 +150,7 @@ var deployStatusCmd = &cobra.Command{
 				continue
 			}
 
-			statusIcon := "✅"
+			statusIcon := ""
 			if status.Status != "running" && status.Status != "complete" {
 				statusIcon = "⚠️"
 			}
@@ -198,7 +198,7 @@ var deployStopCmd = &cobra.Command{
 			return fmt.Errorf("failed to stop %d components", errors)
 		}
 
-		fmt.Printf("\n✅ All components stopped\n")
+		fmt.Printf("\n All components stopped\n")
 		return nil
 	},
 }

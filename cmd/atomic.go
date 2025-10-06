@@ -134,7 +134,7 @@ Examples:
 
 		fmt.Printf("🧪 Demonstrating impact for target: %s\n", target)
 		if dryRun {
-			fmt.Printf("🔍 Running in dry-run mode (no actual execution)\n")
+			fmt.Printf(" Running in dry-run mode (no actual execution)\n")
 		}
 		if sandbox {
 			fmt.Printf("🐳 Using Docker sandbox for safe execution\n")
@@ -221,7 +221,7 @@ Examples:
 		} else if validateAll {
 			// Validate all available techniques
 			techniques := client.ListSafeTechniques()
-			fmt.Printf("🔍 Validating %d safe techniques...\n\n", len(techniques))
+			fmt.Printf(" Validating %d safe techniques...\n\n", len(techniques))
 
 			passed := 0
 			failed := 0
@@ -235,7 +235,7 @@ Examples:
 				}
 
 				if report.IsSafe {
-					fmt.Printf("✅ %s: Safe for bug bounty testing\n", tech)
+					fmt.Printf(" %s: Safe for bug bounty testing\n", tech)
 					passed++
 				} else {
 					fmt.Printf("❌ %s: Failed safety validation\n", tech)
@@ -246,7 +246,7 @@ Examples:
 				}
 			}
 
-			fmt.Printf("\n📊 Validation Summary: %d passed, %d failed\n", passed, failed)
+			fmt.Printf("\n Validation Summary: %d passed, %d failed\n", passed, failed)
 		}
 	},
 }
@@ -353,7 +353,7 @@ Examples:
 			if err != nil {
 				fmt.Printf("Error saving Navigator layer: %v\n", err)
 			} else {
-				fmt.Printf("📊 Navigator layer saved to: %s\n", navigatorFile)
+				fmt.Printf(" Navigator layer saved to: %s\n", navigatorFile)
 			}
 		}
 
@@ -492,7 +492,7 @@ func printTechniquesTable(techniques []string, client *atomic.AtomicClient, verb
 
 	for _, technique := range techniques {
 		test, err := client.GetSafeTest(technique)
-		status := "✅ Available"
+		status := " Available"
 		if err != nil {
 			status = "❌ Not Available"
 		}
@@ -540,14 +540,14 @@ func printSafetyReportJSON(report atomic.SafetyReport) {
 }
 
 func printSafetyReportTable(report atomic.SafetyReport) {
-	fmt.Printf("🔍 Safety Validation Report\n")
+	fmt.Printf(" Safety Validation Report\n")
 	fmt.Printf("═══════════════════════════\n\n")
 
 	fmt.Printf("Technique: %s\n", report.Technique)
 	fmt.Printf("Test: %s\n", report.TestName)
 
 	if report.IsSafe {
-		fmt.Printf("Status: ✅ SAFE for bug bounty testing\n\n")
+		fmt.Printf("Status:  SAFE for bug bounty testing\n\n")
 	} else {
 		fmt.Printf("Status: ❌ NOT SAFE for bug bounty testing\n\n")
 
@@ -570,7 +570,7 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 
 	fmt.Printf("Safety Checks:\n")
 	for _, check := range report.Checks {
-		status := "✅"
+		status := ""
 		if !check.Passed {
 			status = "❌"
 		}
@@ -582,7 +582,7 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 }
 
 func printAtomicReportSummary(report *atomic.BugBountyReport) {
-	fmt.Printf("📊 ATT&CK Assessment Report Summary\n")
+	fmt.Printf(" ATT&CK Assessment Report Summary\n")
 	fmt.Printf("═══════════════════════════════════\n\n")
 
 	fmt.Printf("Target: %s\n", report.Metadata.Target)

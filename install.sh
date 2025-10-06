@@ -562,32 +562,37 @@ main() {
 
   echo
   log INFO "================================================================"
-  log INFO " Shells installation complete!"
+  log INFO "  Shells installation complete!"
   log INFO "================================================================"
-  log INFO "Binary installed to: $INSTALL_PATH"
-  log INFO "Configuration: $CONFIG_DIR"
-  log INFO "Logs: $LOG_DIR"
   echo
-  log INFO "Quick Start:"
-  log INFO "  1. Start the web dashboard and API:"
-  log INFO "     shells serve --port 8080"
+  log INFO " Quick Start (One Command):"
   log INFO ""
-  log INFO "  2. Open your browser to http://localhost:8080"
+  log INFO "   shells serve"
   log INFO ""
-  log INFO "  3. Run a scan:"
-  log INFO "     shells example.com"
+  log INFO "   This automatically:"
+  log INFO "    Connects to PostgreSQL and creates tables"
+  log INFO "    Starts web dashboard at http://localhost:8080"
+  log INFO "    Starts worker service for GraphQL/IDOR scanning"
+  log INFO "    Exposes REST API at http://localhost:8080/api/v1/*"
   echo
-  log INFO "Database:"
-  if $IS_MAC; then
-    log INFO "  PostgreSQL running locally (socket connection)"
-  else
-    log INFO "  PostgreSQL: postgres://shells:shells_password@localhost:5432/shells"
-  fi
+  log INFO " Dashboard:"
+  log INFO "   Open http://localhost:8080 in your browser"
+  log INFO "   Real-time scan progress, findings, and statistics"
   echo
-  log INFO "Optional features:"
-  log INFO "  - GraphQL/IDOR workers: Run 'shells workers setup' if not already configured"
-  log INFO "  - Start workers: 'shells workers start' or 'shells serve' (auto-starts)"
-  log INFO "  - Docker deployment: cd deployments/docker && docker-compose up -d"
+  log INFO " Run a Scan:"
+  log INFO "   shells example.com          # Full bug bounty pipeline"
+  log INFO "   shells \"Acme Corp\"          # Discover company assets"
+  log INFO "   shells 192.168.1.0/24       # Scan IP range"
+  echo
+  log INFO "  Configuration (No YAML files needed!):"
+  log INFO "   Use flags:       shells serve --port 9000 --workers 5"
+  log INFO "   Or env vars:     export SHELLS_DATABASE_DSN=\"postgres://...\""
+  log INFO "   Database (auto): postgres://shells:shells_password@localhost:5432/shells"
+  echo
+  log INFO "📖 Get Help:"
+  log INFO "   shells --help               # All commands and flags"
+  log INFO "   shells serve --help         # Server-specific options"
+  log INFO "   shells self-update          # Update to latest version"
   echo
   log INFO "================================================================"
 }

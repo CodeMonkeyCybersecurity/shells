@@ -8,88 +8,104 @@
 // 🚨 P0 ISSUES (CRITICAL - System Broken):
 //
 // P0-1: Database Schema Mismatch in WHOIS Cache (Line 198)
-//   Query: SELECT registration_date, registrar, age_days, raw_data FROM hera_whois_cache
-//   Actual Schema: Only has columns: domain, whois_data, created_at, expires_at
-//   Impact: WHOIS lookups fail 100% of the time
-//   Fix: Align schema with queries in internal/database/store.go:354
+//
+//	Query: SELECT registration_date, registrar, age_days, raw_data FROM hera_whois_cache
+//	Actual Schema: Only has columns: domain, whois_data, created_at, expires_at
+//	Impact: WHOIS lookups fail 100% of the time
+//	Fix: Align schema with queries in internal/database/store.go:354
 //
 // P0-2: Database Schema Mismatch in Threat Intel (Line 299)
-//   Query: SELECT source, verdict, score, details FROM hera_threat_intel
-//   Actual Schema: Only has columns: domain, malicious, sources, last_checked, expires_at
-//   Impact: Threat intel lookups fail 100% of the time
-//   Fix: Redesign schema to support multiple sources per domain
+//
+//	Query: SELECT source, verdict, score, details FROM hera_threat_intel
+//	Actual Schema: Only has columns: domain, malicious, sources, last_checked, expires_at
+//	Impact: Threat intel lookups fail 100% of the time
+//	Fix: Redesign schema to support multiple sources per domain
 //
 // P0-3: PostgreSQL-Specific SQL in SQLite Code (Lines 200, 418)
-//   Uses: NOW() function and ON CONFLICT ... DO UPDATE (PostgreSQL only)
-//   Problem: Default config uses SQLite which doesn't support these
-//   Impact: All queries fail when using SQLite driver
-//   Fix: Use driver-agnostic SQL or detect driver type
+//
+//	Uses: NOW() function and ON CONFLICT ... DO UPDATE (PostgreSQL only)
+//	Problem: Default config uses SQLite which doesn't support these
+//	Impact: All queries fail when using SQLite driver
+//	Fix: Use driver-agnostic SQL or detect driver type
 //
 // P0-4: Placeholder Mismatch (All database queries)
-//   Uses: PostgreSQL placeholders ($1, $2, etc.)
-//   Problem: SQLite uses ? placeholders
-//   Impact: All queries fail with SQLite
-//   Fix: Use store.getPlaceholder() helper or pass driver info
+//
+//	Uses: PostgreSQL placeholders ($1, $2, etc.)
+//	Problem: SQLite uses ? placeholders
+//	Impact: All queries fail with SQLite
+//	Fix: Use store.getPlaceholder() helper or pass driver info
 //
 // P0-5: Stats Table Schema Missing Key Columns (Line 417)
-//   Query: INSERT INTO hera_stats (date, verdict, reputation_bucket, pattern, count)
-//   Actual Schema: Only has columns: id, event_type, domain, metadata, created_at
-//   Impact: Statistics logging fails 100% of the time
-//   Fix: Completely redesign stats table schema
+//
+//	Query: INSERT INTO hera_stats (date, verdict, reputation_bucket, pattern, count)
+//	Actual Schema: Only has columns: id, event_type, domain, metadata, created_at
+//	Impact: Statistics logging fails 100% of the time
+//	Fix: Completely redesign stats table schema
 //
 // ⚠️  P1 ISSUES (HIGH - Major Functionality Gaps):
 //
 // P1-1: No Actual WHOIS Integration (Line 234)
-//   Returns: Placeholder "WHOIS lookup not yet implemented"
-//   Missing: Integration with WHOIS library (e.g., github.com/likexian/whois)
+//
+//	Returns: Placeholder "WHOIS lookup not yet implemented"
+//	Missing: Integration with WHOIS library (e.g., github.com/likexian/whois)
 //
 // P1-2: No Threat Intelligence Integration (Line 348)
-//   Returns: Placeholder "No cached threat intel"
-//   Missing: API integrations for VirusTotal, PhishTank, URLhaus
+//
+//	Returns: Placeholder "No cached threat intel"
+//	Missing: API integrations for VirusTotal, PhishTank, URLhaus
 //
 // P1-3: No Trust Anchor Data Seeded
-//   PostgreSQL init script seeds 25 trust anchors (Google, GitHub, etc.)
-//   Problem: Only runs for Docker PostgreSQL, no SQLite equivalent
-//   Impact: Reputation checks return empty for all domains
+//
+//	PostgreSQL init script seeds 25 trust anchors (Google, GitHub, etc.)
+//	Problem: Only runs for Docker PostgreSQL, no SQLite equivalent
+//	Impact: Reputation checks return empty for all domains
 //
 // P1-4: Admin Cleanup Endpoint Has No Auth (cmd/serve.go:219)
-//   Problem: /api/v1/hera/admin/cleanup uses same auth as regular users
-//   Impact: Any Hera extension can trigger expensive cleanup operations
-//   Fix: Separate admin API key or scope-based permissions
+//
+//	Problem: /api/v1/hera/admin/cleanup uses same auth as regular users
+//	Impact: Any Hera extension can trigger expensive cleanup operations
+//	Fix: Separate admin API key or scope-based permissions
 //
 // P1-5: Rate Limiting is Per-IP, Not Per-Extension (middleware.go:161)
-//   Problem: Multiple browsers from same IP share rate limit
-//   Impact: Poor UX for power users with multiple browsers
-//   Fix: Rate limit by Extension ID (passed in request header)
+//
+//	Problem: Multiple browsers from same IP share rate limit
+//	Impact: Poor UX for power users with multiple browsers
+//	Fix: Rate limit by Extension ID (passed in request header)
 //
 // 📋 P2 ISSUES (MEDIUM - Design & Security Concerns):
 //
 // P2-1: SSRF Protection Incomplete (Lines 593-618)
-//   Missing: IPv6 private ranges, DNS rebinding, redirect following, alternate IP formats
-//   Impact: Possible SSRF bypass via IPv6 or DNS rebinding
+//
+//	Missing: IPv6 private ranges, DNS rebinding, redirect following, alternate IP formats
+//	Impact: Possible SSRF bypass via IPv6 or DNS rebinding
 //
 // P2-2: No Request Signing for Extensions (middleware.go:66-127)
-//   Current: Simple Bearer token (same for all Hera instances)
-//   Problem: Cannot revoke specific extension instances or track which made requests
-//   Fix: Request signing with Extension ID + timestamp + HMAC
+//
+//	Current: Simple Bearer token (same for all Hera instances)
+//	Problem: Cannot revoke specific extension instances or track which made requests
+//	Fix: Request signing with Extension ID + timestamp + HMAC
 //
 // P2-3: Database Connection Leaked to API Layer (cmd/serve.go:220)
-//   Problem: API handlers get direct database access, bypassing repository pattern
-//   Impact: Tight coupling, hard to test, no transaction support
-//   Fix: Create HeraRepository that wraps database operations
+//
+//	Problem: API handlers get direct database access, bypassing repository pattern
+//	Impact: Tight coupling, hard to test, no transaction support
+//	Fix: Create HeraRepository that wraps database operations
 //
 // P2-4: No Caching Layer
-//   Problem: Every request hits database directly
-//   Impact: High database load, slow response times
-//   Fix: Add Redis or in-memory cache layer
+//
+//	Problem: Every request hits database directly
+//	Impact: High database load, slow response times
+//	Fix: Add Redis or in-memory cache layer
 //
 // P2-5: Feedback Endpoint Doesn't Update Pattern Stats (Lines 444-520)
-//   Problem: Stores user corrections but never updates pattern stats
-//   Impact: No learning from feedback, false positives persist
+//
+//	Problem: Stores user corrections but never updates pattern stats
+//	Impact: No learning from feedback, false positives persist
 //
 // P2-6: Detection Recording Missing (Lines 103-189)
-//   Problem: Analyze endpoint never writes to hera_detections table
-//   Impact: No historical record of what Hera detected
+//
+//	Problem: Analyze endpoint never writes to hera_detections table
+//	Impact: No historical record of what Hera detected
 //
 // 📝 P3 ISSUES (LOW - Nice to Have):
 //
@@ -99,7 +115,8 @@
 // P3-4: Hard-Coded Timeouts (Lines 127, 376, 423)
 // P3-5: No Health Check for External Dependencies (Lines 575-598)
 //
-// ✅ What Works:
+//	What Works:
+//
 // - Command routing (./shells serve)
 // - SSRF protection (blocks common attack vectors)
 // - Authentication (Bearer token validation)
@@ -133,10 +150,12 @@
 // 9. P2-4: Add caching layer
 //
 // TEST RESULTS:
-// ✅ Server starts successfully
-// ✅ Health endpoint responds
-// ✅ Authentication works (blocks unauthorized)
-// ✅ SSRF protection works (blocks 127.0.0.1, 169.254.169.254)
+//
+//	Server starts successfully
+//	Health endpoint responds
+//	Authentication works (blocks unauthorized)
+//	SSRF protection works (blocks 127.0.0.1, 169.254.169.254)
+//
 // ❌ WHOIS lookup fails (schema mismatch)
 // ❌ Threat intel lookup fails (schema mismatch)
 // ❌ Stats logging fails (schema mismatch)

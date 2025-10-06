@@ -4,7 +4,7 @@ package cmd
 //
 // ADVERSARIAL REVIEW STATUS (2025-10-05):
 //
-// ✅ FIXED (P0 - Critical):
+//  FIXED (P0 - Critical):
 //   - All HTTP body close errors fixed via httpclient.CloseBody()
 //   - Environment config errors now have proper error handling
 //   - File write errors in protocol.go properly checked
@@ -34,10 +34,10 @@ package cmd
 //   Timeline: Phase 1 docs complete, Phase 2 implementation pending
 //
 // PHILOSOPHY ALIGNMENT:
-// - Human-Centric: Transparent errors, no silent failures ✅
-// - Evidence-Based: Verifiable results, confidence scores ✅
-// - Sustainable: Documented tech debt, clear improvement path ✅
-// - Collaborative: Honest assessment, actionable next steps ✅
+// - Human-Centric: Transparent errors, no silent failures
+// - Evidence-Based: Verifiable results, confidence scores
+// - Sustainable: Documented tech debt, clear improvement path
+// - Collaborative: Honest assessment, actionable next steps
 
 import (
 	"context"
@@ -2463,7 +2463,7 @@ func runMainDiscovery(cmd *cobra.Command, args []string, log *logger.Logger, db 
 			}
 
 			if session.Status == discovery.StatusCompleted {
-				fmt.Printf("✅ Discovery completed in %v!\n", time.Since(discoveryStart).Round(time.Second))
+				fmt.Printf(" Discovery completed in %v!\n", time.Since(discoveryStart).Round(time.Second))
 				for _, asset := range session.Assets {
 					discoveredAssets = append(discoveredAssets, asset)
 				}
@@ -2518,7 +2518,7 @@ discoveryDone:
 		fmt.Println("🌐 Detected web application - running web security tests...")
 	default:
 		// Run general tests
-		fmt.Println("🔍 Running general vulnerability tests...")
+		fmt.Println(" Running general vulnerability tests...")
 	}
 
 	// Run targeted vulnerability testing instead of comprehensive scanning
@@ -2642,7 +2642,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 		fmt.Printf("   Use 'shells scope import <platform> <program>' to add programs.\n")
 		fmt.Printf("   Continuing without scope validation...\n\n")
 	} else {
-		fmt.Printf("✅ Loaded %d bug bounty programs for scope validation\n", len(programs))
+		fmt.Printf(" Loaded %d bug bounty programs for scope validation\n", len(programs))
 		for _, program := range programs {
 			if program.Active {
 				fmt.Printf("   • %s (%s) - %d in scope, %d out of scope\n",
@@ -2653,7 +2653,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 	}
 
 	// Start comprehensive discovery
-	fmt.Println("🔍 Starting comprehensive asset discovery and scanning...")
+	fmt.Println(" Starting comprehensive asset discovery and scanning...")
 
 	// Create discovery config with all features enabled
 	discoveryConfig := discovery.DefaultDiscoveryConfig()
@@ -2671,7 +2671,7 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 	var scopeValidator *discovery.ScopeValidator
 	if len(programs) > 0 {
 		scopeValidator = discovery.NewScopeValidator(scopeManager, log, true)
-		fmt.Printf("✅ Scope validation enabled for asset filtering\n\n")
+		fmt.Printf(" Scope validation enabled for asset filtering\n\n")
 	} else {
 		fmt.Printf("⚠️  Scope validation disabled - all discovered assets will be processed\n\n")
 	}
@@ -2711,13 +2711,13 @@ func runMainDiscoveryOriginal(cmd *cobra.Command, args []string, log *logger.Log
 
 			// Update progress if changed
 			if session.Progress > lastProgress {
-				fmt.Printf("\r🔍 Discovery progress: %.0f%% | Assets found: %d | High-value: %d",
+				fmt.Printf("\r Discovery progress: %.0f%% | Assets found: %d | High-value: %d",
 					session.Progress, session.TotalDiscovered, session.HighValueAssets)
 				lastProgress = session.Progress
 			}
 
 			if session.Status == discovery.StatusCompleted {
-				fmt.Println("\n✅ Discovery completed!")
+				fmt.Println("\n Discovery completed!")
 				// Collect all discovered assets
 				for _, asset := range session.Assets {
 					discoveredAssets = append(discoveredAssets, asset)
@@ -2792,7 +2792,7 @@ discoveryComplete:
 	}
 
 	// Print discovery summary
-	fmt.Printf("\n📊 Discovery Summary:\n")
+	fmt.Printf("\n Discovery Summary:\n")
 	fmt.Printf("   Session ID: %s\n", session.ID)
 	fmt.Printf("   Target: %s\n", target)
 	fmt.Printf("   Total Assets: %d\n", len(discoveredAssets))
@@ -2842,7 +2842,7 @@ discoveryComplete:
 	}
 
 	// Run all available scanners
-	fmt.Println("🚀 Running comprehensive security scans on all discovered assets...")
+	fmt.Println(" Running comprehensive security scans on all discovered assets...")
 
 	// Run comprehensive scanning on discovered assets
 	if err := runComprehensiveScanning(ctx, session, orgContext, log, store); err != nil {
@@ -2850,7 +2850,7 @@ discoveryComplete:
 		return fmt.Errorf("comprehensive scanning failed: %w", err)
 	}
 
-	fmt.Println("✅ Comprehensive scanning completed!")
+	fmt.Println(" Comprehensive scanning completed!")
 	fmt.Printf("📈 View results with: shells results query --scan-id %s\n", session.ID)
 
 	return nil
@@ -3068,8 +3068,8 @@ func runComprehensiveScanning(ctx context.Context, session *discovery.DiscoveryS
 	for i, jobID := range submittedJobs {
 		fmt.Printf("   %d. Job ID: %s\n", i+1, jobID)
 	}
-	fmt.Printf("\n🔍 Monitor job progress with: nomad job status <job_id>\n")
-	fmt.Printf("📊 Results will be automatically stored in the database upon completion\n\n")
+	fmt.Printf("\n Monitor job progress with: nomad job status <job_id>\n")
+	fmt.Printf(" Results will be automatically stored in the database upon completion\n\n")
 
 	return nil
 }

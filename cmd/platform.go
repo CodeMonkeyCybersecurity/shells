@@ -132,7 +132,7 @@ var platformSubmitCmd = &cobra.Command{
 			return fmt.Errorf("failed to submit report: %w", err)
 		}
 
-		fmt.Printf("✅ Successfully submitted to %s\n", client.Name())
+		fmt.Printf(" Successfully submitted to %s\n", client.Name())
 		fmt.Printf("Report ID: %s\n", response.ReportID)
 		fmt.Printf("URL: %s\n", response.ReportURL)
 		fmt.Printf("Status: %s\n", response.Status)
@@ -169,7 +169,7 @@ var platformValidateCmd = &cobra.Command{
 			return fmt.Errorf("❌ Credentials invalid: %w", err)
 		}
 
-		fmt.Printf("✅ Credentials valid for %s\n", client.Name())
+		fmt.Printf(" Credentials valid for %s\n", client.Name())
 		return nil
 	},
 }
@@ -271,13 +271,13 @@ This command will:
 					continue
 				}
 
-				fmt.Printf("  ✅ Submitted: %s (ID: %s)\n", finding.Title, response.ReportID)
+				fmt.Printf("   Submitted: %s (ID: %s)\n", finding.Title, response.ReportID)
 				storeSubmission(dbStore, finding.ID, platformName, response)
 				submitted++
 			}
 		}
 
-		fmt.Printf("\n📊 Summary: %d submitted, %d errors\n", submitted, errors)
+		fmt.Printf("\n Summary: %d submitted, %d errors\n", submitted, errors)
 		return nil
 	},
 }

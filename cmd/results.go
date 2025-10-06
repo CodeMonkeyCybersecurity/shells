@@ -241,7 +241,7 @@ func printScanList(scans []*types.ScanRequest) {
 		return
 	}
 
-	fmt.Printf("📊 Scan Results (%d scans)\\n", len(scans))
+	fmt.Printf(" Scan Results (%d scans)\\n", len(scans))
 	fmt.Printf("═══════════════════════════════════════\\n\\n")
 
 	fmt.Printf("%-36s %-20s %-15s %-12s %-20s\\n", "ID", "Target", "Type", "Status", "Created")
@@ -258,7 +258,7 @@ func printScanList(scans []*types.ScanRequest) {
 }
 
 func printScanDetails(scan *types.ScanRequest, findings []types.Finding) {
-	fmt.Printf("🔍 Scan Details\\n")
+	fmt.Printf(" Scan Details\\n")
 	fmt.Printf("═══════════════════════════════════════\\n\\n")
 
 	fmt.Printf("ID: %s\\n", scan.ID)
@@ -445,7 +445,7 @@ func generateSummary(scans []*types.ScanRequest) *ScanSummary {
 }
 
 func printSummary(summary *ScanSummary, days int) {
-	fmt.Printf("📊 Scan Summary (Last %d days)\\n", days)
+	fmt.Printf(" Scan Summary (Last %d days)\\n", days)
 	fmt.Printf("═══════════════════════════════════════\\n\\n")
 
 	fmt.Printf("Total Scans: %d\\n\\n", summary.TotalScans)
@@ -463,7 +463,7 @@ func printSummary(summary *ScanSummary, days int) {
 	if len(summary.RecentScans) > 0 {
 		fmt.Printf("\\n🕐 Recent Scans:\\n")
 		for _, scan := range summary.RecentScans {
-			status := "✅"
+			status := ""
 			if scan.Status == types.ScanStatusFailed {
 				status = "❌"
 			} else if scan.Status == types.ScanStatusRunning {
@@ -626,7 +626,7 @@ func printQueryResults(findings []types.Finding, query core.FindingQuery) {
 		return
 	}
 
-	fmt.Printf("🔍 Query Results (%d findings)\n", len(findings))
+	fmt.Printf(" Query Results (%d findings)\n", len(findings))
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
 	// Show active filters
@@ -683,7 +683,7 @@ func printQueryResults(findings []types.Finding, query core.FindingQuery) {
 }
 
 func printStats(stats *core.FindingStats, criticalFindings []types.Finding) {
-	fmt.Printf("📊 Security Findings Statistics\n")
+	fmt.Printf(" Security Findings Statistics\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
 	fmt.Printf("Total Findings: %d\n\n", stats.Total)
@@ -795,7 +795,7 @@ func showIdentityChains(sessionID, severityFilter string, verbose bool, output s
 	// Note: In a full implementation, this would query the discovery engine
 	// for the session and extract the identity chains from session metadata
 
-	fmt.Println("📊 Identity Chain Analysis Summary:")
+	fmt.Println(" Identity Chain Analysis Summary:")
 	fmt.Println("   • SAML XML Wrapping Chains: Available")
 	fmt.Println("   • OAuth JWT Attack Chains: Available")
 	fmt.Println("   • Federation Confusion Chains: Available")
@@ -803,7 +803,7 @@ func showIdentityChains(sessionID, severityFilter string, verbose bool, output s
 	fmt.Println("   • Cross-Protocol Attack Chains: Available")
 	fmt.Println()
 
-	fmt.Println("🔍 Chain Detection Features:")
+	fmt.Println(" Chain Detection Features:")
 	fmt.Println("   ✓ Maps identity asset relationships")
 	fmt.Println("   ✓ Detects trust relationship vulnerabilities")
 	fmt.Println("   ✓ Identifies attack path chaining opportunities")

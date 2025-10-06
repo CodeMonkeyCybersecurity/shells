@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
@@ -198,7 +199,7 @@ func runOAuth2AdvancedTest(cmd *cobra.Command, args []string) error {
 		target = "https://" + target
 	}
 
-	fmt.Printf("🔍 Starting advanced OAuth2 security testing\n")
+	fmt.Printf(" Starting advanced OAuth2 security testing\n")
 	fmt.Printf("🎯 Target: %s\n", target)
 
 	if verbose {
@@ -241,7 +242,7 @@ func runOAuth2AdvancedTest(cmd *cobra.Command, args []string) error {
 	}
 	duration := time.Since(start)
 
-	fmt.Printf("\n✅ Testing completed in %s\n", duration.Round(time.Second))
+	fmt.Printf("\n Testing completed in %s\n", duration.Round(time.Second))
 
 	// Display results
 	displayOAuth2Results(findings, verbose)
@@ -289,7 +290,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 		target = "https://" + target
 	}
 
-	fmt.Printf("🔍 Discovering OAuth2/OIDC configuration\n")
+	fmt.Printf(" Discovering OAuth2/OIDC configuration\n")
 	fmt.Printf("🎯 Target: %s\n", target)
 
 	// Try well-known endpoints
@@ -327,7 +328,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("\n✅ Found discovery document at: %s\n", discoveredURL)
+	fmt.Printf("\n Found discovery document at: %s\n", discoveredURL)
 
 	// Display configuration
 	fmt.Printf("\n📋 OAuth2/OIDC Configuration:\n")
@@ -372,7 +373,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 	if !hasPKCE || len(pkceMethods) == 0 {
 		fmt.Printf("   ⚠️  PKCE not supported - vulnerable to authorization code interception\n")
 	} else {
-		fmt.Printf("   ✅ PKCE supported with methods: %v\n", pkceMethods)
+		fmt.Printf("    PKCE supported with methods: %v\n", pkceMethods)
 	}
 
 	// Check for implicit flow
@@ -458,7 +459,7 @@ func runOAuth2AdvancedReport(cmd *cobra.Command, args []string) error {
 		if err := os.WriteFile(output, []byte(report), 0644); err != nil {
 			return fmt.Errorf("failed to write report: %w", err)
 		}
-		fmt.Printf("✅ Report saved to: %s\n", output)
+		fmt.Printf(" Report saved to: %s\n", output)
 	}
 
 	return nil
@@ -480,7 +481,7 @@ func displayOAuth2Results(findings []types.Finding, verbose bool) {
 
 	// Display summary
 	if summary != nil {
-		fmt.Printf("\n📊 Security Assessment Summary:\n")
+		fmt.Printf("\n Security Assessment Summary:\n")
 		fmt.Printf("   %s\n", summary.Title)
 
 		details := summary.Metadata

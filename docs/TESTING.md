@@ -14,7 +14,7 @@ make build
 
 # Verify go vet passes
 go vet ./...
-# Should complete with no errors ✅
+# Should complete with no errors 
 ```
 
 ### 2. Basic Functionality Test
@@ -42,8 +42,8 @@ go vet ./...
 ```
 
 **Expected Result**:
-- ✅ No connection errors related to address format
-- ✅ Port scan completes (may show ports as closed, that's fine)
+-  No connection errors related to address format
+-  Port scan completes (may show ports as closed, that's fine)
 - ❌ Should NOT see: "invalid address" or "too many colons" errors
 
 ### Test 2: SMTP Testing with IPv6
@@ -64,8 +64,8 @@ go vet ./...
 ```
 
 **Expected Result**:
-- ✅ Scanner attempts connections without address format errors
-- ✅ Handles IPv6 addresses correctly in all network operations
+-  Scanner attempts connections without address format errors
+-  Handles IPv6 addresses correctly in all network operations
 
 ---
 
@@ -84,8 +84,8 @@ go vet ./...
 ```
 
 **Expected Result**:
-- ✅ All IPv4 operations work as before
-- ✅ No regressions introduced
+-  All IPv4 operations work as before
+-  No regressions introduced
 
 ---
 
@@ -127,8 +127,8 @@ go test ./pkg/auth/discovery/... -v
 ```
 
 **Expected Result**:
-- ✅ All tests pass
-- ✅ No panics or address format errors
+-  All tests pass
+-  No panics or address format errors
 
 ---
 
@@ -148,8 +148,8 @@ go test ./pkg/auth/discovery/... -v
 ```
 
 **Expected Result**:
-- ✅ Proper error messages (not panics)
-- ✅ Graceful handling of invalid input
+-  Proper error messages (not panics)
+-  Graceful handling of invalid input
 
 ---
 
@@ -170,9 +170,9 @@ go test ./pkg/auth/discovery/... -v
 ```
 
 **Expected Result**:
-- ✅ Full bug bounty workflow completes
-- ✅ No network connection errors
-- ✅ Results properly stored and queryable
+-  Full bug bounty workflow completes
+-  No network connection errors
+-  Results properly stored and queryable
 
 ---
 
@@ -229,17 +229,17 @@ git revert <commit-hash>
 
 ---
 
-## Success Criteria ✅
+## Success Criteria 
 
 The IPv6 fixes are verified successful if:
 
-1. ✅ `go vet ./...` passes with no warnings
-2. ✅ `make test` passes all tests
-3. ✅ IPv6 addresses don't cause connection errors
-4. ✅ IPv4 functionality unchanged (no regression)
-5. ✅ Port scanning works on public IPv6 DNS servers
-6. ✅ Bug bounty workflow completes end-to-end
-7. ✅ No panics or crashes on edge cases
+1.  `go vet ./...` passes with no warnings
+2.  `make test` passes all tests
+3.  IPv6 addresses don't cause connection errors
+4.  IPv4 functionality unchanged (no regression)
+5.  Port scanning works on public IPv6 DNS servers
+6.  Bug bounty workflow completes end-to-end
+7.  No panics or crashes on edge cases
 
 ---
 

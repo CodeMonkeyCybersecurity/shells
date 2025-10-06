@@ -76,7 +76,7 @@ Examples:
 			return fmt.Errorf("failed to create scheduled scan: %w", err)
 		}
 
-		fmt.Printf("✅ Successfully created scheduled scan\n")
+		fmt.Printf(" Successfully created scheduled scan\n")
 		fmt.Printf("   Name: %s\n", name)
 		fmt.Printf("   Target: %s\n", target)
 		fmt.Printf("   Schedule: %s\n", cron)
@@ -114,7 +114,7 @@ var scheduleListCmd = &cobra.Command{
 			return nil
 		}
 
-		statusIcon := "✅"
+		statusIcon := ""
 		if status.Status != "running" {
 			statusIcon = "⚠️"
 		}
@@ -148,7 +148,7 @@ var scheduleDeleteCmd = &cobra.Command{
 		fmt.Printf("🗑️ Deleting scheduled scan: %s\n", scheduleName)
 
 		// Note: This would require implementing a DeleteJob method in the nomad client
-		fmt.Printf("✅ Scheduled scan deleted: %s\n", scheduleName)
+		fmt.Printf(" Scheduled scan deleted: %s\n", scheduleName)
 
 		return nil
 	},

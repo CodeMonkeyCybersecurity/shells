@@ -245,7 +245,7 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 
 	// Print results location
 	dbPath := "~/.shells/shells.db" // Default database path
-	fmt.Printf("\n📊 Results saved to: %s\n", color.CyanString(dbPath))
+	fmt.Printf("\n Results saved to: %s\n", color.CyanString(dbPath))
 	fmt.Printf("\nQuery results with:\n")
 	fmt.Printf("  shells results query --scan-id %s\n", result.ScanID)
 	fmt.Printf("  shells results stats\n")

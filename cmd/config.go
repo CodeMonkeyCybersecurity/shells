@@ -149,14 +149,14 @@ var configShowCmd = &cobra.Command{
 		configured := 0
 		for key, name := range apis {
 			if val, exists := keys[key]; exists && val != "" {
-				fmt.Printf("   ✅ %s: Configured\n", name)
+				fmt.Printf("    %s: Configured\n", name)
 				configured++
 			} else {
 				fmt.Printf("   ❌ %s: Not configured\n", name)
 			}
 		}
 
-		fmt.Printf("\n📊 Total: %d/%d APIs configured\n", configured, len(apis))
+		fmt.Printf("\n Total: %d/%d APIs configured\n", configured, len(apis))
 
 		// Show config file location
 		homeDir, _ := os.UserHomeDir()
@@ -204,7 +204,7 @@ var configClearCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "You may need to manually delete this file\n")
 		}
 
-		fmt.Println("✅ API credentials cleared")
+		fmt.Println(" API credentials cleared")
 
 		return nil
 	},
