@@ -226,6 +226,8 @@ func (e *Engine) ListSessions() []*DiscoverySession {
 }
 
 // runDiscovery runs the discovery process
+// TODO P0: This should accept context.Context parameter from parent to respect timeout chain
+// Currently uses context.Background() which ignores parent cancellation
 func (e *Engine) runDiscovery(session *DiscoverySession) {
 	start := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), e.config.Timeout)

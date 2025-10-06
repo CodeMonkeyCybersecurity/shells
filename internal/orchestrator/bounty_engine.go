@@ -408,6 +408,20 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 
 	// Phase 3: Vulnerability Testing (parallel)
 	tracker.StartPhase("testing")
+
+	// DIAGNOSTIC: Check context status before testing
+	select {
+	case <-ctx.Done():
+		e.logger.Errorw("DIAGNOSTIC: Context already cancelled before testing phase",
+			"error", ctx.Err(),
+			"elapsed_time", time.Since(result.StartTime),
+		)
+	default:
+		e.logger.Infow("DIAGNOSTIC: Context still valid before testing phase",
+			"elapsed_time", time.Since(result.StartTime),
+		)
+	}
+
 	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized, tracker)
 	for phase, pr := range phaseResults {
 		result.PhaseResults[phase] = pr
@@ -1209,6 +1223,18 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 
 	e.logger.Infow("Running Nmap service fingerprinting")
 
+	// DIAGNOSTIC: Check context before Nmap execution
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		e.logger.Infow("DIAGNOSTIC: Context deadline before Nmap execution",
+			"deadline", deadline,
+			"remaining_seconds", remaining.Seconds(),
+			"remaining_duration", remaining.String(),
+		)
+	} else {
+		e.logger.Warnw("DIAGNOSTIC: No deadline on context before Nmap - this is unexpected!")
+	}
+
 	var findings []types.Finding
 
 	// Scan each asset's host
@@ -1225,6 +1251,19 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 			"host", host,
 			"component", "nmap_scanner",
 		)
+
+		// DIAGNOSTIC: Check context status immediately before each Nmap call
+		select {
+		case <-ctx.Done():
+			e.logger.Errorw("DIAGNOSTIC: Context already cancelled before Nmap.Scan()",
+				"error", ctx.Err(),
+				"host", host,
+			)
+		default:
+			e.logger.Debugw("DIAGNOSTIC: Context still valid before Nmap.Scan()",
+				"host", host,
+			)
+		}
 
 		// Run Nmap scan
 		results, err := e.nmapScanner.Scan(ctx, host, nil)
