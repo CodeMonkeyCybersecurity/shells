@@ -369,7 +369,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 
 	// Log initial context state
 	if deadline, ok := ctx.Deadline(); ok {
-		e.logger.Infow("⏰ Total timeout context created",
+		e.logger.Infow(" Total timeout context created",
 			"total_timeout", e.config.TotalTimeout.String(),
 			"deadline", deadline.Format(time.RFC3339),
 			"deadline_unix", deadline.Unix(),
@@ -418,7 +418,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	} else {
 		// Normal/Deep mode: Run full discovery
 		discoveryStart := time.Now()
-		e.logger.Infow("🔍 Phase 1: Starting full discovery",
+		e.logger.Infow(" Phase 1: Starting full discovery",
 			"target", target,
 			"discovery_timeout", e.config.DiscoveryTimeout.String(),
 			"enable_dns", e.config.EnableDNS,
@@ -458,14 +458,14 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	// Log context status after discovery
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow("⏰ Context status after discovery",
+		e.logger.Infow(" Context status after discovery",
 			"remaining_time", remaining.String(),
 			"remaining_seconds", remaining.Seconds(),
 			"elapsed_since_scan_start", time.Since(execStart).String(),
 			"context_healthy", remaining > 0,
 		)
 		if remaining <= 0 {
-			e.logger.Errorw("🚨 CRITICAL: Context already expired after discovery!",
+			e.logger.Errorw(" CRITICAL: Context already expired after discovery!",
 				"expired_by", (-remaining).String(),
 			)
 		}
@@ -520,14 +520,14 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	// Check context status before testing
 	select {
 	case <-ctx.Done():
-		e.logger.Errorw("🚨 CRITICAL: Context already cancelled before testing phase",
+		e.logger.Errorw(" CRITICAL: Context already cancelled before testing phase",
 			"error", ctx.Err(),
 			"elapsed_time", time.Since(execStart).String(),
 		)
 	default:
 		if deadline, ok := ctx.Deadline(); ok {
 			remaining := time.Until(deadline)
-			e.logger.Infow("⏰ Context valid before testing",
+			e.logger.Infow(" Context valid before testing",
 				"remaining_time", remaining.String(),
 				"remaining_seconds", remaining.Seconds(),
 				"elapsed_time", time.Since(execStart).String(),
@@ -563,14 +563,14 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	// Check context status before storage
 	select {
 	case <-ctx.Done():
-		e.logger.Errorw("🚨 CRITICAL: Context already cancelled before storage phase",
+		e.logger.Errorw(" CRITICAL: Context already cancelled before storage phase",
 			"error", ctx.Err(),
 			"elapsed_time", time.Since(execStart).String(),
 		)
 	default:
 		if deadline, ok := ctx.Deadline(); ok {
 			remaining := time.Until(deadline)
-			e.logger.Infow("⏰ Context valid before storage",
+			e.logger.Infow(" Context valid before storage",
 				"remaining_time", remaining.String(),
 				"remaining_seconds", remaining.Seconds(),
 				"elapsed_time", time.Since(execStart).String(),
@@ -648,29 +648,77 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 
 // executeDiscoveryPhase runs asset discovery with timeout
 func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string, tracker *progress.Tracker) ([]*discovery.Asset, PhaseResult) {
+	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "discovery",
 		Status:    "running",
-		StartTime: time.Now(),
+		StartTime: phaseStart,
 	}
 
-	e.logger.Infow("Phase 1: Asset Discovery", "target", target, "timeout", e.config.DiscoveryTimeout)
+	// Log parent context status
+	if deadline, ok := ctx.Deadline(); ok {
+		e.logger.Infow("⏰ Parent context status before discovery phase",
+			"target", target,
+			"parent_deadline", deadline.Format(time.RFC3339),
+			"time_until_parent_deadline", time.Until(deadline).String(),
+			"parent_deadline_seconds", time.Until(deadline).Seconds(),
+		)
+	} else {
+		e.logger.Warnw("⚠️  No parent context deadline - unexpected!",
+			"target", target,
+		)
+	}
+
+	e.logger.Infow("🔍 Phase 1: Starting Asset Discovery",
+		"target", target,
+		"discovery_timeout", e.config.DiscoveryTimeout.String(),
+	)
 	tracker.UpdateProgress("discovery", 10)
 
 	// Start discovery session
+	sessionStart := time.Now()
 	session, err := e.discoveryEngine.StartDiscovery(target)
 	if err != nil {
 		phase.Status = "failed"
 		phase.Error = fmt.Sprintf("failed to start discovery: %v", err)
 		phase.EndTime = time.Now()
 		phase.Duration = phase.EndTime.Sub(phase.StartTime)
-		e.logger.Errorw("Discovery failed to start", "error", err, "target", target)
+		e.logger.Errorw("❌ Discovery failed to start",
+			"error", err,
+			"target", target,
+			"elapsed_time", time.Since(phaseStart).String(),
+		)
 		return nil, phase
 	}
 
-	// Create discovery timeout context
+	e.logger.Infow("✅ Discovery session started",
+		"target", target,
+		"session_id", session.ID,
+		"session_start_duration", time.Since(sessionStart).String(),
+	)
+
+	// Create discovery timeout context from PARENT context
 	discoveryCtx, discoveryCancel := context.WithTimeout(ctx, e.config.DiscoveryTimeout)
 	defer discoveryCancel()
+
+	// Log discovery context deadline
+	if deadline, ok := discoveryCtx.Deadline(); ok {
+		parentDeadline, hasParent := ctx.Deadline()
+		e.logger.Infow("⏰ Discovery context created FROM PARENT",
+			"target", target,
+			"session_id", session.ID,
+			"discovery_deadline", deadline.Format(time.RFC3339),
+			"discovery_timeout", e.config.DiscoveryTimeout.String(),
+			"time_until_discovery_deadline", time.Until(deadline).String(),
+			"has_parent_deadline", hasParent,
+			"parent_deadline", func() string {
+				if hasParent {
+					return parentDeadline.Format(time.RFC3339)
+				}
+				return "NONE"
+			}(),
+		)
+	}
 
 	// Wait for discovery to complete or timeout
 	discoveryComplete := make(chan bool, 1)
@@ -1093,7 +1141,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 	var findings []types.Finding
 
 	// Discover authentication endpoints
-	e.logger.Infow("🔍 Discovering authentication endpoints",
+	e.logger.Infow(" Discovering authentication endpoints",
 		"target", target,
 		"component", "auth_scanner",
 	)
@@ -1153,7 +1201,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
-				e.logger.Infow("🚨 SAML vulnerability found",
+				e.logger.Infow(" SAML vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
 					"title", vuln.Title,
@@ -1202,7 +1250,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
-				e.logger.Infow("🚨 OAuth2 vulnerability found",
+				e.logger.Infow(" OAuth2 vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
 					"title", vuln.Title,
@@ -1249,7 +1297,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
-				e.logger.Infow("🚨 WebAuthn vulnerability found",
+				e.logger.Infow(" WebAuthn vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
 					"title", vuln.Title,
@@ -1411,7 +1459,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		StartTime: phaseStart,
 	}
 
-	e.logger.Infow("🔍 Starting Nmap service fingerprinting phase",
+	e.logger.Infow(" Starting Nmap service fingerprinting phase",
 		"asset_count", len(assets),
 		"component", "nmap_scanner",
 	)
@@ -1419,7 +1467,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 	// DIAGNOSTIC: Check context before Nmap execution
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow("⏰ Context status at Nmap phase start",
+		e.logger.Infow(" Context status at Nmap phase start",
 			"deadline", deadline.Format(time.RFC3339),
 			"deadline_unix", deadline.Unix(),
 			"remaining_seconds", remaining.Seconds(),
@@ -1428,7 +1476,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 			"component", "nmap_scanner",
 		)
 		if remaining <= 0 {
-			e.logger.Errorw("🚨 CRITICAL: Context already expired before Nmap phase!",
+			e.logger.Errorw(" CRITICAL: Context already expired before Nmap phase!",
 				"expired_by", (-remaining).String(),
 				"component", "nmap_scanner",
 			)
@@ -1473,7 +1521,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		// DIAGNOSTIC: Check context status immediately before each Nmap call
 		select {
 		case <-ctx.Done():
-			e.logger.Errorw("🚨 CRITICAL: Context cancelled before Nmap.Scan()",
+			e.logger.Errorw(" CRITICAL: Context cancelled before Nmap.Scan()",
 				"error", ctx.Err(),
 				"host", host,
 				"scanned_count", scannedCount,
@@ -1487,7 +1535,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		default:
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
-				e.logger.Infow("⏰ Context valid before Nmap.Scan()",
+				e.logger.Infow(" Context valid before Nmap.Scan()",
 					"host", host,
 					"remaining_time", remaining.String(),
 					"remaining_seconds", remaining.Seconds(),
@@ -1511,7 +1559,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 
 			// Check if error was due to context cancellation
 			if ctx.Err() != nil {
-				e.logger.Errorw("🚨 Nmap scan failed due to context cancellation",
+				e.logger.Errorw(" Nmap scan failed due to context cancellation",
 					"context_error", ctx.Err(),
 					"scan_error", err,
 					"host", host,
@@ -1560,7 +1608,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		StartTime: phaseStart,
 	}
 
-	e.logger.Infow("🔍 Starting Nuclei vulnerability scanning phase",
+	e.logger.Infow(" Starting Nuclei vulnerability scanning phase",
 		"asset_count", len(assets),
 		"component", "nuclei_scanner",
 	)
@@ -1568,14 +1616,14 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 	// Check context status at phase start
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow("⏰ Context status at Nuclei phase start",
+		e.logger.Infow(" Context status at Nuclei phase start",
 			"remaining_time", remaining.String(),
 			"remaining_seconds", remaining.Seconds(),
 			"context_healthy", remaining > 0,
 			"component", "nuclei_scanner",
 		)
 		if remaining <= 0 {
-			e.logger.Errorw("🚨 CRITICAL: Context already expired before Nuclei phase!",
+			e.logger.Errorw(" CRITICAL: Context already expired before Nuclei phase!",
 				"expired_by", (-remaining).String(),
 				"component", "nuclei_scanner",
 			)
@@ -1601,7 +1649,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		// Check context status before each scan
 		select {
 		case <-ctx.Done():
-			e.logger.Errorw("🚨 CRITICAL: Context cancelled before Nuclei scan",
+			e.logger.Errorw(" CRITICAL: Context cancelled before Nuclei scan",
 				"error", ctx.Err(),
 				"target", asset.Asset.Value,
 				"progress", progress,
@@ -1614,7 +1662,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		default:
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
-				e.logger.Debugw("⏰ Context valid before Nuclei scan",
+				e.logger.Debugw(" Context valid before Nuclei scan",
 					"target", asset.Asset.Value,
 					"remaining_time", remaining.String(),
 					"component", "nuclei_scanner",
@@ -1637,7 +1685,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 
 			// Check if error was due to context cancellation
 			if ctx.Err() != nil {
-				e.logger.Errorw("🚨 Nuclei scan failed due to context cancellation",
+				e.logger.Errorw(" Nuclei scan failed due to context cancellation",
 					"context_error", ctx.Err(),
 					"scan_error", err,
 					"target", asset.Asset.Value,

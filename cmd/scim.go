@@ -335,7 +335,7 @@ func printSCIMTestResults(findings []types.Finding, verbose bool) {
 
 	for _, severity := range severityOrder {
 		if findings, exists := severityGroups[severity]; exists {
-			fmt.Printf("🚨 %s Severity (%d findings)\n", severity, len(findings))
+			fmt.Printf(" %s Severity (%d findings)\n", severity, len(findings))
 			fmt.Printf("─────────────────────────────────\n")
 
 			for _, finding := range findings {

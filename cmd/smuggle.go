@@ -255,7 +255,7 @@ func printSmugglingDetectionResults(findings []types.Finding, verbose bool) {
 
 	for _, technique := range techniques {
 		if findings, exists := techniqueGroups[technique]; exists {
-			fmt.Printf("🚨 %s Technique (%d findings)\n", technique, len(findings))
+			fmt.Printf(" %s Technique (%d findings)\n", technique, len(findings))
 			fmt.Printf("─────────────────────────────────\n")
 
 			for _, finding := range findings {

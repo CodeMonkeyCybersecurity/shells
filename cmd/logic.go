@@ -431,7 +431,7 @@ Examples:
 		fmt.Printf("   High-risk bypasses: %d\n", highCount)
 
 		if criticalCount > 0 {
-			fmt.Printf("🚨 CRITICAL: MFA can be completely bypassed!\n")
+			fmt.Printf(" CRITICAL: MFA can be completely bypassed!\n")
 		} else if highCount > 0 {
 			fmt.Printf("  WARNING: MFA bypass vulnerabilities detected\n")
 		} else if len(results) > 0 {
@@ -553,7 +553,7 @@ Examples:
 		fmt.Printf("   High-risk issues: %d\n", highCount)
 
 		if criticalCount > 0 {
-			fmt.Printf("🚨 CRITICAL: Financial exploitation possible!\n")
+			fmt.Printf(" CRITICAL: Financial exploitation possible!\n")
 		} else if highCount > 0 {
 			fmt.Printf("  WARNING: Payment logic vulnerabilities detected\n")
 		} else if len(results) > 0 {
@@ -682,7 +682,7 @@ Examples:
 		fmt.Printf("   High-risk bypasses: %d\n", highCount)
 
 		if criticalCount > 0 {
-			fmt.Printf("🚨 CRITICAL: Account recovery can be fully bypassed!\n")
+			fmt.Printf(" CRITICAL: Account recovery can be fully bypassed!\n")
 		} else if highCount > 0 {
 			fmt.Printf("  WARNING: Recovery bypass vulnerabilities detected\n")
 		} else if len(results) > 0 {
@@ -775,7 +775,7 @@ Examples:
 		// Final security assessment
 		fmt.Printf("\n🛡️  Overall Security Assessment:\n")
 		if report.Metadata.CriticalCount > 0 {
-			fmt.Printf("🚨 CRITICAL: Immediate action required - %d critical vulnerabilities\n", report.Metadata.CriticalCount)
+			fmt.Printf(" CRITICAL: Immediate action required - %d critical vulnerabilities\n", report.Metadata.CriticalCount)
 		} else if report.Metadata.HighCount > 2 {
 			fmt.Printf("  HIGH RISK: Significant vulnerabilities detected - %d high-risk issues\n", report.Metadata.HighCount)
 		} else if report.Metadata.HighCount > 0 {
@@ -953,7 +953,7 @@ func printRaceResultsTable(results []logic.RaceConditionTest, verbose bool) {
 	for i, result := range results {
 		status := " Safe"
 		if result.Vulnerable {
-			status = "🚨 VULNERABLE"
+			status = " VULNERABLE"
 		}
 
 		fmt.Printf("%d. %s - %s\n", i+1, result.Name, status)
@@ -1030,7 +1030,7 @@ func printReportSummary(report *logic.BusinessLogicReport, verbose bool) {
 	}
 
 	if len(report.Executive.ImmediateActions) > 0 {
-		fmt.Printf("🚨 Immediate Actions Required:\n")
+		fmt.Printf(" Immediate Actions Required:\n")
 		for _, action := range report.Executive.ImmediateActions {
 			fmt.Printf("   • %s\n", action)
 		}
@@ -1103,7 +1103,7 @@ func printRecoveryResultsTable(results []logic.Vulnerability, verbose bool) {
 func getSeverityEmoji(severity string) string {
 	switch severity {
 	case logic.SeverityCritical:
-		return "🚨"
+		return ""
 	case logic.SeverityHigh:
 		return ""
 	case logic.SeverityMedium:

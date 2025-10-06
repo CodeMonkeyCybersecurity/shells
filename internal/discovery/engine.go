@@ -230,8 +230,21 @@ func (e *Engine) ListSessions() []*DiscoverySession {
 // Currently uses context.Background() which ignores parent cancellation
 func (e *Engine) runDiscovery(session *DiscoverySession) {
 	start := time.Now()
+
+	//  CRITICAL: Creating DISCONNECTED context from Background()
+	// This ignores any parent context timeout/cancellation!
+	// Parent context deadline is LOST here
 	ctx, cancel := context.WithTimeout(context.Background(), e.config.Timeout)
 	defer cancel()
+
+	// Log the CRITICAL context disconnection issue
+	e.logger.Warnw(" CRITICAL: Discovery engine using context.Background() - parent timeout IGNORED",
+		"session_id", session.ID,
+		"discovery_timeout", e.config.Timeout.String(),
+		"context_source", "context.Background()",
+		"parent_context_deadline", "LOST - using Background() instead of parent",
+		"impact", "Discovery will NOT respect parent scan timeout",
+	)
 
 	// Add structured logger context
 	ctx, span := e.logger.StartOperation(ctx, "discovery.runDiscovery",
@@ -245,6 +258,17 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 		e.logger.FinishOperation(ctx, span, "discovery.runDiscovery", start, finalErr)
 	}()
 
+	// Log discovery context deadline
+	if deadline, ok := ctx.Deadline(); ok {
+		e.logger.Infow(" Discovery context created (DISCONNECTED from parent)",
+			"session_id", session.ID,
+			"discovery_deadline", deadline.Format(time.RFC3339),
+			"discovery_timeout", e.config.Timeout.String(),
+			"time_until_deadline", time.Until(deadline).String(),
+			"context_type", "ISOLATED - context.Background()",
+		)
+	}
+
 	session.Status = StatusRunning
 	defer func() {
 		if session.Status == StatusRunning {
@@ -254,26 +278,27 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 		session.CompletedAt = &now
 		session.Progress = 100.0
 
-		// Log session completion
+		// Log session completion with detailed stats
 		totalDuration := time.Since(start)
-		e.logger.WithContext(ctx).Infow("Discovery session completed",
+		e.logger.WithContext(ctx).Infow("🎉 Discovery session completed",
 			"session_id", session.ID,
 			"total_discovered", session.TotalDiscovered,
 			"high_value_assets", session.HighValueAssets,
 			"total_duration_ms", totalDuration.Milliseconds(),
+			"total_duration", totalDuration.String(),
 			"final_status", string(session.Status),
 			"error_count", len(session.Errors),
 		)
 	}()
 
 	// Log with both loggers for compatibility
-	e.logger.Infow("Running discovery", "session_id", session.ID)
+	e.logger.Infow(" Running discovery", "session_id", session.ID)
 
-	e.logger.WithContext(ctx).Infow("Starting discovery execution",
+	e.logger.WithContext(ctx).Infow("🎯 Starting discovery execution",
 		"session_id", session.ID,
 		"target_value", session.Target.Value,
 		"target_type", string(session.Target.Type),
-		"timeout", e.config.Timeout,
+		"timeout", e.config.Timeout.String(),
 		"max_depth", e.config.MaxDepth,
 		"max_assets", e.config.MaxAssets,
 	)

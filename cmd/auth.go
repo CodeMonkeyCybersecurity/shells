@@ -517,7 +517,7 @@ func printTestResults(report *common.AuthReport) {
 	fmt.Println()
 
 	if len(report.Vulnerabilities) > 0 {
-		fmt.Printf("🚨 Vulnerabilities Found:\n")
+		fmt.Printf(" Vulnerabilities Found:\n")
 		for _, vuln := range report.Vulnerabilities {
 			severityIcon := getSeverityIcon(vuln.Severity)
 			fmt.Printf("  %s [%s] %s\n", severityIcon, vuln.Severity, vuln.Title)

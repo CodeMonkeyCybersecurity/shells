@@ -371,7 +371,7 @@ func runrumbleScan(cmd *cobra.Command, args []string) error {
 	// Show critical and high findings
 	criticalAndHigh := filterFindingsBySeverity(findings, []string{"CRITICAL", "HIGH"})
 	if len(criticalAndHigh) > 0 {
-		fmt.Printf("\n🚨 Critical and High Severity Findings:\n")
+		fmt.Printf("\n Critical and High Severity Findings:\n")
 		for _, finding := range criticalAndHigh {
 			printrumbleFinding(finding)
 		}

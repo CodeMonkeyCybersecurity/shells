@@ -6,7 +6,7 @@
 //
 // Multiple critical database schema mismatches prevent functionality.
 //
-// 🚨 P0 ISSUES (CRITICAL - System Broken):
+//	P0 ISSUES (CRITICAL - System Broken):
 //
 // P0-1: Database Schema Mismatch in WHOIS Cache (Line 198)
 //

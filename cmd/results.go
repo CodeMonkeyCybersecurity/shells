@@ -740,7 +740,7 @@ func printStats(stats *core.FindingStats, criticalFindings []types.Finding) {
 
 	// Recent critical findings
 	if len(criticalFindings) > 0 {
-		fmt.Printf("\n🚨 Recent Critical Findings:\n")
+		fmt.Printf("\n Recent Critical Findings:\n")
 		for _, finding := range criticalFindings {
 			fmt.Printf("  • %s\n", finding.Title)
 			fmt.Printf("    %s | %s\n", finding.Tool, finding.CreatedAt.Format("Jan 02 15:04"))
