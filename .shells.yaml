@@ -1,6 +1,9 @@
 database:
-  driver: sqlite3
-  dsn: "shells_demo.db"
+  driver: postgres
+  dsn: "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable"
+  max_connections: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 1h
 
 logger:
   level: info

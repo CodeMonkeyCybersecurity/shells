@@ -288,7 +288,7 @@ Examples:
 			fmt.Printf("💳 Payment race testing enabled\n")
 		}
 		if testInventory {
-			fmt.Printf("📦 Inventory race testing enabled\n")
+			fmt.Printf(" Inventory race testing enabled\n")
 		}
 		fmt.Println()
 

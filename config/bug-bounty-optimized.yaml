@@ -5,8 +5,11 @@ version: 1
 
 # Core settings
 database:
-  driver: sqlite3
-  dsn: shells-bounty.db
+  driver: postgres
+  dsn: "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable"
+  max_connections: 50
+  max_idle_conns: 10
+  conn_max_lifetime: 1h
 
 logger:
   level: info

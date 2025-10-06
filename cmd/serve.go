@@ -234,6 +234,9 @@ func runServe(cmd *cobra.Command, args []string) error {
 		})
 	})
 
+	// Dashboard UI routes (no auth required for viewing)
+	api.RegisterDashboardRoutes(router, sqlStore.DB(), log)
+
 	// API routes
 	v1 := router.Group("/api/v1")
 	{

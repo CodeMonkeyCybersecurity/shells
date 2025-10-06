@@ -72,7 +72,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
@@ -89,12 +88,9 @@ type sqlStore struct {
 // Store is a public type alias for sqlStore
 type Store = sqlStore
 
-// getPlaceholder returns the appropriate placeholder for the database driver
+// getPlaceholder returns the appropriate placeholder for PostgreSQL
 func (s *sqlStore) getPlaceholder(n int) string {
-	if s.cfg.Driver == "postgres" {
-		return fmt.Sprintf("$%d", n)
-	}
-	return "?"
+	return fmt.Sprintf("$%d", n)
 }
 
 // closeRows safely closes database rows and logs any errors
@@ -224,31 +220,12 @@ func (s *sqlStore) migrate() error {
 		s.logger.FinishOperation(ctx, span, "database.migrate", time.Now(), nil)
 	}()
 
-	s.logger.WithContext(ctx).Infow("Starting database migration",
+	s.logger.WithContext(ctx).Infow("Starting PostgreSQL database migration",
 		"driver", s.cfg.Driver,
 	)
 
-	// Enable foreign keys for SQLite
-	if s.cfg.Driver == "sqlite3" {
-		start := time.Now()
-		_, err := s.db.Exec("PRAGMA foreign_keys = ON;")
-		if err != nil {
-			s.logger.LogError(ctx, err, "database.migrate.pragma",
-				"driver", s.cfg.Driver,
-				"duration_ms", time.Since(start).Milliseconds(),
-			)
-			return fmt.Errorf("failed to enable foreign keys: %w", err)
-		}
-		s.logger.LogDuration(ctx, "database.migrate.pragma", start,
-			"pragma", "foreign_keys",
-			"enabled", true,
-		)
-	}
-
-	// Schema differs between SQLite and PostgreSQL
-	var schema string
-	if s.cfg.Driver == "postgres" {
-		schema = `
+	// PostgreSQL-only schema
+	schema := `
 		CREATE TABLE IF NOT EXISTS scans (
 			id TEXT PRIMARY KEY,
 			target TEXT NOT NULL,
@@ -380,141 +357,6 @@ func (s *sqlStore) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_hera_stats_verdict ON hera_stats(verdict);
 		CREATE INDEX IF NOT EXISTS idx_hera_feedback_domain ON hera_feedback(domain);
 		`
-	} else {
-		schema = `
-		CREATE TABLE IF NOT EXISTS scans (
-			id TEXT PRIMARY KEY,
-			target TEXT NOT NULL,
-			type TEXT NOT NULL,
-			profile TEXT,
-			options TEXT,
-			scheduled_at TIMESTAMP,
-			created_at TIMESTAMP NOT NULL,
-			started_at TIMESTAMP,
-			completed_at TIMESTAMP,
-			status TEXT NOT NULL,
-			error_message TEXT,
-			worker_id TEXT
-		);
-
-		CREATE TABLE IF NOT EXISTS findings (
-			id TEXT PRIMARY KEY,
-			scan_id TEXT NOT NULL,
-			tool TEXT NOT NULL,
-			type TEXT NOT NULL,
-			severity TEXT NOT NULL,
-			title TEXT NOT NULL,
-			description TEXT,
-			evidence TEXT,
-			solution TEXT,
-			refs TEXT,
-			metadata TEXT,
-			created_at TIMESTAMP NOT NULL,
-			updated_at TIMESTAMP NOT NULL
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_findings_scan_id ON findings(scan_id);
-		CREATE INDEX IF NOT EXISTS idx_findings_severity ON findings(severity);
-		CREATE INDEX IF NOT EXISTS idx_scans_target ON scans(target);
-		CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
-		CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at);
-
-		-- Bug bounty platform submissions table (SQLite)
-		CREATE TABLE IF NOT EXISTS platform_submissions (
-			id TEXT PRIMARY KEY,
-			finding_id TEXT NOT NULL,
-			platform TEXT NOT NULL,
-			program_handle TEXT,
-			report_id TEXT NOT NULL,
-			report_url TEXT,
-			status TEXT NOT NULL,
-			platform_data TEXT,
-			submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (finding_id) REFERENCES findings(id) ON DELETE CASCADE,
-			UNIQUE(finding_id, platform)
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_submissions_finding_id ON platform_submissions(finding_id);
-		CREATE INDEX IF NOT EXISTS idx_submissions_platform ON platform_submissions(platform);
-		CREATE INDEX IF NOT EXISTS idx_submissions_status ON platform_submissions(status);
-
-		-- Hera browser extension tables (SQLite)
-		CREATE TABLE IF NOT EXISTS hera_detections (
-			id TEXT PRIMARY KEY,
-			domain TEXT NOT NULL,
-			detected_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			severity TEXT NOT NULL,
-			reasons TEXT,
-			user_agent TEXT,
-			extension_version TEXT
-		);
-
-		CREATE TABLE IF NOT EXISTS hera_domain_reputation (
-			domain TEXT PRIMARY KEY,
-			tranco_rank INTEGER,
-			category TEXT,
-			trust_score INTEGER CHECK (trust_score >= 0 AND trust_score <= 100),
-			age_days INTEGER,
-			owner TEXT,
-			first_seen TIMESTAMP,
-			last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE TABLE IF NOT EXISTS hera_whois_cache (
-			domain TEXT PRIMARY KEY,
-			registration_date TEXT,
-			registrar TEXT,
-			age_days INTEGER,
-			raw_data TEXT,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			expires_at TIMESTAMP NOT NULL
-		);
-
-		CREATE TABLE IF NOT EXISTS hera_threat_intel (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			domain TEXT NOT NULL,
-			source TEXT NOT NULL,
-			verdict TEXT NOT NULL,
-			score INTEGER,
-			details TEXT,
-			last_checked TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			expires_at TIMESTAMP NOT NULL,
-			UNIQUE(domain, source)
-		);
-
-		CREATE TABLE IF NOT EXISTS hera_stats (
-			date DATE NOT NULL,
-			verdict TEXT NOT NULL,
-			reputation_bucket INTEGER NOT NULL,
-			pattern TEXT,
-			count INTEGER DEFAULT 1,
-			PRIMARY KEY (date, verdict, reputation_bucket, pattern)
-		);
-
-		CREATE TABLE IF NOT EXISTS hera_feedback (
-			id TEXT PRIMARY KEY,
-			domain TEXT NOT NULL,
-			was_phishing INTEGER NOT NULL,
-			user_comment TEXT,
-			metadata TEXT,
-			detection_id TEXT,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE TABLE IF NOT EXISTS hera_pattern_stats (
-			pattern_name TEXT PRIMARY KEY,
-			true_positives INTEGER DEFAULT 0,
-			false_positives INTEGER DEFAULT 0,
-			last_updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-
-		CREATE INDEX IF NOT EXISTS idx_hera_detections_domain ON hera_detections(domain);
-		CREATE INDEX IF NOT EXISTS idx_hera_detections_severity ON hera_detections(severity);
-		CREATE INDEX IF NOT EXISTS idx_hera_stats_verdict ON hera_stats(verdict);
-		CREATE INDEX IF NOT EXISTS idx_hera_feedback_domain ON hera_feedback(domain);
-		`
-	}
 
 	start := time.Now()
 	_, err := s.db.Exec(schema)

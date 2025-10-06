@@ -9,18 +9,37 @@ Shells is a comprehensive security scanning platform designed for bug bounty hun
 
 ## Quick Start
 
-```bash
-# Build from source
-make deps
-make build
+**Super Easy - One Command Installation:**
 
-# Run full bug bounty pipeline
-./shells example.com
+```bash
+# Clone and run install script (handles everything automatically)
+git clone https://github.com/CodeMonkeyCybersecurity/shells
+cd shells
+./install.sh
+
+# Start web dashboard
+shells serve --port 8080
+
+# Open browser to http://localhost:8080 and start scanning!
+```
+
+**What install.sh does automatically:**
+- ✅ Installs/updates Go 1.24.4
+- ✅ Installs PostgreSQL and creates database
+- ✅ Builds shells binary
+- ✅ Sets up Python workers (GraphCrawler, IDORD)
+- ✅ Configures everything - just run and go!
+
+**Run scans:**
+
+```bash
+# Full automated workflow
+shells example.com
 
 # Or specify target type
-./shells "Acme Corporation"    # Discover company assets
-./shells admin@example.com     # Discover from email
-./shells 192.168.1.0/24        # Scan IP range
+shells "Acme Corporation"    # Discover company assets
+shells admin@example.com     # Discover from email
+shells 192.168.1.0/24        # Scan IP range
 ```
 
 ## Features
@@ -39,33 +58,118 @@ make build
 - **Infrastructure**: SSL/TLS analysis, port scanning
 
 ### Results & Reporting
-- **SQLite database**: Persistent storage with full query capabilities
+- **PostgreSQL database**: Production-ready storage with full ACID compliance
+- **Web dashboard**: Real-time scan progress and findings viewer at `http://localhost:8080`
 - **Export formats**: JSON, CSV, HTML
 - **Query & filter**: By severity, tool, target, date range
 - **Statistics**: Aggregate findings, trend analysis
+- **Auto-refresh**: Dashboard updates every 5 seconds
 
 ## Installation
 
-### From Source
+### Automated Installation (Zero Configuration)
+
+**Just run `./install.sh` - it handles EVERYTHING:**
+
+```bash
+# Clone and install (one command does it all!)
+git clone https://github.com/CodeMonkeyCybersecurity/shells
+cd shells
+./install.sh
+
+# That's it! Now start scanning:
+shells serve --port 8080
+```
+
+**What install.sh does automatically:**
+1. ✅ Detects your platform (Linux/macOS)
+2. ✅ Updates system packages (if needed)
+3. ✅ Installs Go 1.24.4
+4. ✅ **Installs PostgreSQL** (brew on macOS, apt/dnf on Linux)
+5. ✅ **Creates database and user** (`shells` database with `shells` user)
+6. ✅ **Configures connection string** in `.shells.yaml`
+7. ✅ Builds the `shells` binary
+8. ✅ Installs to `/usr/local/bin/shells`
+9. ✅ Sets up Python workers (GraphCrawler, IDORD)
+10. ✅ Creates config/log/secret directories
+
+**No manual PostgreSQL setup needed!** The script detects if you have Docker and offers to use a container, or installs PostgreSQL natively. Everything just works.
+
+**After installation:**
+```bash
+# Start the web dashboard (workers auto-start)
+shells serve --port 8080
+
+# Open http://localhost:8080 in your browser
+
+# Or run a scan directly
+shells example.com
+```
+
+### Manual Installation (Advanced)
 
 ```bash
 # Clone repository
 git clone https://github.com/CodeMonkeyCybersecurity/shells
 cd shells
 
-# Install dependencies
-make deps
-
 # Build binary
-make build
+go build -o shells
 
-# Optional: Install to $GOPATH/bin
-make install
+# Optional: Install to PATH
+sudo cp shells /usr/local/bin/
+sudo chmod 755 /usr/local/bin/shells
 ```
 
 ### Requirements
-- Go 1.21 or higher
-- SQLite3
+- **Go**: 1.21 or higher (automatically installed by install.sh)
+- **PostgreSQL**: 15 or higher (required for database storage)
+- **Python 3.8+**: Optional, for GraphCrawler and IDORD workers
+- **Docker**: Optional, for containerized deployment
+- **Git**: For cloning and updates
+
+### Docker Deployment (Production)
+
+For production deployments, use Docker Compose to run shells with all dependencies in a single network:
+
+```bash
+cd deployments/docker
+
+# Start full stack (PostgreSQL + Redis + OTEL + Shells API + Workers)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f shells-api
+
+# Access web dashboard at http://localhost:8080
+```
+
+**Architecture**:
+- `shells-api`: Main API server with web dashboard (port 8080)
+- `webscan-worker`: 3 worker instances for distributed scanning
+- `postgres`: PostgreSQL database (single source of truth)
+- `redis`: Job queue for worker coordination
+- `otel-collector`: OpenTelemetry metrics collection
+- `nmap`: Network scanning container
+- `zap`: OWASP ZAP proxy container
+
+**Key Benefits**:
+- ✅ **Single database**: All containers share the same PostgreSQL instance
+- ✅ **No data duplication**: Workers and API use the same dataset
+- ✅ **Scalable**: Increase worker replicas in docker-compose.yml
+- ✅ **Persistent storage**: Database and Redis data survive container restarts
+- ✅ **Network isolation**: All containers in isolated Docker network
+
+```bash
+# Scale workers
+docker-compose up -d --scale webscan-worker=10
+
+# Stop all services
+docker-compose down
+
+# Stop and remove data volumes
+docker-compose down -v
+```
 
 ## Usage
 
@@ -101,7 +205,56 @@ The main command runs the full orchestrated pipeline:
 ./shells results query --severity critical
 ./shells results stats
 ./shells results export scan-12345 --format json
+
+# Bug bounty platform integration
+./shells platform programs --platform hackerone
+./shells platform submit <finding-id> --platform bugcrowd --program my-program
+./shells platform auto-submit --severity CRITICAL
+
+# Self-management
+./shells self update                    # Update to latest version
+./shells self update --branch develop   # Update from specific branch
 ```
+
+### Python Worker Services (GraphQL & IDOR Scanning)
+
+Shells integrates specialized Python tools for GraphQL and IDOR vulnerability detection:
+
+```bash
+# One-time setup (clones GraphCrawler & IDORD, creates venv)
+shells workers setup
+
+# Start worker service
+shells workers start
+
+# Or start API server with workers auto-started
+shells serve  # Workers start automatically
+
+# Check worker health
+shells workers status
+
+# Stop workers
+shells workers stop
+```
+
+**Integrated Tools:**
+- **GraphCrawler** ([gsmith257-cyber/GraphCrawler](https://github.com/gsmith257-cyber/GraphCrawler))
+  - GraphQL endpoint discovery
+  - Schema introspection
+  - Mutation detection
+  - Authorization testing
+
+- **IDORD** ([AyemunHossain/IDORD](https://github.com/AyemunHossain/IDORD))
+  - Automated IDOR vulnerability scanning
+  - Multi-user authorization testing
+  - Smart ID fuzzing (numeric, UUID, alphanumeric)
+  - Authenticated testing support
+
+**Worker Architecture:**
+- FastAPI service wraps Python tools
+- REST API for job submission and status
+- Background task execution with polling
+- Automatic integration when running `shells serve`
 
 ### Configuration
 

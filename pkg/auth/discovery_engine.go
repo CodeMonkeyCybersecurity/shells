@@ -245,6 +245,10 @@ func (e *AuthDiscoveryEngine) DiscoverAllAuth(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			e.logger.Infow("Starting port-based authentication discovery",
+				"target", target,
+				"checking_ports", "LDAP(389,636), Kerberos(88), RADIUS(1812,1813)",
+			)
 			e.discoverPortBasedAuth(ctx, target, inventory, &mu)
 		}()
 	}
@@ -254,6 +258,10 @@ func (e *AuthDiscoveryEngine) DiscoverAllAuth(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			e.logger.Infow("Starting web-based authentication discovery",
+				"target", target,
+				"methods", "SAML, OAuth2, OIDC, WebAuthn, Forms",
+			)
 			e.discoverWebBasedAuth(ctx, target, inventory, &mu)
 		}()
 	}
@@ -323,6 +331,11 @@ func (e *AuthDiscoveryEngine) discoverWebBasedAuth(ctx context.Context, target s
 		go func(n string, c AuthCrawler) {
 			defer wg.Done()
 
+			e.logger.Infow("Discovering authentication endpoints",
+				"target", target,
+				"method", n,
+			)
+
 			endpoints, err := c.Crawl(ctx, target)
 			if err != nil {
 				e.logger.Debugw("Crawler failed", "crawler", n, "error", err)
@@ -330,6 +343,11 @@ func (e *AuthDiscoveryEngine) discoverWebBasedAuth(ctx context.Context, target s
 			}
 
 			if endpoints != nil && len(endpoints.Endpoints) > 0 {
+				e.logger.Infow("Found authentication endpoints",
+					"target", target,
+					"method", n,
+					"count", len(endpoints.Endpoints),
+				)
 				e.processAuthEndpoints(n, endpoints, inventory, mu)
 			}
 		}(name, crawler)
@@ -339,6 +357,7 @@ func (e *AuthDiscoveryEngine) discoverWebBasedAuth(ctx context.Context, target s
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		e.logger.Infow("Checking common authentication endpoints", "target", target)
 		e.checkCommonEndpoints(ctx, target, inventory, mu)
 	}()
 
@@ -346,6 +365,7 @@ func (e *AuthDiscoveryEngine) discoverWebBasedAuth(ctx context.Context, target s
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		e.logger.Infow("Analyzing authentication headers", "target", target)
 		e.checkAuthHeaders(ctx, target, inventory, mu)
 	}()
 
@@ -397,7 +417,13 @@ func (e *AuthDiscoveryEngine) checkCommonEndpoints(ctx context.Context, baseURL 
 		"/cas/login",          // CAS
 	}
 
-	for _, endpoint := range commonEndpoints {
+	e.logger.Infow("Checking common endpoints",
+		"target", baseURL,
+		"total_endpoints", len(commonEndpoints),
+	)
+
+	foundCount := 0
+	for i, endpoint := range commonEndpoints {
 		url := strings.TrimSuffix(baseURL, "/") + endpoint
 
 		resp, err := e.httpClient.Get(url)
@@ -408,8 +434,22 @@ func (e *AuthDiscoveryEngine) checkCommonEndpoints(ctx context.Context, baseURL 
 
 		// Check if endpoint exists and analyze
 		if resp.StatusCode == 200 || resp.StatusCode == 401 || resp.StatusCode == 302 {
+			foundCount++
+			e.logger.Debugw("Found potential auth endpoint",
+				"url", url,
+				"status", resp.StatusCode,
+				"progress", fmt.Sprintf("%d/%d", i+1, len(commonEndpoints)),
+			)
 			e.analyzeEndpoint(url, resp, inventory, mu)
 		}
+	}
+
+	if foundCount > 0 {
+		e.logger.Infow("Common endpoint check complete",
+			"target", baseURL,
+			"found", foundCount,
+			"total_checked", len(commonEndpoints),
+		)
 	}
 }
 

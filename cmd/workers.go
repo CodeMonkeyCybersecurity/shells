@@ -46,7 +46,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Clone GraphCrawler
-		fmt.Println("📦 Cloning GraphCrawler...")
+		fmt.Println(" Cloning GraphCrawler...")
 		graphCrawlerDir := filepath.Join(workersDir, "GraphCrawler")
 		if _, err := os.Stat(graphCrawlerDir); os.IsNotExist(err) {
 			cloneCmd := exec.Command("git", "clone", "https://github.com/gsmith257-cyber/GraphCrawler.git", graphCrawlerDir)
@@ -59,11 +59,11 @@ and install all dependencies. This only needs to be run once.`,
 			fmt.Println("   GraphCrawler already exists, skipping clone")
 		}
 
-		// Clone IDORD
-		fmt.Println("📦 Cloning IDORD...")
+		// Clone IDORD (AyemunHossain/IDORD - actively maintained version)
+		fmt.Println(" Cloning IDORD...")
 		idordDir := filepath.Join(workersDir, "IDORD")
 		if _, err := os.Stat(idordDir); os.IsNotExist(err) {
-			cloneCmd := exec.Command("git", "clone", "https://github.com/prashant-th18/IDORD.git", idordDir)
+			cloneCmd := exec.Command("git", "clone", "https://github.com/AyemunHossain/IDORD.git", idordDir)
 			cloneCmd.Stdout = os.Stdout
 			cloneCmd.Stderr = os.Stderr
 			if err := cloneCmd.Run(); err != nil {

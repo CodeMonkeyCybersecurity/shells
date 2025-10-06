@@ -1,0 +1,497 @@
+// internal/api/dashboard.go
+package api
+
+import (
+	"context"
+	"database/sql"
+	"net/http"
+	"time"
+
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
+)
+
+// RegisterDashboardRoutes registers the web UI dashboard routes
+func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger) {
+	// Serve the dashboard HTML
+	router.GET("/", func(c *gin.Context) {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, dashboardHTML)
+	})
+
+	// API endpoint for scan list
+	router.GET("/api/dashboard/scans", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		rows, err := db.QueryContext(ctx, `
+			SELECT id, target, type, status, created_at, started_at, completed_at, error_message
+			FROM scans
+			ORDER BY created_at DESC
+			LIMIT 100
+		`)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		type ScanInfo struct {
+			ID          string     `json:"id"`
+			Target      string     `json:"target"`
+			Type        string     `json:"type"`
+			Status      string     `json:"status"`
+			CreatedAt   time.Time  `json:"created_at"`
+			StartedAt   *time.Time `json:"started_at,omitempty"`
+			CompletedAt *time.Time `json:"completed_at,omitempty"`
+			ErrorMsg    *string    `json:"error_message,omitempty"`
+		}
+
+		scans := []ScanInfo{}
+		for rows.Next() {
+			var s ScanInfo
+			if err := rows.Scan(&s.ID, &s.Target, &s.Type, &s.Status, &s.CreatedAt, &s.StartedAt, &s.CompletedAt, &s.ErrorMsg); err != nil {
+				continue
+			}
+			scans = append(scans, s)
+		}
+
+		c.JSON(http.StatusOK, scans)
+	})
+
+	// API endpoint for scan details and findings
+	router.GET("/api/dashboard/scans/:id", func(c *gin.Context) {
+		scanID := c.Param("id")
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		// Get scan info
+		var scan struct {
+			ID          string     `json:"id"`
+			Target      string     `json:"target"`
+			Type        string     `json:"type"`
+			Status      string     `json:"status"`
+			CreatedAt   time.Time  `json:"created_at"`
+			StartedAt   *time.Time `json:"started_at,omitempty"`
+			CompletedAt *time.Time `json:"completed_at,omitempty"`
+			ErrorMsg    *string    `json:"error_message,omitempty"`
+		}
+
+		err := db.QueryRowContext(ctx, `
+			SELECT id, target, type, status, created_at, started_at, completed_at, error_message
+			FROM scans WHERE id = $1
+		`, scanID).Scan(&scan.ID, &scan.Target, &scan.Type, &scan.Status, &scan.CreatedAt, &scan.StartedAt, &scan.CompletedAt, &scan.ErrorMsg)
+
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Scan not found"})
+			return
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Get findings
+		rows, err := db.QueryContext(ctx, `
+			SELECT id, tool, type, severity, title, description, evidence, solution, refs, metadata, created_at
+			FROM findings WHERE scan_id = $1 ORDER BY severity DESC, created_at DESC
+		`, scanID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		type Finding struct {
+			ID          string    `json:"id"`
+			Tool        string    `json:"tool"`
+			Type        string    `json:"type"`
+			Severity    string    `json:"severity"`
+			Title       string    `json:"title"`
+			Description *string   `json:"description,omitempty"`
+			Evidence    *string   `json:"evidence,omitempty"`
+			Solution    *string   `json:"solution,omitempty"`
+			Refs        *string   `json:"refs,omitempty"`
+			Metadata    *string   `json:"metadata,omitempty"`
+			CreatedAt   time.Time `json:"created_at"`
+		}
+
+		findings := []Finding{}
+		for rows.Next() {
+			var f Finding
+			if err := rows.Scan(&f.ID, &f.Tool, &f.Type, &f.Severity, &f.Title, &f.Description, &f.Evidence, &f.Solution, &f.Refs, &f.Metadata, &f.CreatedAt); err != nil {
+				continue
+			}
+			findings = append(findings, f)
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"scan":     scan,
+			"findings": findings,
+		})
+	})
+
+	// API endpoint for statistics
+	router.GET("/api/dashboard/stats", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		var stats struct {
+			TotalScans    int `json:"total_scans"`
+			ActiveScans   int `json:"active_scans"`
+			TotalFindings int `json:"total_findings"`
+			CriticalCount int `json:"critical_count"`
+			HighCount     int `json:"high_count"`
+			MediumCount   int `json:"medium_count"`
+			LowCount      int `json:"low_count"`
+		}
+
+		// Total scans
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM scans").Scan(&stats.TotalScans)
+
+		// Active scans
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM scans WHERE status IN ('pending', 'running')").Scan(&stats.ActiveScans)
+
+		// Total findings
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM findings").Scan(&stats.TotalFindings)
+
+		// Findings by severity
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM findings WHERE severity = 'CRITICAL'").Scan(&stats.CriticalCount)
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM findings WHERE severity = 'HIGH'").Scan(&stats.HighCount)
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM findings WHERE severity = 'MEDIUM'").Scan(&stats.MediumCount)
+		db.QueryRowContext(ctx, "SELECT COUNT(*) FROM findings WHERE severity = 'LOW'").Scan(&stats.LowCount)
+
+		c.JSON(http.StatusOK, stats)
+	})
+}
+
+const dashboardHTML = `<!DOCTYPE html>
+<!--suppress ALL -->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shells - Security Scanner Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f0f23;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        h2 { font-size: 1.5rem; margin: 30px 0 15px; color: #a0a0a0; }
+        .subtitle { color: #6b7280; margin-bottom: 30px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #2a2a3e;
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label { color: #9ca3af; font-size: 0.875rem; }
+        .severity-critical { color: #ef4444; }
+        .severity-high { color: #f59e0b; }
+        .severity-medium { color: #fbbf24; }
+        .severity-low { color: #3b82f6; }
+        .scans-table {
+            background: #1a1a2e;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #2a2a3e;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            background: #16213e;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #a0a0a0;
+            border-bottom: 2px solid #2a2a3e;
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #2a2a3e;
+        }
+        tr:hover { background: #222239; cursor: pointer; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-completed { background: #10b981; color: white; }
+        .status-running { background: #3b82f6; color: white; }
+        .status-failed { background: #ef4444; color: white; }
+        .status-pending { background: #6b7280; color: white; }
+        .loading { text-align: center; padding: 40px; color: #6b7280; }
+        .error { color: #ef4444; padding: 20px; text-align: center; }
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            float: right;
+            margin-bottom: 15px;
+        }
+        .refresh-btn:hover { opacity: 0.9; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: #1a1a2e;
+            margin: 50px auto;
+            padding: 30px;
+            max-width: 1000px;
+            border-radius: 8px;
+            border: 1px solid #2a2a3e;
+        }
+        .close-btn {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            color: #a0a0a0;
+            cursor: pointer;
+        }
+        .close-btn:hover { color: #fff; }
+        .finding-card {
+            background: #222239;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+        .finding-card.critical { border-color: #ef4444; }
+        .finding-card.high { border-color: #f59e0b; }
+        .finding-card.medium { border-color: #fbbf24; }
+        .finding-card.low { border-color: #3b82f6; }
+        .finding-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; }
+        .finding-meta { font-size: 0.875rem; color: #9ca3af; margin-bottom: 10px; }
+        .finding-description { margin-top: 10px; }
+        pre {
+            background: #0f0f23;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 10px;
+            border: 1px solid #2a2a3e;
+        }
+        code { font-family: 'Courier New', monospace; font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ Shells Security Scanner</h1>
+        <p class="subtitle">Real-time vulnerability scanning and bug bounty automation</p>
+
+        <div id="stats" class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalScans">-</div>
+                <div class="stat-label">Total Scans</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="activeScans">-</div>
+                <div class="stat-label">Active Scans</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalFindings">-</div>
+                <div class="stat-label">Total Findings</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value severity-critical" id="criticalCount">-</div>
+                <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value severity-high" id="highCount">-</div>
+                <div class="stat-label">High</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value severity-medium" id="mediumCount">-</div>
+                <div class="stat-label">Medium</div>
+            </div>
+        </div>
+
+        <h2>Recent Scans</h2>
+        <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
+        <div class="scans-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Type</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody id="scansBody">
+                    <tr><td colspan="5" class="loading">Loading scans...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="scanModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="scanDetails"></div>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                // Load stats
+                const statsRes = await fetch('/api/dashboard/stats');
+                const stats = await statsRes.json();
+                document.getElementById('totalScans').textContent = stats.total_scans;
+                document.getElementById('activeScans').textContent = stats.active_scans;
+                document.getElementById('totalFindings').textContent = stats.total_findings;
+                document.getElementById('criticalCount').textContent = stats.critical_count;
+                document.getElementById('highCount').textContent = stats.high_count;
+                document.getElementById('mediumCount').textContent = stats.medium_count;
+
+                // Load scans
+                const scansRes = await fetch('/api/dashboard/scans');
+                const scans = await scansRes.json();
+
+                const tbody = document.getElementById('scansBody');
+                tbody.innerHTML = '';
+
+                if (scans.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="loading">No scans found</td></tr>';
+                    return;
+                }
+
+                scans.forEach(scan => {
+                    const row = document.createElement('tr');
+                    row.onclick = () => viewScan(scan.id);
+
+                    const duration = scan.completed_at
+                        ? formatDuration(new Date(scan.started_at), new Date(scan.completed_at))
+                        : scan.started_at ? 'Running...' : '-';
+
+                    row.innerHTML =
+                        '<td>' + escapeHtml(scan.target) + '</td>' +
+                        '<td><span class="status-badge status-' + scan.status + '">' + scan.status + '</span></td>' +
+                        '<td>' + escapeHtml(scan.type) + '</td>' +
+                        '<td>' + formatDate(scan.created_at) + '</td>' +
+                        '<td>' + duration + '</td>';
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                document.getElementById('scansBody').innerHTML =
+                    '<tr><td colspan="5" class="error">Error loading data: ' + escapeHtml(error.message) + '</td></tr>';
+            }
+        }
+
+        async function viewScan(scanId) {
+            try {
+                const res = await fetch('/api/dashboard/scans/' + scanId);
+                const data = await res.json();
+
+                let html = '<h2>Scan Details</h2>' +
+                    '<p><strong>Target:</strong> ' + escapeHtml(data.scan.target) + '</p>' +
+                    '<p><strong>Status:</strong> <span class="status-badge status-' + data.scan.status + '">' + data.scan.status + '</span></p>' +
+                    '<p><strong>Started:</strong> ' + formatDate(data.scan.created_at) + '</p>' +
+                    (data.scan.error_message ? '<p class="error"><strong>Error:</strong> ' + escapeHtml(data.scan.error_message) + '</p>' : '') +
+                    '<h3 style="margin-top: 30px;">Findings (' + data.findings.length + ')</h3>';
+
+                if (data.findings.length === 0) {
+                    html += '<p style="color: #6b7280;">No findings for this scan.</p>';
+                } else {
+                    data.findings.forEach(f => {
+                        html += '<div class="finding-card ' + f.severity.toLowerCase() + '">' +
+                            '<div class="finding-title">' + escapeHtml(f.title) + '</div>' +
+                            '<div class="finding-meta">' +
+                            '<span class="status-badge severity-' + f.severity.toLowerCase() + '">' + f.severity + '</span> ' +
+                            f.tool + ' | ' + f.type +
+                            '</div>' +
+                            (f.description ? '<div class="finding-description">' + escapeHtml(f.description) + '</div>' : '') +
+                            (f.evidence ? '<pre><code>' + escapeHtml(f.evidence) + '</code></pre>' : '') +
+                            (f.solution ? '<p style="margin-top: 10px;"><strong>Solution:</strong> ' + escapeHtml(f.solution) + '</p>' : '') +
+                            '</div>';
+                    });
+                }
+
+                document.getElementById('scanDetails').innerHTML = html;
+                document.getElementById('scanModal').style.display = 'block';
+            } catch (error) {
+                alert('Error loading scan details: ' + error.message);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('scanModal').style.display = 'none';
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleString();
+        }
+
+        function formatDuration(start, end) {
+            const ms = end - start;
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+
+            if (hours > 0) return hours + 'h ' + (minutes % 60) + 'm';
+            if (minutes > 0) return minutes + 'm ' + (seconds % 60) + 's';
+            return seconds + 's';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Auto-refresh every 5 seconds
+        loadData();
+        setInterval(loadData, 5000);
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('scanModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>`

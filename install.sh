@@ -396,6 +396,116 @@ create_directories() {
   # This part is installing for the system service user.
 }
 
+setup_postgresql() {
+  log INFO " Setting up PostgreSQL database..."
+
+  # Check if PostgreSQL is already installed
+  if command -v psql >/dev/null 2>&1; then
+    log INFO " PostgreSQL is already installed: $(psql --version)"
+
+    # Check if PostgreSQL is running
+    if pg_isready -q 2>/dev/null; then
+      log INFO " PostgreSQL is running"
+    else
+      log INFO " Starting PostgreSQL service..."
+      if $IS_MAC; then
+        if command -v brew >/dev/null 2>&1; then
+          brew services start postgresql@15 2>/dev/null || brew services start postgresql 2>/dev/null || log WARN " Could not start PostgreSQL via brew"
+        fi
+      elif $IS_DEBIAN; then
+        systemctl start postgresql 2>/dev/null || service postgresql start 2>/dev/null || log WARN " Could not start PostgreSQL service"
+      elif $IS_RHEL; then
+        systemctl start postgresql 2>/dev/null || service postgresql start 2>/dev/null || log WARN " Could not start PostgreSQL service"
+      fi
+    fi
+  else
+    log INFO " PostgreSQL not found. Installing..."
+
+    if $IS_MAC; then
+      if ! command -v brew >/dev/null 2>&1; then
+        log WARN " Homebrew not found. Please install PostgreSQL manually:"
+        log WARN "   brew install postgresql@15"
+        return
+      fi
+      log INFO " Installing PostgreSQL via Homebrew..."
+      brew install postgresql@15
+      brew services start postgresql@15
+
+    elif $IS_DEBIAN; then
+      log INFO " Installing PostgreSQL on Debian/Ubuntu..."
+      apt-get install -y postgresql postgresql-contrib
+      systemctl start postgresql
+      systemctl enable postgresql
+
+    elif $IS_RHEL; then
+      log INFO " Installing PostgreSQL on RHEL/CentOS..."
+      if command -v dnf >/dev/null 2>&1; then
+        dnf install -y postgresql-server postgresql-contrib
+      else
+        yum install -y postgresql-server postgresql-contrib
+      fi
+      postgresql-setup --initdb 2>/dev/null || postgresql-setup initdb 2>/dev/null || true
+      systemctl start postgresql
+      systemctl enable postgresql
+    fi
+  fi
+
+  # Create shells database and user
+  log INFO " Creating shells database and user..."
+
+  if $IS_MAC; then
+    # macOS: Create database as current user
+    createdb shells 2>/dev/null || log INFO " Database 'shells' already exists"
+
+  else
+    # Linux: Create database as postgres user
+    if command -v sudo >/dev/null 2>&1 && id postgres >/dev/null 2>&1; then
+      sudo -u postgres psql -c "CREATE DATABASE shells;" 2>/dev/null || log INFO " Database 'shells' already exists"
+      sudo -u postgres psql -c "CREATE USER shells WITH PASSWORD 'shells_password';" 2>/dev/null || log INFO " User 'shells' already exists"
+      sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE shells TO shells;" 2>/dev/null || true
+    else
+      log WARN " Could not create database (sudo or postgres user not available)"
+      log WARN " Please create manually: CREATE DATABASE shells;"
+    fi
+  fi
+
+  # Update .shells.yaml with correct DSN
+  local config_file="$Shells_SRC_DIR/.shells.yaml"
+  if [ -f "$config_file" ]; then
+    log INFO " Updating database configuration in .shells.yaml..."
+    if $IS_MAC; then
+      # macOS: Use local socket connection
+      sed -i '' 's|dsn:.*|dsn: "host=localhost user='"$USER"' dbname=shells sslmode=disable"|' "$config_file" 2>/dev/null || true
+    else
+      # Linux: Use password authentication
+      sed -i 's|dsn:.*|dsn: "postgres://shells:shells_password@localhost:5432/shells?sslmode=disable"|' "$config_file" 2>/dev/null || true
+    fi
+  fi
+
+  log INFO " PostgreSQL setup complete"
+}
+
+check_docker_postgres() {
+  log INFO " Checking for Docker-based PostgreSQL alternative..."
+
+  if ! command -v docker >/dev/null 2>&1; then
+    log INFO " Docker not found. Skipping container-based PostgreSQL option."
+    return 1
+  fi
+
+  # Check if a PostgreSQL container is already running
+  if docker ps --format '{{.Names}}' | grep -q postgres 2>/dev/null; then
+    log INFO " Found running PostgreSQL container"
+    return 0
+  fi
+
+  # Offer to start PostgreSQL in Docker
+  log INFO " Docker is available. You can run PostgreSQL in a container instead:"
+  log INFO "   docker run -d --name shells-postgres -e POSTGRES_PASSWORD=shells_password -e POSTGRES_DB=shells -e POSTGRES_USER=shells -p 5432:5432 postgres:15"
+
+  return 1
+}
+
 setup_python_workers() {
   log INFO " Setting up Python worker environment for GraphCrawler and IDORD..."
 
@@ -439,23 +549,50 @@ main() {
   show_new_checksum
   create_directories
 
-  # Setup Python workers for GraphQL/IDOR scanning
+  # Setup PostgreSQL database (required)
+  echo
+  log INFO "=== PostgreSQL Setup ==="
+  if check_docker_postgres; then
+    log INFO " Using existing Docker PostgreSQL container"
+  else
+    setup_postgresql
+  fi
+
+  # Setup Python workers for GraphQL/IDOR scanning (optional)
+  echo
+  log INFO "=== Python Workers Setup ==="
   setup_python_workers
 
   echo
+  log INFO "================================================================"
   log INFO " Shells installation complete!"
-  log INFO "The 'shells' binary has been installed to '$INSTALL_PATH'."
-  log INFO "This path is typically included in your user's PATH."
-  log INFO "You should now be able to run 'shells --help' directly."
+  log INFO "================================================================"
+  log INFO "Binary installed to: $INSTALL_PATH"
+  log INFO "Configuration: $CONFIG_DIR"
+  log INFO "Logs: $LOG_DIR"
+  echo
+  log INFO "Quick Start:"
+  log INFO "  1. Start the web dashboard and API:"
+  log INFO "     shells serve --port 8080"
+  log INFO ""
+  log INFO "  2. Open your browser to http://localhost:8080"
+  log INFO ""
+  log INFO "  3. Run a scan:"
+  log INFO "     shells example.com"
+  echo
+  log INFO "Database:"
+  if $IS_MAC; then
+    log INFO "  PostgreSQL running locally (socket connection)"
+  else
+    log INFO "  PostgreSQL: postgres://shells:shells_password@localhost:5432/shells"
+  fi
   echo
   log INFO "Optional features:"
-  log INFO "  - GraphQL scanning (GraphCrawler): Run 'shells workers setup' if not already set up"
-  log INFO "  - IDOR detection (IDORD): Included in worker setup"
-  log INFO "  - Start workers: 'shells workers start' or use 'shells serve' (auto-starts workers)"
+  log INFO "  - GraphQL/IDOR workers: Run 'shells workers setup' if not already configured"
+  log INFO "  - Start workers: 'shells workers start' or 'shells serve' (auto-starts)"
+  log INFO "  - Docker deployment: cd deployments/docker && docker-compose up -d"
   echo
-  log INFO "NOTE: Commands requiring elevated privileges (e.g., system configuration, user management, service control)"
-  log INFO "      will still require 'sudo shells [command]'. For example: 'sudo shells create user'."
-  log INFO "      Log files are located in '$LOG_DIR' and configuration in '$CONFIG_DIR'."
+  log INFO "================================================================"
 }
 
 main "$@"

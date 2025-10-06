@@ -1,6 +1,9 @@
 """
 Shells Worker Service - FastAPI wrapper for Python bug bounty tools
-Wraps GraphCrawler and IDORD with a REST API
+Wraps GraphCrawler and IDORD (AyemunHossain/IDORD) with a REST API
+
+IDORD: https://github.com/AyemunHossain/IDORD
+GraphCrawler: https://github.com/gsmith257-cyber/GraphCrawler
 """
 import subprocess
 import json
@@ -45,11 +48,26 @@ def root():
     return {
         "service": "Shells Worker Service",
         "version": "1.0.0",
+        "tools": {
+            "graphcrawler": "https://github.com/gsmith257-cyber/GraphCrawler",
+            "idord": "https://github.com/AyemunHossain/IDORD"
+        },
         "endpoints": {
+            "health": "/health",
             "graphql_scan": "/graphql/scan",
             "idor_scan": "/idor/scan",
-            "job_status": "/jobs/{job_id}"
+            "job_status": "/jobs/{job_id}",
+            "list_jobs": "/jobs"
         }
+    }
+
+@app.get("/health")
+def health():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "Shells Worker Service",
+        "version": "1.0.0"
     }
 
 @app.post("/graphql/scan", response_model=JobStatus)
