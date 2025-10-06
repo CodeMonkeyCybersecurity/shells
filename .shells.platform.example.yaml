@@ -1,0 +1,74 @@
+# Bug Bounty Platform Integration Configuration
+# Copy this to .shells.yaml and configure your credentials
+
+platforms:
+  # HackerOne Integration
+  hackerone:
+    enabled: false  # Set to true to enable
+    api_username: "your-api-username"
+    api_token: "your-api-token"
+    base_url: "https://api.hackerone.com/v1"
+    timeout: 30s
+    auto_submit: false  # Set to true to automatically submit findings
+    minimum_severity: "medium"  # Only submit findings of this severity or higher (critical, high, medium, low)
+    draft_mode: true  # Create as draft instead of submitting directly
+
+  # Bugcrowd Integration
+  bugcrowd:
+    enabled: false
+    api_token: "your-api-token"
+    base_url: "https://api.bugcrowd.com"
+    timeout: 30s
+    auto_submit: false
+    minimum_severity: "P3"  # P1 (Critical), P2 (High), P3 (Medium), P4 (Low), P5 (Info)
+    draft_mode: true
+
+  # AWS Vulnerability Research Program (via HackerOne)
+  aws:
+    enabled: false
+    program_handle: "amazonvrp"  # AWS VRP program handle on HackerOne
+    use_hackerone: true
+    api_username: "your-hackerone-api-username"
+    api_token: "your-hackerone-api-token"
+    timeout: 30s
+    auto_submit: false
+    minimum_severity: "medium"
+
+  # Microsoft Azure Bug Bounty
+  azure:
+    enabled: false
+    reporting_email: "secure@microsoft.com"
+    program_type: "azure"  # "azure" or "azure-devops"
+    timeout: 30s
+    auto_submit: false
+    minimum_severity: "Important"  # Critical, Important, Moderate, Low
+
+  # Google Cloud Platform (Note: GCP doesn't have a public API for submissions)
+  gcp:
+    enabled: false
+    reporting_url: "https://www.google.com/about/appsecurity/"
+    timeout: 30s
+    auto_submit: false
+    minimum_severity: "medium"
+
+# Usage Examples:
+#
+# 1. List programs from HackerOne:
+#    shells platform programs --platform hackerone
+#
+# 2. Submit a finding to Bugcrowd:
+#    shells platform submit <finding-id> --platform bugcrowd --program example-program
+#
+# 3. Validate credentials:
+#    shells platform validate --platform hackerone
+#
+# 4. Auto-submit critical findings:
+#    shells platform auto-submit --severity CRITICAL
+#
+# 5. Dry-run submission:
+#    shells platform submit <finding-id> --platform hackerone --dry-run
+#
+# Database Integration:
+# - All submissions are tracked in the platform_submissions table
+# - Duplicate submissions are prevented automatically
+# - Submission status and platform data are stored for reference

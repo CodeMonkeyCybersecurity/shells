@@ -10,6 +10,7 @@ require (
 	github.com/chromedp/chromedp v0.13.7
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/fatih/color v1.18.0
+	github.com/gin-gonic/gin v1.11.0
 	github.com/go-ldap/ldap/v3 v3.4.11
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
@@ -54,7 +55,6 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
-	github.com/gin-gonic/gin v1.11.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250709061156-d2cd4771eb1b // indirect
 	github.com/go-logr/logr v1.4.3 // indirect

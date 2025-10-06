@@ -5,16 +5,17 @@ import (
 )
 
 type Config struct {
-	Logger       LoggerConfig    `mapstructure:"logger"`
-	Database     DatabaseConfig  `mapstructure:"database"`
-	Redis        RedisConfig     `mapstructure:"redis"`
-	Worker       WorkerConfig    `mapstructure:"worker"`
-	Telemetry    TelemetryConfig `mapstructure:"telemetry"`
-	Security     SecurityConfig  `mapstructure:"security"`
-	Tools        ToolsConfig     `mapstructure:"tools"`
-	ShodanAPIKey string          `mapstructure:"shodan_api_key"`
-	CensysAPIKey string          `mapstructure:"censys_api_key"`
-	CensysSecret string          `mapstructure:"censys_secret"`
+	Logger       LoggerConfig         `mapstructure:"logger"`
+	Database     DatabaseConfig       `mapstructure:"database"`
+	Redis        RedisConfig          `mapstructure:"redis"`
+	Worker       WorkerConfig         `mapstructure:"worker"`
+	Telemetry    TelemetryConfig      `mapstructure:"telemetry"`
+	Security     SecurityConfig       `mapstructure:"security"`
+	Tools        ToolsConfig          `mapstructure:"tools"`
+	Platforms    BugBountyPlatforms   `mapstructure:"platforms"`
+	ShodanAPIKey string               `mapstructure:"shodan_api_key"`
+	CensysAPIKey string               `mapstructure:"censys_api_key"`
+	CensysSecret string               `mapstructure:"censys_secret"`
 }
 
 type LoggerConfig struct {
@@ -328,6 +329,69 @@ type FaviconConfig struct {
 	CustomDatabase string        `mapstructure:"custom_database"`
 }
 
+// BugBountyPlatforms contains configuration for all bug bounty platform integrations
+type BugBountyPlatforms struct {
+	HackerOne HackerOneConfig `mapstructure:"hackerone"`
+	Bugcrowd  BugcrowdConfig  `mapstructure:"bugcrowd"`
+	AWS       AWSBountyConfig `mapstructure:"aws"`
+	Azure     AzureBountyConfig `mapstructure:"azure"`
+	GCP       GCPBountyConfig `mapstructure:"gcp"`
+}
+
+// HackerOneConfig configures HackerOne API integration
+type HackerOneConfig struct {
+	Enabled       bool          `mapstructure:"enabled"`
+	APIUsername   string        `mapstructure:"api_username"`
+	APIToken      string        `mapstructure:"api_token"`
+	BaseURL       string        `mapstructure:"base_url"`
+	Timeout       time.Duration `mapstructure:"timeout"`
+	AutoSubmit    bool          `mapstructure:"auto_submit"`
+	MinimumSeverity string      `mapstructure:"minimum_severity"` // critical, high, medium, low
+	DraftMode     bool          `mapstructure:"draft_mode"`       // Create as draft instead of submitting
+}
+
+// BugcrowdConfig configures Bugcrowd API integration
+type BugcrowdConfig struct {
+	Enabled       bool          `mapstructure:"enabled"`
+	APIToken      string        `mapstructure:"api_token"`
+	BaseURL       string        `mapstructure:"base_url"`
+	Timeout       time.Duration `mapstructure:"timeout"`
+	AutoSubmit    bool          `mapstructure:"auto_submit"`
+	MinimumSeverity string      `mapstructure:"minimum_severity"` // P1, P2, P3, P4, P5
+	DraftMode     bool          `mapstructure:"draft_mode"`
+}
+
+// AWSBountyConfig configures AWS Vulnerability Research Program integration (via HackerOne)
+type AWSBountyConfig struct {
+	Enabled         bool          `mapstructure:"enabled"`
+	ProgramHandle   string        `mapstructure:"program_handle"` // Default: "amazonvrp"
+	UseHackerOne    bool          `mapstructure:"use_hackerone"`  // AWS uses HackerOne
+	APIUsername     string        `mapstructure:"api_username"`
+	APIToken        string        `mapstructure:"api_token"`
+	Timeout         time.Duration `mapstructure:"timeout"`
+	AutoSubmit      bool          `mapstructure:"auto_submit"`
+	MinimumSeverity string        `mapstructure:"minimum_severity"`
+}
+
+// AzureBountyConfig configures Microsoft Azure Bug Bounty integration
+type AzureBountyConfig struct {
+	Enabled         bool          `mapstructure:"enabled"`
+	ReportingEmail  string        `mapstructure:"reporting_email"` // MSRC email
+	ProgramType     string        `mapstructure:"program_type"`    // "azure" or "azure-devops"
+	Timeout         time.Duration `mapstructure:"timeout"`
+	AutoSubmit      bool          `mapstructure:"auto_submit"`
+	MinimumSeverity string        `mapstructure:"minimum_severity"` // Critical, Important, Moderate, Low
+}
+
+// GCPBountyConfig configures Google Cloud Platform bug bounty integration
+type GCPBountyConfig struct {
+	Enabled         bool          `mapstructure:"enabled"`
+	ReportingURL    string        `mapstructure:"reporting_url"` // Google VRP URL
+	Timeout         time.Duration `mapstructure:"timeout"`
+	AutoSubmit      bool          `mapstructure:"auto_submit"`
+	MinimumSeverity string        `mapstructure:"minimum_severity"`
+}
+
 func (c *Config) Validate() error {
 	if c.Logger.Level == "" {
 		c.Logger.Level = "info"
@@ -593,6 +657,47 @@ func DefaultConfig() *Config {
 				EnableShodan:   false,
 				EnableCache:    true,
 				CustomDatabase: "",
+			},
+		},
+		Platforms: BugBountyPlatforms{
+			HackerOne: HackerOneConfig{
+				Enabled:         false,
+				BaseURL:         "https://api.hackerone.com/v1",
+				Timeout:         30 * time.Second,
+				AutoSubmit:      false,
+				MinimumSeverity: "medium",
+				DraftMode:       true,
+			},
+			Bugcrowd: BugcrowdConfig{
+				Enabled:         false,
+				BaseURL:         "https://api.bugcrowd.com",
+				Timeout:         30 * time.Second,
+				AutoSubmit:      false,
+				MinimumSeverity: "P3",
+				DraftMode:       true,
+			},
+			AWS: AWSBountyConfig{
+				Enabled:         false,
+				ProgramHandle:   "amazonvrp",
+				UseHackerOne:    true,
+				Timeout:         30 * time.Second,
+				AutoSubmit:      false,
+				MinimumSeverity: "medium",
+			},
+			Azure: AzureBountyConfig{
+				Enabled:         false,
+				ReportingEmail:  "secure@microsoft.com",
+				ProgramType:     "azure",
+				Timeout:         30 * time.Second,
+				AutoSubmit:      false,
+				MinimumSeverity: "Important",
+			},
+			GCP: GCPBountyConfig{
+				Enabled:         false,
+				ReportingURL:    "https://www.google.com/about/appsecurity/",
+				Timeout:         30 * time.Second,
+				AutoSubmit:      false,
+				MinimumSeverity: "medium",
 			},
 		},
 	}

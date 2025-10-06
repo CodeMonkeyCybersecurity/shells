@@ -396,9 +396,33 @@ create_directories() {
   # This part is installing for the system service user.
 }
 
+setup_python_workers() {
+  log INFO " Setting up Python worker environment for GraphCrawler and IDORD..."
+
+  # Check if Python 3 is available
+  if ! command -v python3 >/dev/null 2>&1; then
+    log WARN " Python 3 not found. Skipping worker setup."
+    log WARN " To enable GraphQL/IDOR scanning, install Python 3 and run: shells workers setup"
+    return
+  fi
+
+  # Let the shells binary handle the setup
+  if [ -f "$INSTALL_PATH" ]; then
+    log INFO " Running: shells workers setup"
+    if ! "$INSTALL_PATH" workers setup; then
+      log WARN " Worker setup failed or was skipped"
+      log WARN " You can run 'shells workers setup' manually later"
+    else
+      log INFO " Worker environment setup complete"
+    fi
+  else
+    log WARN " Shells binary not found at $INSTALL_PATH. Skipping worker setup."
+  fi
+}
+
 main() {
   detect_platform
-  
+
   # Update system packages first (Linux only, requires root)
   if $IS_LINUX; then
     if [[ "$EUID" -eq 0 ]]; then
@@ -407,18 +431,27 @@ main() {
       log INFO " Skipping system package update (not running as root)"
     fi
   fi
-  
+
   check_prerequisites
   build_shells_binary
   show_existing_checksum
   install_binary "$@"
   show_new_checksum
   create_directories
+
+  # Setup Python workers for GraphQL/IDOR scanning
+  setup_python_workers
+
   echo
   log INFO " Shells installation complete!"
   log INFO "The 'shells' binary has been installed to '$INSTALL_PATH'."
   log INFO "This path is typically included in your user's PATH."
   log INFO "You should now be able to run 'shells --help' directly."
+  echo
+  log INFO "Optional features:"
+  log INFO "  - GraphQL scanning (GraphCrawler): Run 'shells workers setup' if not already set up"
+  log INFO "  - IDOR detection (IDORD): Included in worker setup"
+  log INFO "  - Start workers: 'shells workers start' or use 'shells serve' (auto-starts workers)"
   echo
   log INFO "NOTE: Commands requiring elevated privileges (e.g., system configuration, user management, service control)"
   log INFO "      will still require 'sudo shells [command]'. For example: 'sudo shells create user'."

@@ -286,6 +286,25 @@ func (s *sqlStore) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
 		CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at);
 
+		-- Bug bounty platform submissions table (PostgreSQL)
+		CREATE TABLE IF NOT EXISTS platform_submissions (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			finding_id TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
+			platform TEXT NOT NULL,
+			program_handle TEXT,
+			report_id TEXT NOT NULL,
+			report_url TEXT,
+			status TEXT NOT NULL,
+			platform_data JSONB,
+			submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(finding_id, platform)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_submissions_finding_id ON platform_submissions(finding_id);
+		CREATE INDEX IF NOT EXISTS idx_submissions_platform ON platform_submissions(platform);
+		CREATE INDEX IF NOT EXISTS idx_submissions_status ON platform_submissions(status);
+
 		-- Hera browser extension tables (PostgreSQL)
 		CREATE TABLE IF NOT EXISTS hera_detections (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -399,6 +418,26 @@ func (s *sqlStore) migrate() error {
 		CREATE INDEX IF NOT EXISTS idx_scans_target ON scans(target);
 		CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
 		CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at);
+
+		-- Bug bounty platform submissions table (SQLite)
+		CREATE TABLE IF NOT EXISTS platform_submissions (
+			id TEXT PRIMARY KEY,
+			finding_id TEXT NOT NULL,
+			platform TEXT NOT NULL,
+			program_handle TEXT,
+			report_id TEXT NOT NULL,
+			report_url TEXT,
+			status TEXT NOT NULL,
+			platform_data TEXT,
+			submitted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (finding_id) REFERENCES findings(id) ON DELETE CASCADE,
+			UNIQUE(finding_id, platform)
+		);
+
+		CREATE INDEX IF NOT EXISTS idx_submissions_finding_id ON platform_submissions(finding_id);
+		CREATE INDEX IF NOT EXISTS idx_submissions_platform ON platform_submissions(platform);
+		CREATE INDEX IF NOT EXISTS idx_submissions_status ON platform_submissions(status);
 
 		-- Hera browser extension tables (SQLite)
 		CREATE TABLE IF NOT EXISTS hera_detections (
@@ -1312,4 +1351,152 @@ func (s *sqlStore) SearchFindings(ctx context.Context, searchTerm string, limit 
 		Limit:      limit,
 	}
 	return s.QueryFindings(ctx, query)
+}
+
+// Platform Submission Methods
+
+// PlatformSubmission represents a bug bounty platform submission
+type PlatformSubmission struct {
+	ID            string                 `db:"id" json:"id"`
+	FindingID     string                 `db:"finding_id" json:"finding_id"`
+	Platform      string                 `db:"platform" json:"platform"`
+	ProgramHandle string                 `db:"program_handle" json:"program_handle,omitempty"`
+	ReportID      string                 `db:"report_id" json:"report_id"`
+	ReportURL     string                 `db:"report_url" json:"report_url,omitempty"`
+	Status        string                 `db:"status" json:"status"`
+	PlatformData  string                 `db:"platform_data" json:"platform_data,omitempty"` // JSON string
+	SubmittedAt   time.Time              `db:"submitted_at" json:"submitted_at"`
+	UpdatedAt     time.Time              `db:"updated_at" json:"updated_at"`
+}
+
+// CreateSubmission records a platform submission in the database
+func (s *sqlStore) CreateSubmission(ctx context.Context, submission *PlatformSubmission) error {
+	ctx, span := s.logger.StartOperation(ctx, "database.create_submission",
+		"platform", submission.Platform,
+		"finding_id", submission.FindingID,
+	)
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "database.create_submission", time.Now(), nil)
+	}()
+
+	// Generate ID if not provided
+	if submission.ID == "" {
+		submission.ID = fmt.Sprintf("sub_%d", time.Now().UnixNano())
+	}
+
+	query := `INSERT INTO platform_submissions
+		(id, finding_id, platform, program_handle, report_id, report_url, status, platform_data, submitted_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	if s.cfg.Driver == "postgres" {
+		query = `INSERT INTO platform_submissions
+			(id, finding_id, platform, program_handle, report_id, report_url, status, platform_data, submitted_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
+	}
+
+	now := time.Now()
+	submission.SubmittedAt = now
+	submission.UpdatedAt = now
+
+	_, err := s.db.ExecContext(ctx, query,
+		submission.ID,
+		submission.FindingID,
+		submission.Platform,
+		submission.ProgramHandle,
+		submission.ReportID,
+		submission.ReportURL,
+		submission.Status,
+		submission.PlatformData,
+		submission.SubmittedAt,
+		submission.UpdatedAt,
+	)
+
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.create_submission.exec",
+			"platform", submission.Platform,
+			"finding_id", submission.FindingID,
+		)
+		return fmt.Errorf("failed to create submission: %w", err)
+	}
+
+	return nil
+}
+
+// GetSubmission retrieves a submission by ID
+func (s *sqlStore) GetSubmission(ctx context.Context, id string) (*PlatformSubmission, error) {
+	var submission PlatformSubmission
+	query := "SELECT * FROM platform_submissions WHERE id = ?"
+	if s.cfg.Driver == "postgres" {
+		query = "SELECT * FROM platform_submissions WHERE id = $1"
+	}
+
+	err := s.db.GetContext(ctx, &submission, query, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get submission: %w", err)
+	}
+
+	return &submission, nil
+}
+
+// GetSubmissionsByFinding retrieves all submissions for a finding
+func (s *sqlStore) GetSubmissionsByFinding(ctx context.Context, findingID string) ([]PlatformSubmission, error) {
+	var submissions []PlatformSubmission
+	query := "SELECT * FROM platform_submissions WHERE finding_id = ? ORDER BY submitted_at DESC"
+	if s.cfg.Driver == "postgres" {
+		query = "SELECT * FROM platform_submissions WHERE finding_id = $1 ORDER BY submitted_at DESC"
+	}
+
+	err := s.db.SelectContext(ctx, &submissions, query, findingID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get submissions: %w", err)
+	}
+
+	return submissions, nil
+}
+
+// GetSubmissionsByPlatform retrieves all submissions for a platform
+func (s *sqlStore) GetSubmissionsByPlatform(ctx context.Context, platform string) ([]PlatformSubmission, error) {
+	var submissions []PlatformSubmission
+	query := "SELECT * FROM platform_submissions WHERE platform = ? ORDER BY submitted_at DESC"
+	if s.cfg.Driver == "postgres" {
+		query = "SELECT * FROM platform_submissions WHERE platform = $1 ORDER BY submitted_at DESC"
+	}
+
+	err := s.db.SelectContext(ctx, &submissions, query, platform)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get submissions: %w", err)
+	}
+
+	return submissions, nil
+}
+
+// CheckSubmissionExists checks if a finding has already been submitted to a platform
+func (s *sqlStore) CheckSubmissionExists(ctx context.Context, findingID, platform string) (bool, error) {
+	var count int
+	query := "SELECT COUNT(*) FROM platform_submissions WHERE finding_id = ? AND platform = ?"
+	if s.cfg.Driver == "postgres" {
+		query = "SELECT COUNT(*) FROM platform_submissions WHERE finding_id = $1 AND platform = $2"
+	}
+
+	err := s.db.GetContext(ctx, &count, query, findingID, platform)
+	if err != nil {
+		return false, fmt.Errorf("failed to check submission: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+// UpdateSubmissionStatus updates the status of a submission
+func (s *sqlStore) UpdateSubmissionStatus(ctx context.Context, id, status string) error {
+	query := "UPDATE platform_submissions SET status = ?, updated_at = ? WHERE id = ?"
+	if s.cfg.Driver == "postgres" {
+		query = "UPDATE platform_submissions SET status = $1, updated_at = $2 WHERE id = $3"
+	}
+
+	_, err := s.db.ExecContext(ctx, query, status, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("failed to update submission status: %w", err)
+	}
+
+	return nil
 }

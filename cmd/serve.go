@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -36,11 +39,12 @@ Example:
 }
 
 var (
-	serverPort int
-	serverHost string
-	enableCORS bool
-	tlsCert    string
-	tlsKey     string
+	serverPort  int
+	serverHost  string
+	enableCORS  bool
+	tlsCert     string
+	tlsKey      string
+	workersPort int
 )
 
 func init() {
@@ -52,6 +56,7 @@ func init() {
 	serveCmd.Flags().BoolVar(&enableCORS, "cors", true, "Enable CORS for browser extensions")
 	serveCmd.Flags().StringVar(&tlsCert, "tls-cert", "", "Path to TLS certificate (optional)")
 	serveCmd.Flags().StringVar(&tlsKey, "tls-key", "", "Path to TLS private key (optional)")
+	serveCmd.Flags().IntVar(&workersPort, "workers-port", 5000, "Port for worker service")
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
@@ -109,7 +114,29 @@ func runServe(cmd *cobra.Command, args []string) error {
 		"cors_enabled", enableCORS,
 		"tls_enabled", tlsCert != "",
 		"config_file", viper.ConfigFileUsed(),
+		"workers_port", workersPort,
 	)
+
+	// Start worker service automatically
+	workerProcess, err := startWorkerService(log, workersPort)
+	if err != nil {
+		log.Warnw("Failed to start worker service - continuing without workers",
+			"error", err,
+			"note", "Run 'shells workers setup' to configure workers",
+		)
+	} else {
+		log.Infow("Worker service started",
+			"port", workersPort,
+			"pid", workerProcess.Process.Pid,
+		)
+		// Ensure worker process is killed on shutdown
+		defer func() {
+			if workerProcess != nil && workerProcess.Process != nil {
+				log.Infow("Stopping worker service")
+				workerProcess.Process.Kill()
+			}
+		}()
+	}
 
 	// Initialize database
 	store, err := database.NewStore(cfg.Database)
@@ -275,3 +302,51 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
+
+// startWorkerService starts the Python worker service
+func startWorkerService(log *logger.Logger, port int) (*exec.Cmd, error) {
+	// Get project root
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	workersDir := filepath.Join(projectRoot, "workers")
+	serviceDir := filepath.Join(workersDir, "service")
+	venvBin := filepath.Join(workersDir, "venv", "bin", "uvicorn")
+
+	// Check if worker environment exists
+	if _, err := os.Stat(venvBin); os.IsNotExist(err) {
+		return nil, fmt.Errorf("worker environment not set up (run: shells workers setup)")
+	}
+
+	// Check if service directory exists
+	if _, err := os.Stat(serviceDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("worker service directory not found: %s", serviceDir)
+	}
+
+	// Start uvicorn
+	cmd := exec.Command(venvBin, "main:app", "--host", "0.0.0.0", "--port", fmt.Sprintf("%d", port))
+	cmd.Dir = serviceDir
+
+	// Redirect output to prevent blocking
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start worker service: %w", err)
+	}
+
+	// Wait a moment for service to start
+	time.Sleep(2 * time.Second)
+
+	// Verify service is healthy
+	client := workers.NewClient(fmt.Sprintf("http://localhost:%d", port))
+	if err := client.Health(); err != nil {
+		cmd.Process.Kill()
+		return nil, fmt.Errorf("worker service failed health check: %w", err)
+	}
+
+	return cmd, nil
+}
+
