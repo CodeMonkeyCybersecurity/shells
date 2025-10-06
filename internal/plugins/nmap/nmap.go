@@ -28,11 +28,11 @@ func NewScanner(cfg config.NmapConfig, log interface {
 }) core.Scanner {
 	start := time.Now()
 
-	// Initialize enhanced logger for Nmap scanner
-	enhancedLogger, err := logger.New(config.LoggerConfig{Level: "debug", Format: "json"})
+	// Create quiet logger for scanner (only errors and critical info)
+	enhancedLogger, err := logger.New(config.LoggerConfig{Level: "error", Format: "console"})
 	if err != nil {
 		// Fallback to basic logger if initialization fails
-		enhancedLogger, _ = logger.New(config.LoggerConfig{Level: "info", Format: "json"})
+		enhancedLogger, _ = logger.New(config.LoggerConfig{Level: "error", Format: "console"})
 	}
 	enhancedLogger = enhancedLogger.WithComponent("nmap-scanner")
 

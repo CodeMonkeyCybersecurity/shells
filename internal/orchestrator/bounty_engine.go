@@ -1582,6 +1582,7 @@ func extractHost(urlStr string) string {
 // storeResults saves scan results to the database
 func (e *BugBountyEngine) storeResults(ctx context.Context, scanID string, result *BugBountyResult) error {
 	// Save scan metadata
+	startedAt := result.StartTime
 	completedAt := result.EndTime
 	scan := &types.ScanRequest{
 		ID:          scanID,
@@ -1589,6 +1590,7 @@ func (e *BugBountyEngine) storeResults(ctx context.Context, scanID string, resul
 		Type:        types.ScanTypeAuth, // Using ScanTypeAuth for now
 		Status:      types.ScanStatusCompleted,
 		CreatedAt:   result.StartTime,
+		StartedAt:   &startedAt,   // Set started time for duration calculation
 		CompletedAt: &completedAt,
 	}
 
