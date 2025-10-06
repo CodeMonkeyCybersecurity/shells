@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/adapters"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/boileau"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/fuzzing"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/protocol"
@@ -126,7 +126,7 @@ func (e *ScanExecutor) runFuzzingTests(ctx context.Context, target string) []typ
 	allFindings := []types.Finding{}
 
 	// Create a simple fuzzing logger adapter
-	fuzzLogger := &FuzzingLogger{log: e.log}
+	fuzzLogger := adapters.NewFuzzingLogger(e.log)
 
 	// Test 1: Directory fuzzing
 	dirConfig := fuzzing.ScannerConfig{
@@ -183,7 +183,7 @@ func (e *ScanExecutor) runProtocolTests(ctx context.Context, target string) []ty
 		MaxWorkers:   5,
 	}
 
-	protocolLogger := &ProtocolLogger{log: e.log}
+	protocolLogger := adapters.NewProtocolLogger(e.log)
 	protocolScanner := protocol.NewScanner(protocolConfig, protocolLogger)
 
 	// Test common HTTPS port
@@ -282,7 +282,7 @@ func (e *ScanExecutor) runBoileauTests(ctx context.Context, target string) []typ
 		},
 	}
 
-	boileauLogger := &BoileauLogger{log: e.log}
+	boileauLogger := adapters.NewBoileauLogger(e.log)
 	boileauScanner := boileau.NewScanner(boileauConfig, boileauLogger)
 
 	// Run selected heavy tools based on target type
@@ -313,67 +313,4 @@ func (e *ScanExecutor) runBoileauTests(ctx context.Context, target string) []typ
 	return allFindings
 }
 
-// Logger adapters for external scanners
-
-// FuzzingLogger adapts internal logger for fuzzing package
-type FuzzingLogger struct {
-	log *logger.Logger
-}
-
-func (f *FuzzingLogger) Info(msg string, keysAndValues ...interface{}) {
-	f.log.Infow(msg, keysAndValues...)
-}
-
-func (f *FuzzingLogger) Debug(msg string, keysAndValues ...interface{}) {
-	f.log.Debugw(msg, keysAndValues...)
-}
-
-func (f *FuzzingLogger) Warn(msg string, keysAndValues ...interface{}) {
-	f.log.Warnw(msg, keysAndValues...)
-}
-
-func (f *FuzzingLogger) Error(msg string, keysAndValues ...interface{}) {
-	f.log.Errorw(msg, keysAndValues...)
-}
-
-// ProtocolLogger adapts internal logger for protocol package
-type ProtocolLogger struct {
-	log *logger.Logger
-}
-
-func (p *ProtocolLogger) Info(msg string, keysAndValues ...interface{}) {
-	p.log.Infow(msg, keysAndValues...)
-}
-
-func (p *ProtocolLogger) Debug(msg string, keysAndValues ...interface{}) {
-	p.log.Debugw(msg, keysAndValues...)
-}
-
-func (p *ProtocolLogger) Warn(msg string, keysAndValues ...interface{}) {
-	p.log.Warnw(msg, keysAndValues...)
-}
-
-func (p *ProtocolLogger) Error(msg string, keysAndValues ...interface{}) {
-	p.log.Errorw(msg, keysAndValues...)
-}
-
-// BoileauLogger adapts internal logger for Boileau package
-type BoileauLogger struct {
-	log *logger.Logger
-}
-
-func (b *BoileauLogger) Info(msg string, keysAndValues ...interface{}) {
-	b.log.Infow(msg, keysAndValues...)
-}
-
-func (b *BoileauLogger) Debug(msg string, keysAndValues ...interface{}) {
-	b.log.Debugw(msg, keysAndValues...)
-}
-
-func (b *BoileauLogger) Warn(msg string, keysAndValues ...interface{}) {
-	b.log.Warnw(msg, keysAndValues...)
-}
-
-func (b *BoileauLogger) Error(msg string, keysAndValues ...interface{}) {
-	b.log.Errorw(msg, keysAndValues...)
-}
+// Logger adapters moved to cmd/internal/adapters package

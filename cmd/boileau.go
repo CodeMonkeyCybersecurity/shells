@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/adapters"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/boileau"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/spf13/cobra"
@@ -224,7 +224,7 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	boileauLogger := &BoileauLogger{log: log}
+	boileauLogger := adapters.NewBoileauLogger(log)
 	scanner := boileau.NewScanner(config, boileauLogger)
 
 	// Create context with timeout
@@ -327,7 +327,7 @@ func runboileauBatch(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	boileauLogger := &BoileauLogger{log: log}
+	boileauLogger := adapters.NewBoileauLogger(log)
 	scanner := boileau.NewScanner(config, boileauLogger)
 
 	// Create context
@@ -391,7 +391,7 @@ func runboileauBatch(cmd *cobra.Command, args []string) error {
 func runboileauList(cmd *cobra.Command, args []string) error {
 	// Create scanner to get tool list
 	config := boileau.Config{}
-	boileauLogger := &BoileauLogger{log: log}
+	boileauLogger := adapters.NewBoileauLogger(log)
 	scanner := boileau.NewScanner(config, boileauLogger)
 
 	tools := scanner.GetAvailableTools()
@@ -516,39 +516,4 @@ func saveBatchResults(results []*boileau.ToolResult, findings []types.Finding, o
 	return boileau.SaveJSON(outputDir, "batch_report.json", report)
 }
 
-// BoileauLogger adapts the internal logger for boileau package
-type BoileauLogger struct {
-	log *logger.Logger
-}
-
-func (b *BoileauLogger) Info(msg string, fields ...interface{}) {
-	if b.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		b.log.Info(args...)
-	}
-}
-
-func (b *BoileauLogger) Error(msg string, fields ...interface{}) {
-	if b.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		b.log.Error(args...)
-	}
-}
-
-func (b *BoileauLogger) Debug(msg string, fields ...interface{}) {
-	if b.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		b.log.Debug(args...)
-	}
-}
-
-func (b *BoileauLogger) Warn(msg string, fields ...interface{}) {
-	if b.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		b.log.Warn(args...)
-	}
-}
+// BoileauLogger moved to cmd/internal/adapters package

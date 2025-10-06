@@ -8,48 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/adapters"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/protocol"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/spf13/cobra"
 )
 
-// ProtocolLogger is an adapter that wraps our logger to match the protocol.Logger interface
-type ProtocolLogger struct {
-	log *logger.Logger
-}
-
-func (p *ProtocolLogger) Info(msg string, fields ...interface{}) {
-	if p.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		p.log.Info(args...)
-	}
-}
-
-func (p *ProtocolLogger) Error(msg string, fields ...interface{}) {
-	if p.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		p.log.Error(args...)
-	}
-}
-
-func (p *ProtocolLogger) Debug(msg string, fields ...interface{}) {
-	if p.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		p.log.Debug(args...)
-	}
-}
-
-func (p *ProtocolLogger) Warn(msg string, fields ...interface{}) {
-	if p.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		p.log.Warn(args...)
-	}
-}
+// ProtocolLogger moved to cmd/internal/adapters package
 
 // protocolCmd represents the protocol command
 var protocolCmd = &cobra.Command{
@@ -202,7 +167,7 @@ func runProtocolTLS(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	protocolLogger := &ProtocolLogger{log: log}
+	protocolLogger := adapters.NewProtocolLogger(log)
 	scanner := protocol.NewScanner(config, protocolLogger)
 
 	// Create context
@@ -248,7 +213,7 @@ func runProtocolSMTP(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	protocolLogger := &ProtocolLogger{log: log}
+	protocolLogger := adapters.NewProtocolLogger(log)
 	scanner := protocol.NewScanner(config, protocolLogger)
 
 	// Create context
@@ -295,7 +260,7 @@ func runProtocolLDAP(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	protocolLogger := &ProtocolLogger{log: log}
+	protocolLogger := adapters.NewProtocolLogger(log)
 	scanner := protocol.NewScanner(config, protocolLogger)
 
 	// Create context
@@ -360,7 +325,7 @@ func runProtocolAll(cmd *cobra.Command, args []string) error {
 		CheckCiphers: true,
 		CheckVulns:   true,
 	}
-	protocolLogger := &ProtocolLogger{log: log}
+	protocolLogger := adapters.NewProtocolLogger(log)
 	scanner := protocol.NewScanner(config, protocolLogger)
 
 	allFindings := []types.Finding{}

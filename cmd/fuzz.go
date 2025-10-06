@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/adapters"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/fuzzing"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/spf13/cobra"
@@ -242,7 +242,7 @@ func runFuzzDir(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	scanner := fuzzing.NewScanner(config, &FuzzingLogger{log: GetLogger()})
+	scanner := fuzzing.NewScanner(config, adapters.NewFuzzingLogger(GetLogger()))
 
 	// Create context
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -310,7 +310,7 @@ func runFuzzParam(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	scanner := fuzzing.NewScanner(config, &FuzzingLogger{log: GetLogger()})
+	scanner := fuzzing.NewScanner(config, adapters.NewFuzzingLogger(GetLogger()))
 
 	// Add methods to options
 	options := map[string]string{
@@ -371,7 +371,7 @@ func runFuzzVhost(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	scanner := fuzzing.NewScanner(config, &FuzzingLogger{log: GetLogger()})
+	scanner := fuzzing.NewScanner(config, adapters.NewFuzzingLogger(GetLogger()))
 
 	// Add domain to options if specified
 	options := make(map[string]string)
@@ -440,7 +440,7 @@ func runFuzzSubdomain(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create scanner
-	scanner := fuzzing.NewScanner(config, &FuzzingLogger{log: GetLogger()})
+	scanner := fuzzing.NewScanner(config, adapters.NewFuzzingLogger(GetLogger()))
 
 	// Create context
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -612,39 +612,4 @@ func saveFuzzResults(findings []types.Finding, output string) error {
 	return nil
 }
 
-// FuzzingLogger wraps the internal logger for the fuzzing package
-type FuzzingLogger struct {
-	log *logger.Logger
-}
-
-func (f *FuzzingLogger) Info(msg string, fields ...interface{}) {
-	if f.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		f.log.Info(args...)
-	}
-}
-
-func (f *FuzzingLogger) Error(msg string, fields ...interface{}) {
-	if f.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		f.log.Error(args...)
-	}
-}
-
-func (f *FuzzingLogger) Debug(msg string, fields ...interface{}) {
-	if f.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		f.log.Debug(args...)
-	}
-}
-
-func (f *FuzzingLogger) Warn(msg string, fields ...interface{}) {
-	if f.log != nil {
-		args := []interface{}{msg}
-		args = append(args, fields...)
-		f.log.Warn(args...)
-	}
-}
+// FuzzingLogger moved to cmd/internal/adapters package
