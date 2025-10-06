@@ -463,6 +463,14 @@ setup_postgresql() {
       sudo -u postgres psql -c "CREATE DATABASE shells;" 2>/dev/null || log INFO " Database 'shells' already exists"
       sudo -u postgres psql -c "CREATE USER shells WITH PASSWORD 'shells_password';" 2>/dev/null || log INFO " User 'shells' already exists"
       sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE shells TO shells;" 2>/dev/null || true
+
+      # Grant schema permissions (required for PostgreSQL 15+)
+      log INFO " Granting schema permissions to shells user..."
+      sudo -u postgres psql shells -c "GRANT ALL ON SCHEMA public TO shells;" 2>/dev/null || true
+      sudo -u postgres psql shells -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO shells;" 2>/dev/null || true
+      sudo -u postgres psql shells -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO shells;" 2>/dev/null || true
+      sudo -u postgres psql shells -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO shells;" 2>/dev/null || true
+      sudo -u postgres psql shells -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO shells;" 2>/dev/null || true
     else
       log WARN " Could not create database (sudo or postgres user not available)"
       log WARN " Please create manually: CREATE DATABASE shells;"
