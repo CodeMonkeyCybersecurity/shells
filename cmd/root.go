@@ -244,7 +244,7 @@ func Execute() error {
 
 func init() {
 	// Logging configuration
-	rootCmd.PersistentFlags().String("log-level", "error", "log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().String("log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("log-format", "console", "log format (json, console)")
 	viper.BindPFlag("logger.level", rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag("logger.format", rootCmd.PersistentFlags().Lookup("log-format"))

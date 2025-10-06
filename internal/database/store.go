@@ -448,7 +448,12 @@ func (s *sqlStore) SaveScan(ctx context.Context, scan *types.ScanRequest) error 
 		return err
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	// P1 FIX: Check RowsAffected error to detect partial writes
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		s.logger.Errorw("Failed to get rows affected after scan insert", "error", err, "scan_id", scan.ID)
+		rowsAffected = -1 // Indicate unknown
+	}
 	s.logger.LogDatabaseOperation(ctx, "INSERT", "scans", rowsAffected, time.Since(queryStart),
 		"scan_id", scan.ID,
 		"target", scan.Target,
@@ -739,7 +744,12 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 			return fmt.Errorf("failed to insert finding %s: %w", finding.ID, err)
 		}
 
-		rowsAffected, _ := result.RowsAffected()
+		// P1 FIX: Check RowsAffected error to detect partial writes
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			s.logger.Errorw("Failed to get rows affected after finding insert", "error", err, "finding_id", finding.ID)
+			rowsAffected = -1 // Indicate unknown
+		}
 		totalRowsAffected += rowsAffected
 
 		s.logger.LogDatabaseOperation(ctx, "INSERT", "findings", rowsAffected, time.Since(queryStart),

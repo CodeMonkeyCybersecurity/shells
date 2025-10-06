@@ -264,15 +264,5 @@ func CloseBody(resp *http.Response) {
 	}
 }
 
-// MustCloseBody is like CloseBody but panics on error (use only in tests)
-func MustCloseBody(resp *http.Response) {
-	if resp == nil || resp.Body == nil {
-		return
-	}
-
-	_, _ = io.Copy(io.Discard, resp.Body)
-
-	if err := resp.Body.Close(); err != nil {
-		panic(fmt.Sprintf("failed to close response body: %v", err))
-	}
-}
+// P0 FIX: MustCloseBody removed - panic() in library code could crash entire application
+// Use CloseBody() instead, which logs warnings but doesn't crash

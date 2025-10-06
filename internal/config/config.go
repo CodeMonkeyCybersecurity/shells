@@ -403,7 +403,7 @@ func (c *Config) Validate() error {
 func DefaultConfig() *Config {
 	return &Config{
 		Logger: LoggerConfig{
-			Level:       "error",
+			Level:       "info",
 			Format:      "console",
 			OutputPaths: []string{"stdout"},
 		},

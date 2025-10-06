@@ -747,29 +747,41 @@ func heraCleanupCaches(c *gin.Context, hdb *heraDB, log *logger.Logger) {
 
 	results := make(map[string]interface{})
 
+	// P0 FIX: Use parameterized queries instead of fmt.Sprintf to prevent SQL injection
+	// Use current timestamp as parameter instead of SQL function to ensure safety
+	now := time.Now()
+
 	// Cleanup WHOIS cache
-	whoisQuery := fmt.Sprintf("DELETE FROM hera_whois_cache WHERE expires_at < %s", hdb.now())
-	whoisResult, err := hdb.db.ExecContext(ctx, whoisQuery)
+	whoisResult, err := hdb.db.ExecContext(ctx, "DELETE FROM hera_whois_cache WHERE expires_at < $1", now)
 	if err != nil {
 		log.Errorw("Failed to cleanup WHOIS cache",
 			"error", err,
 		)
 		results["whois_cache"] = map[string]interface{}{"error": err.Error()}
 	} else {
-		deleted, _ := whoisResult.RowsAffected()
+		// P1 FIX: Check RowsAffected error
+		deleted, err := whoisResult.RowsAffected()
+		if err != nil {
+			log.Warnw("Could not determine WHOIS cache rows deleted", "error", err)
+			deleted = -1
+		}
 		results["whois_cache"] = map[string]interface{}{"deleted": deleted}
 	}
 
 	// Cleanup threat intel cache
-	threatQuery := fmt.Sprintf("DELETE FROM hera_threat_intel WHERE expires_at < %s", hdb.now())
-	threatResult, err := hdb.db.ExecContext(ctx, threatQuery)
+	threatResult, err := hdb.db.ExecContext(ctx, "DELETE FROM hera_threat_intel WHERE expires_at < $1", now)
 	if err != nil {
 		log.Errorw("Failed to cleanup threat intel cache",
 			"error", err,
 		)
 		results["threat_intel_cache"] = map[string]interface{}{"error": err.Error()}
 	} else {
-		deleted, _ := threatResult.RowsAffected()
+		// P1 FIX: Check RowsAffected error
+		deleted, err := threatResult.RowsAffected()
+		if err != nil {
+			log.Warnw("Could not determine threat intel cache rows deleted", "error", err)
+			deleted = -1
+		}
 		results["threat_intel_cache"] = map[string]interface{}{"deleted": deleted}
 	}
 
