@@ -286,7 +286,7 @@ func init() {
 	// Bug bounty specific flags
 	rootCmd.PersistentFlags().Bool("quick", false, "Quick scan mode - critical vulnerabilities only")
 	rootCmd.PersistentFlags().Bool("deep", false, "Deep scan mode - comprehensive testing")
-	rootCmd.PersistentFlags().Duration("timeout", 5*time.Minute, "Maximum scan time")
+	rootCmd.PersistentFlags().Duration("timeout", 30*time.Minute, "Maximum scan time (default: 30m for comprehensive scan)")
 	rootCmd.PersistentFlags().String("scope", "", "Scope file defining authorized targets (.scope file)")
 
 	// API keys (environment variables only, never flags)
