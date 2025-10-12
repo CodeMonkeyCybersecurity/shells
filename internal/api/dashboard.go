@@ -90,10 +90,19 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 		`, scanID).Scan(&scan.ID, &scan.Target, &scan.Type, &scan.Status, &scan.CreatedAt, &scan.StartedAt, &scan.CompletedAt, &scan.ErrorMsg, &scan.Config, &scan.Result, &scan.Checkpoint)
 
 		if err == sql.ErrNoRows {
+			log.Warnw("Scan not found in database",
+				"scan_id", scanID,
+				"component", "dashboard_api",
+			)
 			c.JSON(http.StatusNotFound, gin.H{"error": "Scan not found"})
 			return
 		}
 		if err != nil {
+			log.Errorw("Database error fetching scan details",
+				"error", err,
+				"scan_id", scanID,
+				"component", "dashboard_api",
+			)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -104,6 +113,11 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 			FROM findings WHERE scan_id = $1 ORDER BY severity DESC, created_at DESC
 		`, scanID)
 		if err != nil {
+			log.Errorw("Database error fetching findings",
+				"error", err,
+				"scan_id", scanID,
+				"component", "dashboard_api",
+			)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -153,6 +167,11 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 			LIMIT 1000
 		`, scanID)
 		if err != nil {
+			log.Warnw("Failed to fetch scan events, returning empty list",
+				"error", err,
+				"scan_id", scanID,
+				"component", "dashboard_api",
+			)
 			c.JSON(http.StatusOK, []interface{}{}) // Return empty if no events table
 			return
 		}
