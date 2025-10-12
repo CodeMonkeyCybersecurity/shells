@@ -65,8 +65,14 @@ func runIntelligentOrchestrator(ctx context.Context, target string, cmd *cobra.C
 	// Print banner
 	printOrchestratorBanner(normalizedTarget, config)
 
-	// Initialize orchestrator with real scanners
-	engine, err := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, log, config)
+	// Create scan record to get scan ID
+	scanID := fmt.Sprintf("bounty-%d-%x", time.Now().Unix(), time.Now().UnixNano()&0xFFFFFFFF)
+
+	// Wrap logger with DBEventLogger to save events to database
+	dbLogger := logger.NewDBEventLogger(log, store, scanID)
+
+	// Initialize orchestrator with real scanners and DB-enabled logger
+	engine, err := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, dbLogger.Logger, config)
 	if err != nil {
 		return fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}

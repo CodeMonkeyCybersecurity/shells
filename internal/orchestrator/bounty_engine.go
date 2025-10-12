@@ -367,6 +367,11 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	scanID := fmt.Sprintf("bounty-%d-%s", time.Now().Unix(), uuid.New().String()[:8])
 
 	// Wrap logger with database event logger to save all scan events to database for UI
+	// NOTE: We continue using e.logger throughout (NOT dbLogger) because:
+	// 1. DBEventLogger only wraps Infow/Warnw/Errorw (not all Logger methods)
+	// 2. DBEventLogger internally calls both stdout AND database
+	// 3. Child components need the full Logger interface
+	// The DBEventLogger saves events asynchronously in Infow/Warnw/Errorw methods
 	dbLogger := logger.NewDBEventLogger(e.logger, e.store, scanID)
 
 	dbLogger.Infow(" Starting bug bounty scan",
