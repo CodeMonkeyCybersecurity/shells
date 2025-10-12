@@ -69,7 +69,7 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
 
-		// Get scan info (only core columns - config/result/checkpoint may not exist in older schemas)
+		// Get scan info with metadata (requires migration v1 for config/result/checkpoint columns)
 		var scan struct {
 			ID          string     `json:"id"`
 			Target      string     `json:"target"`
@@ -79,12 +79,16 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 			StartedAt   *time.Time `json:"started_at,omitempty"`
 			CompletedAt *time.Time `json:"completed_at,omitempty"`
 			ErrorMsg    *string    `json:"error_message,omitempty"`
+			Config      *string    `json:"config,omitempty"`
+			Result      *string    `json:"result,omitempty"`
+			Checkpoint  *string    `json:"checkpoint,omitempty"`
 		}
 
 		err := db.QueryRowContext(ctx, `
-			SELECT id, target, type, status, created_at, started_at, completed_at, error_message
+			SELECT id, target, type, status, created_at, started_at, completed_at, error_message,
+			       config, result, checkpoint
 			FROM scans WHERE id = $1
-		`, scanID).Scan(&scan.ID, &scan.Target, &scan.Type, &scan.Status, &scan.CreatedAt, &scan.StartedAt, &scan.CompletedAt, &scan.ErrorMsg)
+		`, scanID).Scan(&scan.ID, &scan.Target, &scan.Type, &scan.Status, &scan.CreatedAt, &scan.StartedAt, &scan.CompletedAt, &scan.ErrorMsg, &scan.Config, &scan.Result, &scan.Checkpoint)
 
 		if err == sql.ErrNoRows {
 			log.Warnw("Scan not found in database",

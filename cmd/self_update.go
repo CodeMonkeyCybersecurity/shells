@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -8,7 +9,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
 	"github.com/spf13/cobra"
 )
 
@@ -151,6 +155,19 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	sizeMB := float64(fileInfo.Size()) / (1024 * 1024)
 	fmt.Printf("📏 New binary size: %.2f MB\n", sizeMB)
 
+	// Run database migrations
+	log.Info(" Running database migrations...", "component", "self_update")
+	if err := runDatabaseMigrations(); err != nil {
+		log.Warnw("Database migration failed - you may need to run migrations manually",
+			"component", "self_update",
+			"error", err,
+		)
+		fmt.Printf("⚠️  Warning: Database migration failed: %v\n", err)
+		fmt.Printf("   You can run migrations manually with: shells db migrate\n")
+	} else {
+		log.Info(" Database migrations completed successfully!", "component", "self_update")
+	}
+
 	log.Info(" Self-update completed successfully!", "component", "self_update")
 	return nil
 }
@@ -261,4 +278,56 @@ func pullLatestChanges() error {
 
 	fmt.Printf("Git output: %s\n", string(output))
 	return nil
+}
+
+// runDatabaseMigrations connects to the database and runs pending migrations
+func runDatabaseMigrations() error {
+	// Build database config from environment or defaults
+	var dbConfig config.DatabaseConfig
+
+	if cfg != nil && cfg.Database.DSN != "" {
+		// Use existing config
+		dbConfig = cfg.Database
+	} else {
+		// Build DSN from environment variables or defaults
+		host := getEnvOrDefault("SHELLS_DB_HOST", "localhost")
+		port := getEnvOrDefault("SHELLS_DB_PORT", "5432")
+		user := getEnvOrDefault("SHELLS_DB_USER", "shells_user")
+		password := getEnvOrDefault("SHELLS_DB_PASSWORD", "shells_password")
+		dbname := getEnvOrDefault("SHELLS_DB_NAME", "shells_db")
+		sslmode := getEnvOrDefault("SHELLS_DB_SSLMODE", "disable")
+
+		dbConfig = config.DatabaseConfig{
+			Driver: "postgres",
+			DSN:    fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s", host, port, user, password, dbname, sslmode),
+		}
+	}
+
+	// Connect to database
+	store, err := database.NewStore(dbConfig)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer store.Close()
+
+	// Get underlying sqlx.DB
+	sqlStore, ok := store.(*database.Store)
+	if !ok {
+		return fmt.Errorf("failed to get database connection")
+	}
+
+	// Run migrations
+	runner := database.NewMigrationRunner(sqlStore.DB(), log)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	return runner.RunMigrations(ctx)
+}
+
+// getEnvOrDefault returns environment variable value or default
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
