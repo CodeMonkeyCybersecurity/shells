@@ -421,7 +421,7 @@ func displayProtocolResults(findings []types.Finding, verbose bool) {
 	for _, severity := range []string{"CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"} {
 		if len(bySeverity[severity]) > 0 {
 			emoji := map[string]string{
-				"CRITICAL": "🔴",
+				"CRITICAL": "",
 				"HIGH":     "🟠",
 				"MEDIUM":   "🟡",
 				"LOW":      "🔵",

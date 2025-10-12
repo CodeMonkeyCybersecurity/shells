@@ -808,13 +808,13 @@ func getProtocolsInvolved(chains []common.AttackChain) []common.AuthProtocol {
 func getSeverityIcon(severity string) string {
 	switch severity {
 	case "CRITICAL":
-		return "🔴"
+		return ""
 	case "HIGH":
 		return "🟠"
 	case "MEDIUM":
 		return "🟡"
 	case "LOW":
-		return "🟢"
+		return ""
 	default:
 		return "⚪"
 	}

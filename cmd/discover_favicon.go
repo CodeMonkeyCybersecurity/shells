@@ -600,12 +600,12 @@ func outputHashResults(results []*favicon.HashResult, format string) error {
 
 func getConfidenceIcon(confidence float64) string {
 	if confidence >= 0.9 {
-		return "🟢"
+		return ""
 	} else if confidence >= 0.7 {
 		return "🟡"
 	} else if confidence >= 0.5 {
 		return "🟠"
 	} else {
-		return "🔴"
+		return ""
 	}
 }

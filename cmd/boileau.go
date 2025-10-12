@@ -462,7 +462,7 @@ func getToolsByCategory(category string) []string {
 
 func getBoileauSeverityEmoji(severity string) string {
 	emojis := map[string]string{
-		"CRITICAL": "🔴",
+		"CRITICAL": "",
 		"HIGH":     "🟠",
 		"MEDIUM":   "🟡",
 		"LOW":      "🔵",

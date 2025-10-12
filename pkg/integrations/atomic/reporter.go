@@ -365,7 +365,7 @@ const htmlReportTemplate = `
 </head>
 <body>
     <div class="header">
-        <h1>🛡️ ATT&CK Mapped Security Assessment Report</h1>
+        <h1> ATT&CK Mapped Security Assessment Report</h1>
         <p>Generated: {{.Metadata.GeneratedAt.Format "2006-01-02 15:04:05"}}</p>
         <p>Target: {{.Metadata.Target}}</p>
         <p>Total Techniques: {{.Metadata.TotalTechniques}} | High Risk: {{.Metadata.HighRiskTechniques}}</p>
@@ -422,7 +422,7 @@ const htmlReportTemplate = `
     </div>
 
     <div class="section">
-        <h2>🛡️ Recommended Mitigations</h2>
+        <h2> Recommended Mitigations</h2>
         {{range .Mitigations}}
         <div class="mitigation">
             <h4>{{.ID}}: {{.Name}}</h4>

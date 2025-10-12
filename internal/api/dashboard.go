@@ -358,7 +358,7 @@ const dashboardHTML = `<!DOCTYPE html>
 </head>
 <body>
     <div class="container">
-        <h1>🛡️ Shells Security Scanner</h1>
+        <h1> Shells Security Scanner</h1>
         <p class="subtitle">Real-time vulnerability scanning and bug bounty automation</p>
 
         <div id="stats" class="stats-grid">
@@ -388,6 +388,14 @@ const dashboardHTML = `<!DOCTYPE html>
             </div>
         </div>
 
+        <!-- Live Events Section for Active Scans -->
+        <div id="liveEventsSection" style="display: none; margin-bottom: 30px;">
+            <h2> Live Scan Progress</h2>
+            <div id="liveEvents" style="background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; padding: 20px;">
+                <div id="liveEventsContent"></div>
+            </div>
+        </div>
+
         <h2>Recent Scans</h2>
         <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
         <div class="scans-table">
@@ -399,10 +407,11 @@ const dashboardHTML = `<!DOCTYPE html>
                         <th>Type</th>
                         <th>Started</th>
                         <th>Duration</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="scansBody">
-                    <tr><td colspan="5" class="loading">Loading scans...</td></tr>
+                    <tr><td colspan="6" class="loading">Loading scans...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -436,9 +445,13 @@ const dashboardHTML = `<!DOCTYPE html>
                 tbody.innerHTML = '';
 
                 if (scans.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="loading">No scans found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No scans found</td></tr>';
+                    document.getElementById('liveEventsSection').style.display = 'none';
                     return;
                 }
+
+                // Track if we have any running scans
+                let hasRunningScans = false;
 
                 scans.forEach(scan => {
                     const row = document.createElement('tr');
@@ -448,17 +461,107 @@ const dashboardHTML = `<!DOCTYPE html>
                         ? formatDuration(new Date(scan.started_at), new Date(scan.completed_at))
                         : scan.started_at ? 'Running...' : '-';
 
+                    // Check if scan is running
+                    if (scan.status === 'running') {
+                        hasRunningScans = true;
+                    }
+
+                    // Add Actions column with View button
+                    const actionsHtml = '<button onclick="event.stopPropagation(); viewScan(\'' + scan.id + '\')" style="background: #667eea; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">View Details</button>';
+
                     row.innerHTML =
                         '<td>' + escapeHtml(scan.target) + '</td>' +
                         '<td><span class="status-badge status-' + scan.status + '">' + scan.status + '</span></td>' +
                         '<td>' + escapeHtml(scan.type) + '</td>' +
                         '<td>' + formatDate(scan.created_at) + '</td>' +
-                        '<td>' + duration + '</td>';
+                        '<td>' + duration + '</td>' +
+                        '<td>' + actionsHtml + '</td>';
                     tbody.appendChild(row);
                 });
+
+                // Show live events for running scans
+                if (hasRunningScans) {
+                    showLiveEvents(scans);
+                } else {
+                    document.getElementById('liveEventsSection').style.display = 'none';
+                }
             } catch (error) {
                 document.getElementById('scansBody').innerHTML =
-                    '<tr><td colspan="5" class="error">Error loading data: ' + escapeHtml(error.message) + '</td></tr>';
+                    '<tr><td colspan="6" class="error">Error loading data: ' + escapeHtml(error.message) + '</td></tr>';
+            }
+        }
+
+        async function showLiveEvents(scans) {
+            const runningScans = scans.filter(s => s.status === 'running');
+            if (runningScans.length === 0) {
+                document.getElementById('liveEventsSection').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('liveEventsSection').style.display = 'block';
+            const container = document.getElementById('liveEventsContent');
+            container.innerHTML = '';
+
+            for (const scan of runningScans) {
+                try {
+                    const eventsRes = await fetch('/api/dashboard/scans/' + scan.id + '/events');
+                    const events = await eventsRes.json();
+
+                    // Create section for this scan
+                    const scanDiv = document.createElement('div');
+                    scanDiv.style.marginBottom = '20px';
+                    scanDiv.style.border = '1px solid #2a2a3e';
+                    scanDiv.style.borderRadius = '6px';
+                    scanDiv.style.padding = '15px';
+                    scanDiv.style.background = '#0f0f23';
+
+                    // Scan header
+                    const headerDiv = document.createElement('div');
+                    headerDiv.style.marginBottom = '10px';
+                    headerDiv.style.display = 'flex';
+                    headerDiv.style.justifyContent = 'space-between';
+                    headerDiv.style.alignItems = 'center';
+                    headerDiv.innerHTML = '<div>' +
+                        '<span style="color: #667eea; font-weight: 600; font-size: 1.1rem;"> ' + escapeHtml(scan.target) + '</span> ' +
+                        '<span style="color: #6b7280; font-size: 0.875rem;">(' + events.length + ' events)</span>' +
+                        '</div>' +
+                        '<button onclick="viewScan(\'' + scan.id + '\')" style="background: #667eea; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.875rem;">Full Details</button>';
+                    scanDiv.appendChild(headerDiv);
+
+                    // Events log (show last 20 events)
+                    const eventsDiv = document.createElement('div');
+                    eventsDiv.style.maxHeight = '300px';
+                    eventsDiv.style.overflowY = 'auto';
+                    eventsDiv.style.fontFamily = 'monospace';
+                    eventsDiv.style.fontSize = '0.875rem';
+                    eventsDiv.style.background = '#000000';
+                    eventsDiv.style.padding = '10px';
+                    eventsDiv.style.borderRadius = '4px';
+
+                    // Show most recent events first (reverse order)
+                    const recentEvents = events.slice(-20).reverse();
+                    recentEvents.forEach(e => {
+                        const timestamp = new Date(e.created_at).toLocaleTimeString();
+                        const typeColor = e.type === 'error' ? '#ef4444' : e.type === 'warning' ? '#f59e0b' : '#3b82f6';
+
+                        const eventDiv = document.createElement('div');
+                        eventDiv.style.marginBottom = '6px';
+                        eventDiv.innerHTML = '<span style="color: #6b7280;">[' + timestamp + ']</span> ' +
+                            '<span style="color: ' + typeColor + '; font-weight: 600;">' + e.type.toUpperCase() + '</span> ' +
+                            '<span style="color: #9ca3af;">[' + escapeHtml(e.component) + ']</span> ' +
+                            '<span style="color: #e0e0e0;">' + escapeHtml(e.message) + '</span>';
+                        eventsDiv.appendChild(eventDiv);
+                    });
+
+                    if (recentEvents.length === 0) {
+                        eventsDiv.innerHTML = '<span style="color: #6b7280;">No events yet...</span>';
+                    }
+
+                    scanDiv.appendChild(eventsDiv);
+                    container.appendChild(scanDiv);
+                } catch (error) {
+                    console.error('Error loading events for scan ' + scan.id, error);
+                }
             }
         }
 

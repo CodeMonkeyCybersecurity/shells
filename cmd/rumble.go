@@ -539,7 +539,7 @@ func getrumbleAPIKey(cmd *cobra.Command) string {
 
 func printrumbleFinding(finding types.Finding) {
 	severityEmoji := map[string]string{
-		"critical": "🔴",
+		"critical": "",
 		"high":     "🟠",
 		"medium":   "🟡",
 		"low":      "🔵",

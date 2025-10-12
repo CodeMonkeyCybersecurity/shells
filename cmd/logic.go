@@ -424,7 +424,7 @@ Examples:
 			}
 		}
 
-		fmt.Printf("\n🛡️  MFA Security Assessment:\n")
+		fmt.Printf("\n  MFA Security Assessment:\n")
 		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
 		fmt.Printf("   Critical bypasses: %d\n", criticalCount)
 		fmt.Printf("   High-risk bypasses: %d\n", highCount)
@@ -772,7 +772,7 @@ Examples:
 		}
 
 		// Final security assessment
-		fmt.Printf("\n🛡️  Overall Security Assessment:\n")
+		fmt.Printf("\n  Overall Security Assessment:\n")
 		if report.Metadata.CriticalCount > 0 {
 			fmt.Printf(" CRITICAL: Immediate action required - %d critical vulnerabilities\n", report.Metadata.CriticalCount)
 		} else if report.Metadata.HighCount > 2 {

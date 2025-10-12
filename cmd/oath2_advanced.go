@@ -507,7 +507,7 @@ func displayOAuth2Results(findings []types.Finding, verbose bool) {
 	for _, severity := range []types.Severity{types.SeverityCritical, types.SeverityHigh, types.SeverityMedium, types.SeverityLow, types.SeverityInfo} {
 		if len(bySeverity[severity]) > 0 {
 			emoji := map[types.Severity]string{
-				types.SeverityCritical: "🔴",
+				types.SeverityCritical: "",
 				types.SeverityHigh:     "🟠",
 				types.SeverityMedium:   "🟡",
 				types.SeverityLow:      "🔵",

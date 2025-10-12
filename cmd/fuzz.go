@@ -518,7 +518,7 @@ func displayFuzzResults(findings []types.Finding, verbose bool) {
 	for _, severity := range []types.Severity{types.SeverityHigh, types.SeverityMedium, types.SeverityLow, types.SeverityInfo} {
 		if len(bySeverity[severity]) > 0 {
 			emoji := map[types.Severity]string{
-				types.SeverityHigh:   "🔴",
+				types.SeverityHigh:   "",
 				types.SeverityMedium: "🟡",
 				types.SeverityLow:    "🔵",
 				types.SeverityInfo:   "⚪",

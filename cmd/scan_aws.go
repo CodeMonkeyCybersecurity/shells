@@ -434,13 +434,13 @@ func outputTableResults(findings []types.Finding, summary AWSScanSummary) error 
 func getAWSSeverityIcon(severity string) string {
 	switch strings.ToUpper(severity) {
 	case "CRITICAL":
-		return "🔴"
+		return ""
 	case "HIGH":
 		return "🟠"
 	case "MEDIUM":
 		return "🟡"
 	case "LOW":
-		return "🟢"
+		return ""
 	default:
 		return "ℹ️"
 	}
