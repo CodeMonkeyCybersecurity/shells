@@ -367,11 +367,9 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	scanID := fmt.Sprintf("bounty-%d-%s", time.Now().Unix(), uuid.New().String()[:8])
 
 	// Wrap logger with database event logger to save all scan events to database for UI
-	// NOTE: We continue using e.logger throughout (NOT dbLogger) because:
-	// 1. DBEventLogger only wraps Infow/Warnw/Errorw (not all Logger methods)
-	// 2. DBEventLogger internally calls both stdout AND database
-	// 3. Child components need the full Logger interface
-	// The DBEventLogger saves events asynchronously in Infow/Warnw/Errorw methods
+	// DBEventLogger intercepts ALL logging methods (Info/Infow/Debug/Debugw/Warn/Warnw/Error/Errorw)
+	// and saves them to database asynchronously while also logging to stdout.
+	// We use dbLogger throughout this function and pass it to all child components.
 	dbLogger := logger.NewDBEventLogger(e.logger, e.store, scanID)
 
 	dbLogger.Infow(" Starting bug bounty scan",
@@ -412,7 +410,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	}
 	if err := e.store.SaveScan(ctx, initialScan); err != nil {
 		// Log but don't fail - scan can continue even if DB save fails
-		e.logger.Warnw("Failed to save initial scan record",
+		dbLogger.Warnw("Failed to save initial scan record",
 			"error", err,
 			"scan_id", scanID,
 		)
@@ -508,7 +506,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		)
 
 		tracker.StartPhase("discovery")
-		assets, phaseResult = e.executeDiscoveryPhase(ctx, target, tracker)
+		assets, phaseResult = e.executeDiscoveryPhase(ctx, target, tracker, dbLogger)
 
 		discoveryDuration := time.Since(discoveryStart)
 		dbLogger.Infow(" Discovery phase completed",
@@ -562,7 +560,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	)
 
 	tracker.StartPhase("prioritization")
-	prioritized := e.executePrioritizationPhase(assets)
+	prioritized := e.executePrioritizationPhase(assets, dbLogger)
 
 	dbLogger.Infow(" Prioritization completed",
 		"high_priority_assets", len(prioritized),
@@ -740,7 +738,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 }
 
 // executeDiscoveryPhase runs asset discovery with timeout
-func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string, tracker *progress.Tracker) ([]*discovery.Asset, PhaseResult) {
+func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string, tracker *progress.Tracker, dbLogger *logger.DBEventLogger) ([]*discovery.Asset, PhaseResult) {
 	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "discovery",
@@ -750,19 +748,19 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 
 	// Log parent context status
 	if deadline, ok := ctx.Deadline(); ok {
-		e.logger.Infow(" Parent context status before discovery phase",
+		dbLogger.Infow(" Parent context status before discovery phase",
 			"target", target,
 			"parent_deadline", deadline.Format(time.RFC3339),
 			"time_until_parent_deadline", time.Until(deadline).String(),
 			"parent_deadline_seconds", time.Until(deadline).Seconds(),
 		)
 	} else {
-		e.logger.Warnw("  No parent context deadline - unexpected!",
+		dbLogger.Warnw("  No parent context deadline - unexpected!",
 			"target", target,
 		)
 	}
 
-	e.logger.Infow(" Phase 1: Starting Asset Discovery",
+	dbLogger.Infow(" Phase 1: Starting Asset Discovery",
 		"target", target,
 		"discovery_timeout", e.config.DiscoveryTimeout.String(),
 	)
@@ -776,7 +774,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 		phase.Error = fmt.Sprintf("failed to start discovery: %v", err)
 		phase.EndTime = time.Now()
 		phase.Duration = phase.EndTime.Sub(phase.StartTime)
-		e.logger.Errorw(" Discovery failed to start",
+		dbLogger.Errorw(" Discovery failed to start",
 			"error", err,
 			"target", target,
 			"elapsed_time", time.Since(phaseStart).String(),
@@ -784,7 +782,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 		return nil, phase
 	}
 
-	e.logger.Infow(" Discovery session started",
+	dbLogger.Infow(" Discovery session started",
 		"target", target,
 		"session_id", session.ID,
 		"session_start_duration", time.Since(sessionStart).String(),
@@ -797,7 +795,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 	// Log discovery context deadline
 	if deadline, ok := discoveryCtx.Deadline(); ok {
 		parentDeadline, hasParent := ctx.Deadline()
-		e.logger.Infow(" Discovery context created FROM PARENT",
+		dbLogger.Infow(" Discovery context created FROM PARENT",
 			"target", target,
 			"session_id", session.ID,
 			"discovery_deadline", deadline.Format(time.RFC3339),
@@ -864,15 +862,15 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 			tracker.UpdateProgress("discovery", 95)
 			session, err = e.discoveryEngine.GetSession(session.ID)
 			if err != nil {
-				e.logger.Warnw("Failed to get session after completion, using partial results", "error", err)
+				dbLogger.Warnw("Failed to get session after completion, using partial results", "error", err)
 			}
 		} else {
-			e.logger.Warnw("Discovery failed or stopped, using partial results")
+			dbLogger.Warnw("Discovery failed or stopped, using partial results")
 			session, _ = e.discoveryEngine.GetSession(session.ID)
 		}
 	case <-discoveryCtx.Done():
 		// Discovery timeout
-		e.logger.Warnw("Discovery timed out, using partial results", "timeout", e.config.DiscoveryTimeout)
+		dbLogger.Warnw("Discovery timed out, using partial results", "timeout", e.config.DiscoveryTimeout)
 		session, _ = e.discoveryEngine.GetSession(session.ID)
 	}
 
@@ -887,7 +885,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 
 	// If no assets discovered, create one from the target
 	if len(assets) == 0 {
-		e.logger.Warnw("No assets discovered, using target as single asset", "target", target)
+		dbLogger.Warnw("No assets discovered, using target as single asset", "target", target)
 		assets = []*discovery.Asset{
 			{
 				Type:  discovery.AssetTypeURL,
@@ -899,7 +897,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 	phase.EndTime = time.Now()
 	phase.Duration = phase.EndTime.Sub(phase.StartTime)
 	phase.Status = "completed"
-	e.logger.Infow("Discovery completed", "assets", len(assets), "duration", phase.Duration)
+	dbLogger.Infow("Discovery completed", "assets", len(assets), "duration", phase.Duration)
 
 	return assets, phase
 }
@@ -924,8 +922,8 @@ type AssetFeatures struct {
 }
 
 // executePrioritizationPhase prioritizes assets for testing
-func (e *BugBountyEngine) executePrioritizationPhase(assets []*discovery.Asset) []*AssetPriority {
-	e.logger.Infow("Phase 2: Asset Prioritization", "assets", len(assets))
+func (e *BugBountyEngine) executePrioritizationPhase(assets []*discovery.Asset, dbLogger *logger.DBEventLogger) []*AssetPriority {
+	dbLogger.Infow("Phase 2: Asset Prioritization", "assets", len(assets))
 
 	var prioritized []*AssetPriority
 
@@ -969,14 +967,14 @@ func (e *BugBountyEngine) executePrioritizationPhase(assets []*discovery.Asset) 
 
 	// Log top priorities for visibility
 	topCount := min(5, len(prioritized))
-	e.logger.Infow("Asset prioritization completed",
+	dbLogger.Infow("Asset prioritization completed",
 		"total_assets", len(prioritized),
 		"top_priorities", topCount,
 	)
 
 	for i := 0; i < topCount; i++ {
 		p := prioritized[i]
-		e.logger.Debugw("High priority target",
+		dbLogger.Debugw("High priority target",
 			"rank", i+1,
 			"score", p.Score,
 			"url", p.Asset.Value,
@@ -1233,7 +1231,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		StartTime: phaseStart,
 	}
 
-	e.logger.Infow(" Starting authentication testing phase",
+	dbLogger.Infow(" Starting authentication testing phase",
 		"target", target,
 		"asset_count", len(assets),
 		"component", "auth_scanner",
@@ -1242,7 +1240,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 	// Check context status
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow(" Context status at auth phase start",
+		dbLogger.Infow(" Context status at auth phase start",
 			"remaining_time", remaining.String(),
 			"remaining_seconds", remaining.Seconds(),
 			"context_healthy", remaining > 0,
@@ -1254,7 +1252,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 	// Discover authentication endpoints
 	discoveryStart := time.Now()
-	e.logger.Infow(" Discovering authentication endpoints",
+	dbLogger.Infow(" Discovering authentication endpoints",
 		"target", target,
 		"component", "auth_scanner",
 	)
@@ -1263,7 +1261,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 	discoveryDuration := time.Since(discoveryStart)
 
 	if err != nil {
-		e.logger.Errorw(" Authentication discovery failed",
+		dbLogger.Errorw(" Authentication discovery failed",
 			"error", err,
 			"target", target,
 			"discovery_duration", discoveryDuration.String(),
@@ -1289,7 +1287,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 		protocolsFound = append(protocolsFound, "WebAuthn/FIDO2")
 	}
 
-	e.logger.Infow(" Authentication endpoint discovery complete",
+	dbLogger.Infow(" Authentication endpoint discovery complete",
 		"saml_found", authInventory.SAML != nil,
 		"oauth2_found", authInventory.OAuth2 != nil,
 		"webauthn_found", authInventory.WebAuthn != nil,
@@ -1302,7 +1300,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 	// Test SAML if discovered
 	if authInventory.SAML != nil && authInventory.SAML.MetadataURL != "" {
-		e.logger.Infow(" Testing SAML authentication security",
+		dbLogger.Infow(" Testing SAML authentication security",
 			"metadata_url", authInventory.SAML.MetadataURL,
 			"tests", []string{"Golden SAML", "XML Signature Wrapping", "Assertion manipulation"},
 			"component", "auth_scanner",
@@ -1316,13 +1314,13 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 		report, err := e.samlScanner.Scan(target, samlOptions)
 		if err != nil {
-			e.logger.Warnw("SAML scanning failed",
+			dbLogger.Warnw("SAML scanning failed",
 				"error", err,
 				"target", target,
 				"component", "auth_scanner",
 			)
 		} else if report != nil {
-			e.logger.Infow("SAML scan complete",
+			dbLogger.Infow("SAML scan complete",
 				"vulnerabilities_found", len(report.Vulnerabilities),
 				"attack_chains", len(report.AttackChains),
 				"component", "auth_scanner",
@@ -1333,7 +1331,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
-				e.logger.Infow(" SAML vulnerability found",
+				dbLogger.Infow(" SAML vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
 					"title", vuln.Title,
@@ -1342,7 +1340,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 			}
 		}
 	} else {
-		e.logger.Infow("No SAML endpoints discovered - skipping SAML tests",
+		dbLogger.Infow("No SAML endpoints discovered - skipping SAML tests",
 			"target", target,
 			"component", "auth_scanner",
 		)
@@ -1350,7 +1348,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 	// Test OAuth2 if discovered
 	if authInventory.OAuth2 != nil && authInventory.OAuth2.AuthorizationURL != "" {
-		e.logger.Infow(" Testing OAuth2/OIDC authentication security",
+		dbLogger.Infow(" Testing OAuth2/OIDC authentication security",
 			"authorization_url", authInventory.OAuth2.AuthorizationURL,
 			"token_url", authInventory.OAuth2.TokenURL,
 			"tests", []string{"JWT algorithm confusion", "PKCE bypass", "State validation", "Scope escalation"},
@@ -1366,13 +1364,13 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 		report, err := e.oauth2Scanner.Scan(target, oauth2Options)
 		if err != nil {
-			e.logger.Warnw("OAuth2 scanning failed",
+			dbLogger.Warnw("OAuth2 scanning failed",
 				"error", err,
 				"target", target,
 				"component", "auth_scanner",
 			)
 		} else if report != nil {
-			e.logger.Infow("OAuth2 scan complete",
+			dbLogger.Infow("OAuth2 scan complete",
 				"vulnerabilities_found", len(report.Vulnerabilities),
 				"attack_chains", len(report.AttackChains),
 				"component", "auth_scanner",
@@ -1382,7 +1380,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
-				e.logger.Infow(" OAuth2 vulnerability found",
+				dbLogger.Infow(" OAuth2 vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
 					"title", vuln.Title,
@@ -1391,7 +1389,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 			}
 		}
 	} else {
-		e.logger.Infow("No OAuth2 endpoints discovered - skipping OAuth2 tests",
+		dbLogger.Infow("No OAuth2 endpoints discovered - skipping OAuth2 tests",
 			"target", target,
 			"component", "auth_scanner",
 		)
@@ -1399,7 +1397,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 	// Test WebAuthn if discovered
 	if authInventory.WebAuthn != nil && authInventory.WebAuthn.RegisterURL != "" {
-		e.logger.Infow(" Testing WebAuthn/FIDO2 authentication security",
+		dbLogger.Infow(" Testing WebAuthn/FIDO2 authentication security",
 			"register_url", authInventory.WebAuthn.RegisterURL,
 			"login_url", authInventory.WebAuthn.LoginURL,
 			"tests", []string{"Virtual authenticator", "Credential substitution", "Challenge reuse", "Origin validation"},
@@ -1413,13 +1411,13 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 
 		report, err := e.webauthnScanner.Scan(target, webauthnOptions)
 		if err != nil {
-			e.logger.Warnw("WebAuthn scanning failed",
+			dbLogger.Warnw("WebAuthn scanning failed",
 				"error", err,
 				"target", target,
 				"component", "auth_scanner",
 			)
 		} else if report != nil {
-			e.logger.Infow("WebAuthn scan complete",
+			dbLogger.Infow("WebAuthn scan complete",
 				"vulnerabilities_found", len(report.Vulnerabilities),
 				"attack_chains", len(report.AttackChains),
 				"component", "auth_scanner",
@@ -1429,7 +1427,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
-				e.logger.Infow(" WebAuthn vulnerability found",
+				dbLogger.Infow(" WebAuthn vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
 					"title", vuln.Title,
@@ -1438,7 +1436,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 			}
 		}
 	} else {
-		e.logger.Infow("No WebAuthn endpoints discovered - skipping WebAuthn tests",
+		dbLogger.Infow("No WebAuthn endpoints discovered - skipping WebAuthn tests",
 			"target", target,
 			"component", "auth_scanner",
 		)
@@ -1449,7 +1447,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow("Authentication testing completed", "findings", len(findings), "duration", phase.Duration)
+	dbLogger.Infow("Authentication testing completed", "findings", len(findings), "duration", phase.Duration)
 
 	return findings, phase
 }
@@ -1463,7 +1461,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 		StartTime: phaseStart,
 	}
 
-	e.logger.Infow(" Starting SCIM testing phase",
+	dbLogger.Infow(" Starting SCIM testing phase",
 		"asset_count", len(assets),
 		"component", "scim_scanner",
 	)
@@ -1471,7 +1469,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 	// Check context status
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow(" Context status at SCIM phase start",
+		dbLogger.Infow(" Context status at SCIM phase start",
 			"remaining_time", remaining.String(),
 			"remaining_seconds", remaining.Seconds(),
 			"context_healthy", remaining > 0,
@@ -1500,7 +1498,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 			defer func() {
 				// P2.1: Panic recovery - graceful error handling
 				if r := recover(); r != nil {
-					e.logger.Errorw("SCIM scanner panicked - recovered gracefully",
+					dbLogger.Errorw("SCIM scanner panicked - recovered gracefully",
 						"url", assetValue,
 						"panic", r)
 				}
@@ -1508,7 +1506,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 				wg.Done()
 			}()
 
-			e.logger.Infow("Testing SCIM endpoint", "url", assetValue)
+			dbLogger.Infow("Testing SCIM endpoint", "url", assetValue)
 
 			// Run SCIM vulnerability tests with timeout protection
 			scanCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -1519,7 +1517,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 
 			scimFindings, err := e.scimScanner.Scan(scanCtx, assetValue, scimOptions)
 			if err != nil {
-				e.logger.Warnw("SCIM scan failed", "url", assetValue, "error", err)
+				dbLogger.Warnw("SCIM scan failed", "url", assetValue, "error", err)
 				return
 			}
 
@@ -1528,7 +1526,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 			findings = append(findings, scimFindings...)
 			mu.Unlock()
 
-			e.logger.Infow("SCIM scan completed", "url", assetValue, "findings", len(scimFindings))
+			dbLogger.Infow("SCIM scan completed", "url", assetValue, "findings", len(scimFindings))
 		}(asset.Asset.Value)
 	}
 
@@ -1540,7 +1538,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow(" SCIM testing phase completed",
+	dbLogger.Infow(" SCIM testing phase completed",
 		"total_findings", len(findings),
 		"phase_duration", phase.Duration.String(),
 		"elapsed_since_phase_start", time.Since(phaseStart).String(),
@@ -1558,7 +1556,7 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 		StartTime: time.Now(),
 	}
 
-	e.logger.Infow("Testing API endpoints")
+	dbLogger.Infow("Testing API endpoints")
 
 	var findings []types.Finding
 
@@ -1577,7 +1575,7 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 	for _, asset := range assets {
 		if asset.Features.HasAPI {
 			apiCount++
-			e.logger.Debugw("API endpoint identified (testing not yet implemented)",
+			dbLogger.Debugw("API endpoint identified (testing not yet implemented)",
 				"url", asset.Asset.Value,
 				"note", "use shells api command for dedicated API testing",
 			)
@@ -1585,7 +1583,7 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 	}
 
 	if apiCount > 0 {
-		e.logger.Infow("API endpoints detected but not tested",
+		dbLogger.Infow("API endpoints detected but not tested",
 			"count", apiCount,
 			"reason", "real API testing not yet implemented",
 			"recommendation", "use dedicated API testing tools or shells api command",
@@ -1597,7 +1595,7 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow("API testing completed", "findings", len(findings), "duration", phase.Duration)
+	dbLogger.Infow("API testing completed", "findings", len(findings), "duration", phase.Duration)
 
 	return findings, phase
 }
@@ -1611,7 +1609,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		StartTime: phaseStart,
 	}
 
-	e.logger.Infow(" Starting Nmap service fingerprinting phase",
+	dbLogger.Infow(" Starting Nmap service fingerprinting phase",
 		"asset_count", len(assets),
 		"component", "nmap_scanner",
 	)
@@ -1619,7 +1617,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 	// DIAGNOSTIC: Check context before Nmap execution
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow(" Context status at Nmap phase start",
+		dbLogger.Infow(" Context status at Nmap phase start",
 			"deadline", deadline.Format(time.RFC3339),
 			"deadline_unix", deadline.Unix(),
 			"remaining_seconds", remaining.Seconds(),
@@ -1628,13 +1626,13 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 			"component", "nmap_scanner",
 		)
 		if remaining <= 0 {
-			e.logger.Errorw(" CRITICAL: Context already expired before Nmap phase!",
+			dbLogger.Errorw(" CRITICAL: Context already expired before Nmap phase!",
 				"expired_by", (-remaining).String(),
 				"component", "nmap_scanner",
 			)
 		}
 	} else {
-		e.logger.Warnw("  No deadline on context before Nmap - unexpected!",
+		dbLogger.Warnw("  No deadline on context before Nmap - unexpected!",
 			"component", "nmap_scanner",
 		)
 	}
@@ -1652,7 +1650,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		}
 	}
 
-	e.logger.Infow(" Nmap scan targets prepared",
+	dbLogger.Infow(" Nmap scan targets prepared",
 		"total_assets", len(assets),
 		"unique_hosts", totalHosts,
 		"component", "nmap_scanner",
@@ -1663,7 +1661,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		scannedCount++
 		scanStart := time.Now()
 
-		e.logger.Infow(" Scanning host with Nmap",
+		dbLogger.Infow(" Scanning host with Nmap",
 			"host", host,
 			"progress", fmt.Sprintf("%d/%d", scannedCount, totalHosts),
 			"elapsed_since_phase_start", time.Since(phaseStart).String(),
@@ -1673,7 +1671,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		// DIAGNOSTIC: Check context status immediately before each Nmap call
 		select {
 		case <-ctx.Done():
-			e.logger.Errorw(" CRITICAL: Context cancelled before Nmap.Scan()",
+			dbLogger.Errorw(" CRITICAL: Context cancelled before Nmap.Scan()",
 				"error", ctx.Err(),
 				"host", host,
 				"scanned_count", scannedCount,
@@ -1687,7 +1685,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		default:
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
-				e.logger.Infow(" Context valid before Nmap.Scan()",
+				dbLogger.Infow(" Context valid before Nmap.Scan()",
 					"host", host,
 					"remaining_time", remaining.String(),
 					"remaining_seconds", remaining.Seconds(),
@@ -1701,7 +1699,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		scanDuration := time.Since(scanStart)
 
 		if err != nil {
-			e.logger.Errorw(" Nmap scan failed",
+			dbLogger.Errorw(" Nmap scan failed",
 				"error", err,
 				"host", host,
 				"scan_duration", scanDuration.String(),
@@ -1711,7 +1709,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 
 			// Check if error was due to context cancellation
 			if ctx.Err() != nil {
-				e.logger.Errorw(" Nmap scan failed due to context cancellation",
+				dbLogger.Errorw(" Nmap scan failed due to context cancellation",
 					"context_error", ctx.Err(),
 					"scan_error", err,
 					"host", host,
@@ -1724,7 +1722,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 		// Convert results to findings
 		findings = append(findings, results...)
 
-		e.logger.Infow(" Nmap scan completed",
+		dbLogger.Infow(" Nmap scan completed",
 			"host", host,
 			"findings", len(results),
 			"scan_duration", scanDuration.String(),
@@ -1739,7 +1737,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow(" Nmap scanning phase completed",
+	dbLogger.Infow(" Nmap scanning phase completed",
 		"total_findings", len(findings),
 		"phase_duration", phase.Duration.String(),
 		"hosts_scanned", scannedCount,
@@ -1760,7 +1758,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		StartTime: phaseStart,
 	}
 
-	e.logger.Infow(" Starting Nuclei vulnerability scanning phase",
+	dbLogger.Infow(" Starting Nuclei vulnerability scanning phase",
 		"asset_count", len(assets),
 		"component", "nuclei_scanner",
 	)
@@ -1768,14 +1766,14 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 	// Check context status at phase start
 	if deadline, ok := ctx.Deadline(); ok {
 		remaining := time.Until(deadline)
-		e.logger.Infow(" Context status at Nuclei phase start",
+		dbLogger.Infow(" Context status at Nuclei phase start",
 			"remaining_time", remaining.String(),
 			"remaining_seconds", remaining.Seconds(),
 			"context_healthy", remaining > 0,
 			"component", "nuclei_scanner",
 		)
 		if remaining <= 0 {
-			e.logger.Errorw(" CRITICAL: Context already expired before Nuclei phase!",
+			dbLogger.Errorw(" CRITICAL: Context already expired before Nuclei phase!",
 				"expired_by", (-remaining).String(),
 				"component", "nuclei_scanner",
 			)
@@ -1790,7 +1788,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		scanStart := time.Now()
 		progress := fmt.Sprintf("%d/%d", idx+1, totalAssets)
 
-		e.logger.Infow(" Scanning target with Nuclei",
+		dbLogger.Infow(" Scanning target with Nuclei",
 			"target", asset.Asset.Value,
 			"priority_score", asset.Score,
 			"progress", progress,

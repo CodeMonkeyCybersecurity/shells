@@ -82,6 +82,116 @@ func (l *DBEventLogger) Errorw(msg string, keysAndValues ...interface{}) {
 	}()
 }
 
+// Debugw logs and saves debug events to database
+func (l *DBEventLogger) Debugw(msg string, keysAndValues ...interface{}) {
+	// Call parent logger
+	l.Logger.Debugw(msg, keysAndValues...)
+
+	// Save debug events to database
+	if l.shouldSaveEvent(msg) {
+		metadata := l.extractMetadata(keysAndValues)
+		component := l.extractComponent(keysAndValues)
+
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := l.store.SaveScanEvent(ctx, l.scanID, "debug", component, msg, metadata); err != nil {
+				l.Logger.Errorw("Failed to save debug event to database",
+					"error", err,
+					"scan_id", l.scanID,
+					"component", component,
+					"message", msg,
+				)
+			}
+		}()
+	}
+}
+
+// Info logs and saves info events to database
+func (l *DBEventLogger) Info(msg string) {
+	// Call parent logger
+	l.Logger.Info(msg)
+
+	// Save to database
+	if l.shouldSaveEvent(msg) {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := l.store.SaveScanEvent(ctx, l.scanID, "info", "orchestrator", msg, nil); err != nil {
+				l.Logger.Errorw("Failed to save info event to database",
+					"error", err,
+					"scan_id", l.scanID,
+					"message", msg,
+				)
+			}
+		}()
+	}
+}
+
+// Warn logs and saves warning events to database
+func (l *DBEventLogger) Warn(msg string) {
+	// Call parent logger
+	l.Logger.Warn(msg)
+
+	// Always save warnings to database
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := l.store.SaveScanEvent(ctx, l.scanID, "warning", "orchestrator", msg, nil); err != nil {
+			l.Logger.Errorw("Failed to save warning event to database",
+				"error", err,
+				"scan_id", l.scanID,
+				"message", msg,
+			)
+		}
+	}()
+}
+
+// Error logs and saves error events to database
+func (l *DBEventLogger) Error(msg string) {
+	// Call parent logger
+	l.Logger.Error(msg)
+
+	// Always save errors to database
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := l.store.SaveScanEvent(ctx, l.scanID, "error", "orchestrator", msg, nil); err != nil {
+			l.Logger.Errorw("Failed to save error event to database",
+				"error", err,
+				"scan_id", l.scanID,
+				"message", msg,
+			)
+		}
+	}()
+}
+
+// Debug logs and saves debug events to database
+func (l *DBEventLogger) Debug(msg string) {
+	// Call parent logger
+	l.Logger.Debug(msg)
+
+	// Save debug events to database
+	if l.shouldSaveEvent(msg) {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := l.store.SaveScanEvent(ctx, l.scanID, "debug", "orchestrator", msg, nil); err != nil {
+				l.Logger.Errorw("Failed to save debug event to database",
+					"error", err,
+					"scan_id", l.scanID,
+					"message", msg,
+				)
+			}
+		}()
+	}
+}
+
 // shouldSaveEvent determines if an event is significant enough to save to database
 func (l *DBEventLogger) shouldSaveEvent(msg string) bool {
 	// Save ALL events - complete scan history for UI
