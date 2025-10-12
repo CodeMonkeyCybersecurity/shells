@@ -1799,7 +1799,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		// Check context status before each scan
 		select {
 		case <-ctx.Done():
-			e.logger.Errorw(" CRITICAL: Context cancelled before Nuclei scan",
+			dbLogger.Errorw(" CRITICAL: Context cancelled before Nuclei scan",
 				"error", ctx.Err(),
 				"target", asset.Asset.Value,
 				"progress", progress,
@@ -1812,7 +1812,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		default:
 			if deadline, ok := ctx.Deadline(); ok {
 				remaining := time.Until(deadline)
-				e.logger.Debugw(" Context valid before Nuclei scan",
+				dbLogger.Debugw(" Context valid before Nuclei scan",
 					"target", asset.Asset.Value,
 					"remaining_time", remaining.String(),
 					"component", "nuclei_scanner",
@@ -1825,7 +1825,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		scanDuration := time.Since(scanStart)
 
 		if err != nil {
-			e.logger.Errorw(" Nuclei scan failed",
+			dbLogger.Errorw(" Nuclei scan failed",
 				"error", err,
 				"target", asset.Asset.Value,
 				"scan_duration", scanDuration.String(),
@@ -1835,7 +1835,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 
 			// Check if error was due to context cancellation
 			if ctx.Err() != nil {
-				e.logger.Errorw(" Nuclei scan failed due to context cancellation",
+				dbLogger.Errorw(" Nuclei scan failed due to context cancellation",
 					"context_error", ctx.Err(),
 					"scan_error", err,
 					"target", asset.Asset.Value,
@@ -1848,7 +1848,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		// Convert results to findings
 		findings = append(findings, results...)
 
-		e.logger.Infow(" Nuclei scan completed",
+		dbLogger.Infow(" Nuclei scan completed",
 			"target", asset.Asset.Value,
 			"findings", len(results),
 			"scan_duration", scanDuration.String(),
@@ -1868,7 +1868,7 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 		avgScanTime = fmt.Sprintf("%.2fs", phase.Duration.Seconds()/float64(totalAssets))
 	}
 
-	e.logger.Infow(" Nuclei scanning phase completed",
+	dbLogger.Infow(" Nuclei scanning phase completed",
 		"total_findings", len(findings),
 		"phase_duration", phase.Duration.String(),
 		"targets_scanned", totalAssets,
@@ -1995,7 +1995,7 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 		StartTime: time.Now(),
 	}
 
-	e.logger.Infow("Running IDOR vulnerability tests")
+	dbLogger.Infow("Running IDOR vulnerability tests")
 
 	var findings []types.Finding
 
@@ -2010,7 +2010,7 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 	}
 
 	if len(idorEndpoints) == 0 {
-		e.logger.Infow("No IDOR candidates found", "component", "idor_scanner")
+		dbLogger.Infow("No IDOR candidates found", "component", "idor_scanner")
 		phase.EndTime = time.Now()
 		phase.Duration = phase.EndTime.Sub(phase.StartTime)
 		phase.Status = "completed"
@@ -2018,14 +2018,14 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 		return findings, phase
 	}
 
-	e.logger.Infow("IDOR candidates identified",
+	dbLogger.Infow("IDOR candidates identified",
 		"count", len(idorEndpoints),
 		"component", "idor_scanner",
 	)
 
 	// Run IDOR scans
 	for _, endpoint := range idorEndpoints {
-		e.logger.Debugw("Testing IDOR endpoint",
+		dbLogger.Debugw("Testing IDOR endpoint",
 			"endpoint", endpoint,
 			"component", "idor_scanner",
 		)
@@ -2035,7 +2035,7 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 		tokens := []string{} // TODO: Extract from credential manager or user input
 		jobStatus, err := e.pythonWorkers.ScanIDORSync(ctx, endpoint, tokens, 1, 100)
 		if err != nil {
-			e.logger.Errorw("IDOR scan failed",
+			dbLogger.Errorw("IDOR scan failed",
 				"error", err,
 				"endpoint", endpoint,
 				"component", "idor_scanner",
@@ -2048,7 +2048,7 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 			idorFindings := convertPythonIDORToFindings(jobStatus.Result, endpoint)
 			findings = append(findings, idorFindings...)
 
-			e.logger.Infow("IDOR scan completed",
+			dbLogger.Infow("IDOR scan completed",
 				"endpoint", endpoint,
 				"findings", len(idorFindings),
 				"component", "idor_scanner",
@@ -2061,7 +2061,7 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow("IDOR testing completed",
+	dbLogger.Infow("IDOR testing completed",
 		"findings", len(findings),
 		"duration", phase.Duration,
 		"endpoints_tested", len(idorEndpoints),
