@@ -297,6 +297,27 @@ func (su *ShellsUpdater) PullLatestCode() error {
 		su.logger.Infow("Updates available", "commits_behind", behind)
 	}
 
+	// Check for uncommitted changes and stash them automatically
+	statusCmd := exec.Command("git", "-C", su.config.SourceDir, "status", "--porcelain")
+	statusOutput, _ := statusCmd.Output()
+	hasChanges := len(strings.TrimSpace(string(statusOutput))) > 0
+
+	if hasChanges {
+		su.logger.Infow("Uncommitted changes detected - stashing automatically",
+			"changes", string(statusOutput),
+		)
+		stashCmd := exec.Command("git", "-C", su.config.SourceDir, "stash", "push", "-m", "shells-self-update-auto-stash")
+		if stashOutput, err := stashCmd.CombinedOutput(); err != nil {
+			su.logger.Warnw("Failed to stash changes",
+				"error", err,
+				"output", string(stashOutput),
+			)
+			// Continue anyway - git pull might still work
+		} else {
+			su.logger.Infow("Changes stashed successfully")
+		}
+	}
+
 	// Pull the changes
 	pullCmd := exec.Command("git", "-C", su.config.SourceDir, "pull", "origin", su.config.GitBranch)
 	pullOutput, err := pullCmd.CombinedOutput()
@@ -311,6 +332,23 @@ func (su *ShellsUpdater) PullLatestCode() error {
 	su.logger.Infow("Git pull completed",
 		"output", strings.TrimSpace(string(pullOutput)),
 	)
+
+	// Restore stashed changes if we stashed them
+	if hasChanges {
+		su.logger.Infow("Restoring stashed changes")
+		popCmd := exec.Command("git", "-C", su.config.SourceDir, "stash", "pop")
+		if popOutput, err := popCmd.CombinedOutput(); err != nil {
+			su.logger.Warnw("Failed to restore stashed changes - may have conflicts",
+				"error", err,
+				"output", string(popOutput),
+				"note", "Run 'git stash list' and 'git stash pop' manually in /opt/shells",
+			)
+			// Don't fail the update - stash is still available for manual recovery
+		} else {
+			su.logger.Infow("Stashed changes restored successfully")
+		}
+	}
+
 	return nil
 }
 
