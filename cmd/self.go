@@ -3,6 +3,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
@@ -141,11 +144,117 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		fmt.Println(" Database migrations completed successfully!")
 	}
 
+	// Install/update Nuclei scanner
+	logger.Infow("Checking Nuclei installation",
+		"component", "self_update",
+	)
+	fmt.Println()
+	fmt.Println(" Checking Nuclei scanner...")
+
+	if err := ensureNucleiInstalled(logger); err != nil {
+		logger.Warnw("Nuclei installation/update failed",
+			"component", "self_update",
+			"error", err,
+		)
+		fmt.Printf("⚠️  Warning: Nuclei installation failed: %v\n", err)
+		fmt.Printf("   Nuclei scanning will be disabled until installed\n")
+		fmt.Printf("   You can install manually with: %s/scripts/install-nuclei.sh\n", updateSourceDir)
+	} else {
+		logger.Infow("Nuclei scanner ready",
+			"component", "self_update",
+		)
+		fmt.Println(" Nuclei scanner ready!")
+	}
+
 	fmt.Println()
 	log.Info(" Shells updated successfully!", "component", "self")
 	fmt.Printf("   Duration: %s\n", duration.Round(time.Second))
 	fmt.Println()
 	log.Info("Run 'shells --version' to verify the new version", "component", "self")
+
+	return nil
+}
+
+// ensureNucleiInstalled checks if Nuclei is installed and installs/updates it if needed
+func ensureNucleiInstalled(logger *logger.Logger) error {
+	// Check if nuclei is already in PATH
+	nucleiPath, err := exec.LookPath("nuclei")
+	if err == nil {
+		// Nuclei found, check version and update templates
+		logger.Infow("Nuclei already installed",
+			"path", nucleiPath,
+			"component", "nuclei_setup",
+		)
+
+		// Update templates
+		cmd := exec.Command("nuclei", "-update-templates", "-silent")
+		if err := cmd.Run(); err != nil {
+			logger.Warnw("Failed to update Nuclei templates",
+				"error", err,
+				"component", "nuclei_setup",
+			)
+			// Don't fail if template update fails
+		} else {
+			logger.Infow("Nuclei templates updated",
+				"component", "nuclei_setup",
+			)
+		}
+
+		return nil
+	}
+
+	// Nuclei not found, need to install
+	logger.Infow("Nuclei not found, installing from GitHub",
+		"component", "nuclei_setup",
+	)
+	fmt.Println("   Installing Nuclei scanner...")
+
+	// Install using go install
+	installCmd := exec.Command("go", "install", "-v", "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest")
+	installCmd.Stdout = nil // Suppress output
+	installCmd.Stderr = nil
+
+	if err := installCmd.Run(); err != nil {
+		return fmt.Errorf("failed to install nuclei: %w", err)
+	}
+
+	// Verify installation
+	nucleiPath, err = exec.LookPath("nuclei")
+	if err != nil {
+		// Try in Go bin directory
+		goPath := os.Getenv("GOPATH")
+		if goPath == "" {
+			homeDir, _ := os.UserHomeDir()
+			goPath = filepath.Join(homeDir, "go")
+		}
+		nucleiPath = filepath.Join(goPath, "bin", "nuclei")
+
+		if _, err := os.Stat(nucleiPath); err != nil {
+			return fmt.Errorf("nuclei installed but not found in PATH. Please add %s/bin to your PATH", goPath)
+		}
+	}
+
+	logger.Infow("Nuclei installed successfully",
+		"path", nucleiPath,
+		"component", "nuclei_setup",
+	)
+
+	// Update templates
+	fmt.Println("   Updating Nuclei templates...")
+	templatesCmd := exec.Command(nucleiPath, "-update-templates", "-silent")
+	if err := templatesCmd.Run(); err != nil {
+		logger.Warnw("Failed to update Nuclei templates",
+			"error", err,
+			"component", "nuclei_setup",
+		)
+		// Don't fail - templates will update on first run
+	} else {
+		logger.Infow("Nuclei templates updated",
+			"component", "nuclei_setup",
+		)
+	}
+
+	fmt.Println("   Nuclei scanner installed successfully!")
 
 	return nil
 }

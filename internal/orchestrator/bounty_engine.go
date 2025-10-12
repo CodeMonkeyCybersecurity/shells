@@ -4,6 +4,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -219,20 +220,34 @@ func NewBugBountyEngine(
 		logger.Infow("Nmap scanner initialized", "component", "orchestrator")
 	}
 
-	// Initialize Nuclei scanner (if enabled)
+	// Initialize Nuclei scanner (if enabled and binary exists)
 	var nucleiScanner core.Scanner
 	if config.EnableNucleiScan {
-		nucleiConfig := nuclei.NucleiConfig{
-			BinaryPath:    "nuclei",
-			TemplatesPath: "", // Use default
-			Timeout:       config.ScanTimeout,
-			RateLimit:     int(config.RateLimitPerSecond),
-			BulkSize:      25,
-			Concurrency:   25,
-			Retries:       2,
+		// Check if nuclei binary is available
+		nucleiBinaryPath := "nuclei"
+		if _, err := exec.LookPath(nucleiBinaryPath); err != nil {
+			logger.Warnw("Nuclei scanner disabled - binary not found in PATH",
+				"error", err,
+				"binary", nucleiBinaryPath,
+				"install_instructions", "Run: go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest",
+				"component", "orchestrator",
+			)
+		} else {
+			nucleiConfig := nuclei.NucleiConfig{
+				BinaryPath:    nucleiBinaryPath,
+				TemplatesPath: "", // Use default
+				Timeout:       config.ScanTimeout,
+				RateLimit:     int(config.RateLimitPerSecond),
+				BulkSize:      25,
+				Concurrency:   25,
+				Retries:       2,
+			}
+			nucleiScanner = nuclei.NewScanner(nucleiConfig, samlLogger)
+			logger.Infow("Nuclei scanner initialized",
+				"binary_path", nucleiBinaryPath,
+				"component", "orchestrator",
+			)
 		}
-		nucleiScanner = nuclei.NewScanner(nucleiConfig, samlLogger)
-		logger.Infow("Nuclei scanner initialized", "component", "orchestrator")
 	}
 
 	// Initialize GraphQL scanner (if enabled)
@@ -2309,7 +2324,67 @@ func extractHost(urlStr string) string {
 
 // storeResults saves scan results to the database
 func (e *BugBountyEngine) storeResults(ctx context.Context, scanID string, result *BugBountyResult) error {
-	// Save scan metadata
+	// Prepare scan configuration for storage
+	configJSON := map[string]interface{}{
+		"discovery_timeout":          e.config.DiscoveryTimeout.String(),
+		"scan_timeout":               e.config.ScanTimeout.String(),
+		"total_timeout":              e.config.TotalTimeout.String(),
+		"max_assets":                 e.config.MaxAssets,
+		"max_depth":                  e.config.MaxDepth,
+		"enable_port_scan":           e.config.EnablePortScan,
+		"enable_web_crawl":           e.config.EnableWebCrawl,
+		"enable_dns":                 e.config.EnableDNS,
+		"enable_subdomain_enum":      e.config.EnableSubdomainEnum,
+		"enable_cert_transparency":   e.config.EnableCertTransparency,
+		"enable_whois_analysis":      e.config.EnableWHOISAnalysis,
+		"enable_related_domain_disc": e.config.EnableRelatedDomainDisc,
+		"enable_auth_testing":        e.config.EnableAuthTesting,
+		"enable_api_testing":         e.config.EnableAPITesting,
+		"enable_scim_testing":        e.config.EnableSCIMTesting,
+		"enable_graphql_testing":     e.config.EnableGraphQLTesting,
+		"enable_nuclei_scan":         e.config.EnableNucleiScan,
+		"enable_service_fingerprint": e.config.EnableServiceFingerprint,
+	}
+
+	// Prepare results summary for storage
+	resultJSON := map[string]interface{}{
+		"scan_id":         result.ScanID,
+		"target":          result.Target,
+		"start_time":      result.StartTime,
+		"end_time":        result.EndTime,
+		"duration":        result.Duration.String(),
+		"status":          result.Status,
+		"discovered_at":   result.DiscoveredAt,
+		"tested_assets":   result.TestedAssets,
+		"total_findings":  result.TotalFindings,
+		"phase_results":   result.PhaseResults,
+		"findings_by_severity": map[string]int{
+			"critical": 0,
+			"high":     0,
+			"medium":   0,
+			"low":      0,
+			"info":     0,
+		},
+	}
+
+	// Count findings by severity
+	severityCounts := resultJSON["findings_by_severity"].(map[string]int)
+	for _, finding := range result.Findings {
+		switch strings.ToUpper(string(finding.Severity)) {
+		case "CRITICAL":
+			severityCounts["critical"]++
+		case "HIGH":
+			severityCounts["high"]++
+		case "MEDIUM":
+			severityCounts["medium"]++
+		case "LOW":
+			severityCounts["low"]++
+		default:
+			severityCounts["info"]++
+		}
+	}
+
+	// Save scan metadata with config and results
 	startedAt := result.StartTime
 	completedAt := result.EndTime
 	scan := &types.ScanRequest{
@@ -2320,6 +2395,8 @@ func (e *BugBountyEngine) storeResults(ctx context.Context, scanID string, resul
 		CreatedAt:   result.StartTime,
 		StartedAt:   &startedAt, // Set started time for duration calculation
 		CompletedAt: &completedAt,
+		Config:      configJSON, // Store scan configuration
+		Result:      resultJSON, // Store scan results summary
 	}
 
 	if err := e.store.SaveScan(ctx, scan); err != nil {

@@ -58,18 +58,21 @@ type Finding struct {
 }
 
 type ScanRequest struct {
-	ID           string            `json:"id" db:"id"`
-	Target       string            `json:"target" db:"target"`
-	Type         ScanType          `json:"type" db:"type"`
-	Profile      string            `json:"profile,omitempty" db:"profile"`
-	Options      map[string]string `json:"options,omitempty"`
-	ScheduledAt  *time.Time        `json:"scheduled_at,omitempty" db:"scheduled_at"`
-	CreatedAt    time.Time         `json:"created_at" db:"created_at"`
-	StartedAt    *time.Time        `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt  *time.Time        `json:"completed_at,omitempty" db:"completed_at"`
-	Status       ScanStatus        `json:"status" db:"status"`
-	ErrorMessage string            `json:"error_message,omitempty" db:"error_message"`
-	WorkerID     string            `json:"worker_id,omitempty" db:"worker_id"`
+	ID           string                 `json:"id" db:"id"`
+	Target       string                 `json:"target" db:"target"`
+	Type         ScanType               `json:"type" db:"type"`
+	Profile      string                 `json:"profile,omitempty" db:"profile"`
+	Options      map[string]string      `json:"options,omitempty"`
+	ScheduledAt  *time.Time             `json:"scheduled_at,omitempty" db:"scheduled_at"`
+	CreatedAt    time.Time              `json:"created_at" db:"created_at"`
+	StartedAt    *time.Time             `json:"started_at,omitempty" db:"started_at"`
+	CompletedAt  *time.Time             `json:"completed_at,omitempty" db:"completed_at"`
+	Status       ScanStatus             `json:"status" db:"status"`
+	ErrorMessage string                 `json:"error_message,omitempty" db:"error_message"`
+	WorkerID     string                 `json:"worker_id,omitempty" db:"worker_id"`
+	Config       map[string]interface{} `json:"config,omitempty" db:"config"`       // Scan configuration (timeouts, enabled scanners)
+	Result       map[string]interface{} `json:"result,omitempty" db:"result"`       // Scan results summary (assets, phases, findings count)
+	Checkpoint   map[string]interface{} `json:"checkpoint,omitempty" db:"checkpoint"` // Checkpoint data for resumable scans
 }
 
 type ScanResult struct {
