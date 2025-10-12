@@ -14,9 +14,12 @@ import (
 
 // RegisterDashboardRoutes registers the web UI dashboard routes
 func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger) {
-	// Serve the dashboard HTML
+	// Serve the dashboard HTML with no-cache headers
 	router.GET("/", func(c *gin.Context) {
 		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
 		c.String(http.StatusOK, dashboardHTML)
 	})
 
