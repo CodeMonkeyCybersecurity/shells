@@ -39,6 +39,7 @@ var (
 	updateSkipBackup   bool
 	updateSkipValidate bool
 	updateSourceDir    string
+	updateDryRun       bool
 )
 
 func init() {
@@ -47,6 +48,7 @@ func init() {
 	updateCmd.Flags().BoolVar(&updateSkipBackup, "skip-backup", false, "Skip backing up current binary")
 	updateCmd.Flags().BoolVar(&updateSkipValidate, "skip-validation", false, "Skip validating new binary (not recommended)")
 	updateCmd.Flags().StringVar(&updateSourceDir, "source", "/opt/shells", "Path to shells git repository")
+	updateCmd.Flags().BoolVar(&updateDryRun, "dry-run", false, "Check for updates without installing")
 
 	// Add subcommands
 	selfCmd.AddCommand(updateCmd)
@@ -69,6 +71,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	logger.Infow("Starting Shells self-update",
 		"branch", updateBranch,
 		"source_dir", updateSourceDir,
+		"dry_run", updateDryRun,
 	)
 
 	// Create updater configuration
@@ -84,6 +87,27 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	// Create updater
 	updater := self.NewShellsUpdater(logger, updateConfig)
+
+	// Dry run: just assess and report
+	if updateDryRun {
+		logger.Infow("Dry-run mode: assessing update availability")
+		state, err := updater.Assess()
+		if err != nil {
+			return fmt.Errorf("assessment failed: %w", err)
+		}
+
+		fmt.Println()
+		fmt.Println("Dry-run Assessment:")
+		fmt.Println("===================")
+		fmt.Printf("Source directory:  %s (exists: %v)\n", updateSourceDir, state.SourceExists)
+		fmt.Printf("Git repository:    %v\n", state.GitRepository)
+		fmt.Printf("Current version:   %s\n", state.CurrentVersion)
+		fmt.Printf("Binary path:       %s (exists: %v)\n", updateConfig.BinaryPath, state.BinaryExists)
+		fmt.Printf("Backup count:      %d\n", len(state.BackupPaths))
+		fmt.Println()
+		fmt.Println("Run without --dry-run to perform the actual update")
+		return nil
+	}
 
 	// Execute update
 	if err := updater.Update(); err != nil {

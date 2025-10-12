@@ -21,21 +21,11 @@ var (
 )
 
 var selfUpdateCmd = &cobra.Command{
-	Use:   "self-update",
-	Short: "Update shells to the latest version from GitHub",
-	Long: `Update shells to the latest version by pulling from the GitHub repository,
-rebuilding the binary, and verifying the update with SHA256 checksums.
-
-This command will:
-1. Pull the latest code from the GitHub repository
-2. Run ./install.sh to rebuild and install the binary
-3. Compare SHA256 hashes to verify the update
-4. Report the size of the new binary
-
-The binary is always rebuilt after pulling to ensure you have the latest version,
-even if no new commits were pulled.
-
-Use --dry-run to preview the update without installing.`,
+	Use:        "self-update",
+	Short:      "DEPRECATED: Use 'shells self update' instead",
+	Long:       `DEPRECATED: This command is deprecated and will be removed in a future version.`,
+	Deprecated: "Use 'shells self update' instead, which provides better error handling, backup management, and database migrations.",
+	Hidden:     true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Initialize config but skip database for self-update
 		return initConfig()
@@ -49,6 +39,16 @@ func init() {
 }
 
 func runSelfUpdate(cmd *cobra.Command, args []string) error {
+	fmt.Println()
+	fmt.Println("⚠️  WARNING: This command is DEPRECATED")
+	fmt.Println("   Use 'shells self update' instead for:")
+	fmt.Println("   - Better backup management")
+	fmt.Println("   - Automatic database migrations")
+	fmt.Println("   - Improved error handling")
+	fmt.Println()
+	fmt.Println("Continuing with deprecated command...")
+	fmt.Println()
+
 	log.Info("🔄 Starting shells self-update...", "component", "self_update")
 
 	// Get current binary path
