@@ -22,37 +22,12 @@ import (
 )
 
 var serveCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "Start the Shells API server (web dashboard + worker service + API endpoints)",
-	Long: `Start the all-in-one Shells server that provides:
-
-AUTOMATIC SERVICES:
-   PostgreSQL database setup and migrations
-   Web dashboard at http://localhost:8080
-   Python worker service for GraphQL/IDOR scanning
-   REST API at http://localhost:8080/api/v1/*
-
-API ENDPOINTS:
-  - /api/v1/hera/*          - Hera browser extension (phishing detection)
-                              Real-time URL analysis, WHOIS lookups, threat intel
-  - /health                 - Health check and database status
-  - /                       - Web dashboard for scan results
-
-AUTHENTICATION:
-  API endpoints require API key via:
-    - Authorization: Bearer <key> header
-    - SHELLS_API_KEY environment variable
-    - Auto-generated for local development (see security warning)
-
-Example:
-  shells serve                                      # Start in foreground (Ctrl+C to stop)
-  shells serve -d                                   # Start in background (daemon mode)
-  shells serve --daemon                             # Same as -d
-  shells serve --port 8080 --workers-port 5000     # Custom ports
-  SHELLS_API_KEY=secret shells serve -d            # Production daemon with API key
-  shells serve --tls-cert cert.pem --tls-key key.pem # HTTPS mode
-`,
-	RunE: runServe,
+	Use:        "serve",
+	Short:      "DEPRECATED: Use 'shells' (no arguments) instead",
+	Long:       `DEPRECATED: This command is deprecated. Use 'shells' with no arguments instead.`,
+	Deprecated: "Use 'shells' (no arguments) to start the server, or 'shells <target>' to run a scan with dashboard.",
+	Hidden:     true,
+	RunE:       runServe,
 }
 
 var (
@@ -107,6 +82,14 @@ func init() {
 }
 
 func runServe(cmd *cobra.Command, args []string) error {
+	fmt.Println()
+	fmt.Println("⚠️  WARNING: 'shells serve' is DEPRECATED")
+	fmt.Println("   Use 'shells' (no arguments) instead:")
+	fmt.Println("   - shells              # Start server")
+	fmt.Println("   - shells example.com  # Run scan + start server")
+	fmt.Println()
+	fmt.Println("Continuing with deprecated command...")
+	fmt.Println()
 	// Handle daemon mode - fork process and exit parent
 	if daemonMode {
 		if os.Getenv("SHELLS_DAEMON_CHILD") != "1" {

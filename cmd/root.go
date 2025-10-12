@@ -119,12 +119,20 @@ var rootCmd = &cobra.Command{
 Automatically discovers assets, identifies vulnerabilities, and generates
 actionable findings using real security scanners.
 
-Point-and-Click Mode:
-  shells example.com          # Full bug bounty pipeline: Discovery → Testing → Reporting
-  shells "Acme Corporation"   # Discover company assets and test for vulnerabilities
+USAGE:
+  shells                      # Start web dashboard and API server (no scan)
+  shells example.com          # Run scan + start dashboard automatically
+  shells "Acme Corporation"   # Discover company assets and test
   shells admin@example.com    # Discover from email and test discovered assets
   shells 192.168.1.1          # Discover network and test services
   shells 192.168.1.0/24       # Scan IP range and test discovered hosts
+
+WEB DASHBOARD:
+  When running scans, the dashboard automatically starts at http://localhost:8080
+  View real-time scan progress, findings, and vulnerability details
+  Access API endpoints at http://localhost:8080/api/
+
+Point-and-Click Mode
 
 The main command runs the COMPREHENSIVE orchestrated pipeline:
   1. Asset Discovery:
@@ -263,7 +271,7 @@ The main command runs the COMPREHENSIVE orchestrated pipeline:
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-		// Handle signals in goroutine
+		// Handle signals in goroutine with forced exit timeout
 		go func() {
 			sig := <-sigChan
 			color.Yellow("\n\n  Received %s - shutting down gracefully...\n", sig)
@@ -271,7 +279,15 @@ The main command runs the COMPREHENSIVE orchestrated pipeline:
 			// Trigger graceful shutdown
 			shutdownHandler.Shutdown()
 
+			// Cancel context to signal goroutines to stop
 			cancel()
+
+			// Force exit after 5 seconds if graceful shutdown hangs
+			go func() {
+				time.Sleep(5 * time.Second)
+				color.Red("\n  Graceful shutdown timed out after 5 seconds - forcing exit\n")
+				os.Exit(1)
+			}()
 		}()
 
 		return runIntelligentOrchestrator(ctx, target, cmd, log, store)
