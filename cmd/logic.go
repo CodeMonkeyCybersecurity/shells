@@ -94,7 +94,7 @@ Examples:
 			VerboseOutput:     verbose,
 		}
 
-		fmt.Printf("🔐 Testing password reset flows for: %s\n", target)
+		fmt.Printf(" Testing password reset flows for: %s\n", target)
 		if config.TestTokenEntropy {
 			fmt.Printf(" Token entropy analysis with %d samples\n", samples)
 		}
@@ -192,7 +192,7 @@ Examples:
 		fmt.Printf("🔄 Analyzing workflow starting from: %s\n", target)
 		fmt.Printf(" Maximum depth: %d levels\n", maxDepth)
 		if testPrivileges {
-			fmt.Printf("🔐 Privilege escalation testing enabled\n")
+			fmt.Printf(" Privilege escalation testing enabled\n")
 		}
 		fmt.Println()
 
@@ -382,9 +382,9 @@ Examples:
 			VerboseOutput:   verbose,
 		}
 
-		fmt.Printf("🔐 Testing MFA bypass vulnerabilities for: %s\n", target)
+		fmt.Printf(" Testing MFA bypass vulnerabilities for: %s\n", target)
 		if testBypasses {
-			fmt.Printf("🎯 All bypass methods enabled\n")
+			fmt.Printf(" All bypass methods enabled\n")
 		}
 		if testTokens {
 			fmt.Printf("🎫 Token-based bypass testing enabled\n")
@@ -627,7 +627,7 @@ Examples:
 			VerboseOutput:    verbose,
 		}
 
-		fmt.Printf("🔐 Testing account recovery for: %s\n", target)
+		fmt.Printf(" Testing account recovery for: %s\n", target)
 		if testAll || testPasswordReset {
 			fmt.Printf("🔑 Password reset testing enabled\n")
 		}
@@ -675,7 +675,7 @@ Examples:
 			}
 		}
 
-		fmt.Printf("\n🔐 Recovery Security Assessment:\n")
+		fmt.Printf("\n Recovery Security Assessment:\n")
 		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
 		fmt.Printf("   Critical bypasses: %d\n", criticalCount)
 		fmt.Printf("   High-risk bypasses: %d\n", highCount)
@@ -740,7 +740,7 @@ Examples:
 		}
 
 		fmt.Printf(" Running comprehensive business logic tests for: %s\n", target)
-		fmt.Printf("📋 Test suite includes: password reset, workflow, race conditions, MFA, recovery, and e-commerce\n")
+		fmt.Printf(" Test suite includes: password reset, workflow, race conditions, MFA, recovery, and e-commerce\n")
 		fmt.Println()
 
 		// Run comprehensive tests
@@ -828,7 +828,7 @@ Examples:
 			return fmt.Errorf("specify --target or --findings")
 		}
 
-		fmt.Printf("📋 Generating business logic security report...\n")
+		fmt.Printf(" Generating business logic security report...\n")
 
 		var vulnerabilities []logic.Vulnerability
 
@@ -872,19 +872,19 @@ func printResetAnalysisJSON(analysis *recovery.ResetFlowAnalysis) {
 }
 
 func printResetAnalysisTable(analysis *recovery.ResetFlowAnalysis, verbose bool) {
-	fmt.Printf("🔐 Password Reset Flow Analysis\n")
+	fmt.Printf(" Password Reset Flow Analysis\n")
 	fmt.Printf("═══════════════════════════════\n\n")
 
 	fmt.Printf(" Endpoints discovered: %d\n", len(analysis.Endpoints))
 	for _, endpoint := range analysis.Endpoints {
-		status := "❌ Inactive"
+		status := " Inactive"
 		if endpoint.IsActive {
 			status = " Active"
 		}
 		fmt.Printf("   %s %s (%s)\n", endpoint.Method, endpoint.URL, status)
 	}
 
-	fmt.Printf("\n🎯 Vulnerabilities found: %d\n", len(analysis.Vulnerabilities))
+	fmt.Printf("\n Vulnerabilities found: %d\n", len(analysis.Vulnerabilities))
 	for i, vuln := range analysis.Vulnerabilities {
 		severity := getSeverityEmoji(vuln.Severity)
 		fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
@@ -922,7 +922,7 @@ func printWorkflowAnalysisTable(analysis *core.WorkflowAnalysis, verbose bool) {
 	fmt.Printf("   Security score: %d/100\n\n", analysis.SecurityScore)
 
 	if len(analysis.Vulnerabilities) > 0 {
-		fmt.Printf("🎯 Vulnerabilities:\n")
+		fmt.Printf(" Vulnerabilities:\n")
 		for i, vuln := range analysis.Vulnerabilities {
 			severity := getSeverityEmoji(vuln.Severity)
 			fmt.Printf("%d. %s [%s] %s\n", i+1, severity, vuln.Severity, vuln.Title)
@@ -976,7 +976,7 @@ func printMFAResultsJSON(results []logic.Vulnerability) {
 }
 
 func printMFAResultsTable(results []logic.Vulnerability, verbose bool) {
-	fmt.Printf("🔐 MFA Bypass Test Results\n")
+	fmt.Printf(" MFA Bypass Test Results\n")
 	fmt.Printf("═════════════════════════\n\n")
 
 	if len(results) == 0 {
@@ -1001,7 +1001,7 @@ func printReportSummary(report *logic.BusinessLogicReport, verbose bool) {
 	fmt.Printf(" Business Logic Security Report\n")
 	fmt.Printf("════════════════════════════════\n\n")
 
-	fmt.Printf("🎯 Executive Summary:\n")
+	fmt.Printf(" Executive Summary:\n")
 	fmt.Printf("%s\n\n", report.Executive.Overview)
 
 	fmt.Printf("📈 Vulnerability Breakdown:\n")
@@ -1072,7 +1072,7 @@ func printRecoveryResultsJSON(results []logic.Vulnerability) {
 }
 
 func printRecoveryResultsTable(results []logic.Vulnerability, verbose bool) {
-	fmt.Printf("🔐 Account Recovery Test Results\n")
+	fmt.Printf(" Account Recovery Test Results\n")
 	fmt.Printf("═══════════════════════════════\n\n")
 
 	if len(results) == 0 {
@@ -1109,7 +1109,7 @@ func getSeverityEmoji(severity string) string {
 	case logic.SeverityLow:
 		return "ℹ️"
 	default:
-		return "📋"
+		return ""
 	}
 }
 

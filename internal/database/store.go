@@ -238,7 +238,10 @@ func (s *sqlStore) migrate() error {
 			completed_at TIMESTAMP,
 			status TEXT NOT NULL,
 			error_message TEXT,
-			worker_id TEXT
+			worker_id TEXT,
+			config JSONB,
+			result JSONB,
+			checkpoint JSONB
 		);
 
 		CREATE TABLE IF NOT EXISTS findings (
@@ -257,11 +260,23 @@ func (s *sqlStore) migrate() error {
 			updated_at TIMESTAMP NOT NULL
 		);
 
+		CREATE TABLE IF NOT EXISTS scan_events (
+			id SERIAL PRIMARY KEY,
+			scan_id TEXT NOT NULL REFERENCES scans(id) ON DELETE CASCADE,
+			event_type TEXT NOT NULL,
+			component TEXT NOT NULL,
+			message TEXT NOT NULL,
+			metadata JSONB,
+			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+
 		CREATE INDEX IF NOT EXISTS idx_findings_scan_id ON findings(scan_id);
 		CREATE INDEX IF NOT EXISTS idx_findings_severity ON findings(severity);
 		CREATE INDEX IF NOT EXISTS idx_scans_target ON scans(target);
 		CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
 		CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at);
+		CREATE INDEX IF NOT EXISTS idx_scan_events_scan_id ON scan_events(scan_id);
+		CREATE INDEX IF NOT EXISTS idx_scan_events_created_at ON scan_events(created_at);
 
 		-- Bug bounty platform submissions table (PostgreSQL)
 		CREATE TABLE IF NOT EXISTS platform_submissions (
@@ -466,6 +481,26 @@ func (s *sqlStore) SaveScan(ctx context.Context, scan *types.ScanRequest) error 
 	)
 
 	return nil
+}
+
+// SaveScanEvent saves a scan event to the database for UI display
+func (s *sqlStore) SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error {
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
+
+	query := `
+		INSERT INTO scan_events (scan_id, event_type, component, message, metadata)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+
+	_, err = s.db.ExecContext(ctx, query, scanID, eventType, component, message, metadataJSON)
+	if err != nil {
+		// Don't fail the whole scan if event logging fails
+		s.logger.Warnw("Failed to save scan event", "error", err, "scan_id", scanID)
+	}
+	return err
 }
 
 func (s *sqlStore) UpdateScan(ctx context.Context, scan *types.ScanRequest) error {

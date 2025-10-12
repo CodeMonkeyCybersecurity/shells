@@ -280,7 +280,7 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 
 		// Log session completion with detailed stats
 		totalDuration := time.Since(start)
-		e.logger.WithContext(ctx).Infow("🎉 Discovery session completed",
+		e.logger.WithContext(ctx).Infow(" Discovery session completed",
 			"session_id", session.ID,
 			"total_discovered", session.TotalDiscovered,
 			"high_value_assets", session.HighValueAssets,
@@ -294,7 +294,7 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 	// Log with both loggers for compatibility
 	e.logger.Infow(" Running discovery", "session_id", session.ID)
 
-	e.logger.WithContext(ctx).Infow("🎯 Starting discovery execution",
+	e.logger.WithContext(ctx).Infow(" Starting discovery execution",
 		"session_id", session.ID,
 		"target_value", session.Target.Value,
 		"target_type", string(session.Target.Type),

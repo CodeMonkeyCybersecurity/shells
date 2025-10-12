@@ -281,7 +281,7 @@ func printSmugglingExploitResults(findings []types.Finding, verbose bool) {
 	fmt.Printf("═══════════════════════════════════════════\n\n")
 
 	if len(findings) == 0 {
-		fmt.Printf("❌ No exploitable vulnerabilities found\n")
+		fmt.Printf(" No exploitable vulnerabilities found\n")
 		return
 	}
 

@@ -14,7 +14,7 @@ OAuth/API Security - Multiple specialized scanners
 Strategy: Build Shells as a "Master Automator" that combines these specialized tools with your own orchestration layer.
 
 1. IDOR & Authorization Testing Tools
-🎯 Why This Matters
+ Why This Matters
 
 IDOR vulnerabilities are surging (replacing XSS/SQLi)
 High payouts for banking/fintech ($3,500+ for critical)
@@ -100,7 +100,7 @@ Endpoint2   ✓      ✗       ✗
 Endpoint3   ✓      ✓       ✓
 Automatically identifies where lower-privilege users can access higher-privilege resources.
 
-🎯 Custom IDOR Testing Strategy for Shells
+ Custom IDOR Testing Strategy for Shells
 Step 1: Reconnaissance
 python# Discover API endpoints with object references
 def find_idor_candidates(domain):
@@ -187,7 +187,7 @@ pythondef generate_id_variants(original_id):
     return variants
 
 2. GraphQL Security Testing ⭐ HIGH PRIORITY
-🎯 Why GraphQL is a Goldmine
+ Why GraphQL is a Goldmine
 From the research:
 
 Growing adoption (3,026+ companies using GraphQL)
@@ -314,7 +314,7 @@ Actively maintained (August 2025)
 For Shells:
 Can be used as a specialized module for GraphQL-specific vulns
 
-🎯 GraphQL Testing Strategy for Shells
+ GraphQL Testing Strategy for Shells
 Step 1: Discovery & Introspection
 pythondef discover_graphql_schema(endpoint, auth_token=None):
     introspection_query = """
@@ -461,7 +461,7 @@ pythondef test_deep_nesting(endpoint, auth_token):
         }
 
 3. AI/LLM Prompt Injection Testing
-🎯 Why This Matters
+ Why This Matters
 
 540% increase in 2025
 Very few automated tools exist yet
@@ -619,7 +619,7 @@ pythonclass LLMToolAccessTester:
         # Check if database was queried
         # Check if exfiltration link was created
 
-🎯 AI Vulnerability Testing Checklist for Shells
+ AI Vulnerability Testing Checklist for Shells
 1. Discovery:
 
  Identify LLM endpoints (chatbots, assistants, summarizers)
@@ -717,7 +717,7 @@ shells/
     ├── bugcrowd.py               # Bugcrowd API integration
     └── hera_bridge.py            # Integration with Hera extension
 
-🎯 Implementation Priority
+ Implementation Priority
 Week 1-2: IDOR Testing
 python# Basic IDOR scanner
 class ShellsIDOR:
@@ -839,7 +839,7 @@ pythonclass HeraShellsBridge:
             self.shells.add_high_priority_target(hotspot)
 
 7. Microsoft Azure Focus (As You Mentioned)
-🎯 Why Azure is Perfect for Shells
+ Why Azure is Perfect for Shells
 From your comment: "clearly a bit of a mess" - that's exactly what we want!
 Microsoft Bug Bounty Programs:
 
@@ -1046,7 +1046,7 @@ findings = scanner.scan_for_idor(
 
 # Submit any findings!
 for finding in findings:
-    print(f"🎯 FOUND IDOR: {finding}")
+    print(f" FOUND IDOR: {finding}")
 This 50-line script can find bugs worth $1,000-$5,000.
 Start simple, then add sophistication!
 

@@ -430,7 +430,7 @@ func performBasicSCIMCheck(target string) {
 	}
 
 	if !found {
-		fmt.Printf("❌ No SCIM endpoints discovered\n")
+		fmt.Printf(" No SCIM endpoints discovered\n")
 	}
 
 	fmt.Printf("\n Summary: Basic SCIM endpoint check completed\n")

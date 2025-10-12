@@ -372,7 +372,7 @@ const htmlReportTemplate = `
     </div>
 
     <div class="section">
-        <h2>📋 Executive Summary</h2>
+        <h2> Executive Summary</h2>
         <p>{{.ExecutiveSummary}}</p>
     </div>
 
@@ -402,7 +402,7 @@ const htmlReportTemplate = `
     </div>
 
     <div class="section">
-        <h2>🎯 ATT&CK Techniques</h2>
+        <h2> ATT&CK Techniques</h2>
         <table>
             <tr>
                 <th>Technique ID</th>

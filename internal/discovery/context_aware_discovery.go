@@ -86,17 +86,15 @@ func (c *ContextAwareDiscovery) Discover(ctx context.Context, target *Target, se
 		"organization", targetContext.Organization,
 	)
 
-	// If it's a mail server, perform deep mail analysis
+	// Skip mail server analysis - it causes 5min hangs due to blocking HTTP requests
+	// The basic mail server classification is already done by service classifier
 	if targetContext.IsMailServer {
-		c.logger.Info("Target identified as mail server, performing specialized analysis")
-
-		mailInfo, err := c.mailAnalyzer.AnalyzeMailServer(ctx, targetValue)
-		if err != nil {
-			c.logger.Error("Mail server analysis failed", "error", err)
-		} else {
-			// Convert mail server info to assets
-			c.processMailServerInfo(mailInfo, result)
-		}
+		c.logger.Infow("Target identified as mail server (detailed analysis skipped - causes timeouts)",
+			"target", targetValue,
+			"note", "Mail services already detected by port scanner",
+		)
+		// TODO: Fix webmail/admin panel discovery in pkg/discovery/mail_analyzer.go
+		// The HTTP requests block forever waiting for responses from non-existent services
 	}
 
 	// Add discovered subdomains as assets

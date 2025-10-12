@@ -69,11 +69,11 @@
 //
 // P1-5: Rate Limiting is Per-IP, Not Per-Extension (middleware.go:161)
 //
-//	Problem: Multiple browsers from same IP share rate limit
-//	Impact: Poor UX for power users with multiple browsers
-//	Fix: Rate limit by Extension ID (passed in request header)
+//		Problem: Multiple browsers from same IP share rate limit
+//		Impact: Poor UX for power users with multiple browsers
+//		Fix: Rate limit by Extension ID (passed in request header)
 //
-// 📋 P2 ISSUES (MEDIUM - Design & Security Concerns):
+//	 P2 ISSUES (MEDIUM - Design & Security Concerns):
 //
 // P2-1: SSRF Protection Incomplete (Lines 593-618)
 //
@@ -152,16 +152,16 @@
 //
 // TEST RESULTS:
 //
-//	Server starts successfully
-//	Health endpoint responds
-//	Authentication works (blocks unauthorized)
-//	SSRF protection works (blocks 127.0.0.1, 169.254.169.254)
+//		Server starts successfully
+//		Health endpoint responds
+//		Authentication works (blocks unauthorized)
+//		SSRF protection works (blocks 127.0.0.1, 169.254.169.254)
 //
-// ❌ WHOIS lookup fails (schema mismatch)
-// ❌ Threat intel lookup fails (schema mismatch)
-// ❌ Stats logging fails (schema mismatch)
+//	 WHOIS lookup fails (schema mismatch)
+//	 Threat intel lookup fails (schema mismatch)
+//	 Stats logging fails (schema mismatch)
 //
-//	Reputation lookup succeeds but returns empty (no data seeded)
+//		Reputation lookup succeeds but returns empty (no data seeded)
 //
 // HONESTY CHECK:
 // Previous rounds claimed "All issues fixed" but the code compiled with fundamental

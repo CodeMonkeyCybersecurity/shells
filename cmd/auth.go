@@ -181,7 +181,7 @@ Examples:
 
 		fmt.Printf("🧪 Running authentication tests for: %s\n", target)
 		if protocol != "all" {
-			fmt.Printf("📋 Protocol: %s\n", strings.ToUpper(protocol))
+			fmt.Printf(" Protocol: %s\n", strings.ToUpper(protocol))
 		}
 		fmt.Println()
 
@@ -349,7 +349,7 @@ Examples:
 		logger := NewLogger(verbose)
 
 		fmt.Printf(" Running comprehensive authentication security analysis\n")
-		fmt.Printf("🎯 Target: %s\n\n", target)
+		fmt.Printf(" Target: %s\n\n", target)
 
 		// Run comprehensive analysis
 		report, err := runComprehensiveAnalysis(target, logger)
@@ -447,16 +447,16 @@ func printDiscoveryResults(result struct {
 	fmt.Printf(" Authentication Discovery Results\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
-	fmt.Printf("🎯 Target: %s\n", result.Target)
+	fmt.Printf(" Target: %s\n", result.Target)
 	fmt.Printf("🕐 Scanned: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
 
-	fmt.Printf("📋 Summary:\n")
+	fmt.Printf(" Summary:\n")
 	fmt.Printf("  • Total endpoints: %d\n", result.Summary.TotalEndpoints)
 	fmt.Printf("  • Protocols found: %d\n", result.Summary.ProtocolsFound)
 	fmt.Printf("  • Federation providers: %d\n", result.Summary.FederationProviders)
 	fmt.Println()
 
-	fmt.Printf("🔐 Protocols Detected:\n")
+	fmt.Printf(" Protocols Detected:\n")
 	if result.Summary.HasSAML {
 		fmt.Printf("   SAML\n")
 	}
@@ -474,7 +474,7 @@ func printDiscoveryResults(result struct {
 	}
 
 	if len(result.Protocols) == 0 {
-		fmt.Printf("  ❌ No authentication protocols detected\n")
+		fmt.Printf("   No authentication protocols detected\n")
 	}
 	fmt.Println()
 
@@ -499,7 +499,7 @@ func printTestResults(report *common.AuthReport) {
 	fmt.Printf("🧪 Authentication Test Results\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
-	fmt.Printf("🎯 Target: %s\n", report.Target)
+	fmt.Printf(" Target: %s\n", report.Target)
 	fmt.Printf("⏱️  Duration: %s\n\n", report.EndTime.Sub(report.StartTime))
 
 	fmt.Printf(" Summary:\n")
@@ -534,7 +534,7 @@ func printChainResults(result struct {
 	fmt.Printf("🔗 Attack Chain Analysis Results\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
-	fmt.Printf("🎯 Target: %s\n", result.Target)
+	fmt.Printf(" Target: %s\n", result.Target)
 	fmt.Printf("🕐 Analyzed: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
 
 	fmt.Printf(" Summary:\n")
@@ -557,7 +557,7 @@ func printChainResults(result struct {
 			for j, step := range chain.Steps {
 				statusIcon := ""
 				if !step.Success {
-					statusIcon = "❌"
+					statusIcon = ""
 				}
 				fmt.Printf("       %d. %s [%s] %s\n", j+1, statusIcon, step.Protocol, step.Description)
 			}
@@ -674,12 +674,12 @@ func printComprehensiveDiscoveryResults(result struct {
 	fmt.Printf(" Comprehensive Authentication Discovery Results\n")
 	fmt.Printf("═══════════════════════════════════════════════════\n\n")
 
-	fmt.Printf("🎯 Target: %s\n", result.Target)
+	fmt.Printf(" Target: %s\n", result.Target)
 	fmt.Printf("🕐 Scanned: %s\n", result.Timestamp.Format("2006-01-02 15:04:05"))
 	fmt.Printf("⏱️  Discovery Time: %s\n\n", result.ComprehensiveResults.DiscoveryTime)
 
 	// Print comprehensive results
-	fmt.Printf("📋 Discovery Summary:\n")
+	fmt.Printf(" Discovery Summary:\n")
 	fmt.Printf("  • Authentication Implementations: %d\n", len(result.ComprehensiveResults.Implementations))
 	fmt.Printf("  • Total Endpoints: %d\n", result.ComprehensiveResults.TotalEndpoints)
 	fmt.Printf("  • Federation Providers: %d\n", result.Summary.FederationProviders)
@@ -687,7 +687,7 @@ func printComprehensiveDiscoveryResults(result struct {
 
 	// Print discovered implementations
 	if len(result.ComprehensiveResults.Implementations) > 0 {
-		fmt.Printf("🔐 Authentication Implementations:\n")
+		fmt.Printf(" Authentication Implementations:\n")
 		for i, impl := range result.ComprehensiveResults.Implementations {
 			fmt.Printf("  %d. %s\n", i+1, impl.Name)
 			fmt.Printf("     Type: %s\n", impl.Type)

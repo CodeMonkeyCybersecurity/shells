@@ -259,7 +259,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 	// Check Nomad connectivity
 	fmt.Printf("Checking Nomad connectivity (%s)... ", nomadAddr)
 	if err := client.Health(ctx); err != nil {
-		fmt.Printf("❌ Failed\n")
+		fmt.Printf(" Failed\n")
 		return fmt.Errorf("Nomad health check failed: %w", err)
 	}
 	fmt.Printf(" OK\n")
@@ -283,7 +283,7 @@ func runAWSValidate(cmd *cobra.Command, args []string) error {
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
-			fmt.Printf("❌ Failed\n")
+			fmt.Printf(" Failed\n")
 			fmt.Printf("   Error: %v\n", err)
 			if len(output) > 0 {
 				fmt.Printf("   Output: %s\n", string(output))
@@ -455,7 +455,7 @@ func displayChecks(checks []prowler.Check, format string) error {
 		}
 		fmt.Println(string(data))
 	case "table":
-		fmt.Printf("📋 Available Prowler Checks (%d total)\n", len(checks))
+		fmt.Printf(" Available Prowler Checks (%d total)\n", len(checks))
 		fmt.Printf("═══════════════════════════════════\n\n")
 
 		for _, check := range checks {

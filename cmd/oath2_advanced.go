@@ -200,10 +200,10 @@ func runOAuth2AdvancedTest(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf(" Starting advanced OAuth2 security testing\n")
-	fmt.Printf("🎯 Target: %s\n", target)
+	fmt.Printf(" Target: %s\n", target)
 
 	if verbose {
-		fmt.Printf("📋 Configuration:\n")
+		fmt.Printf(" Configuration:\n")
 		if clientID != "" {
 			fmt.Printf("   Client ID: %s\n", clientID)
 		}
@@ -250,7 +250,7 @@ func runOAuth2AdvancedTest(cmd *cobra.Command, args []string) error {
 	// Get recommendations
 	recommendations := scanner.GetRecommendations(findings)
 	if len(recommendations) > 0 {
-		fmt.Printf("\n📋 Security Recommendations:\n")
+		fmt.Printf("\n Security Recommendations:\n")
 		for i, rec := range recommendations {
 			fmt.Printf("%d. %s\n", i+1, rec)
 		}
@@ -275,7 +275,7 @@ func runOAuth2AdvancedTest(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to write output: %w", err)
 		}
 
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil
@@ -291,7 +291,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf(" Discovering OAuth2/OIDC configuration\n")
-	fmt.Printf("🎯 Target: %s\n", target)
+	fmt.Printf(" Target: %s\n", target)
 
 	// Try well-known endpoints
 	wellKnownURLs := []string{
@@ -323,7 +323,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 	}
 
 	if discoveryDoc == nil {
-		fmt.Printf("\n❌ No OAuth2/OIDC discovery document found\n")
+		fmt.Printf("\n No OAuth2/OIDC discovery document found\n")
 		fmt.Printf("   Tried: %s\n", strings.Join(wellKnownURLs, "\n          "))
 		return nil
 	}
@@ -331,7 +331,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\n Found discovery document at: %s\n", discoveredURL)
 
 	// Display configuration
-	fmt.Printf("\n📋 OAuth2/OIDC Configuration:\n")
+	fmt.Printf("\n OAuth2/OIDC Configuration:\n")
 
 	// Key endpoints
 	if issuer, ok := discoveryDoc["issuer"].(string); ok {
@@ -362,11 +362,11 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 	if pkce, ok := discoveryDoc["code_challenge_methods_supported"].([]interface{}); ok {
 		fmt.Printf("   PKCE Methods: %v\n", pkce)
 	} else {
-		fmt.Printf("   PKCE Methods: ❌ Not supported\n")
+		fmt.Printf("   PKCE Methods:  Not supported\n")
 	}
 
 	// Security analysis
-	fmt.Printf("\n🔐 Security Analysis:\n")
+	fmt.Printf("\n Security Analysis:\n")
 
 	// Check PKCE support
 	pkceMethods, hasPKCE := discoveryDoc["code_challenge_methods_supported"].([]interface{})
@@ -416,7 +416,7 @@ func runOAuth2AdvancedDiscover(cmd *cobra.Command, args []string) error {
 		if err := os.WriteFile(output, data, 0644); err != nil {
 			return fmt.Errorf("failed to write output: %w", err)
 		}
-		fmt.Printf("\n💾 Configuration saved to: %s\n", output)
+		fmt.Printf("\n Configuration saved to: %s\n", output)
 	}
 
 	return nil

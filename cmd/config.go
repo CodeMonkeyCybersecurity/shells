@@ -152,7 +152,7 @@ var configShowCmd = &cobra.Command{
 				fmt.Printf("    %s: Configured\n", name)
 				configured++
 			} else {
-				fmt.Printf("   ❌ %s: Not configured\n", name)
+				fmt.Printf("    %s: Not configured\n", name)
 			}
 		}
 

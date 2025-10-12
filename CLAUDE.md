@@ -369,7 +369,7 @@ log = log.WithComponent("scanner")
 Use `logger.Info()` for user-facing messages (NOT fmt.Print):
 
 ```go
-// ❌ WRONG - Never use fmt.Print
+//  WRONG - Never use fmt.Print
 fmt.Println(" Scan completed!")
 fmt.Printf("Found %d vulnerabilities\n", count)
 
@@ -415,7 +415,7 @@ log.Errorw("Database query failed",
 Use structured logging for progress (NOT progress bars):
 
 ```go
-// ❌ WRONG - No ANSI progress bars
+//  WRONG - No ANSI progress bars
 fmt.Printf("\r[████░░░░] 50%%")
 
 //  CORRECT - Structured progress logging

@@ -187,7 +187,7 @@ var platformValidateCmd = &cobra.Command{
 		defer cancel()
 
 		if err := client.ValidateCredentials(ctx); err != nil {
-			return fmt.Errorf("❌ Credentials invalid: %w", err)
+			return fmt.Errorf(" Credentials invalid: %w", err)
 		}
 
 		fmt.Printf(" Credentials valid for %s\n", client.Name())
@@ -287,7 +287,7 @@ This command will:
 				cancel()
 
 				if err != nil {
-					fmt.Printf("  ❌ Failed to submit %s: %v\n", finding.Title, err)
+					fmt.Printf("   Failed to submit %s: %v\n", finding.Title, err)
 					errors++
 					continue
 				}
@@ -524,7 +524,7 @@ func printPrograms(programs []*platforms.Program) {
 	log.Info("\nBug Bounty Programs:", "component", "platform")
 	fmt.Println(strings.Repeat("=", 80))
 	for _, p := range programs {
-		fmt.Printf("\n📋 %s (%s)\n", p.Name, p.Handle)
+		fmt.Printf("\n %s (%s)\n", p.Name, p.Handle)
 		fmt.Printf("   Platform: %s\n", p.Platform)
 		fmt.Printf("   URL: %s\n", p.URL)
 		fmt.Printf("   Active: %v\n", p.IsActive)

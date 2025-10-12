@@ -66,7 +66,7 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 		defer cancel()
 
-		// Get scan info
+		// Get scan info with ALL metadata
 		var scan struct {
 			ID          string     `json:"id"`
 			Target      string     `json:"target"`
@@ -76,12 +76,15 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 			StartedAt   *time.Time `json:"started_at,omitempty"`
 			CompletedAt *time.Time `json:"completed_at,omitempty"`
 			ErrorMsg    *string    `json:"error_message,omitempty"`
+			Config      *string    `json:"config,omitempty"`
+			Result      *string    `json:"result,omitempty"`
+			Checkpoint  *string    `json:"checkpoint,omitempty"`
 		}
 
 		err := db.QueryRowContext(ctx, `
-			SELECT id, target, type, status, created_at, started_at, completed_at, error_message
+			SELECT id, target, type, status, created_at, started_at, completed_at, error_message, config, result, checkpoint
 			FROM scans WHERE id = $1
-		`, scanID).Scan(&scan.ID, &scan.Target, &scan.Type, &scan.Status, &scan.CreatedAt, &scan.StartedAt, &scan.CompletedAt, &scan.ErrorMsg)
+		`, scanID).Scan(&scan.ID, &scan.Target, &scan.Type, &scan.Status, &scan.CreatedAt, &scan.StartedAt, &scan.CompletedAt, &scan.ErrorMsg, &scan.Config, &scan.Result, &scan.Checkpoint)
 
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Scan not found"})
@@ -130,6 +133,46 @@ func RegisterDashboardRoutes(router *gin.Engine, db *sqlx.DB, log *logger.Logger
 			"scan":     scan,
 			"findings": findings,
 		})
+	})
+
+	// NEW: API endpoint for scan events/logs
+	router.GET("/api/dashboard/scans/:id/events", func(c *gin.Context) {
+		scanID := c.Param("id")
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+		defer cancel()
+
+		// Query scan_events table for real-time progress logs
+		rows, err := db.QueryContext(ctx, `
+			SELECT event_type, component, message, metadata, created_at
+			FROM scan_events
+			WHERE scan_id = $1
+			ORDER BY created_at ASC
+			LIMIT 1000
+		`, scanID)
+		if err != nil {
+			c.JSON(http.StatusOK, []interface{}{}) // Return empty if no events table
+			return
+		}
+		defer rows.Close()
+
+		type Event struct {
+			Type      string    `json:"type"`
+			Component string    `json:"component"`
+			Message   string    `json:"message"`
+			Metadata  *string   `json:"metadata,omitempty"`
+			CreatedAt time.Time `json:"created_at"`
+		}
+
+		events := []Event{}
+		for rows.Next() {
+			var e Event
+			if err := rows.Scan(&e.Type, &e.Component, &e.Message, &e.Metadata, &e.CreatedAt); err != nil {
+				continue
+			}
+			events = append(events, e)
+		}
+
+		c.JSON(http.StatusOK, events)
 	})
 
 	// API endpoint for statistics

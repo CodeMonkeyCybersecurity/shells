@@ -236,7 +236,7 @@ var workersStatusCmd = &cobra.Command{
 		client := workers.NewClient("http://localhost:5000")
 
 		if err := client.Health(); err != nil {
-			log.Error("❌ Worker service is not healthy", "component", "workers")
+			log.Error(" Worker service is not healthy", "component", "workers")
 			return err
 		}
 

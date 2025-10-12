@@ -44,7 +44,7 @@ go vet ./...
 **Expected Result**:
 -  No connection errors related to address format
 -  Port scan completes (may show ports as closed, that's fine)
-- ❌ Should NOT see: "invalid address" or "too many colons" errors
+-  Should NOT see: "invalid address" or "too many colons" errors
 
 ### Test 2: SMTP Testing with IPv6
 

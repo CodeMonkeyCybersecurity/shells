@@ -222,7 +222,7 @@ Examples:
 			for _, tech := range techniques {
 				report, err := client.ValidateTestSafety(tech)
 				if err != nil {
-					fmt.Printf("❌ %s: Validation error - %v\n", tech, err)
+					fmt.Printf(" %s: Validation error - %v\n", tech, err)
 					failed++
 					continue
 				}
@@ -231,7 +231,7 @@ Examples:
 					fmt.Printf(" %s: Safe for bug bounty testing\n", tech)
 					passed++
 				} else {
-					fmt.Printf("❌ %s: Failed safety validation\n", tech)
+					fmt.Printf(" %s: Failed safety validation\n", tech)
 					for _, violation := range report.Violations {
 						fmt.Printf("   - %s\n", violation)
 					}
@@ -475,14 +475,14 @@ func printTechniquesJSON(techniques []string, client *atomic.AtomicClient) {
 func printTechniquesTable(techniques []string, client *atomic.AtomicClient, verbose bool) {
 	mapper := atomic.NewVulnToAttackMapper()
 
-	fmt.Printf("🎯 Available Safe ATT&CK Techniques (%d total)\n", len(techniques))
+	fmt.Printf(" Available Safe ATT&CK Techniques (%d total)\n", len(techniques))
 	fmt.Printf("═══════════════════════════════════════════════\n\n")
 
 	for _, technique := range techniques {
 		test, err := client.GetSafeTest(technique)
 		status := " Available"
 		if err != nil {
-			status = "❌ Not Available"
+			status = " Not Available"
 		}
 
 		fmt.Printf("🔹 %s - %s\n", technique, mapper.GetTactic(technique))
@@ -537,12 +537,12 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 	if report.IsSafe {
 		fmt.Printf("Status:  SAFE for bug bounty testing\n\n")
 	} else {
-		fmt.Printf("Status: ❌ NOT SAFE for bug bounty testing\n\n")
+		fmt.Printf("Status:  NOT SAFE for bug bounty testing\n\n")
 
 		if len(report.Violations) > 0 {
 			fmt.Printf("Violations:\n")
 			for _, violation := range report.Violations {
-				fmt.Printf("  ❌ %s\n", violation)
+				fmt.Printf("   %s\n", violation)
 			}
 			fmt.Println()
 		}
@@ -560,7 +560,7 @@ func printSafetyReportTable(report atomic.SafetyReport) {
 	for _, check := range report.Checks {
 		status := ""
 		if !check.Passed {
-			status = "❌"
+			status = ""
 		}
 		fmt.Printf("  %s %s\n", status, check.RuleName)
 		if check.Details != "" {

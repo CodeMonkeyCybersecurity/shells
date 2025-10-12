@@ -178,7 +178,7 @@ func printHuntBanner(target string) {
 	blue := color.New(color.FgCyan, color.Bold)
 	fmt.Println()
 	log.Info("══════════════════════════════════════════════════════════════════════", "component", "hunt")
-	blue.Println("🎯 Shells Bug Bounty Hunter")
+	blue.Println(" Shells Bug Bounty Hunter")
 	fmt.Printf("   Target: %s\n", target)
 	fmt.Printf("   Time: %s\n", time.Now().Format("15:04:05"))
 	log.Info("══════════════════════════════════════════════════════════════════════", "component", "hunt")

@@ -83,6 +83,11 @@ func NewMailServerAnalyzer(log *logger.Logger) *MailServerAnalyzer {
 
 // AnalyzeMailServer performs comprehensive mail server analysis
 func (ma *MailServerAnalyzer) AnalyzeMailServer(ctx context.Context, target string) (*MailServerInfo, error) {
+	ma.logger.Infow("Starting mail server analysis",
+		"target", target,
+		"phase", "initialization",
+	)
+
 	info := &MailServerInfo{
 		Domain:         target,
 		MailServers:    []MailServer{},
@@ -95,7 +100,13 @@ func (ma *MailServerAnalyzer) AnalyzeMailServer(ctx context.Context, target stri
 		Metadata:       make(map[string]interface{}),
 	}
 
+	// Check context before starting
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled before analysis: %w", err)
+	}
+
 	// First, classify the target to get context
+	ma.logger.Infow("Step 1: Classifying target", "target", target)
 	targetContext, err := ma.serviceClassifier.ClassifyTarget(ctx, target)
 	if err != nil {
 		ma.logger.Errorw("Failed to classify target", "error", err)
@@ -104,31 +115,95 @@ func (ma *MailServerAnalyzer) AnalyzeMailServer(ctx context.Context, target stri
 		info.Organization = targetContext.Organization
 		info.RelatedDomains = targetContext.RelatedDomains
 		info.Technologies = targetContext.Technologies
+		ma.logger.Infow("Target classification complete",
+			"organization", info.Organization,
+			"related_domains", len(info.RelatedDomains),
+		)
 	}
 
 	// Extract hostname
 	hostname := ma.extractHostname(target)
+	ma.logger.Infow("Step 2: Extracted hostname", "hostname", hostname)
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled after classification: %w", err)
+	}
 
 	// Discover mail servers
+	ma.logger.Infow("Step 3: Discovering mail servers", "hostname", hostname)
 	ma.discoverMailServers(ctx, hostname, info)
+	ma.logger.Infow("Mail server discovery complete", "servers_found", len(info.MailServers))
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled after mail server discovery: %w", err)
+	}
 
 	// Analyze mail services
+	ma.logger.Infow("Step 4: Analyzing mail services", "servers", len(info.MailServers))
 	ma.analyzeMailServices(ctx, info)
+	ma.logger.Infow("Mail service analysis complete", "auth_methods", len(info.AuthMethods))
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled after mail service analysis: %w", err)
+	}
 
 	// Discover webmail interfaces
+	ma.logger.Infow("Step 5: Discovering webmail interfaces", "hostname", hostname)
 	ma.discoverWebmail(ctx, hostname, info)
+	ma.logger.Infow("Webmail discovery complete", "urls_found", len(info.WebmailURLs))
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled after webmail discovery: %w", err)
+	}
 
 	// Discover admin panels
+	ma.logger.Infow("Step 6: Discovering admin panels", "hostname", hostname)
 	ma.discoverAdminPanels(ctx, hostname, info)
+	ma.logger.Infow("Admin panel discovery complete", "panels_found", len(info.AdminPanelURLs))
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled after admin panel discovery: %w", err)
+	}
 
 	// Extract organization from certificates
+	ma.logger.Infow("Step 7: Extracting organization from certificates", "hostname", hostname)
 	ma.extractOrgFromCerts(ctx, hostname, info)
+	ma.logger.Infow("Certificate analysis complete", "organization", info.Organization)
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled after certificate extraction: %w", err)
+	}
 
 	// Analyze DNS records
+	ma.logger.Infow("Step 8: Analyzing DNS records", "hostname", hostname)
 	ma.analyzeDNSRecords(ctx, hostname, info)
+	ma.logger.Infow("DNS analysis complete",
+		"spf", info.SPFRecord != "",
+		"dmarc", info.DMARCRecord != "",
+		"dkim_selectors", len(info.DKIMSelectors),
+	)
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context cancelled after DNS analysis: %w", err)
+	}
 
 	// Test authentication methods
+	ma.logger.Infow("Step 9: Testing authentication methods")
 	ma.testAuthMethods(ctx, info)
+
+	ma.logger.Infow("Mail server analysis complete",
+		"target", target,
+		"total_auth_methods", len(info.AuthMethods),
+		"webmail_urls", len(info.WebmailURLs),
+		"admin_panels", len(info.AdminPanelURLs),
+	)
 
 	return info, nil
 }
@@ -187,36 +262,83 @@ func (ma *MailServerAnalyzer) discoverMailServers(ctx context.Context, domain st
 
 // analyzeMailServices analyzes services on each mail server
 func (ma *MailServerAnalyzer) analyzeMailServices(ctx context.Context, info *MailServerInfo) {
+	ma.logger.Infow("Starting mail service analysis",
+		"mail_servers", len(info.MailServers),
+		"phase", "service_enumeration",
+	)
+
 	for i := range info.MailServers {
 		server := &info.MailServers[i]
 
+		ma.logger.Infow("Analyzing mail server services",
+			"server", server.Hostname,
+			"ip", server.IP,
+			"server_index", i+1,
+			"total_servers", len(info.MailServers),
+		)
+
+		// Check context before each server
+		if err := ctx.Err(); err != nil {
+			ma.logger.Warnw("Context cancelled during mail service analysis",
+				"server", server.Hostname,
+				"error", err,
+			)
+			return
+		}
+
 		// Check SMTP services
+		ma.logger.Debugw("Checking SMTP port 25", "server", server.Hostname)
 		if authMethod := ma.checkSMTPService(server, 25, false); len(authMethod.Methods) > 0 {
 			info.AuthMethods = append(info.AuthMethods, authMethod)
 		}
+
+		ma.logger.Debugw("Checking SMTPS port 465", "server", server.Hostname)
 		if authMethod := ma.checkSMTPService(server, 465, true); len(authMethod.Methods) > 0 {
 			info.AuthMethods = append(info.AuthMethods, authMethod)
 		}
+
+		ma.logger.Debugw("Checking submission port 587", "server", server.Hostname)
 		if authMethod := ma.checkSMTPService(server, 587, false); len(authMethod.Methods) > 0 {
 			info.AuthMethods = append(info.AuthMethods, authMethod)
 		}
 
 		// Check IMAP services
+		ma.logger.Debugw("Checking IMAP port 143", "server", server.Hostname)
 		if authMethod := ma.checkIMAPService(server, 143, false); len(authMethod.Methods) > 0 {
 			info.AuthMethods = append(info.AuthMethods, authMethod)
 		}
+
+		ma.logger.Debugw("Checking IMAPS port 993", "server", server.Hostname)
 		if authMethod := ma.checkIMAPService(server, 993, true); len(authMethod.Methods) > 0 {
 			info.AuthMethods = append(info.AuthMethods, authMethod)
 		}
 
 		// Check POP3 services
+		ma.logger.Debugw("Checking POP3 port 110", "server", server.Hostname)
 		if authMethod := ma.checkPOP3Service(server, 110, false); len(authMethod.Methods) > 0 {
 			info.AuthMethods = append(info.AuthMethods, authMethod)
 		}
+
+		ma.logger.Debugw("Checking POP3S port 995", "server", server.Hostname)
 		if authMethod := ma.checkPOP3Service(server, 995, true); len(authMethod.Methods) > 0 {
 			info.AuthMethods = append(info.AuthMethods, authMethod)
 		}
+
+		ma.logger.Infow("Completed mail server service analysis",
+			"server", server.Hostname,
+			"services_found", len(server.Services),
+		)
 	}
+
+	ma.logger.Infow("Mail service analysis complete",
+		"total_services", func() int {
+			total := 0
+			for _, s := range info.MailServers {
+				total += len(s.Services)
+			}
+			return total
+		}(),
+	)
 }
 
 // checkSMTPService checks SMTP service on a specific port
@@ -435,6 +557,11 @@ func (ma *MailServerAnalyzer) checkPOP3Service(server *MailServer, port int, use
 
 // discoverWebmail discovers webmail interfaces
 func (ma *MailServerAnalyzer) discoverWebmail(ctx context.Context, hostname string, info *MailServerInfo) {
+	ma.logger.Infow("Starting webmail interface discovery",
+		"hostname", hostname,
+		"phase", "webmail_discovery",
+	)
+
 	// Common webmail paths
 	webmailPaths := []struct {
 		path string
@@ -457,9 +584,28 @@ func (ma *MailServerAnalyzer) discoverWebmail(ctx context.Context, hostname stri
 	// Check both HTTP and HTTPS
 	protocols := []string{"https", "http"}
 
+	checked := 0
 	for _, proto := range protocols {
 		for _, wp := range webmailPaths {
+			// Check context periodically
+			if checked%5 == 0 {
+				if err := ctx.Err(); err != nil {
+					ma.logger.Warnw("Context cancelled during webmail discovery",
+						"hostname", hostname,
+						"checked", checked,
+						"error", err,
+					)
+					return
+				}
+			}
+			checked++
+
 			url := fmt.Sprintf("%s://%s%s", proto, hostname, wp.path)
+
+			ma.logger.Debugw("Checking webmail URL",
+				"url", url,
+				"progress", fmt.Sprintf("%d/%d", checked, len(protocols)*len(webmailPaths)),
+			)
 
 			client := &http.Client{
 				Timeout: 5 * time.Second,
@@ -470,6 +616,7 @@ func (ma *MailServerAnalyzer) discoverWebmail(ctx context.Context, hostname stri
 
 			resp, err := client.Head(url)
 			if err != nil {
+				ma.logger.Debugw("Webmail check failed", "url", url, "error", err.Error())
 				continue
 			}
 			httpclient.CloseBody(resp)
@@ -496,10 +643,21 @@ func (ma *MailServerAnalyzer) discoverWebmail(ctx context.Context, hostname stri
 			}
 		}
 	}
+
+	ma.logger.Infow("Webmail discovery complete",
+		"hostname", hostname,
+		"urls_checked", checked,
+		"interfaces_found", len(info.WebmailURLs),
+	)
 }
 
 // discoverAdminPanels discovers mail admin panels
 func (ma *MailServerAnalyzer) discoverAdminPanels(ctx context.Context, hostname string, info *MailServerInfo) {
+	ma.logger.Infow("Starting admin panel discovery",
+		"hostname", hostname,
+		"phase", "admin_discovery",
+	)
+
 	// Common admin panel paths
 	adminPaths := []struct {
 		path string
@@ -521,9 +679,28 @@ func (ma *MailServerAnalyzer) discoverAdminPanels(ctx context.Context, hostname 
 	// Check both HTTP and HTTPS
 	protocols := []string{"https", "http"}
 
+	checked := 0
 	for _, proto := range protocols {
 		for _, ap := range adminPaths {
+			// Check context periodically
+			if checked%5 == 0 {
+				if err := ctx.Err(); err != nil {
+					ma.logger.Warnw("Context cancelled during admin panel discovery",
+						"hostname", hostname,
+						"checked", checked,
+						"error", err,
+					)
+					return
+				}
+			}
+			checked++
+
 			url := fmt.Sprintf("%s://%s%s", proto, hostname, ap.path)
+
+			ma.logger.Debugw("Checking admin panel URL",
+				"url", url,
+				"progress", fmt.Sprintf("%d/%d", checked, len(protocols)*len(adminPaths)),
+			)
 
 			client := &http.Client{
 				Timeout: 5 * time.Second,
@@ -534,6 +711,7 @@ func (ma *MailServerAnalyzer) discoverAdminPanels(ctx context.Context, hostname 
 
 			resp, err := client.Head(url)
 			if err != nil {
+				ma.logger.Debugw("Admin panel check failed", "url", url, "error", err.Error())
 				continue
 			}
 			httpclient.CloseBody(resp)
@@ -560,35 +738,79 @@ func (ma *MailServerAnalyzer) discoverAdminPanels(ctx context.Context, hostname 
 			}
 		}
 	}
+
+	ma.logger.Infow("Admin panel discovery complete",
+		"hostname", hostname,
+		"urls_checked", checked,
+		"panels_found", len(info.AdminPanelURLs),
+	)
 }
 
 // extractOrgFromCerts extracts organization from SSL certificates
 func (ma *MailServerAnalyzer) extractOrgFromCerts(ctx context.Context, hostname string, info *MailServerInfo) {
-	// Check HTTPS certificate
-	conn, err := tls.Dial("tcp", hostname+":443", &tls.Config{
+	ma.logger.Infow("Extracting organization from SSL certificates",
+		"hostname", hostname,
+		"phase", "certificate_analysis",
+	)
+
+	// Check context
+	if err := ctx.Err(); err != nil {
+		ma.logger.Warnw("Context cancelled before certificate extraction",
+			"hostname", hostname,
+			"error", err,
+		)
+		return
+	}
+
+	// Check HTTPS certificate with timeout
+	dialer := &net.Dialer{
+		Timeout: 5 * time.Second,
+	}
+	conn, err := tls.DialWithDialer(dialer, "tcp", hostname+":443", &tls.Config{
 		InsecureSkipVerify: true,
 	})
-	if err == nil {
-		defer conn.Close()
+	if err != nil {
+		ma.logger.Debugw("Failed to connect for certificate extraction",
+			"hostname", hostname,
+			"error", err.Error(),
+		)
+		return
+	}
+	defer conn.Close()
 
-		certs := conn.ConnectionState().PeerCertificates
-		for _, cert := range certs {
-			// Extract organization
-			if cert.Subject.Organization != nil && len(cert.Subject.Organization) > 0 {
-				info.Organization = cert.Subject.Organization[0]
-			}
+	certs := conn.ConnectionState().PeerCertificates
+	for _, cert := range certs {
+		// Extract organization
+		if len(cert.Subject.Organization) > 0 {
+			info.Organization = cert.Subject.Organization[0]
+			ma.logger.Infow("Organization extracted from certificate",
+				"organization", info.Organization,
+				"hostname", hostname,
+			)
+		}
 
-			// Extract domains from SANs
-			for _, san := range cert.DNSNames {
-				if !strings.HasPrefix(san, "*.") {
-					baseDomain := extractBaseDomain(san)
-					if baseDomain != "" && baseDomain != hostname {
-						info.RelatedDomains = appendUnique(info.RelatedDomains, baseDomain)
-					}
+		// Extract domains from SANs
+		for _, san := range cert.DNSNames {
+			if !strings.HasPrefix(san, "*.") {
+				baseDomain := extractBaseDomain(san)
+				if baseDomain != "" && baseDomain != hostname {
+					info.RelatedDomains = appendUnique(info.RelatedDomains, baseDomain)
 				}
 			}
 		}
 	}
+
+	ma.logger.Debugw("Certificate extraction complete",
+		"hostname", hostname,
+		"certificates", len(certs),
+		"sans_found", func() int {
+			total := 0
+			for _, cert := range certs {
+				total += len(cert.DNSNames)
+			}
+			return total
+		}(),
+	)
 }
 
 // analyzeDNSRecords analyzes DNS records for mail configuration

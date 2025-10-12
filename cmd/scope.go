@@ -244,7 +244,7 @@ func runScopeList(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(w, "──\t────\t────────\t────────\t────────────\t──────\t───────────")
 
 	for _, program := range programs {
-		active := "❌"
+		active := ""
 		if program.Active {
 			active = ""
 		}
@@ -292,7 +292,7 @@ func runScopeShow(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	if len(program.Scope) > 0 {
-		log.Info("📋 IN SCOPE:", "component", "scope")
+		log.Info(" IN SCOPE:", "component", "scope")
 		for _, item := range program.Scope {
 			fmt.Printf("   • %s (%s)", item.Value, item.Type)
 			if item.Description != "" {
@@ -357,7 +357,7 @@ func runScopeValidate(cmd *cobra.Command, args []string) error {
 	case scope.ScopeStatusInScope:
 		fmt.Printf(" %s is IN SCOPE\n", asset)
 	case scope.ScopeStatusOutOfScope:
-		fmt.Printf("❌ %s is OUT OF SCOPE\n", asset)
+		fmt.Printf(" %s is OUT OF SCOPE\n", asset)
 	default:
 		fmt.Printf("❓ %s scope is UNKNOWN\n", asset)
 	}

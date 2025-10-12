@@ -186,9 +186,9 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 	}
 	options["output_dir"] = outputDir
 
-	fmt.Printf("🎯 Running %s against %s\n", toolName, target)
+	fmt.Printf(" Running %s against %s\n", toolName, target)
 	if verbose {
-		fmt.Printf("📋 Configuration:\n")
+		fmt.Printf(" Configuration:\n")
 		fmt.Printf("   Output: %s\n", outputDir)
 		fmt.Printf("   Docker: %v\n", useDocker)
 		fmt.Printf("   Timeout: %s\n", timeout)
@@ -277,7 +277,7 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 			log.Error("Failed to save results", "error", err)
 		}
 	} else {
-		fmt.Printf("❌ Tool execution failed\n")
+		fmt.Printf(" Tool execution failed\n")
 		if result.Error != "" {
 			fmt.Printf("   Error: %s\n", result.Error)
 		}
@@ -315,7 +315,7 @@ func runboileauBatch(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create output directory %s: %w", outputDir, err)
 	}
 
-	fmt.Printf("🎯 Running %d tools against %s\n", len(tools), target)
+	fmt.Printf(" Running %d tools against %s\n", len(tools), target)
 	fmt.Printf("🛠️  Tools: %s\n", strings.Join(tools, ", "))
 
 	// Create scanner config

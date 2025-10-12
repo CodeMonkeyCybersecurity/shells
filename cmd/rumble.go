@@ -233,13 +233,13 @@ func runrumbleDiscover(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Services found: %d\n", serviceCount)
 
 	if verbose {
-		fmt.Printf("\n📋 Detailed Findings:\n")
+		fmt.Printf("\n Detailed Findings:\n")
 		for _, finding := range findings {
 			printrumbleFinding(finding)
 		}
 	} else {
 		// Show summary of assets
-		fmt.Printf("\n📋 Discovered Assets:\n")
+		fmt.Printf("\n Discovered Assets:\n")
 		for _, finding := range findingsByType["ASSET_DISCOVERED"] {
 			var targetStr string
 			if target, ok := finding.Metadata["target"].(string); ok {
@@ -378,7 +378,7 @@ func runrumbleScan(cmd *cobra.Command, args []string) error {
 	}
 
 	if verbose {
-		fmt.Printf("\n📋 All Findings:\n")
+		fmt.Printf("\n All Findings:\n")
 		for _, finding := range findings {
 			printrumbleFinding(finding)
 		}
@@ -422,7 +422,7 @@ func runrumbleAssets(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display assets
-	fmt.Printf("📋 Assets (showing up to %d):\n", limit)
+	fmt.Printf(" Assets (showing up to %d):\n", limit)
 	displayed := 0
 	for _, asset := range assets {
 		if displayed >= limit {

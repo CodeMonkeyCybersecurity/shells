@@ -192,7 +192,7 @@ func runProtocolTLS(cmd *cobra.Command, args []string) error {
 		if err := saveProtocolResults(findings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil
@@ -238,7 +238,7 @@ func runProtocolSMTP(cmd *cobra.Command, args []string) error {
 		if err := saveProtocolResults(findings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil
@@ -285,7 +285,7 @@ func runProtocolLDAP(cmd *cobra.Command, args []string) error {
 		if err := saveProtocolResults(findings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil
@@ -332,7 +332,7 @@ func runProtocolAll(cmd *cobra.Command, args []string) error {
 
 	// Test each protocol on its common ports
 	for _, test := range tests {
-		fmt.Printf("\n📋 Testing %s protocol...\n", test.protocol)
+		fmt.Printf("\n Testing %s protocol...\n", test.protocol)
 
 		for _, port := range test.ports {
 			testTarget := fmt.Sprintf("%s:%s", target, port)
@@ -355,7 +355,7 @@ func runProtocolAll(cmd *cobra.Command, args []string) error {
 			cancel()
 
 			if err != nil {
-				fmt.Printf("❌ (error: %s)\n", err)
+				fmt.Printf(" (error: %s)\n", err)
 			} else if len(findings) > 0 {
 				fmt.Printf(" (found %d issues)\n", len(findings))
 				allFindings = append(allFindings, findings...)
@@ -377,7 +377,7 @@ func runProtocolAll(cmd *cobra.Command, args []string) error {
 		if err := saveProtocolResults(allFindings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil

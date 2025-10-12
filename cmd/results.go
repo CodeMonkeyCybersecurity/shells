@@ -281,7 +281,7 @@ func printScanDetails(scan *types.ScanRequest, findings []types.Finding) {
 	}
 
 	if len(findings) > 0 {
-		fmt.Printf("\\n📋 Findings (%d total)\\n", len(findings))
+		fmt.Printf("\\n Findings (%d total)\\n", len(findings))
 		fmt.Printf("─────────────────────────────────\\n")
 
 		severityGroups := make(map[types.Severity][]types.Finding)
@@ -465,7 +465,7 @@ func printSummary(summary *ScanSummary, days int) {
 		for _, scan := range summary.RecentScans {
 			status := ""
 			if scan.Status == types.ScanStatusFailed {
-				status = "❌"
+				status = ""
 			} else if scan.Status == types.ScanStatusRunning {
 				status = "🔄"
 			}
@@ -689,7 +689,7 @@ func printStats(stats *core.FindingStats, criticalFindings []types.Finding) {
 	fmt.Printf("Total Findings: %d\n\n", stats.Total)
 
 	// Severity breakdown
-	fmt.Printf("🎯 By Severity:\n")
+	fmt.Printf(" By Severity:\n")
 	severityOrder := []types.Severity{
 		types.SeverityCritical,
 		types.SeverityHigh,
@@ -728,7 +728,7 @@ func printStats(stats *core.FindingStats, criticalFindings []types.Finding) {
 	}
 
 	// Top targets
-	fmt.Printf("\n🎯 Most Vulnerable Targets:\n")
+	fmt.Printf("\n Most Vulnerable Targets:\n")
 	targetCount := 0
 	for target, count := range stats.ByTarget {
 		if targetCount >= 5 {

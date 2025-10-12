@@ -30,7 +30,7 @@ SCAN_ID=$(date +%Y%m%d_%H%M%S)
 REPORT_DIR="$OUTPUT_DIR/$TARGET/$SCAN_ID"
 mkdir -p "$REPORT_DIR"
 
-echo -e "${BLUE}🎯 Bug Bounty Workflow - High-Value Vulnerability Discovery${NC}"
+echo -e "${BLUE} Bug Bounty Workflow - High-Value Vulnerability Discovery${NC}"
 echo -e "${BLUE}Target: ${YELLOW}$TARGET${NC}"
 echo -e "${BLUE}Scan ID: ${YELLOW}$SCAN_ID${NC}"
 echo -e "${BLUE}Output: ${YELLOW}$REPORT_DIR${NC}\n"

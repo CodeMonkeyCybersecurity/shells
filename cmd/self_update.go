@@ -61,7 +61,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to calculate current binary hash: %w", err)
 	}
 
-	fmt.Printf("🔐 Current SHA256: %s\n", currentHash)
+	fmt.Printf(" Current SHA256: %s\n", currentHash)
 
 	// Find the source directory (assume we're in a git repo)
 	sourceDir, err := findGitRoot(currentBinary)
@@ -99,7 +99,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 
 	if dryRun {
 		log.Info("   (dry-run mode: would rebuild and install binary)", "component", "self_update")
-		log.Info("🎯 Run without --dry-run to perform the actual update.", "component", "self_update")
+		log.Info(" Run without --dry-run to perform the actual update.", "component", "self_update")
 		return nil
 	}
 

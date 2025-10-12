@@ -42,6 +42,9 @@ type ResultStore interface {
 	GetRecentCriticalFindings(ctx context.Context, limit int) ([]types.Finding, error)
 	SearchFindings(ctx context.Context, searchTerm string, limit int) ([]types.Finding, error)
 
+	// Scan event logging for UI
+	SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error
+
 	GetSummary(ctx context.Context, scanID string) (*types.Summary, error)
 	Close() error
 }

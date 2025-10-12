@@ -155,7 +155,7 @@ func printOrchestratorBanner(target string, config orchestrator.BugBountyConfig)
 
 	fmt.Println()
 	log.Info("══════════════════════════════════════════════════════════════════════", "component", "orchestrator_main")
-	cyan.Println("🎯 Shells - Intelligent Bug Bounty Automation")
+	cyan.Println(" Shells - Intelligent Bug Bounty Automation")
 	fmt.Printf("   Target: %s\n", target)
 	fmt.Printf("   Mode: %s\n", mode)
 	fmt.Printf("   Time: %s\n", time.Now().Format("15:04:05"))

@@ -202,9 +202,9 @@ func runFuzzDir(cmd *cobra.Command, args []string) error {
 		wordlist = "common.txt"
 	}
 
-	fmt.Printf("🎯 Starting directory fuzzing against: %s\n", target)
+	fmt.Printf(" Starting directory fuzzing against: %s\n", target)
 	if verbose {
-		fmt.Printf("📋 Configuration:\n")
+		fmt.Printf(" Configuration:\n")
 		fmt.Printf("   Wordlist: %s\n", wordlist)
 		fmt.Printf("   Threads: %d\n", threads)
 		fmt.Printf("   Extensions: %v\n", extensions)
@@ -266,7 +266,7 @@ func runFuzzDir(cmd *cobra.Command, args []string) error {
 		if err := saveFuzzResults(findings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil
@@ -290,9 +290,9 @@ func runFuzzParam(cmd *cobra.Command, args []string) error {
 		wordlist = "parameters.txt"
 	}
 
-	fmt.Printf("🎯 Starting parameter fuzzing against: %s\n", target)
+	fmt.Printf(" Starting parameter fuzzing against: %s\n", target)
 	if verbose {
-		fmt.Printf("📋 Configuration:\n")
+		fmt.Printf(" Configuration:\n")
 		fmt.Printf("   Wordlist: %s\n", wordlist)
 		fmt.Printf("   Methods: %v\n", methods)
 		fmt.Printf("   Smart mode: %v\n", smart)
@@ -339,7 +339,7 @@ func runFuzzParam(cmd *cobra.Command, args []string) error {
 		if err := saveFuzzResults(findings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil
@@ -358,7 +358,7 @@ func runFuzzVhost(cmd *cobra.Command, args []string) error {
 		wordlist = "vhosts.txt"
 	}
 
-	fmt.Printf("🎯 Starting vhost fuzzing against: %s\n", target)
+	fmt.Printf(" Starting vhost fuzzing against: %s\n", target)
 	if domain != "" {
 		fmt.Printf("   Base domain: %s\n", domain)
 	}
@@ -401,7 +401,7 @@ func runFuzzVhost(cmd *cobra.Command, args []string) error {
 		if err := saveFuzzResults(findings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil
@@ -422,9 +422,9 @@ func runFuzzSubdomain(cmd *cobra.Command, args []string) error {
 		wordlist = "subdomains.txt"
 	}
 
-	fmt.Printf("🎯 Starting subdomain fuzzing for: %s\n", domain)
+	fmt.Printf(" Starting subdomain fuzzing for: %s\n", domain)
 	if verbose {
-		fmt.Printf("📋 Configuration:\n")
+		fmt.Printf(" Configuration:\n")
 		fmt.Printf("   Wordlist: %s\n", wordlist)
 		fmt.Printf("   Threads: %d\n", threads)
 		fmt.Printf("   DNS only: %v\n", dnsOnly)
@@ -464,7 +464,7 @@ func runFuzzSubdomain(cmd *cobra.Command, args []string) error {
 		if err := saveFuzzResults(findings, output); err != nil {
 			return fmt.Errorf("failed to save results: %w", err)
 		}
-		fmt.Printf("\n💾 Results saved to: %s\n", output)
+		fmt.Printf("\n Results saved to: %s\n", output)
 	}
 
 	return nil

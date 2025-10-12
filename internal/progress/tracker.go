@@ -136,7 +136,7 @@ func (t *Tracker) FailPhase(name string, err error) {
 			t.phases[i].EndTime = time.Now()
 			t.render()
 			if t.logger != nil {
-				t.logger.Errorw("❌ Phase failed", "error", err, "phase", name, "component", "progress")
+				t.logger.Errorw(" Phase failed", "error", err, "phase", name, "component", "progress")
 			}
 			return
 		}
@@ -228,7 +228,7 @@ func (t *Tracker) Complete() {
 		for _, phase := range t.phases {
 			status := ""
 			if phase.Status == StatusFailed {
-				status = "❌"
+				status = ""
 			} else if phase.Status == StatusPending {
 				status = "⏸️"
 			}

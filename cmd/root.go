@@ -55,7 +55,7 @@ package cmd
 //   - GRACEFUL SHUTDOWN: pkg/shutdown not yet integrated
 //     Timeline: 1 week for checkpointing implementation
 //
-// 🎯 HERA INTEGRATION ARCHITECTURE (Documented, Not Implemented):
+//  HERA INTEGRATION ARCHITECTURE (Documented, Not Implemented):
 //   See inline comments in pkg/hera/ when created
 //   Design: Hybrid browser (95% client) + server (5% deep analysis)
 //   Privacy: Domain-only analysis, no URL logging, no browsing history
@@ -91,12 +91,12 @@ import (
 )
 
 var (
-	cfg              *config.Config
-	log              *logger.Logger
-	store            core.ResultStore
-	shutdownHandler  *shutdown.Handler
-	checkpointMgr    *checkpoint.Manager
-	currentScanID    string // Track current scan for checkpointing on shutdown
+	cfg               *config.Config
+	log               *logger.Logger
+	store             core.ResultStore
+	shutdownHandler   *shutdown.Handler
+	checkpointMgr     *checkpoint.Manager
+	currentScanID     string            // Track current scan for checkpointing on shutdown
 	currentCheckpoint *checkpoint.State // Track current checkpoint state
 )
 

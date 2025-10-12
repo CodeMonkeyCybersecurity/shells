@@ -71,8 +71,8 @@ func runDiscoveryOnly(target string) error {
 	}
 
 	if discoverVerbose {
-		fmt.Printf("📋 Discovery session: %s\n", session.ID)
-		fmt.Printf("🎯 Target type: %s\n", session.Target.Type)
+		fmt.Printf(" Discovery session: %s\n", session.ID)
+		fmt.Printf(" Target type: %s\n", session.Target.Type)
 		fmt.Printf("🎲 Confidence: %.0f%%\n", session.Target.Confidence*100)
 	}
 
@@ -96,7 +96,7 @@ func runDiscoveryOnly(target string) error {
 			}
 			break
 		} else if session.Status == discovery.StatusFailed {
-			log.Info("\n❌ Discovery failed!", "component", "discover")
+			log.Info("\n Discovery failed!", "component", "discover")
 			for _, errMsg := range session.Errors {
 				fmt.Printf("   Error: %s\n", errMsg)
 			}
@@ -126,7 +126,7 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 	fmt.Printf("\n Discovery Results for: %s\n", session.Target.Value)
 	fmt.Printf("%s\n\n", strings.Repeat("=", len(session.Target.Value)+25))
 
-	fmt.Printf("🎯 Target Information:\n")
+	fmt.Printf(" Target Information:\n")
 	fmt.Printf("   Type: %s\n", session.Target.Type)
 	fmt.Printf("   Confidence: %.0f%%\n", session.Target.Confidence*100)
 	if len(session.Target.Metadata) > 0 {
@@ -226,7 +226,7 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 
 	// Display high-value assets summary
 	if session.HighValueAssets > 0 {
-		fmt.Printf("\n🎯 High-Value Assets:\n")
+		fmt.Printf("\n High-Value Assets:\n")
 		for _, asset := range session.Assets {
 			if discovery.IsHighValueAsset(asset) {
 				fmt.Printf("   🔥 %s (%s)\n", asset.Value, asset.Type)

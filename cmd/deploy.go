@@ -146,7 +146,7 @@ var deployStatusCmd = &cobra.Command{
 		for _, component := range components {
 			status, err := client.GetJobStatus(ctx, component)
 			if err != nil {
-				fmt.Printf("❌ %s: ERROR - %v\n", component, err)
+				fmt.Printf(" %s: ERROR - %v\n", component, err)
 				continue
 			}
 

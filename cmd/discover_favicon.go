@@ -281,7 +281,7 @@ func runFaviconHash(cmd *cobra.Command, args []string) error {
 
 		results, err := hasher.ScanHost(host)
 		if err != nil {
-			fmt.Printf("❌ Failed to process %s: %v\n", host, err)
+			fmt.Printf(" Failed to process %s: %v\n", host, err)
 			continue
 		}
 
@@ -367,7 +367,7 @@ func runFaviconAdd(cmd *cobra.Command, args []string) error {
 		if err := database.SaveToFile(customDatabase); err != nil {
 			fmt.Printf("  Warning: Failed to save to custom database: %v\n", err)
 		} else {
-			fmt.Printf("💾 Saved to custom database: %s\n", customDatabase)
+			fmt.Printf(" Saved to custom database: %s\n", customDatabase)
 		}
 	}
 
@@ -537,7 +537,7 @@ func outputFaviconTable(results []*favicon.FaviconResult) error {
 	// Display detailed results
 	for _, result := range results {
 		if result.Error != "" {
-			fmt.Printf("❌ %s: %s\n", result.Host, result.Error)
+			fmt.Printf(" %s: %s\n", result.Host, result.Error)
 			continue
 		}
 

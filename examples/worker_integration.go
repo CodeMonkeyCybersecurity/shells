@@ -97,7 +97,7 @@ func scanIDORExample(ctx context.Context, client *workers.Client) (*workers.JobS
 			if findings, ok := result.Result["findings"].([]interface{}); ok {
 				for _, finding := range findings {
 					if f, ok := finding.(map[string]interface{}); ok {
-						fmt.Printf("  🎯 IDOR: %s (Severity: %s)\n", f["url"], f["severity"])
+						fmt.Printf("   IDOR: %s (Severity: %s)\n", f["url"], f["severity"])
 					}
 				}
 			}

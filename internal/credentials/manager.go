@@ -119,7 +119,7 @@ func (m *Manager) CheckAndPromptForCircl() error {
 
 	// Validate credentials
 	if username == "" || password == "" {
-		m.logger.Error("❌ Username and password cannot be empty", "component", "credentials")
+		m.logger.Error(" Username and password cannot be empty", "component", "credentials")
 		return fmt.Errorf("invalid credentials")
 	}
 
@@ -138,7 +138,7 @@ func (m *Manager) CheckAndPromptForCircl() error {
 
 // PromptForAllAPIs provides an interactive prompt for all supported APIs
 func (m *Manager) PromptForAllAPIs() error {
-	m.logger.Info("\n🔐 API Credentials Configuration", "component", "credentials")
+	m.logger.Info("\n API Credentials Configuration", "component", "credentials")
 	m.logger.Info("═══════════════════════════════", "component", "credentials")
 	m.logger.Info("Configure API keys for enhanced discovery capabilities.", "component", "credentials")
 	m.logger.Info("All credentials are encrypted and stored locally.", "component", "credentials")
