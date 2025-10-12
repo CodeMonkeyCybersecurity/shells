@@ -22,6 +22,8 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/certs"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
@@ -37,7 +39,9 @@ type BugBountyEngine struct {
 	rateLimiter *ratelimit.Limiter
 
 	// Discovery
-	discoveryEngine *discovery.Engine
+	discoveryEngine     *discovery.Engine
+	orgCorrelator       *correlation.OrganizationCorrelator
+	certIntel           *certs.CertIntel
 
 	// Scanners
 	samlScanner     *saml.SAMLScanner
@@ -266,6 +270,41 @@ func NewBugBountyEngine(
 	}
 	discoveryEngine := discovery.NewEngine(discoveryConfig, logger)
 
+	// Initialize organization correlator for Phase 0 footprinting
+	var orgCorrelator *correlation.OrganizationCorrelator
+	var certIntel *certs.CertIntel
+	if config.EnableWHOISAnalysis || config.EnableCertTransparency || config.EnableRelatedDomainDisc {
+		// Initialize certificate intelligence client
+		certIntel = certs.NewCertIntel(logger)
+
+		// Initialize organization correlator with default clients
+		correlatorConfig := correlation.CorrelatorConfig{
+			EnableWhois:     config.EnableWHOISAnalysis,
+			EnableCerts:     config.EnableCertTransparency,
+			EnableASN:       true, // Always enable ASN for IP range discovery
+			EnableTrademark: false, // Too slow for real-time scanning
+			EnableLinkedIn:  false, // Requires API keys
+			EnableGitHub:    false, // Requires API keys
+			EnableCloud:     false, // Requires API keys
+			CacheTTL:        5 * time.Minute,
+			MaxWorkers:      10,
+		}
+		orgCorrelator = correlation.NewOrganizationCorrelator(correlatorConfig, logger)
+
+		// Set up clients
+		whoisClient := correlation.NewDefaultWhoisClient(logger)
+		certClient := correlation.NewDefaultCertificateClient(logger)
+		asnClient := correlation.NewDefaultASNClient(logger)
+		orgCorrelator.SetClients(whoisClient, certClient, asnClient, nil, nil, nil, nil)
+
+		logger.Infow("Organization correlator initialized",
+			"enable_whois", config.EnableWHOISAnalysis,
+			"enable_cert_transparency", config.EnableCertTransparency,
+			"enable_asn", true,
+			"component", "orchestrator",
+		)
+	}
+
 	// Initialize rate limiter to prevent IP bans
 	// NOTE: Individual scanners should respect this rate limit before making HTTP requests
 	// This prevents overwhelming target servers and getting blocked
@@ -317,6 +356,8 @@ func NewBugBountyEngine(
 		logger:             logger,
 		rateLimiter:        rateLimiter,
 		discoveryEngine:    discoveryEngine,
+		orgCorrelator:      orgCorrelator,
+		certIntel:          certIntel,
 		samlScanner:        samlScanner,
 		oauth2Scanner:      oauth2Scanner,
 		webauthnScanner:    webauthnScanner,
@@ -457,6 +498,69 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		dbLogger.Warnw("  No deadline on parent context - unexpected!")
 	}
 
+	// Phase 0: Organization Footprinting (if enabled)
+	var orgDomains []string
+	if e.orgCorrelator != nil && !e.config.SkipDiscovery {
+		footprintStart := time.Now()
+		dbLogger.Infow(" Phase 0: Organization Footprinting",
+			"target", target,
+			"enable_whois", e.config.EnableWHOISAnalysis,
+			"enable_cert_transparency", e.config.EnableCertTransparency,
+			"enable_related_domains", e.config.EnableRelatedDomainDisc,
+			"component", "orchestrator",
+		)
+
+		// Correlate organization from target
+		org, err := e.orgCorrelator.FindOrganizationAssets(ctx, target)
+		if err != nil {
+			dbLogger.Warnw(" Organization footprinting failed, proceeding with single target",
+				"error", err,
+				"target", target,
+				"component", "orchestrator",
+			)
+		} else {
+			dbLogger.Infow(" Organization footprinting completed",
+				"organization_name", org.Name,
+				"domains_found", len(org.Domains),
+				"asns_found", len(org.ASNs),
+				"ip_ranges_found", len(org.IPRanges),
+				"certificates_found", len(org.Certificates),
+				"confidence", org.Confidence,
+				"sources", org.Sources,
+				"duration", time.Since(footprintStart).String(),
+				"component", "orchestrator",
+			)
+
+			// Store discovered domains for parallel scanning
+			orgDomains = org.Domains
+
+			// Log each discovered domain
+			for i, domain := range org.Domains {
+				dbLogger.Infow(" Discovered related domain",
+					"index", i+1,
+					"domain", domain,
+					"organization", org.Name,
+					"component", "orchestrator",
+				)
+			}
+
+			// Store organization metadata in result
+			if result.PhaseResults == nil {
+				result.PhaseResults = make(map[string]PhaseResult)
+			}
+			result.PhaseResults["footprinting"] = PhaseResult{
+				Phase:     "footprinting",
+				Status:    "completed",
+				StartTime: footprintStart,
+				EndTime:   time.Now(),
+				Duration:  time.Since(footprintStart),
+				Findings:  len(org.Domains), // Count domains as findings
+			}
+		}
+
+		saveCheckpoint("footprinting", 5.0, []string{"footprinting"}, []types.Finding{})
+	}
+
 	// Phase 1: Asset Discovery (or skip if configured)
 	var assets []*discovery.Asset
 	var phaseResult PhaseResult
@@ -496,17 +600,60 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	} else {
 		// Normal/Deep mode: Run full discovery
 		discoveryStart := time.Now()
-		dbLogger.Infow(" Phase 1: Starting full discovery",
-			"target", target,
-			"discovery_timeout", e.config.DiscoveryTimeout.String(),
-			"enable_dns", e.config.EnableDNS,
-			"enable_subdomain_enum", e.config.EnableSubdomainEnum,
-			"enable_cert_transparency", e.config.EnableCertTransparency,
-			"elapsed_since_scan_start", time.Since(execStart).String(),
-		)
+
+		// Determine targets to scan: original target + any org-related domains
+		targetsToScan := []string{target}
+		if len(orgDomains) > 0 {
+			targetsToScan = orgDomains
+			dbLogger.Infow(" Phase 1: Starting parallel discovery for organization domains",
+				"organization_domains", len(orgDomains),
+				"domains", orgDomains,
+				"discovery_timeout", e.config.DiscoveryTimeout.String(),
+				"enable_dns", e.config.EnableDNS,
+				"enable_subdomain_enum", e.config.EnableSubdomainEnum,
+				"enable_cert_transparency", e.config.EnableCertTransparency,
+				"elapsed_since_scan_start", time.Since(execStart).String(),
+			)
+		} else {
+			dbLogger.Infow(" Phase 1: Starting full discovery",
+				"target", target,
+				"discovery_timeout", e.config.DiscoveryTimeout.String(),
+				"enable_dns", e.config.EnableDNS,
+				"enable_subdomain_enum", e.config.EnableSubdomainEnum,
+				"enable_cert_transparency", e.config.EnableCertTransparency,
+				"elapsed_since_scan_start", time.Since(execStart).String(),
+			)
+		}
 
 		tracker.StartPhase("discovery")
-		assets, phaseResult = e.executeDiscoveryPhase(ctx, target, tracker, dbLogger)
+
+		// Run discovery in parallel for all targets
+		allAssets := []*discovery.Asset{}
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+
+		for _, scanTarget := range targetsToScan {
+			wg.Add(1)
+			go func(t string) {
+				defer wg.Done()
+				targetAssets, _ := e.executeDiscoveryPhase(ctx, t, tracker, dbLogger)
+				mu.Lock()
+				allAssets = append(allAssets, targetAssets...)
+				mu.Unlock()
+			}(scanTarget)
+		}
+
+		wg.Wait()
+		assets = allAssets
+
+		phaseResult = PhaseResult{
+			Phase:     "discovery",
+			Status:    "completed",
+			StartTime: discoveryStart,
+			EndTime:   time.Now(),
+			Duration:  time.Since(discoveryStart),
+			Findings:  len(assets),
+		}
 
 		discoveryDuration := time.Since(discoveryStart)
 		dbLogger.Infow(" Discovery phase completed",
