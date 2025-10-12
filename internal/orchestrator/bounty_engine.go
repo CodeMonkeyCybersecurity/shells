@@ -397,6 +397,22 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		Findings:     []types.Finding{},
 	}
 
+	// Create initial scan record in database so events can reference it via foreign key
+	initialScan := &types.ScanRequest{
+		ID:        scanID,
+		Target:    target,
+		Type:      types.ScanTypeAuth,
+		Status:    types.ScanStatusRunning,
+		CreatedAt: result.StartTime,
+	}
+	if err := e.store.SaveScan(ctx, initialScan); err != nil {
+		// Log but don't fail - scan can continue even if DB save fails
+		e.logger.Warnw("Failed to save initial scan record",
+			"error", err,
+			"scan_id", scanID,
+		)
+	}
+
 	dbLogger.Infow(" Scan initialized",
 		"scan_id", scanID,
 		"start_time", result.StartTime.Format(time.RFC3339),

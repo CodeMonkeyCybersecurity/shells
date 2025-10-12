@@ -73,6 +73,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -177,16 +178,53 @@ The main command runs the COMPREHENSIVE orchestrated pipeline:
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// If no arguments provided, show help
+		// If no arguments provided, start web server (like 'shells serve')
 		if len(args) == 0 {
-			return cmd.Help()
+			color.Cyan("Starting Shells web server...\n")
+			color.White("Web UI will be available at: http://localhost:8080\n")
+			color.White("API endpoints at: http://localhost:8080/api/\n\n")
+
+			// Delegate to serve command
+			serveCmd, _, err := cmd.Root().Find([]string{"serve"})
+			if err != nil {
+				return fmt.Errorf("failed to find serve command: %w", err)
+			}
+			return serveCmd.RunE(serveCmd, []string{})
 		}
 
 		// Point-and-click mode: Use intelligent orchestrator
 		target := args[0]
 
+		// Start web server in background so user can watch scan progress in UI
+		color.Cyan("Starting web server in background...\n")
+		color.White("Web UI: http://localhost:8080\n")
+		color.White("Watch scan progress in real-time at the dashboard\n\n")
+
+		// Check if server is already running
+		resp, err := http.Get("http://localhost:8080/health")
+		serverRunning := err == nil && resp != nil
+		if resp != nil {
+			resp.Body.Close()
+		}
+
+		if !serverRunning {
+			// Start server in daemon mode
+			serveCmd, _, err := cmd.Root().Find([]string{"serve"})
+			if err == nil {
+				// Start serve in a goroutine so it doesn't block the scan
+				go func() {
+					if err := serveCmd.RunE(serveCmd, []string{}); err != nil {
+						log.Warnw("Web server failed to start", "error", err)
+					}
+				}()
+				// Give server time to start
+				time.Sleep(2 * time.Second)
+			}
+		} else {
+			color.Green("✓ Web server already running\n\n")
+		}
+
 		// Initialize checkpoint manager
-		var err error
 		checkpointMgr, err = checkpoint.NewManager()
 		if err != nil {
 			log.Warnw("Failed to initialize checkpoint manager - checkpointing disabled",

@@ -277,7 +277,7 @@ func printSmugglingDetectionResults(findings []types.Finding, verbose bool) {
 
 // printSmugglingExploitResults prints smuggling exploitation results
 func printSmugglingExploitResults(findings []types.Finding, verbose bool) {
-	fmt.Printf("💥 HTTP Request Smuggling Exploitation Results\n")
+	fmt.Printf(" HTTP Request Smuggling Exploitation Results\n")
 	fmt.Printf("═══════════════════════════════════════════\n\n")
 
 	if len(findings) == 0 {

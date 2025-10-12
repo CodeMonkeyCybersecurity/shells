@@ -3,6 +3,7 @@ package logger
 
 import (
 	"context"
+	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 )
@@ -35,8 +36,18 @@ func (l *DBEventLogger) Infow(msg string, keysAndValues ...interface{}) {
 
 		// Save event asynchronously so it doesn't slow down the scan
 		go func() {
-			ctx := context.Background()
-			l.store.SaveScanEvent(ctx, l.scanID, "info", component, msg, metadata)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := l.store.SaveScanEvent(ctx, l.scanID, "info", component, msg, metadata); err != nil {
+				// Log error but don't fail the scan
+				l.Logger.Errorw("Failed to save scan event to database",
+					"error", err,
+					"scan_id", l.scanID,
+					"component", component,
+					"message", msg,
+				)
+			}
 		}()
 	}
 }
@@ -73,21 +84,8 @@ func (l *DBEventLogger) Errorw(msg string, keysAndValues ...interface{}) {
 
 // shouldSaveEvent determines if an event is significant enough to save to database
 func (l *DBEventLogger) shouldSaveEvent(msg string) bool {
-	// Save events that contain important keywords
-	importantKeywords := []string{
-		"Starting", "completed", "discovered", "found",
-		"Phase", "Testing", "Scanning", "Analysis",
-		"vulnerability", "endpoint", "asset",
-		"progress", "session", "scan",
-	}
-
-	for _, keyword := range importantKeywords {
-		if contains(msg, keyword) {
-			return true
-		}
-	}
-
-	return false
+	// Save ALL events - complete scan history for UI
+	return true
 }
 
 // extractMetadata converts key-value pairs to map

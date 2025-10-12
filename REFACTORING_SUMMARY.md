@@ -91,7 +91,7 @@
 
 ---
 
-## 📦 NEW PACKAGE STRUCTURE
+##  NEW PACKAGE STRUCTURE
 
 ```
 cmd/

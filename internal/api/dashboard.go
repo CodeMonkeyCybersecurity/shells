@@ -467,12 +467,34 @@ const dashboardHTML = `<!DOCTYPE html>
                 const res = await fetch('/api/dashboard/scans/' + scanId);
                 const data = await res.json();
 
+                // Fetch scan events/logs
+                const eventsRes = await fetch('/api/dashboard/scans/' + scanId + '/events');
+                const events = await eventsRes.json();
+
                 let html = '<h2>Scan Details</h2>' +
                     '<p><strong>Target:</strong> ' + escapeHtml(data.scan.target) + '</p>' +
                     '<p><strong>Status:</strong> <span class="status-badge status-' + data.scan.status + '">' + data.scan.status + '</span></p>' +
                     '<p><strong>Started:</strong> ' + formatDate(data.scan.created_at) + '</p>' +
-                    (data.scan.error_message ? '<p class="error"><strong>Error:</strong> ' + escapeHtml(data.scan.error_message) + '</p>' : '') +
-                    '<h3 style="margin-top: 30px;">Findings (' + data.findings.length + ')</h3>';
+                    (data.scan.error_message ? '<p class="error"><strong>Error:</strong> ' + escapeHtml(data.scan.error_message) + '</p>' : '');
+
+                // Show scan events/progress
+                if (events && events.length > 0) {
+                    html += '<h3 style="margin-top: 30px;">Scan Progress (' + events.length + ' events)</h3>';
+                    html += '<div style="max-height: 400px; overflow-y: auto; background: #0f0f23; border: 1px solid #2a2a3e; border-radius: 6px; padding: 15px;">';
+                    events.forEach(e => {
+                        const timestamp = new Date(e.created_at).toLocaleTimeString();
+                        const typeColor = e.type === 'error' ? '#ef4444' : e.type === 'warning' ? '#f59e0b' : '#3b82f6';
+                        html += '<div style="margin-bottom: 8px; font-family: monospace; font-size: 0.875rem;">' +
+                            '<span style="color: #6b7280;">[' + timestamp + ']</span> ' +
+                            '<span style="color: ' + typeColor + '; font-weight: 600;">' + e.type.toUpperCase() + '</span> ' +
+                            '<span style="color: #9ca3af;">[' + escapeHtml(e.component) + ']</span> ' +
+                            '<span style="color: #e0e0e0;">' + escapeHtml(e.message) + '</span>' +
+                            '</div>';
+                    });
+                    html += '</div>';
+                }
+
+                html += '<h3 style="margin-top: 30px;">Findings (' + data.findings.length + ')</h3>';
 
                 if (data.findings.length === 0) {
                     html += '<p style="color: #6b7280;">No findings for this scan.</p>';

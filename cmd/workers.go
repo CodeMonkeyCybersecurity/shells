@@ -46,7 +46,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Clone GraphCrawler
-		log.Info("📦 Cloning GraphCrawler...", "component", "workers")
+		log.Info(" Cloning GraphCrawler...", "component", "workers")
 		graphCrawlerDir := filepath.Join(workersDir, "GraphCrawler")
 		if _, err := os.Stat(graphCrawlerDir); os.IsNotExist(err) {
 			cloneCmd := exec.Command("git", "clone", "https://github.com/gsmith257-cyber/GraphCrawler.git", graphCrawlerDir)
@@ -60,7 +60,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Clone IDORD (AyemunHossain/IDORD - actively maintained version)
-		log.Info("📦 Cloning IDORD...", "component", "workers")
+		log.Info(" Cloning IDORD...", "component", "workers")
 		idordDir := filepath.Join(workersDir, "IDORD")
 		if _, err := os.Stat(idordDir); os.IsNotExist(err) {
 			cloneCmd := exec.Command("git", "clone", "https://github.com/AyemunHossain/IDORD.git", idordDir)
@@ -74,7 +74,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Update requirements.txt files for Python 3.12 compatibility
-		log.Info("🔧 Updating requirements for Python 3.12 compatibility...", "component", "workers")
+		log.Info(" Updating requirements for Python 3.12 compatibility...", "component", "workers")
 		if err := updateGraphCrawlerRequirements(graphCrawlerDir); err != nil {
 			log.Warnw("  Warning: Failed to update GraphCrawler requirements", "error", err, "component", "workers")
 		}
@@ -83,7 +83,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Create Python virtual environment
-		log.Info("🐍 Creating Python virtual environment...", "component", "workers")
+		log.Info(" Creating Python virtual environment...", "component", "workers")
 		venvDir := filepath.Join(workersDir, "venv")
 		if _, err := os.Stat(venvDir); os.IsNotExist(err) {
 			venvCmd := exec.Command("python3", "-m", "venv", venvDir)
@@ -97,7 +97,7 @@ and install all dependencies. This only needs to be run once.`,
 		}
 
 		// Install dependencies
-		log.Info("📦 Installing dependencies...", "component", "workers")
+		log.Info(" Installing dependencies...", "component", "workers")
 		pipBin := filepath.Join(venvDir, "bin", "pip")
 
 		// Install FastAPI and dependencies
