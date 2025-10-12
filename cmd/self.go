@@ -96,6 +96,27 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		"duration", duration.String(),
 	)
 
+	// Run database migrations
+	logger.Infow("Running database migrations",
+		"component", "self_update",
+	)
+	fmt.Println()
+	fmt.Println(" Running database migrations...")
+
+	if err := runDatabaseMigrations(); err != nil {
+		logger.Warnw("Database migration failed - you may need to run migrations manually",
+			"component", "self_update",
+			"error", err,
+		)
+		fmt.Printf("⚠️  Warning: Database migration failed: %v\n", err)
+		fmt.Printf("   You can run migrations manually with: shells db migrate\n")
+	} else {
+		logger.Infow("Database migrations completed successfully",
+			"component", "self_update",
+		)
+		fmt.Println(" Database migrations completed successfully!")
+	}
+
 	fmt.Println()
 	log.Info(" Shells updated successfully!", "component", "self")
 	fmt.Printf("   Duration: %s\n", duration.Round(time.Second))
