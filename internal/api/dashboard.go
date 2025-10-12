@@ -491,6 +491,23 @@ const dashboardHTML = `<!DOCTYPE html>
             }
         }
 
+        async function refreshLiveEvents() {
+            try {
+                const scansRes = await fetch('/api/dashboard/scans');
+                const scans = await scansRes.json();
+                const runningScans = scans.filter(s => s.status === 'running');
+
+                if (runningScans.length === 0) {
+                    document.getElementById('liveEventsSection').style.display = 'none';
+                    return;
+                }
+
+                await showLiveEvents(scans);
+            } catch (error) {
+                console.error('Error refreshing live events:', error);
+            }
+        }
+
         async function showLiveEvents(scans) {
             const runningScans = scans.filter(s => s.status === 'running');
             if (runningScans.length === 0) {
@@ -568,15 +585,23 @@ const dashboardHTML = `<!DOCTYPE html>
         async function viewScan(scanId) {
             try {
                 const res = await fetch('/api/dashboard/scans/' + scanId);
+                if (!res.ok) {
+                    throw new Error('Failed to fetch scan: ' + res.status + ' ' + res.statusText);
+                }
                 const data = await res.json();
+
+                // Validate response structure
+                if (!data || !data.scan) {
+                    throw new Error('Invalid scan data received from API');
+                }
 
                 // Fetch scan events/logs
                 const eventsRes = await fetch('/api/dashboard/scans/' + scanId + '/events');
-                const events = await eventsRes.json();
+                const events = eventsRes.ok ? await eventsRes.json() : [];
 
                 let html = '<h2>Scan Details</h2>' +
-                    '<p><strong>Target:</strong> ' + escapeHtml(data.scan.target) + '</p>' +
-                    '<p><strong>Status:</strong> <span class="status-badge status-' + data.scan.status + '">' + data.scan.status + '</span></p>' +
+                    '<p><strong>Target:</strong> ' + escapeHtml(data.scan.target || 'Unknown') + '</p>' +
+                    '<p><strong>Status:</strong> <span class="status-badge status-' + (data.scan.status || 'unknown') + '">' + (data.scan.status || 'unknown') + '</span></p>' +
                     '<p><strong>Started:</strong> ' + formatDate(data.scan.created_at) + '</p>' +
                     (data.scan.error_message ? '<p class="error"><strong>Error:</strong> ' + escapeHtml(data.scan.error_message) + '</p>' : '');
 
@@ -597,12 +622,13 @@ const dashboardHTML = `<!DOCTYPE html>
                     html += '</div>';
                 }
 
-                html += '<h3 style="margin-top: 30px;">Findings (' + data.findings.length + ')</h3>';
+                const findings = data.findings || [];
+                html += '<h3 style="margin-top: 30px;">Findings (' + findings.length + ')</h3>';
 
-                if (data.findings.length === 0) {
+                if (findings.length === 0) {
                     html += '<p style="color: #6b7280;">No findings for this scan.</p>';
                 } else {
-                    data.findings.forEach(f => {
+                    findings.forEach(f => {
                         html += '<div class="finding-card ' + f.severity.toLowerCase() + '">' +
                             '<div class="finding-title">' + escapeHtml(f.title) + '</div>' +
                             '<div class="finding-meta">' +
@@ -649,9 +675,14 @@ const dashboardHTML = `<!DOCTYPE html>
             return div.innerHTML;
         }
 
-        // Auto-refresh every 5 seconds
+        // Load initial data
         loadData();
-        setInterval(loadData, 5000);
+
+        // Auto-refresh only live events every 5 seconds (not the whole table)
+        setInterval(refreshLiveEvents, 5000);
+
+        // Refresh full table every 30 seconds (less disruptive)
+        setInterval(loadData, 30000);
 
         // Close modal on outside click
         window.onclick = function(event) {

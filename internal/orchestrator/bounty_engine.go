@@ -617,7 +617,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	}
 
 	tracker.StartPhase("testing")
-	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized, tracker)
+	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized, tracker, dbLogger)
 
 	testingDuration := time.Since(testingStart)
 	dbLogger.Infow(" Testing phase completed",
@@ -1069,8 +1069,11 @@ func (e *BugBountyEngine) analyzeAssetFeatures(asset *discovery.Asset) AssetFeat
 }
 
 // executeTestingPhase runs all vulnerability tests in parallel
-func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string, assets []*AssetPriority, tracker *progress.Tracker) ([]types.Finding, map[string]PhaseResult) {
-	e.logger.Infow("Phase 3: Vulnerability Testing", "assets", len(assets))
+func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string, assets []*AssetPriority, tracker *progress.Tracker, dbLogger *logger.DBEventLogger) ([]types.Finding, map[string]PhaseResult) {
+	dbLogger.Infow(" Phase 3: Starting vulnerability testing",
+		"assets", len(assets),
+		"component", "orchestrator",
+	)
 
 	phaseResults := make(map[string]PhaseResult)
 	allFindings := []types.Finding{}
@@ -1117,7 +1120,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			findings, result := e.runAuthenticationTests(ctx, target, assets)
+			findings, result := e.runAuthenticationTests(ctx, target, assets, dbLogger)
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["auth"] = result
@@ -1131,7 +1134,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			findings, result := e.runSCIMTests(ctx, assets)
+			findings, result := e.runSCIMTests(ctx, assets, dbLogger)
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["scim"] = result
@@ -1145,7 +1148,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			findings, result := e.runAPITests(ctx, assets)
+			findings, result := e.runAPITests(ctx, assets, dbLogger)
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["api"] = result
@@ -1159,7 +1162,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			findings, result := e.runNmapScans(ctx, assets)
+			findings, result := e.runNmapScans(ctx, assets, dbLogger)
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["nmap"] = result
@@ -1173,7 +1176,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			findings, result := e.runNucleiScans(ctx, assets)
+			findings, result := e.runNucleiScans(ctx, assets, dbLogger)
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["nuclei"] = result
@@ -1187,7 +1190,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			findings, result := e.runGraphQLTests(ctx, assets)
+			findings, result := e.runGraphQLTests(ctx, assets, dbLogger)
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["graphql"] = result
@@ -1201,7 +1204,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			findings, result := e.runIDORTests(ctx, assets)
+			findings, result := e.runIDORTests(ctx, assets, dbLogger)
 			mu.Lock()
 			allFindings = append(allFindings, findings...)
 			phaseResults["idor"] = result
@@ -1217,7 +1220,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 }
 
 // runAuthenticationTests executes all authentication vulnerability tests
-func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target string, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target string, assets []*AssetPriority, dbLogger *logger.DBEventLogger) ([]types.Finding, PhaseResult) {
 	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "authentication",
@@ -1447,7 +1450,7 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 }
 
 // runSCIMTests executes SCIM vulnerability tests in parallel
-func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPriority, dbLogger *logger.DBEventLogger) ([]types.Finding, PhaseResult) {
 	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "scim",
@@ -1543,7 +1546,7 @@ func (e *BugBountyEngine) runSCIMTests(ctx context.Context, assets []*AssetPrior
 }
 
 // runAPITests executes API vulnerability tests
-func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriority, dbLogger *logger.DBEventLogger) ([]types.Finding, PhaseResult) {
 	phase := PhaseResult{
 		Phase:     "api",
 		Status:    "running",
@@ -1595,7 +1598,7 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 }
 
 // runNmapScans performs service fingerprinting and port scanning
-func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPriority, dbLogger *logger.DBEventLogger) ([]types.Finding, PhaseResult) {
 	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "nmap",
@@ -1744,7 +1747,7 @@ func (e *BugBountyEngine) runNmapScans(ctx context.Context, assets []*AssetPrior
 }
 
 // runNucleiScans performs vulnerability scanning with Nuclei templates
-func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPriority, dbLogger *logger.DBEventLogger) ([]types.Finding, PhaseResult) {
 	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "nuclei",
@@ -1874,39 +1877,56 @@ func (e *BugBountyEngine) runNucleiScans(ctx context.Context, assets []*AssetPri
 }
 
 // runGraphQLTests performs GraphQL security testing
-func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPriority, dbLogger *logger.DBEventLogger) ([]types.Finding, PhaseResult) {
 	phase := PhaseResult{
 		Phase:     "graphql",
 		Status:    "running",
 		StartTime: time.Now(),
 	}
 
-	e.logger.Infow("Running GraphQL security tests")
+	dbLogger.Infow(" Running GraphQL security tests",
+		"component", "graphql_scanner",
+	)
 
 	var findings []types.Finding
 
-	// Find GraphQL endpoints
-	graphqlCount := 0
+	// Extract unique base URLs from assets for GraphQL testing
+	// The GraphQL scanner will test common paths like /graphql, /gql, /api/graphql, etc.
+	baseURLs := make(map[string]bool)
 	for _, asset := range assets {
-		url := asset.Asset.Value
-		// Check if URL likely contains GraphQL endpoint
-		if !strings.Contains(strings.ToLower(url), "graphql") &&
-			!strings.Contains(strings.ToLower(url), "/api") {
-			continue
+		// Parse URL to extract base (scheme + host)
+		if strings.HasPrefix(asset.Asset.Value, "http://") || strings.HasPrefix(asset.Asset.Value, "https://") {
+			// Find the base URL (up to the first path separator after the host)
+			parts := strings.SplitN(asset.Asset.Value, "/", 4) // ["https:", "", "example.com", "path..."]
+			if len(parts) >= 3 {
+				baseURL := parts[0] + "//" + parts[2] // "https://example.com"
+				baseURLs[baseURL] = true
+			}
 		}
+	}
 
+	dbLogger.Infow(" Extracted base URLs for GraphQL testing",
+		"total_assets", len(assets),
+		"unique_base_urls", len(baseURLs),
+		"component", "graphql_scanner",
+	)
+
+	// Test each base URL - GraphQL scanner will discover endpoints automatically
+	graphqlCount := 0
+	for baseURL := range baseURLs {
 		graphqlCount++
-		e.logger.Debugw("Testing GraphQL endpoint",
-			"url", url,
+		dbLogger.Infow(" Testing base URL for GraphQL endpoints",
+			"url", baseURL,
+			"testing_count", fmt.Sprintf("%d/%d", graphqlCount, len(baseURLs)),
 			"component", "graphql_scanner",
 		)
 
-		// Run Go GraphQL scanner
-		results, err := e.graphqlScanner.Scan(ctx, url, nil)
+		// Run Go GraphQL scanner - it will test multiple common GraphQL paths
+		results, err := e.graphqlScanner.Scan(ctx, baseURL, nil)
 		if err != nil {
-			e.logger.Errorw("GraphQL scan failed",
+			dbLogger.Errorw(" GraphQL scan failed",
 				"error", err,
-				"url", url,
+				"url", baseURL,
 				"component", "graphql_scanner",
 			)
 			continue
@@ -1915,33 +1935,33 @@ func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPr
 		// Convert results to findings
 		findings = append(findings, results...)
 
-		e.logger.Infow("Go GraphQL scan completed",
-			"url", url,
+		dbLogger.Infow(" Go GraphQL scan completed",
+			"url", baseURL,
 			"findings", len(results),
 			"component", "graphql_scanner",
 		)
 
 		// Also run Python GraphCrawler if available
 		if e.pythonWorkers != nil {
-			e.logger.Infow("Running Python GraphCrawler",
-				"url", url,
+			dbLogger.Infow(" Running Python GraphCrawler",
+				"url", baseURL,
 				"component", "graphcrawler",
 			)
 
-			jobStatus, err := e.pythonWorkers.ScanGraphQLSync(ctx, url, nil)
+			jobStatus, err := e.pythonWorkers.ScanGraphQLSync(ctx, baseURL, nil)
 			if err != nil {
-				e.logger.Errorw("GraphCrawler scan failed",
+				dbLogger.Errorw(" GraphCrawler scan failed",
 					"error", err,
-					"url", url,
+					"url", baseURL,
 					"component", "graphcrawler",
 				)
 			} else if jobStatus.Status == "completed" && jobStatus.Result != nil {
 				// Convert Python worker results to findings
-				pythonFindings := convertPythonGraphQLToFindings(jobStatus.Result, url)
+				pythonFindings := convertPythonGraphQLToFindings(jobStatus.Result, baseURL)
 				findings = append(findings, pythonFindings...)
 
-				e.logger.Infow("GraphCrawler scan completed",
-					"url", url,
+				dbLogger.Infow(" GraphCrawler scan completed",
+					"url", baseURL,
 					"findings", len(pythonFindings),
 					"component", "graphcrawler",
 				)
@@ -1954,17 +1974,18 @@ func (e *BugBountyEngine) runGraphQLTests(ctx context.Context, assets []*AssetPr
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	e.logger.Infow("GraphQL testing completed",
+	dbLogger.Infow(" GraphQL testing completed",
 		"findings", len(findings),
-		"duration", phase.Duration,
+		"duration", phase.Duration.String(),
 		"endpoints_tested", graphqlCount,
+		"component", "graphql_scanner",
 	)
 
 	return findings, phase
 }
 
 // runIDORTests performs IDOR vulnerability testing using Python workers
-func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPriority) ([]types.Finding, PhaseResult) {
+func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPriority, dbLogger *logger.DBEventLogger) ([]types.Finding, PhaseResult) {
 	phase := PhaseResult{
 		Phase:     "idor",
 		Status:    "running",
