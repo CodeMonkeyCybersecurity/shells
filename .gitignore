@@ -53,3 +53,5 @@ shells.db
 *.example
 
 *.json
+
+workers/venv/*
