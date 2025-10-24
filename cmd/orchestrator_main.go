@@ -123,19 +123,23 @@ func buildOrchestratorConfig(cmd *cobra.Command) orchestrator.BugBountyConfig {
 	// Apply mode-specific settings
 	if quick {
 		// Quick mode: Fast triage, critical vulns only (< 30 seconds total)
-		// SKIP discovery entirely - just test the target directly
-		config.SkipDiscovery = true
-		config.DiscoveryTimeout = 1 * time.Second // Not used when skipped
+		// TASK 8 FIX: Enable minimal web crawl for auth endpoint discovery
+		// Auth vulns (Golden SAML, JWT confusion, OAuth2 bypass) are HIGH-VALUE findings
+		config.SkipDiscovery = false // CHANGED: Need discovery for auth endpoints
+		config.DiscoveryTimeout = 5 * time.Second // Fast auth endpoint discovery
 		config.ScanTimeout = 30 * time.Second
 		config.TotalTimeout = 1 * time.Minute
 		config.MaxAssets = 1
-		config.MaxDepth = 1 // Allow minimal depth for auth endpoint discovery
+		config.MaxDepth = 1 // Minimal depth for speed, enough for auth discovery
 		config.EnableDNS = false
 		config.EnablePortScan = false
-		config.EnableWebCrawl = false
+		config.EnableWebCrawl = true // CHANGED: Allow minimal crawl for auth endpoints
 		config.EnableAPITesting = false // Skip in quick mode
 		config.EnableLogicTesting = false
 		config.EnableAuthTesting = true // ENABLED: Auth testing is high-value for bug bounties
+		config.EnableIDORTesting = false // Skip IDOR in quick mode
+		config.EnableNucleiScan = false // Skip Nuclei in quick mode
+		config.EnableSCIMTesting = false // Skip SCIM in quick mode
 	} else if deep {
 		// Deep mode: Comprehensive testing (< 15 minutes total)
 		config.DiscoveryTimeout = 1 * time.Minute

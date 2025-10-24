@@ -819,3 +819,424 @@ func showIdentityChains(sessionID, severityFilter string, verbose bool, output s
 
 	return nil
 }
+
+// TASK 11: Temporal Snapshot Comparison Commands
+
+// resultsDiffCmd compares two scans to show what changed
+var resultsDiffCmd = &cobra.Command{
+	Use:   "diff <scan-id-1> <scan-id-2>",
+	Short: "Compare two scan results",
+	Long: `Compare two scans to see what changed between them.
+
+Shows:
+- New assets discovered
+- Assets that disappeared
+- New vulnerabilities found
+- Fixed vulnerabilities
+- Changes in service versions
+
+Examples:
+  shells results diff scan-123 scan-456
+  shells results diff scan-old scan-new --output json`,
+	Args: cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		scanID1 := args[0]
+		scanID2 := args[1]
+		output, _ := cmd.Flags().GetString("output")
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		ctx := GetContext()
+
+		// Get both scans
+		scan1, err := store.GetScan(ctx, scanID1)
+		if err != nil {
+			return fmt.Errorf("failed to get scan 1: %w", err)
+		}
+
+		scan2, err := store.GetScan(ctx, scanID2)
+		if err != nil {
+			return fmt.Errorf("failed to get scan 2: %w", err)
+		}
+
+		// Get findings for both scans
+		findings1, err := store.GetFindings(ctx, scanID1)
+		if err != nil {
+			return fmt.Errorf("failed to get findings for scan 1: %w", err)
+		}
+
+		findings2, err := store.GetFindings(ctx, scanID2)
+		if err != nil {
+			return fmt.Errorf("failed to get findings for scan 2: %w", err)
+		}
+
+		// Compare findings
+		newFindings, fixedFindings := compareFindings(findings1, findings2)
+
+		if output == "json" {
+			diff := map[string]interface{}{
+				"scan1": map[string]interface{}{
+					"id":         scan1.ID,
+					"created_at": scan1.CreatedAt,
+					"target":     scan1.Target,
+					"findings":   len(findings1),
+				},
+				"scan2": map[string]interface{}{
+					"id":         scan2.ID,
+					"created_at": scan2.CreatedAt,
+					"target":     scan2.Target,
+					"findings":   len(findings2),
+				},
+				"new_vulnerabilities":   newFindings,
+				"fixed_vulnerabilities": fixedFindings,
+			}
+			jsonData, _ := json.MarshalIndent(diff, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			displayScanDiff(scan1, scan2, newFindings, fixedFindings)
+		}
+
+		return nil
+	},
+}
+
+// resultsHistoryCmd shows scan history for a target
+var resultsHistoryCmd = &cobra.Command{
+	Use:   "history <target>",
+	Short: "Show scan history for a target",
+	Long: `Display all scans performed on a target, showing progression over time.
+
+Examples:
+  shells results history example.com
+  shells results history example.com --limit 10
+  shells results history example.com --output json`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		target := args[0]
+		limit, _ := cmd.Flags().GetInt("limit")
+		output, _ := cmd.Flags().GetString("output")
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		ctx := GetContext()
+
+		// Get all scans for this target
+		filter := core.ScanFilter{
+			Target: target,
+			Limit:  limit,
+		}
+
+		scans, err := store.ListScans(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to list scans: %w", err)
+		}
+
+		if len(scans) == 0 {
+			fmt.Printf("No scans found for target: %s\n", target)
+			return nil
+		}
+
+		// Get findings count for each scan
+		scanHistory := make([]map[string]interface{}, len(scans))
+		for i, scan := range scans {
+			findings, _ := store.GetFindings(ctx, scan.ID)
+			
+			scanHistory[i] = map[string]interface{}{
+				"scan_id":    scan.ID,
+				"created_at": scan.CreatedAt,
+				"status":     scan.Status,
+				"findings":   len(findings),
+			}
+		}
+
+		if output == "json" {
+			result := map[string]interface{}{
+				"target":  target,
+				"scans":   len(scans),
+				"history": scanHistory,
+			}
+			jsonData, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			displayScanHistory(target, scans, scanHistory)
+		}
+
+		return nil
+	},
+}
+
+// resultsChangesCmd shows changes in a time window
+var resultsChangesCmd = &cobra.Command{
+	Use:   "changes <target>",
+	Short: "Show changes for a target over time",
+	Long: `Compare the first and last scan in a time window to show what changed.
+
+Examples:
+  shells results changes example.com --since 7d
+  shells results changes example.com --since 30d
+  shells results changes example.com --from 2024-01-01 --to 2024-02-01`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		target := args[0]
+		sinceDuration, _ := cmd.Flags().GetString("since")
+		fromDate, _ := cmd.Flags().GetString("from")
+		toDate, _ := cmd.Flags().GetString("to")
+		output, _ := cmd.Flags().GetString("output")
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		ctx := GetContext()
+
+		// Calculate time window
+		var startTime, endTime time.Time
+		if sinceDuration != "" {
+			duration, err := parseDuration(sinceDuration)
+			if err != nil {
+				return fmt.Errorf("invalid duration: %w", err)
+			}
+			startTime = time.Now().Add(-duration)
+			endTime = time.Now()
+		} else if fromDate != "" && toDate != "" {
+			var err error
+			startTime, err = time.Parse("2006-01-02", fromDate)
+			if err != nil {
+				return fmt.Errorf("invalid from date: %w", err)
+			}
+			endTime, err = time.Parse("2006-01-02", toDate)
+			if err != nil {
+				return fmt.Errorf("invalid to date: %w", err)
+			}
+		} else {
+			return fmt.Errorf("must specify either --since or --from/--to")
+		}
+
+		// Get scans in time window
+		filter := core.ScanFilter{
+			Target: target,
+			Limit:  1000, // Get all scans in window
+		}
+
+		allScans, err := store.ListScans(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to list scans: %w", err)
+		}
+
+		// Filter by time window
+		var scans []*types.ScanRequest
+		for _, scan := range allScans {
+			if scan.CreatedAt.After(startTime) && scan.CreatedAt.Before(endTime) {
+				scans = append(scans, scan)
+			}
+		}
+
+		if len(scans) == 0 {
+			fmt.Printf("No scans found for %s in time window\n", target)
+			return nil
+		}
+
+		// Compare first and last scan
+		firstScan := scans[0]
+		lastScan := scans[len(scans)-1]
+
+		findings1, _ := store.GetFindings(ctx, firstScan.ID)
+		findings2, _ := store.GetFindings(ctx, lastScan.ID)
+
+		newFindings, fixedFindings := compareFindings(findings1, findings2)
+
+		if output == "json" {
+			result := map[string]interface{}{
+				"target":    target,
+				"time_window": map[string]interface{}{
+					"start": startTime,
+					"end":   endTime,
+				},
+				"scans_in_window":       len(scans),
+				"first_scan":            firstScan,
+				"last_scan":             lastScan,
+				"new_vulnerabilities":   newFindings,
+				"fixed_vulnerabilities": fixedFindings,
+			}
+			jsonData, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			displayChangesOverTime(target, startTime, endTime, len(scans), firstScan, lastScan, newFindings, fixedFindings)
+		}
+
+		return nil
+	},
+}
+
+// Helper functions for comparison
+
+func compareFindings(findings1, findings2 []types.Finding) (newFindings, fixedFindings []types.Finding) {
+	// Create maps for quick lookup
+	findings1Map := make(map[string]types.Finding)
+	for _, f := range findings1 {
+		// Use type+title as key for comparison
+		key := f.Type + "|" + f.Title
+		findings1Map[key] = f
+	}
+
+	findings2Map := make(map[string]types.Finding)
+	for _, f := range findings2 {
+		key := f.Type + "|" + f.Title
+		findings2Map[key] = f
+	}
+
+	// Find new findings (in scan2 but not in scan1)
+	for key, f := range findings2Map {
+		if _, exists := findings1Map[key]; !exists {
+			newFindings = append(newFindings, f)
+		}
+	}
+
+	// Find fixed findings (in scan1 but not in scan2)
+	for key, f := range findings1Map {
+		if _, exists := findings2Map[key]; !exists {
+			fixedFindings = append(fixedFindings, f)
+		}
+	}
+
+	return newFindings, fixedFindings
+}
+
+func parseDuration(s string) (time.Duration, error) {
+	// Parse duration strings like "7d", "30d", "1h", "24h"
+	if strings.HasSuffix(s, "d") {
+		days := strings.TrimSuffix(s, "d")
+		var d int
+		_, err := fmt.Sscanf(days, "%d", &d)
+		if err != nil {
+			return 0, err
+		}
+		return time.Duration(d) * 24 * time.Hour, nil
+	}
+	return time.ParseDuration(s)
+}
+
+// Display functions
+
+func displayScanDiff(scan1, scan2 *types.ScanRequest, newFindings, fixedFindings []types.Finding) {
+	fmt.Println()
+	fmt.Println("═══ Scan Comparison ═══")
+	fmt.Printf("  Scan 1: %s (%s)\n", scan1.ID, scan1.CreatedAt.Format("2006-01-02 15:04"))
+	fmt.Printf("  Scan 2: %s (%s)\n", scan2.ID, scan2.CreatedAt.Format("2006-01-02 15:04"))
+	fmt.Println()
+
+	if len(newFindings) > 0 {
+		fmt.Printf("  + %d new vulnerabilities:\n", len(newFindings))
+		for _, f := range newFindings {
+			severityColor := getSeverityColor(f.Severity)
+			fmt.Printf("    • [%s] %s\n", severityColor(string(f.Severity)), f.Title)
+		}
+		fmt.Println()
+	}
+
+	if len(fixedFindings) > 0 {
+		fmt.Printf("  ✓ %d vulnerabilities fixed:\n", len(fixedFindings))
+		for _, f := range fixedFindings {
+			severityColor := getSeverityColor(f.Severity)
+			fmt.Printf("    • [%s] %s\n", severityColor(string(f.Severity)), f.Title)
+		}
+		fmt.Println()
+	}
+
+	if len(newFindings) == 0 && len(fixedFindings) == 0 {
+		fmt.Println("  No changes detected")
+	}
+
+	fmt.Println()
+}
+
+func displayScanHistory(target string, scans []*types.ScanRequest, scanHistory []map[string]interface{}) {
+	fmt.Println()
+	fmt.Printf("═══ Scan History: %s ═══\n", target)
+	fmt.Printf("  Total Scans: %d\n\n", len(scans))
+
+	for i, histItem := range scanHistory {
+		scan := scans[i]
+		findings := histItem["findings"].(int)
+		
+		fmt.Printf("  %d. %s\n", i+1, scan.ID)
+		fmt.Printf("     Date: %s\n", scan.CreatedAt.Format("2006-01-02 15:04"))
+		fmt.Printf("     Status: %s\n", scan.Status)
+		fmt.Printf("     Findings: %d\n", findings)
+		fmt.Println()
+	}
+}
+
+func displayChangesOverTime(target string, startTime, endTime time.Time, scanCount int, firstScan, lastScan *types.ScanRequest, newFindings, fixedFindings []types.Finding) {
+	fmt.Println()
+	fmt.Printf("═══ Changes Over Time: %s ═══\n", target)
+	fmt.Printf("  Time Window: %s to %s\n", startTime.Format("2006-01-02"), endTime.Format("2006-01-02"))
+	fmt.Printf("  Scans in Window: %d\n\n", scanCount)
+
+	fmt.Printf("  First Scan: %s (%s)\n", firstScan.ID, firstScan.CreatedAt.Format("2006-01-02"))
+	fmt.Printf("  Last Scan:  %s (%s)\n\n", lastScan.ID, lastScan.CreatedAt.Format("2006-01-02"))
+
+	if len(newFindings) > 0 {
+		fmt.Printf("  + %d new vulnerabilities:\n", len(newFindings))
+		for _, f := range newFindings {
+			severityColor := getSeverityColor(f.Severity)
+			fmt.Printf("    • [%s] %s\n", severityColor(string(f.Severity)), f.Title)
+		}
+		fmt.Println()
+	}
+
+	if len(fixedFindings) > 0 {
+		fmt.Printf("  ✓ %d vulnerabilities fixed:\n", len(fixedFindings))
+		for _, f := range fixedFindings {
+			severityColor := getSeverityColor(f.Severity)
+			fmt.Printf("    • [%s] %s\n", severityColor(string(f.Severity)), f.Title)
+		}
+		fmt.Println()
+	}
+
+	if len(newFindings) == 0 && len(fixedFindings) == 0 {
+		fmt.Println("  No changes detected")
+	}
+
+	fmt.Println()
+}
+
+func getSeverityColor(severity types.Severity) func(string) string {
+	switch severity {
+	case types.SeverityCritical:
+		return func(s string) string { return "\033[91m" + s + "\033[0m" } // Red
+	case types.SeverityHigh:
+		return func(s string) string { return "\033[31m" + s + "\033[0m" } // Dark red
+	case types.SeverityMedium:
+		return func(s string) string { return "\033[33m" + s + "\033[0m" } // Yellow
+	case types.SeverityLow:
+		return func(s string) string { return "\033[36m" + s + "\033[0m" } // Cyan
+	default:
+		return func(s string) string { return s }
+	}
+}
+
+func init() {
+	// Add diff command
+	resultsCmd.AddCommand(resultsDiffCmd)
+	resultsDiffCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	// Add history command
+	resultsCmd.AddCommand(resultsHistoryCmd)
+	resultsHistoryCmd.Flags().IntP("limit", "l", 50, "Maximum number of scans to show")
+	resultsHistoryCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	// Add changes command
+	resultsCmd.AddCommand(resultsChangesCmd)
+	resultsChangesCmd.Flags().String("since", "", "Time window (e.g., 7d, 30d, 24h)")
+	resultsChangesCmd.Flags().String("from", "", "Start date (YYYY-MM-DD)")
+	resultsChangesCmd.Flags().String("to", "", "End date (YYYY-MM-DD)")
+	resultsChangesCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+}

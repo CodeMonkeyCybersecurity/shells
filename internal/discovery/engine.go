@@ -116,7 +116,8 @@ func (e *Engine) RegisterModule(module DiscoveryModule) {
 }
 
 // StartDiscovery starts a new discovery session
-func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
+// TASK 9 FIX: Accept context parameter to propagate timeout/cancellation
+func (e *Engine) StartDiscovery(ctx context.Context, rawTarget string) (*DiscoverySession, error) {
 	start := time.Now()
 
 	e.logger.WithFields(
@@ -193,8 +194,8 @@ func (e *Engine) StartDiscovery(rawTarget string) (*DiscoverySession, error) {
 		"available_modules", len(e.modules),
 	)
 
-	// Start discovery in background
-	go e.runDiscovery(session)
+	// Start discovery in background with parent context
+	go e.runDiscovery(ctx, session)
 
 	return session, nil
 }
@@ -228,23 +229,26 @@ func (e *Engine) ListSessions() []*DiscoverySession {
 // runDiscovery runs the discovery process
 // TODO P0: This should accept context.Context parameter from parent to respect timeout chain
 // Currently uses context.Background() which ignores parent cancellation
-func (e *Engine) runDiscovery(session *DiscoverySession) {
+// TASK 9 FIX: Accept parent context to respect timeout hierarchy
+func (e *Engine) runDiscovery(parentCtx context.Context, session *DiscoverySession) {
 	start := time.Now()
 
-	//  CRITICAL: Creating DISCONNECTED context from Background()
-	// This ignores any parent context timeout/cancellation!
-	// Parent context deadline is LOST here
-	ctx, cancel := context.WithTimeout(context.Background(), e.config.Timeout)
+	// ✓ FIXED: Inherit parent context and add discovery timeout
+	// This ensures discovery respects parent scan timeout
+	ctx, cancel := context.WithTimeout(parentCtx, e.config.Timeout)
 	defer cancel()
 
-	// Log the CRITICAL context disconnection issue
-	e.logger.Warnw(" CRITICAL: Discovery engine using context.Background() - parent timeout IGNORED",
-		"session_id", session.ID,
-		"discovery_timeout", e.config.Timeout.String(),
-		"context_source", "context.Background()",
-		"parent_context_deadline", "LOST - using Background() instead of parent",
-		"impact", "Discovery will NOT respect parent scan timeout",
-	)
+	// Log context inheritance
+	parentDeadline, hasParentDeadline := parentCtx.Deadline()
+	if hasParentDeadline {
+		e.logger.Infow(" Discovery context created with inherited parent deadline",
+			"session_id", session.ID,
+			"discovery_timeout", e.config.Timeout.String(),
+			"parent_deadline", parentDeadline.Format(time.RFC3339),
+			"time_until_parent_deadline", time.Until(parentDeadline).String(),
+			"context_inheritance", "CONNECTED to parent",
+		)
+	}
 
 	// Add structured logger context
 	ctx, span := e.logger.StartOperation(ctx, "discovery.runDiscovery",
@@ -260,12 +264,14 @@ func (e *Engine) runDiscovery(session *DiscoverySession) {
 
 	// Log discovery context deadline
 	if deadline, ok := ctx.Deadline(); ok {
-		e.logger.Infow(" Discovery context created (DISCONNECTED from parent)",
+		remainingTime := time.Until(deadline)
+		e.logger.Infow(" Discovery context deadline set",
 			"session_id", session.ID,
 			"discovery_deadline", deadline.Format(time.RFC3339),
 			"discovery_timeout", e.config.Timeout.String(),
-			"time_until_deadline", time.Until(deadline).String(),
-			"context_type", "ISOLATED - context.Background()",
+			"time_until_deadline", remainingTime.String(),
+			"deadline_seconds_remaining", remainingTime.Seconds(),
+			"context_type", "INHERITS parent deadline",
 		)
 	}
 

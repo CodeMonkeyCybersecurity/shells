@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -64,8 +65,12 @@ func runDiscoveryOnly(target string) error {
 	// Create discovery engine
 	engine := discovery.NewEngine(config, log.WithComponent("discovery"))
 
-	// Start discovery
-	session, err := engine.StartDiscovery(target)
+	// Create context with timeout for discovery
+	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
+	defer cancel()
+
+	// Start discovery (passing context for timeout)
+	session, err := engine.StartDiscovery(ctx, target)
 	if err != nil {
 		return fmt.Errorf("failed to start discovery: %w", err)
 	}

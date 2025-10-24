@@ -311,11 +311,19 @@ func (oc *OrganizationCorrelator) correlateDomain(ctx context.Context, domain st
 	org.Domains = appendUnique(org.Domains, domain)
 	org.Sources = appendUnique(org.Sources, "domain")
 
-	// WHOIS lookup
+	// TASK 16: Add progress indicator for WHOIS lookup
 	if oc.config.EnableWhois && oc.whoisClient != nil {
+		oc.logger.Infow("[1/3] Querying WHOIS for organization info...",
+			"domain", domain,
+			"component", "org_footprinting",
+		)
 		if whois, err := oc.whoisClient.Lookup(context.Background(), domain); err == nil && whois != nil {
 			if whois.Organization != "" && org.Name == "" {
 				org.Name = whois.Organization
+				oc.logger.Infow("✓ Found organization from WHOIS",
+					"organization", whois.Organization,
+					"domain", domain,
+				)
 			}
 			if whois.RegistrantEmail != "" {
 				org.Metadata["registrant_email"] = whois.RegistrantEmail
@@ -323,9 +331,17 @@ func (oc *OrganizationCorrelator) correlateDomain(ctx context.Context, domain st
 		}
 	}
 
-	// Certificate lookup
+	// TASK 16: Add progress indicator for certificate lookup
 	if oc.config.EnableCerts && oc.certClient != nil {
+		oc.logger.Infow("[2/3] Searching certificate transparency logs...",
+			"domain", domain,
+			"component", "org_footprinting",
+		)
 		if certInfos, err := oc.certClient.GetCertificates(context.Background(), domain); err == nil {
+			oc.logger.Infow("✓ Found certificates",
+				"certificate_count", len(certInfos),
+				"domain", domain,
+			)
 			// Convert CertificateInfo to Certificate
 			for _, certInfo := range certInfos {
 				cert := Certificate{
@@ -357,18 +373,35 @@ func (oc *OrganizationCorrelator) correlateDomain(ctx context.Context, domain st
 func (oc *OrganizationCorrelator) correlateIP(ctx context.Context, ip string, org *Organization) {
 	org.Sources = appendUnique(org.Sources, "ip")
 
-	// ASN lookup for IP
+	// TASK 16: Add progress indicator for ASN lookup
 	if oc.config.EnableASN && oc.asnClient != nil {
+		oc.logger.Infow("[1/2] Looking up ASN for IP address...",
+			"ip", ip,
+			"component", "org_footprinting",
+		)
 		if asnData, err := oc.asnClient.LookupIP(context.Background(), ip); err == nil && asnData != nil {
 			if asnData.Organization != "" && org.Name == "" {
 				org.Name = asnData.Organization
+				oc.logger.Infow("✓ Found organization from ASN",
+					"organization", asnData.Organization,
+					"asn", fmt.Sprintf("AS%d", asnData.Number),
+					"ip", ip,
+				)
 			}
 			org.ASNs = appendUnique(org.ASNs, fmt.Sprintf("AS%d", asnData.Number))
 		}
 	}
 
-	// Reverse DNS
-	if names, err := net.LookupAddr(ip); err == nil {
+	// TASK 16: Add progress indicator for reverse DNS
+	oc.logger.Infow("[2/2] Performing reverse DNS lookup...",
+		"ip", ip,
+		"component", "org_footprinting",
+	)
+	if names, err := net.LookupAddr(ip); err == nil && len(names) > 0 {
+		oc.logger.Infow("✓ Found domains from reverse DNS",
+			"domain_count", len(names),
+			"ip", ip,
+		)
 		for _, name := range names {
 			name = strings.TrimSuffix(name, ".")
 			org.Domains = appendUnique(org.Domains, name)
@@ -382,11 +415,21 @@ func (oc *OrganizationCorrelator) correlateCompanyName(ctx context.Context, comp
 
 	var wg sync.WaitGroup
 
+	// TASK 16: Add progress indicator for company footprinting
+	oc.logger.Infow(" Searching for company information...",
+		"company", company,
+		"component", "org_footprinting",
+	)
+
 	// Search for trademarks
 	if oc.config.EnableTrademark && oc.trademarkClient != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			oc.logger.Infow("[1/3] Searching trademark databases...",
+				"company", company,
+				"component", "org_footprinting",
+			)
 			if trademarkData, err := oc.trademarkClient.Search(context.Background(), company); err == nil && trademarkData != nil {
 				for _, mark := range trademarkData.Trademarks {
 					org.Metadata[fmt.Sprintf("trademark_%s", mark.Number)] = mark
@@ -400,6 +443,12 @@ func (oc *OrganizationCorrelator) correlateCompanyName(ctx context.Context, comp
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
+			// TASK 16: Add progress indicator for LinkedIn search
+			oc.logger.Infow("[2/3] Searching LinkedIn for company and employees...",
+				"company", company,
+				"component", "org_footprinting",
+			)
 
 			// Get company info
 			if linkedinData, err := oc.linkedinClient.SearchCompany(context.Background(), company); err == nil && linkedinData != nil {

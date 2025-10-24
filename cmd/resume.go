@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/checkpoint"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -148,9 +151,6 @@ func resumeFromCheckpoint(cmd *cobra.Command, scanID string) error {
 		color.Yellow("Warning: Checkpoint is %s old. Target may have changed.\n\n", formatDuration(age))
 	}
 
-	// Convert checkpoint state to orchestrator config
-	target := state.Target
-
 	// Restore configuration from metadata
 	_ = buildOrchestratorConfigFromCheckpoint(cmd, state)
 
@@ -158,15 +158,13 @@ func resumeFromCheckpoint(cmd *cobra.Command, scanID string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Resume the scan
-	// NOTE: The orchestrator needs to be modified to accept checkpoint state
-	// For now, we'll run a fresh scan but log that we attempted resume
-	color.Yellow("Note: Full checkpoint resume integration pending.\n")
-	color.Yellow("Running fresh scan of target: %s\n\n", target)
+	// Resume the scan with checkpoint state
+	color.Green("✓ Resuming scan from checkpoint\n")
+	color.Cyan("  Completed: %v\n", state.CompletedTests)
+	color.Cyan("  Progress: %.0f%%\n\n", state.Progress)
 
-	// TODO: Modify runIntelligentOrchestrator to accept checkpoint state
-	// This will allow skipping completed phases and tests
-	return runIntelligentOrchestrator(ctx, target, cmd, log, store)
+	// Call orchestrator with resume
+	return runOrchestratorWithResume(ctx, state, cmd, log, store)
 }
 
 // buildOrchestratorConfigFromCheckpoint extracts config from checkpoint metadata
@@ -197,4 +195,46 @@ func formatDuration(d time.Duration) string {
 	}
 	days := int(d.Hours() / 24)
 	return fmt.Sprintf("%dd", days)
+}
+
+// runOrchestratorWithResume runs the orchestrator in resume mode
+func runOrchestratorWithResume(ctx context.Context, state *checkpoint.State, cmd *cobra.Command, log *logger.Logger, store core.ResultStore) error {
+	// Parse configuration from flags (or restore from checkpoint metadata)
+	config := buildOrchestratorConfig(cmd)
+	
+	// Print banner
+	fmt.Println()
+	color.New(color.FgCyan, color.Bold).Println("═══ Shells - Bug Bounty Automation (RESUME MODE) ═══")
+	fmt.Printf("  Target: %s\n", state.Target)
+	fmt.Printf("  Scan ID: %s\n", state.ScanID)
+	fmt.Printf("  Checkpoint from: %s\n", state.UpdatedAt.Format(time.RFC1123))
+	fmt.Println()
+	
+	// Initialize orchestrator
+	engine, err := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, log, config)
+	if err != nil {
+		return fmt.Errorf("failed to initialize orchestrator: %w", err)
+	}
+	
+	// Resume from checkpoint
+	result, err := engine.ResumeFromCheckpoint(ctx, state)
+	if err != nil {
+		return fmt.Errorf("resume failed: %w", err)
+	}
+	
+	// Display results (same as normal scan)
+	if result.OrganizationInfo != nil {
+		displayOrganizationFootprinting(result.OrganizationInfo)
+	}
+	
+	if len(result.DiscoveredAssets) > 0 {
+		displayAssetDiscoveryResults(result.DiscoveredAssets, result.DiscoverySession)
+	}
+	
+	displayOrchestratorResults(result, config)
+	
+	fmt.Println()
+	color.Green("✓ Resumed scan completed successfully\n")
+	
+	return nil
 }

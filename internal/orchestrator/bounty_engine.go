@@ -23,7 +23,9 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/checkpoint"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/enrichment"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/certs"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/idor"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/restapi"
@@ -62,6 +64,9 @@ type BugBountyEngine struct {
 
 	// Python worker client (optional - for GraphCrawler)
 	pythonWorkers *workers.Client
+
+	// Enrichment (TASK 14: Add result enrichment)
+	enricher *enrichment.ResultEnricher
 
 	// Checkpointing
 	checkpointEnabled  bool
@@ -120,6 +125,10 @@ type BugBountyConfig struct {
 	EnableTemporalSnapshots bool          // Track changes over time (historical comparison)
 	SnapshotInterval        time.Duration // How often to snapshot (for repeated scans)
 
+	// Enrichment settings (TASK 14)
+	EnableEnrichment bool   // Enable finding enrichment (CVSS, exploits, remediation)
+	EnrichmentLevel  string // "basic", "standard", "comprehensive"
+
 	// Rate limiting settings
 	RateLimitPerSecond float64
 	RateLimitBurst     int
@@ -173,6 +182,10 @@ func DefaultBugBountyConfig() BugBountyConfig {
 		// Database and persistence - track everything over time
 		EnableTemporalSnapshots: true,           // Save snapshots for historical comparison
 		SnapshotInterval:        24 * time.Hour, // Daily snapshots for repeated scans
+
+		// Enrichment - add context to findings (TASK 14)
+		EnableEnrichment: true,          // Enrich findings with CVSS, exploits, remediation
+		EnrichmentLevel:  "comprehensive", // Full enrichment with business impact, compliance
 
 		// Respectful rate limiting (won't trigger WAFs but still comprehensive)
 		RateLimitPerSecond: 10.0, // 10 requests per second
@@ -448,6 +461,33 @@ func NewBugBountyEngine(
 		)
 	}
 
+	// TASK 14: Initialize enrichment engine
+	var enricher *enrichment.ResultEnricher
+	if config.EnableEnrichment {
+		enricherConfig := enrichment.EnricherConfig{
+			CVSSVersion:     "3.1",
+			EnrichmentLevel: config.EnrichmentLevel,
+			CacheSize:       1000,
+			CacheTTL:        1 * time.Hour,
+			MaxConcurrency:  10,
+		}
+		var err error
+		enricher, err = enrichment.NewResultEnricher(enricherConfig)
+		if err != nil {
+			logger.Warnw("Failed to initialize enrichment engine - continuing without enrichment",
+				"error", err,
+				"component", "orchestrator",
+			)
+			enricher = nil
+		} else {
+			logger.Infow("Finding enrichment enabled",
+				"level", config.EnrichmentLevel,
+				"cvss_version", "3.1",
+				"component", "orchestrator",
+			)
+		}
+	}
+
 	return &BugBountyEngine{
 		store:              store,
 		telemetry:          telemetry,
@@ -467,6 +507,7 @@ func NewBugBountyEngine(
 		idorScanner:        idorScanner,
 		restapiScanner:     restapiScanner,
 		pythonWorkers:      pythonWorkers,
+		enricher:           enricher, // TASK 14: Add enrichment
 		checkpointEnabled:  config.EnableCheckpointing,
 		checkpointInterval: config.CheckpointInterval,
 		checkpointManager:  checkpointMgr,
@@ -1063,9 +1104,9 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 	)
 	tracker.UpdateProgress("discovery", 10)
 
-	// Start discovery session
+	// Start discovery session (passing context for timeout propagation)
 	sessionStart := time.Now()
-	session, err := e.discoveryEngine.StartDiscovery(target)
+	session, err := e.discoveryEngine.StartDiscovery(ctx, target)
 	if err != nil {
 		phase.Status = "failed"
 		phase.Error = fmt.Sprintf("failed to start discovery: %v", err)
@@ -2584,8 +2625,59 @@ func (e *BugBountyEngine) storeResults(ctx context.Context, scanID string, resul
 		return fmt.Errorf("failed to save scan: %w", err)
 	}
 
-	// Save findings
+	// TASK 14: Enrich findings before saving
 	if len(result.Findings) > 0 {
+		if e.enricher != nil {
+			e.logger.Infow("Enriching findings with CVSS, exploits, and remediation guidance...",
+				"findings_count", len(result.Findings),
+				"enrichment_level", e.config.EnrichmentLevel,
+			)
+
+			enrichedFindings, err := e.enricher.EnrichFindings(ctx, result.Findings)
+			if err != nil {
+				e.logger.Warnw("Enrichment failed - saving findings without enrichment",
+					"error", err,
+					"findings_count", len(result.Findings),
+				)
+			} else {
+				// Convert enriched findings back to types.Finding with metadata
+				for i := range result.Findings {
+					if enrichedFindings[i].CVSSScore != nil {
+						if result.Findings[i].Metadata == nil {
+							result.Findings[i].Metadata = make(map[string]interface{})
+						}
+						result.Findings[i].Metadata["cvss_score"] = enrichedFindings[i].CVSSScore.BaseScore
+						result.Findings[i].Metadata["cvss_vector"] = enrichedFindings[i].CVSSScore.Vector
+						result.Findings[i].Metadata["cvss_severity"] = enrichedFindings[i].CVSSScore.Severity
+					}
+
+					if enrichedFindings[i].ExploitInfo != nil && enrichedFindings[i].ExploitInfo.ExploitAvailable {
+						if result.Findings[i].Metadata == nil {
+							result.Findings[i].Metadata = make(map[string]interface{})
+						}
+						result.Findings[i].Metadata["exploit_available"] = true
+						result.Findings[i].Metadata["exploit_count"] = enrichedFindings[i].ExploitInfo.ExploitCount
+					}
+
+					if enrichedFindings[i].Remediation != nil {
+						// Update solution with enhanced remediation guidance
+						if enrichedFindings[i].Remediation.Summary != "" {
+							result.Findings[i].Solution = enrichedFindings[i].Remediation.Summary
+						}
+						if result.Findings[i].Metadata == nil {
+							result.Findings[i].Metadata = make(map[string]interface{})
+						}
+						result.Findings[i].Metadata["remediation_priority"] = enrichedFindings[i].Remediation.Priority
+						result.Findings[i].Metadata["estimated_effort"] = enrichedFindings[i].Remediation.EstimatedEffort
+					}
+				}
+
+				e.logger.Infow("Findings enriched successfully",
+					"enriched_count", len(enrichedFindings),
+				)
+			}
+		}
+
 		// Set scan ID for all findings
 		for i := range result.Findings {
 			result.Findings[i].ScanID = scanID
@@ -2889,4 +2981,254 @@ func (l *restapiLoggerAdapter) Warn(msg string, keysAndValues ...interface{}) {
 
 func (l *restapiLoggerAdapter) Error(msg string, keysAndValues ...interface{}) {
 	l.logger.Errorw(msg, keysAndValues...)
+}
+
+// ResumeFromCheckpoint resumes a scan from a saved checkpoint, skipping completed phases
+// TASK 10: Implements intelligent resume that skips already-completed work
+func (e *BugBountyEngine) ResumeFromCheckpoint(ctx context.Context, state *checkpoint.State) (*BugBountyResult, error) {
+	resumeStart := time.Now()
+	
+	// Reuse the scan ID from checkpoint
+	scanID := state.ScanID
+	
+	// Create DB logger for this resumed scan
+	dbLogger := logger.NewDBEventLogger(e.logger, e.store, scanID)
+	
+	dbLogger.Infow("⏯️  Resuming scan from checkpoint",
+		"scan_id", scanID,
+		"target", state.Target,
+		"progress", state.Progress,
+		"current_phase", state.CurrentPhase,
+		"completed_tests", state.CompletedTests,
+		"findings_so_far", len(state.Findings),
+		"checkpoint_age", time.Since(state.UpdatedAt).String(),
+	)
+	
+	// Initialize progress tracker
+	tracker := progress.New(e.config.ShowProgress, dbLogger.Logger)
+	tracker.AddPhase("discovery", "Discovering assets")
+	tracker.AddPhase("prioritization", "Prioritizing targets")
+	tracker.AddPhase("testing", "Testing for vulnerabilities")
+	tracker.AddPhase("storage", "Storing results")
+	
+	// Restore result from checkpoint
+	result := &BugBountyResult{
+		ScanID:       scanID,
+		Target:       state.Target,
+		StartTime:    state.CreatedAt,
+		Status:       "resuming",
+		PhaseResults: make(map[string]PhaseResult),
+		Findings:     state.Findings, // Restore previous findings
+	}
+	
+	// Apply total timeout
+	ctx, cancel := context.WithTimeout(ctx, e.config.TotalTimeout)
+	defer cancel()
+	
+	// Helper to check if a phase/test is completed
+	contains := func(slice []string, item string) bool {
+		for _, s := range slice {
+			if s == item {
+				return true
+			}
+		}
+		return false
+	}
+	
+	// Check which phases are already completed
+	skipDiscovery := contains(state.CompletedTests, "discovery")
+	skipPrioritization := contains(state.CompletedTests, "prioritization")
+	
+	// Phase 0: Organization Footprinting (always skip on resume - not stored in checkpoint)
+	dbLogger.Infow("⏭️  Skipping organization footprinting (not resumable)")
+	
+	// Phase 1: Asset Discovery
+	var assets []*discovery.Asset
+	var discoverySession *discovery.DiscoverySession
+	var discoveryPhase PhaseResult
+	
+	if skipDiscovery {
+		dbLogger.Infow("⏭️  Skipping discovery (already completed in checkpoint)",
+			"assets_count", len(state.DiscoveredAssets),
+		)
+		
+		// Convert checkpoint assets to discovery.Asset
+		assets = make([]*discovery.Asset, len(state.DiscoveredAssets))
+		for i, cpAsset := range state.DiscoveredAssets {
+			assets[i] = &discovery.Asset{
+				ID:    cpAsset.ID,
+				Type:  discovery.AssetType(cpAsset.Type),
+				Value: cpAsset.Value,
+				Domain: cpAsset.Domain,
+				IP:    cpAsset.IP,
+				Port:  cpAsset.Port,
+			}
+		}
+		
+		result.DiscoveredAssets = assets
+		tracker.UpdateProgress("discovery", 100)
+		
+		discoveryPhase = PhaseResult{
+			Phase:    "discovery",
+			Status:   "skipped",
+			Findings: 0,
+			Duration: 0,
+		}
+	} else {
+		dbLogger.Infow(" Running discovery phase...")
+		tracker.StartPhase("discovery")
+		assets, discoverySession, discoveryPhase = e.executeDiscoveryPhase(ctx, state.Target, tracker, dbLogger)
+		result.DiscoveredAssets = assets
+		result.DiscoverySession = discoverySession
+		tracker.CompletePhase("discovery")
+	}
+	
+	result.PhaseResults["discovery"] = discoveryPhase
+	result.DiscoveredAt = len(assets)
+	
+	// Phase 2: Asset Prioritization
+	var prioritized []*AssetPriority
+	
+	if skipPrioritization {
+		dbLogger.Infow("⏭️  Skipping prioritization (already completed in checkpoint)",
+			"assets_count", len(assets),
+		)
+		
+		// Create prioritized assets from discovery assets
+		prioritized = make([]*AssetPriority, len(assets))
+		for i, asset := range assets {
+			prioritized[i] = &AssetPriority{
+				Asset: asset,
+				Score: 50, // Default score for resumed assets
+			}
+		}
+		
+		tracker.UpdateProgress("prioritization", 100)
+	} else {
+		dbLogger.Infow(" Running prioritization phase...")
+		tracker.StartPhase("prioritization")
+		prioritized = e.executePrioritizationPhase(assets, dbLogger)
+		tracker.CompletePhase("prioritization")
+	}
+	
+	// Phase 3: Vulnerability Testing (skip individual tests that are completed)
+	dbLogger.Infow(" Running vulnerability testing phase (skipping completed tests)...")
+	tracker.StartPhase("testing")
+	
+	findings, phaseResults := e.executeTestingPhase(ctx, state.Target, prioritized, tracker, dbLogger)
+	
+	// Filter out tests that were already completed (they return 0 findings)
+	for testName := range phaseResults {
+		if contains(state.CompletedTests, testName) {
+			dbLogger.Debugw("Test already completed in checkpoint",
+				"test", testName,
+				"findings", phaseResults[testName].Findings,
+			)
+		}
+	}
+	
+	result.TestedAssets = len(prioritized)
+	result.Findings = append(result.Findings, findings...)
+	
+	for phase, pr := range phaseResults {
+		result.PhaseResults[phase] = pr
+	}
+	
+	tracker.CompletePhase("testing")
+	
+	// Phase 4: Storage (always run to save final state)
+	dbLogger.Infow(" Storing results...")
+	tracker.StartPhase("storage")
+
+	// TASK 14: Enrich findings before saving (same as Execute method)
+	if len(result.Findings) > 0 && e.enricher != nil {
+		dbLogger.Infow("Enriching findings with CVSS, exploits, and remediation guidance...",
+			"findings_count", len(result.Findings),
+			"enrichment_level", e.config.EnrichmentLevel,
+		)
+
+		enrichedFindings, err := e.enricher.EnrichFindings(ctx, result.Findings)
+		if err != nil {
+			dbLogger.Warnw("Enrichment failed - saving findings without enrichment",
+				"error", err,
+				"findings_count", len(result.Findings),
+			)
+		} else {
+			// Convert enriched findings back to types.Finding with metadata
+			for i := range result.Findings {
+				if enrichedFindings[i].CVSSScore != nil {
+					if result.Findings[i].Metadata == nil {
+						result.Findings[i].Metadata = make(map[string]interface{})
+					}
+					result.Findings[i].Metadata["cvss_score"] = enrichedFindings[i].CVSSScore.BaseScore
+					result.Findings[i].Metadata["cvss_vector"] = enrichedFindings[i].CVSSScore.Vector
+					result.Findings[i].Metadata["cvss_severity"] = enrichedFindings[i].CVSSScore.Severity
+				}
+
+				if enrichedFindings[i].ExploitInfo != nil && enrichedFindings[i].ExploitInfo.ExploitAvailable {
+					if result.Findings[i].Metadata == nil {
+						result.Findings[i].Metadata = make(map[string]interface{})
+					}
+					result.Findings[i].Metadata["exploit_available"] = true
+					result.Findings[i].Metadata["exploit_count"] = enrichedFindings[i].ExploitInfo.ExploitCount
+				}
+
+				if enrichedFindings[i].Remediation != nil {
+					if enrichedFindings[i].Remediation.Summary != "" {
+						result.Findings[i].Solution = enrichedFindings[i].Remediation.Summary
+					}
+					if result.Findings[i].Metadata == nil {
+						result.Findings[i].Metadata = make(map[string]interface{})
+					}
+					result.Findings[i].Metadata["remediation_priority"] = enrichedFindings[i].Remediation.Priority
+					result.Findings[i].Metadata["estimated_effort"] = enrichedFindings[i].Remediation.EstimatedEffort
+				}
+			}
+
+			dbLogger.Infow("Findings enriched successfully",
+				"enriched_count", len(enrichedFindings),
+			)
+		}
+	}
+
+	// Save all findings to database
+	for i := range result.Findings {
+		result.Findings[i].ScanID = scanID
+	}
+	if err := e.store.SaveFindings(ctx, result.Findings); err != nil {
+		dbLogger.Errorw("Failed to save findings",
+			"error", err,
+			"findings_count", len(result.Findings),
+		)
+	}
+	
+	// Update scan record
+	result.EndTime = time.Now()
+	result.Duration = result.EndTime.Sub(result.StartTime)
+	result.Status = "completed"
+	
+	finalScan := &types.ScanRequest{
+		ID:          scanID,
+		Target:      state.Target,
+		Type:        types.ScanTypeAuth,
+		Status:      types.ScanStatusCompleted,
+		CreatedAt:   result.StartTime,
+		CompletedAt: &result.EndTime,
+	}
+	
+	if err := e.store.SaveScan(ctx, finalScan); err != nil {
+		dbLogger.Warnw("Failed to update scan record", "error", err)
+	}
+	
+	tracker.CompletePhase("storage")
+	
+	dbLogger.Infow("✅ Resumed scan completed",
+		"scan_id", scanID,
+		"total_duration", result.Duration.String(),
+		"resume_duration", time.Since(resumeStart).String(),
+		"findings", len(result.Findings),
+		"skipped_phases", []string{},
+	)
+	
+	return result, nil
 }

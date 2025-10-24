@@ -160,11 +160,52 @@ The main command runs the COMPREHENSIVE orchestrated pipeline:
      • Business Logic: Payment manipulation, workflow bypass
      • SCIM: Provisioning vulnerabilities, user enumeration
 
-  4. Temporal Snapshots & Reporting:
-     • All findings saved to PostgreSQL
-     • Historical comparison (track changes over time)
+  4. Finding Enrichment (TASK 14 - NEW):
+     • CVSS scoring (v3.1) with detailed metrics
+     • Exploit availability checks (ExploitDB)
+     • Enhanced remediation guidance with step-by-step instructions
+     • Business impact analysis and compliance mapping
+     • Enrichment levels: basic, standard, comprehensive
+
+  5. Temporal Snapshots & Reporting:
+     • All findings saved to PostgreSQL with temporal tracking
+     • Historical comparison commands (diff, history, changes)
+     • Track new/fixed vulnerabilities between scans
+     • Asset lifecycle monitoring (first seen, last seen, status changes)
      • Exportable reports (JSON, CSV, HTML, Markdown)
-     • Query interface for finding analysis`,
+     • Query interface for finding analysis
+
+COMMANDS:
+  Scanning:
+    shells [target]              - Comprehensive scan with asset discovery
+    shells scan <target>         - Run specific vulnerability scan
+    shells discover <target>     - Asset discovery only (no testing)
+    shells resume <scan-id>      - Resume interrupted scan from checkpoint
+
+  Results Analysis:
+    shells results query         - Query findings with filters
+    shells results diff <id1> <id2> - Compare two scans (TASK 11 - NEW)
+    shells results history <target> - Show scan timeline (TASK 11 - NEW)
+    shells results changes <target> - Changes over time window (TASK 11 - NEW)
+    shells results stats         - Finding statistics
+    shells results export        - Export findings to JSON/CSV/HTML
+
+  Monitoring (TASK 12 - NEW):
+    shells monitoring alerts            - List monitoring alerts
+    shells monitoring dns-changes       - DNS record changes
+    shells monitoring certificates      - Certificate expiry info
+    shells monitoring git-changes       - Git repository changes
+    shells monitoring web-changes       - Website change detection
+
+  Scope Management:
+    shells scope import <platform> <handle> - Import bug bounty program scope
+    shells scope validate <asset>           - Check if asset is in scope
+    shells scope list                       - List configured scopes
+
+  Infrastructure:
+    shells serve                 - Start web dashboard and API server
+    shells dashboard             - Alias for serve
+    shells workers start         - Start distributed worker pool`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		// Allow subcommands to handle their own args
 		if len(args) == 0 {

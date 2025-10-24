@@ -59,8 +59,8 @@ func (o *Orchestrator) RunIntelligentDiscovery(ctx context.Context, target strin
 
 	discoveryEngine := discovery.NewEngineWithConfig(discoveryConfig, o.log.WithComponent("discovery"), o.cfg)
 
-	// Start discovery
-	session, err := discoveryEngine.StartDiscovery(target)
+	// Start discovery (passing context for timeout propagation)
+	session, err := discoveryEngine.StartDiscovery(ctx, target)
 	if err != nil {
 		return fmt.Errorf("failed to start discovery: %w", err)
 	}
