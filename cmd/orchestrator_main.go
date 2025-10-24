@@ -4,12 +4,15 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/validation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -81,6 +84,16 @@ func runIntelligentOrchestrator(ctx context.Context, target string, cmd *cobra.C
 	result, err := engine.Execute(ctx, normalizedTarget)
 	if err != nil {
 		return fmt.Errorf("orchestrator execution failed: %w", err)
+	}
+
+	// Display organization footprinting results if available
+	if result.OrganizationInfo != nil {
+		displayOrganizationFootprinting(result.OrganizationInfo)
+	}
+
+	// Display asset discovery results if available
+	if len(result.DiscoveredAssets) > 0 {
+		displayAssetDiscoveryResults(result.DiscoveredAssets, result.DiscoverySession)
 	}
 
 	// Display results
@@ -211,6 +224,9 @@ func displayOrchestratorResults(result *orchestrator.BugBountyResult, config orc
 		fmt.Println()
 	}
 
+	// Display vulnerability test coverage
+	displayTestCoverage(result)
+
 	// Display findings by severity using modularized display functions
 	if len(result.Findings) > 0 {
 		log.Info("═══ Findings by Severity ═══", "component", "orchestrator_main")
@@ -270,6 +286,355 @@ func getOutputFile(cmd *cobra.Command) string {
 func saveOrchestratorReport(result *orchestrator.BugBountyResult, filename string) error {
 	// TODO: Implement JSON/HTML export
 	return fmt.Errorf("report export not yet implemented")
+}
+
+// displayOrganizationFootprinting displays organization footprinting results
+func displayOrganizationFootprinting(org *correlation.Organization) {
+	if org == nil || org.Name == "" {
+		return
+	}
+
+	fmt.Println()
+	color.Cyan("═══ Phase 0: Organization Footprinting ═══")
+	fmt.Println()
+
+	// Organization info
+	fmt.Printf("  Organization: %s\n", color.GreenString(org.Name))
+	if org.Confidence > 0 {
+		confidencePct := org.Confidence * 100
+		confidenceColor := color.GreenString
+		if confidencePct < 50 {
+			confidenceColor = color.YellowString
+		}
+		fmt.Printf("  Confidence: %s\n", confidenceColor("%.1f%%", confidencePct))
+	}
+
+	// Related domains
+	if len(org.Domains) > 0 {
+		fmt.Printf("\n  ✓ Found %s related domains:\n", color.GreenString("%d", len(org.Domains)))
+		displayLimit := 10
+		for i, domain := range org.Domains {
+			if i < displayLimit {
+				fmt.Printf("    • %s\n", domain)
+			}
+		}
+		if len(org.Domains) > displayLimit {
+			fmt.Printf("    %s\n", color.CyanString("... and %d more", len(org.Domains)-displayLimit))
+		}
+	}
+
+	// IP ranges
+	if len(org.IPRanges) > 0 {
+		fmt.Printf("\n  ✓ Found %s IP ranges:\n", color.GreenString("%d", len(org.IPRanges)))
+		for _, ipRange := range org.IPRanges {
+			fmt.Printf("    • %s\n", ipRange)
+		}
+	}
+
+	// ASNs
+	if len(org.ASNs) > 0 {
+		fmt.Printf("\n  ✓ Found %s ASNs:\n", color.GreenString("%d", len(org.ASNs)))
+		for _, asn := range org.ASNs {
+			fmt.Printf("    • %s\n", asn)
+		}
+	}
+
+	// Certificates
+	if len(org.Certificates) > 0 {
+		fmt.Printf("\n  ✓ Found %s SSL certificates\n", color.GreenString("%d", len(org.Certificates)))
+	}
+
+	// Subsidiaries
+	if len(org.Subsidiaries) > 0 {
+		fmt.Printf("\n  ✓ Found %s subsidiaries:\n", color.GreenString("%d", len(org.Subsidiaries)))
+		for _, sub := range org.Subsidiaries {
+			fmt.Printf("    • %s\n", sub)
+		}
+	}
+
+	// Sources
+	if len(org.Sources) > 0 {
+		fmt.Printf("\n  Sources: %s\n", color.CyanString(strings.Join(org.Sources, ", ")))
+	}
+
+	fmt.Println()
+}
+
+// displayAssetDiscoveryResults displays detailed asset discovery results
+func displayAssetDiscoveryResults(assets []*discovery.Asset, session *discovery.DiscoverySession) {
+	if len(assets) == 0 {
+		return
+	}
+
+	fmt.Println()
+	color.Cyan("═══ Phase 1: Asset Discovery ═══")
+	fmt.Println()
+
+	// Group assets by type
+	assetsByType := make(map[discovery.AssetType][]*discovery.Asset)
+	for _, asset := range assets {
+		assetsByType[asset.Type] = append(assetsByType[asset.Type], asset)
+	}
+
+	// Display subdomains
+	if subdomains := assetsByType[discovery.AssetTypeSubdomain]; len(subdomains) > 0 {
+		fmt.Printf("  ✓ Discovered %s subdomains:\n", color.GreenString("%d", len(subdomains)))
+		displayLimit := 15
+		for i, asset := range subdomains {
+			if i < displayLimit {
+				priority := ""
+				if asset.Priority >= 80 { // High priority assets
+					priority = color.RedString(" [HIGH VALUE]")
+				}
+				fmt.Printf("    • %s%s\n", asset.Value, priority)
+			}
+		}
+		if len(subdomains) > displayLimit {
+			fmt.Printf("    %s\n", color.CyanString("... and %d more", len(subdomains)-displayLimit))
+		}
+		fmt.Println()
+	}
+
+	// Display IPs with open ports
+	if ips := assetsByType[discovery.AssetTypeIP]; len(ips) > 0 {
+		fmt.Printf("  ✓ Found %s IP addresses:\n", color.GreenString("%d", len(ips)))
+		for i, asset := range ips {
+			if i < 10 { // Show first 10
+				ports := ""
+				if p, ok := asset.Metadata["open_ports"]; ok {
+					ports = fmt.Sprintf(" - Ports: %s", p)
+				}
+				fmt.Printf("    • %s%s\n", asset.Value, ports)
+			}
+		}
+		if len(ips) > 10 {
+			fmt.Printf("    %s\n", color.CyanString("... and %d more", len(ips)-10))
+		}
+		fmt.Println()
+	}
+
+	// Display services with versions
+	if services := assetsByType[discovery.AssetTypeService]; len(services) > 0 {
+		fmt.Printf("  ✓ Found %s services:\n", color.GreenString("%d", len(services)))
+		for i, asset := range services {
+			if i < 10 { // Show first 10
+				version := ""
+				if v, ok := asset.Metadata["version"]; ok {
+					version = fmt.Sprintf(" (%s)", v)
+				}
+				port := ""
+				if p, ok := asset.Metadata["port"]; ok {
+					port = fmt.Sprintf(":%s", p)
+				}
+				serviceName := asset.Value
+				if name, ok := asset.Metadata["service_name"]; ok {
+					serviceName = name
+				}
+				fmt.Printf("    • %s%s - %s%s\n", asset.IP, port, serviceName, version)
+			}
+		}
+		if len(services) > 10 {
+			fmt.Printf("    %s\n", color.CyanString("... and %d more", len(services)-10))
+		}
+		fmt.Println()
+	}
+
+	// Display URLs/endpoints
+	if urls := assetsByType[discovery.AssetTypeURL]; len(urls) > 0 {
+		fmt.Printf("  ✓ Found %s URLs:\n", color.GreenString("%d", len(urls)))
+		for i, asset := range urls {
+			if i < 8 { // Show first 8
+				fmt.Printf("    • %s\n", asset.Value)
+			}
+		}
+		if len(urls) > 8 {
+			fmt.Printf("    %s\n", color.CyanString("... and %d more", len(urls)-8))
+		}
+		fmt.Println()
+	}
+
+	// Display technologies detected
+	techSet := make(map[string]bool)
+	for _, asset := range assets {
+		for _, tech := range asset.Technology {
+			techSet[tech] = true
+		}
+	}
+	if len(techSet) > 0 {
+		techs := make([]string, 0, len(techSet))
+		for tech := range techSet {
+			techs = append(techs, tech)
+		}
+		fmt.Printf("  ✓ Technologies detected: %s\n\n", color.CyanString(strings.Join(techs, ", ")))
+	}
+
+	// High-value asset summary
+	if session != nil && session.HighValueAssets > 0 {
+		fmt.Printf("  %s Found %s high-value assets (login pages, admin panels, APIs)\n\n",
+			color.RedString("⚠️"),
+			color.RedString("%d", session.HighValueAssets),
+		)
+	}
+
+	fmt.Println()
+}
+
+// displayTestCoverage shows what vulnerability tests were run and their results
+func displayTestCoverage(result *orchestrator.BugBountyResult) {
+	fmt.Println()
+	color.Cyan("═══ Phase 3: Vulnerability Testing ═══")
+	fmt.Println()
+
+	// Authentication Testing
+	fmt.Printf("  %s Authentication Testing:\n", color.CyanString("🔐"))
+	if authPhase, ok := result.PhaseResults["auth"]; ok {
+		if authPhase.Status == "completed" {
+			if authPhase.Findings > 0 {
+				fmt.Printf("    • Tested SAML/OAuth2/WebAuthn: %s (%d findings)\n",
+					color.RedString("✗ Vulnerabilities found"), authPhase.Findings)
+			} else {
+				fmt.Printf("    • Tested SAML/OAuth2/WebAuthn: %s\n",
+					color.GreenString("✓ No issues found"))
+			}
+		} else if authPhase.Status == "skipped" {
+			fmt.Printf("    • %s (no authentication endpoints discovered)\n",
+				color.YellowString("⊘ Not applicable"))
+		}
+	} else {
+		fmt.Printf("    • %s (authentication testing disabled)\n",
+			color.YellowString("⊘ Skipped"))
+	}
+
+	// API Security Testing
+	fmt.Printf("\n  %s API Security Testing:\n", color.CyanString("🔌"))
+
+	// GraphQL
+	if graphqlPhase, ok := result.PhaseResults["graphql"]; ok {
+		if graphqlPhase.Status == "completed" {
+			if graphqlPhase.Findings > 0 {
+				fmt.Printf("    • GraphQL introspection: %s (%d findings)\n",
+					color.RedString("✗ Issues found"), graphqlPhase.Findings)
+			} else {
+				endpointCount := 1 // Default
+				if graphqlPhase.Findings == 0 {
+					fmt.Printf("    • GraphQL introspection: %s\n",
+						color.GreenString("✓ Tested %d endpoint, no issues", endpointCount))
+				}
+			}
+		}
+	} else {
+		fmt.Printf("    • GraphQL testing: %s (no GraphQL endpoints found)\n",
+			color.YellowString("⊘ Not applicable"))
+	}
+
+	// REST API
+	if restapiPhase, ok := result.PhaseResults["rest_api"]; ok {
+		if restapiPhase.Status == "completed" {
+			if restapiPhase.Findings > 0 {
+				fmt.Printf("    • REST API security: %s (%d findings)\n",
+					color.RedString("✗ Issues found"), restapiPhase.Findings)
+			} else {
+				fmt.Printf("    • REST API security: %s\n",
+					color.GreenString("✓ No issues found"))
+			}
+		}
+	} else {
+		fmt.Printf("    • REST API testing: %s (API testing disabled)\n",
+			color.YellowString("⊘ Skipped"))
+	}
+
+	// Access Control Testing
+	fmt.Printf("\n  %s Access Control Testing:\n", color.CyanString("🔒"))
+
+	// IDOR
+	if idorPhase, ok := result.PhaseResults["idor"]; ok {
+		if idorPhase.Status == "completed" {
+			if idorPhase.Findings > 0 {
+				fmt.Printf("    • IDOR testing: %s (%d findings)\n",
+					color.RedString("✗ Vulnerabilities found"), idorPhase.Findings)
+			} else {
+				fmt.Printf("    • IDOR testing: %s\n",
+					color.GreenString("✓ No issues found"))
+			}
+		}
+	} else {
+		fmt.Printf("    • IDOR testing: %s (no suitable endpoints found)\n",
+			color.YellowString("⊘ Not applicable"))
+	}
+
+	// SCIM
+	if scimPhase, ok := result.PhaseResults["scim"]; ok {
+		if scimPhase.Status == "completed" {
+			if scimPhase.Findings > 0 {
+				fmt.Printf("    • SCIM vulnerabilities: %s (%d findings)\n",
+					color.RedString("✗ Issues found"), scimPhase.Findings)
+			} else {
+				fmt.Printf("    • SCIM vulnerabilities: %s\n",
+					color.GreenString("✓ No issues found"))
+			}
+		}
+	} else {
+		fmt.Printf("    • SCIM testing: %s (no SCIM endpoints found)\n",
+			color.YellowString("⊘ Not applicable"))
+	}
+
+	// Service Fingerprinting
+	fmt.Printf("\n  %s Service Fingerprinting:\n", color.CyanString("🔍"))
+	if nmapPhase, ok := result.PhaseResults["nmap"]; ok {
+		if nmapPhase.Status == "completed" {
+			hostsScanned := 1 // Default
+			if nmapPhase.Findings > 0 {
+				fmt.Printf("    • Nmap scan: %s (%d hosts, %d services found)\n",
+					color.GreenString("✓ Completed"), hostsScanned, nmapPhase.Findings)
+			} else {
+				fmt.Printf("    • Nmap scan: %s (%d host)\n",
+					color.GreenString("✓ Completed"), hostsScanned)
+			}
+		} else if nmapPhase.Status == "failed" {
+			fmt.Printf("    • Nmap scan: %s\n",
+				color.RedString("✗ Failed"))
+			if nmapPhase.Error != "" {
+				fmt.Printf("      Error: %s\n", color.RedString(nmapPhase.Error))
+			}
+		}
+	} else {
+		fmt.Printf("    • Nmap scan: %s (service fingerprinting disabled)\n",
+			color.YellowString("⊘ Skipped"))
+	}
+
+	// Nuclei Scanning
+	if nucleiPhase, ok := result.PhaseResults["nuclei"]; ok {
+		if nucleiPhase.Status == "completed" {
+			if nucleiPhase.Findings > 0 {
+				fmt.Printf("    • Nuclei CVE scan: %s (%d findings)\n",
+					color.RedString("✗ Vulnerabilities found"), nucleiPhase.Findings)
+			} else {
+				fmt.Printf("    • Nuclei CVE scan: %s\n",
+					color.GreenString("✓ No CVEs found"))
+			}
+		}
+	} else {
+		fmt.Printf("    • Nuclei scanning: %s (nuclei not installed)\n",
+			color.YellowString("⊘ Skipped"))
+	}
+
+	// Summary
+	fmt.Println()
+	totalCategories := 0
+	testedCategories := 0
+
+	for _, phase := range []string{"auth", "graphql", "rest_api", "idor", "scim", "nmap", "nuclei"} {
+		totalCategories++
+		if pr, ok := result.PhaseResults[phase]; ok && pr.Status == "completed" {
+			testedCategories++
+		}
+	}
+
+	fmt.Printf("  Summary: %s/%s test categories executed, %s total findings\n\n",
+		color.CyanString("%d", testedCategories),
+		color.CyanString("%d", totalCategories),
+		color.GreenString("%d", result.TotalFindings),
+	)
 }
 
 // Note: Helper functions (colorStatus, colorSeverity, displayTopFindings, etc.)

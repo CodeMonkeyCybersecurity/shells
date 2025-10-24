@@ -25,6 +25,8 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/certs"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/idor"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/restapi"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
@@ -55,8 +57,10 @@ type BugBountyEngine struct {
 	nmapScanner    core.Scanner // Nmap port scanning and service fingerprinting
 	nucleiScanner  core.Scanner // Nuclei vulnerability scanning
 	graphqlScanner core.Scanner // GraphQL introspection and testing
+	idorScanner    core.Scanner // IDOR (Insecure Direct Object Reference) testing
+	restapiScanner core.Scanner // REST API vulnerability scanning
 
-	// Python worker client (optional - for GraphCrawler and IDOR)
+	// Python worker client (optional - for GraphCrawler)
 	pythonWorkers *workers.Client
 
 	// Checkpointing
@@ -257,6 +261,85 @@ func NewBugBountyEngine(
 		logger.Infow("GraphQL scanner initialized", "component", "orchestrator")
 	}
 
+	// Initialize IDOR scanner (if enabled)
+	// TASK 6 COMPLETED: Go-based IDOR scanner fully integrated with adapter pattern
+	// - IDORScannerAdapter bridges idor.IDORScanner to core.Scanner interface
+	// - Scanner tests sequential IDs, UUIDs, horizontal privilege escalation
+	// - Wired into executeTestingPhase() and runIDORTests()
+	// - Results displayed in displayTestCoverage() under Access Control Testing
+	var idorScanner core.Scanner
+	if config.EnableIDORTesting {
+		idorConfig := idor.IDORConfig{
+			MaxSequentialRange:    1000,  // Test up to 1000 sequential IDs
+			ParallelWorkers:       10,    // 10 parallel workers
+			Timeout:               config.ScanTimeout,
+			RateLimit:             int(config.RateLimitPerSecond),
+			EnableSequentialID:    true,  // Test sequential IDs
+			EnableUUIDAnalysis:    true,  // Test UUID patterns
+			EnableHorizontalTest:  true,  // Test horizontal privilege escalation
+			EnableVerticalTest:    false, // Vertical requires admin creds
+			EnablePatternLearning: true,  // Learn ID patterns
+			SmartRangeDetection:   true,  // Auto-detect valid ranges
+			SmartStopOnConsecutive: 50,   // Stop after 50 consecutive 404s
+			StatusCodeFilters:     []int{200, 201, 202, 204},
+			MinResponseSize:       10,    // Minimum 10 bytes
+			SimilarityThresh:      0.85,  // 85% similarity threshold
+		}
+		idorScanner = NewIDORScannerAdapter(idorConfig, logger)
+		logger.Infow("IDOR scanner initialized",
+			"component", "orchestrator",
+			"max_range", idorConfig.MaxSequentialRange,
+			"parallel_workers", idorConfig.ParallelWorkers,
+		)
+	}
+
+	// Initialize REST API scanner (if enabled)
+	// TASK 7 COMPLETED: REST API scanner fully integrated with adapter pattern
+	// - RESTAPIScannerAdapter bridges restapi.RESTAPIScanner to core.Scanner interface
+	// - Scanner tests Swagger/OpenAPI specs, method fuzzing, auth bypass, IDOR, mass assignment, CORS
+	// - Wired into executeTestingPhase() (uses existing runAPITests)
+	// - Results displayed in displayTestCoverage() under API Security Testing
+	var restapiScanner core.Scanner
+	if config.EnableAPITesting {
+		restapiConfig := restapi.RESTAPIConfig{
+			// Discovery settings
+			EnableSwaggerDiscovery: true,
+			EnableMethodFuzzing:    true,
+			EnableVersionFuzzing:   true,
+
+			// Security testing
+			EnableAuthBypass:       true,
+			EnableIDORTesting:      true,
+			EnableMassAssignment:   true,
+			EnableInjectionTesting: true,
+			EnableCORSTesting:      true,
+			EnableRateLimitTest:    true,
+
+			// Request parameters
+			Timeout:          config.ScanTimeout,
+			MaxWorkers:       10,
+			RateLimit:        int(config.RateLimitPerSecond),
+			FollowRedirects:  false,
+
+			// Detection thresholds
+			StatusCodeFilters:     []int{200, 201, 202, 204},
+			MinResponseSize:       10,
+			SimilarityThresh:      0.85,
+
+			// Smart features
+			EnableSmartFuzzing:    true,
+			EnablePatternLearning: true,
+			ExtractModelsFromSpec: true,
+		}
+		restapiScanner = NewRESTAPIScannerAdapter(restapiConfig, logger)
+		logger.Infow("REST API scanner initialized",
+			"component", "orchestrator",
+			"swagger_discovery", restapiConfig.EnableSwaggerDiscovery,
+			"method_fuzzing", restapiConfig.EnableMethodFuzzing,
+			"auth_bypass", restapiConfig.EnableAuthBypass,
+		)
+	}
+
 	// Initialize auth discovery engine
 	authDiscoveryConfig := auth.DiscoveryConfig{
 		EnablePortScan:    config.EnablePortScan,
@@ -341,16 +424,16 @@ func NewBugBountyEngine(
 	workerURL := "http://localhost:5000"
 	pythonWorkers = workers.NewClient(workerURL)
 	if err := pythonWorkers.Health(); err != nil {
-		logger.Warnw("Python worker service not available - IDOR and GraphCrawler testing disabled",
+		logger.Warnw("Python worker service not available - GraphCrawler testing disabled",
 			"error", err,
 			"worker_url", workerURL,
-			"note", "Run 'shells serve' or 'shells workers start' to enable Python-based testing",
+			"note", "Run 'shells serve' or 'shells workers start' to enable Python-based GraphCrawler testing. IDOR testing now uses native Go scanner.",
 		)
 		pythonWorkers = nil // Disable if not available
 	} else {
 		logger.Infow("Python worker service connected",
 			"worker_url", workerURL,
-			"capabilities", []string{"GraphCrawler", "IDOR"},
+			"capabilities", []string{"GraphCrawler"},
 		)
 	}
 
@@ -381,6 +464,8 @@ func NewBugBountyEngine(
 		nmapScanner:        nmapScanner,
 		nucleiScanner:      nucleiScanner,
 		graphqlScanner:     graphqlScanner,
+		idorScanner:        idorScanner,
+		restapiScanner:     restapiScanner,
 		pythonWorkers:      pythonWorkers,
 		checkpointEnabled:  config.EnableCheckpointing,
 		checkpointInterval: config.CheckpointInterval,
@@ -391,17 +476,20 @@ func NewBugBountyEngine(
 
 // BugBountyResult contains the complete results of a bug bounty scan
 type BugBountyResult struct {
-	ScanID        string
-	Target        string
-	StartTime     time.Time
-	EndTime       time.Time
-	Duration      time.Duration
-	Status        string
-	DiscoveredAt  int // Number of discovered assets
-	TestedAssets  int
-	TotalFindings int
-	Findings      []types.Finding
-	PhaseResults  map[string]PhaseResult
+	ScanID           string
+	Target           string
+	StartTime        time.Time
+	EndTime          time.Time
+	Duration         time.Duration
+	Status           string
+	DiscoveredAt     int // Number of discovered assets
+	TestedAssets     int
+	TotalFindings    int
+	Findings         []types.Finding
+	PhaseResults     map[string]PhaseResult
+	OrganizationInfo *correlation.Organization      // Organization footprinting results
+	DiscoverySession *discovery.DiscoverySession    // Asset discovery session metadata
+	DiscoveredAssets []*discovery.Asset              // Discovered assets for display
 }
 
 // PhaseResult contains results from a specific phase
@@ -528,12 +616,47 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		// Correlate organization from target
 		org, err := e.orgCorrelator.FindOrganizationAssets(ctx, target)
 		if err != nil {
-			dbLogger.Warnw(" Organization footprinting failed, proceeding with single target",
+			// ENHANCED ERROR LOGGING: Provide detailed diagnostics
+			dbLogger.Errorw("CRITICAL: Organization footprinting failed",
 				"error", err,
+				"error_type", fmt.Sprintf("%T", err),
 				"target", target,
+				"whois_enabled", e.config.EnableWHOISAnalysis,
+				"cert_enabled", e.config.EnableCertTransparency,
+				"asn_enabled", true,
+				"elapsed_time", time.Since(footprintStart).String(),
 				"component", "orchestrator",
 			)
+
+			// Store failed phase result
+			result.PhaseResults["footprinting"] = PhaseResult{
+				Phase:     "footprinting",
+				Status:    "failed",
+				StartTime: footprintStart,
+				EndTime:   time.Now(),
+				Duration:  time.Since(footprintStart),
+				Error:     err.Error(),
+			}
+		} else if org == nil {
+			// NULL RESULT: Correlation returned nil without error
+			dbLogger.Warnw(" Organization footprinting returned nil (no error)",
+				"target", target,
+				"elapsed_time", time.Since(footprintStart).String(),
+				"component", "orchestrator",
+			)
+
+			result.PhaseResults["footprinting"] = PhaseResult{
+				Phase:     "footprinting",
+				Status:    "completed",
+				StartTime: footprintStart,
+				EndTime:   time.Now(),
+				Duration:  time.Since(footprintStart),
+				Findings:  0,
+			}
 		} else {
+			// Store org info for later display
+			result.OrganizationInfo = org // Add to result for display
+
 			dbLogger.Infow(" Organization footprinting completed",
 				"organization_name", org.Name,
 				"domains_found", len(org.Domains),
@@ -647,19 +770,31 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 
+		// Track last successful session for display
+		var lastSession *discovery.DiscoverySession
+
 		for _, scanTarget := range targetsToScan {
 			wg.Add(1)
 			go func(t string) {
 				defer wg.Done()
-				targetAssets, _ := e.executeDiscoveryPhase(ctx, t, tracker, dbLogger)
+				targetAssets, targetSession, _ := e.executeDiscoveryPhase(ctx, t, tracker, dbLogger)
 				mu.Lock()
 				allAssets = append(allAssets, targetAssets...)
+				if targetSession != nil {
+					lastSession = targetSession // Store for display
+				}
 				mu.Unlock()
 			}(scanTarget)
 		}
 
 		wg.Wait()
 		assets = allAssets
+
+		// Store session and assets in result for display
+		if lastSession != nil {
+			result.DiscoverySession = lastSession
+		}
+		result.DiscoveredAssets = assets // Store assets for display
 
 		phaseResult = PhaseResult{
 			Phase:     "discovery",
@@ -900,7 +1035,7 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 }
 
 // executeDiscoveryPhase runs asset discovery with timeout
-func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string, tracker *progress.Tracker, dbLogger *logger.DBEventLogger) ([]*discovery.Asset, PhaseResult) {
+func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string, tracker *progress.Tracker, dbLogger *logger.DBEventLogger) ([]*discovery.Asset, *discovery.DiscoverySession, PhaseResult) {
 	phaseStart := time.Now()
 	phase := PhaseResult{
 		Phase:     "discovery",
@@ -941,7 +1076,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 			"target", target,
 			"elapsed_time", time.Since(phaseStart).String(),
 		)
-		return nil, phase
+		return nil, nil, phase
 	}
 
 	dbLogger.Infow(" Discovery session started",
@@ -1061,7 +1196,7 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 	phase.Status = "completed"
 	dbLogger.Infow("Discovery completed", "assets", len(assets), "duration", phase.Duration)
 
-	return assets, phase
+	return assets, session, phase
 }
 
 // AssetPriority represents a prioritized asset for testing
@@ -1265,7 +1400,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
 		totalTests++
 	}
-	if e.config.EnableIDORTesting && e.pythonWorkers != nil {
+	if e.config.EnableIDORTesting && e.idorScanner != nil {
 		totalTests++
 	}
 
@@ -1364,8 +1499,8 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 		}()
 	}
 
-	// IDOR Testing (Python workers only)
-	if e.config.EnableIDORTesting && e.pythonWorkers != nil {
+	// IDOR Testing (Go scanner)
+	if e.config.EnableIDORTesting && e.idorScanner != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -1718,37 +1853,73 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 		StartTime: time.Now(),
 	}
 
-	dbLogger.Infow("Testing API endpoints")
+	dbLogger.Infow("Running REST API security tests", "component", "rest_api_scanner")
 
 	var findings []types.Finding
 
-	// TODO: Implement real API testing with actual vulnerability checks:
-	// - GraphQL introspection and injection
-	// - REST authorization bypass (IDOR, broken access control)
-	// - API rate limiting bypass
-	// - Mass assignment vulnerabilities
-	// - JWT token manipulation
-	// - API versioning issues
-	//
-	// For now, API testing is DISABLED to avoid fake findings.
-	// Use dedicated `shells api` command for API-specific testing when implemented.
-
-	apiCount := 0
+	// Find API endpoints from discovered assets
+	apiEndpoints := []string{}
 	for _, asset := range assets {
-		if asset.Features.HasAPI {
-			apiCount++
-			dbLogger.Debugw("API endpoint identified (testing not yet implemented)",
-				"url", asset.Asset.Value,
-				"note", "use shells api command for dedicated API testing",
-			)
+		url := asset.Asset.Value
+		// Look for API endpoints (REST, GraphQL, etc.)
+		if strings.Contains(url, "/api/") ||
+		   strings.Contains(url, "/graphql") ||
+		   strings.Contains(url, "/swagger") ||
+		   strings.Contains(url, "/openapi") ||
+		   asset.Features.HasAPI {
+			apiEndpoints = append(apiEndpoints, url)
 		}
 	}
 
-	if apiCount > 0 {
-		dbLogger.Infow("API endpoints detected but not tested",
-			"count", apiCount,
-			"reason", "real API testing not yet implemented",
-			"recommendation", "use dedicated API testing tools or shells api command",
+	if len(apiEndpoints) == 0 {
+		dbLogger.Infow("No API endpoints found", "component", "rest_api_scanner")
+		phase.EndTime = time.Now()
+		phase.Duration = phase.EndTime.Sub(phase.StartTime)
+		phase.Status = "completed"
+		phase.Findings = 0
+		return findings, phase
+	}
+
+	dbLogger.Infow("API endpoints identified",
+		"count", len(apiEndpoints),
+		"component", "rest_api_scanner",
+	)
+
+	// Run REST API scans using Go scanner
+	if e.restapiScanner != nil {
+		for _, endpoint := range apiEndpoints {
+			dbLogger.Debugw("Testing REST API endpoint",
+				"endpoint", endpoint,
+				"component", "rest_api_scanner",
+			)
+
+			apiFindings, err := e.restapiScanner.Scan(ctx, endpoint, nil)
+			if err != nil {
+				dbLogger.Errorw("REST API scan failed",
+					"error", err,
+					"endpoint", endpoint,
+					"component", "rest_api_scanner",
+				)
+				continue
+			}
+
+			if len(apiFindings) > 0 {
+				findings = append(findings, apiFindings...)
+				dbLogger.Infow("REST API scan completed",
+					"endpoint", endpoint,
+					"findings", len(apiFindings),
+					"component", "rest_api_scanner",
+				)
+			} else {
+				dbLogger.Debugw("REST API scan completed - no findings",
+					"endpoint", endpoint,
+					"component", "rest_api_scanner",
+				)
+			}
+		}
+	} else {
+		dbLogger.Warnw("REST API scanner not initialized - skipping",
+			"component", "rest_api_scanner",
 		)
 	}
 
@@ -1757,7 +1928,12 @@ func (e *BugBountyEngine) runAPITests(ctx context.Context, assets []*AssetPriori
 	phase.Status = "completed"
 	phase.Findings = len(findings)
 
-	dbLogger.Infow("API testing completed", "findings", len(findings), "duration", phase.Duration)
+	dbLogger.Infow("REST API testing completed",
+		"findings", len(findings),
+		"duration", phase.Duration,
+		"endpoints_tested", len(apiEndpoints),
+		"component", "rest_api_scanner",
+	)
 
 	return findings, phase
 }
@@ -2157,16 +2333,20 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 		StartTime: time.Now(),
 	}
 
-	dbLogger.Infow("Running IDOR vulnerability tests")
+	dbLogger.Infow("Running IDOR vulnerability tests", "component", "idor_scanner")
 
 	var findings []types.Finding
 
-	// Find potential IDOR endpoints (those with IDs in URL)
+	// Find potential IDOR endpoints (those with IDs in URL or query params)
 	idorEndpoints := []string{}
 	for _, asset := range assets {
 		url := asset.Asset.Value
-		// Look for numeric IDs or UUIDs in URLs
-		if strings.Contains(url, "/api/") && (containsPattern(url, `\/\d+`) || containsPattern(url, `[a-f0-9-]{36}`)) {
+		// Look for numeric IDs, UUIDs, or query parameters in URLs
+		if containsPattern(url, `\/\d+`) ||
+		   containsPattern(url, `[a-f0-9-]{36}`) ||
+		   strings.Contains(url, "id=") ||
+		   strings.Contains(url, "user_id=") ||
+		   strings.Contains(url, "userId=") {
 			idorEndpoints = append(idorEndpoints, url)
 		}
 	}
@@ -2185,17 +2365,15 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 		"component", "idor_scanner",
 	)
 
-	// Run IDOR scans
+	// Run IDOR scans using Go scanner
 	for _, endpoint := range idorEndpoints {
 		dbLogger.Debugw("Testing IDOR endpoint",
 			"endpoint", endpoint,
 			"component", "idor_scanner",
 		)
 
-		// Use Python IDOR scanner
-		// Note: In production, you'd need to extract auth tokens from somewhere
-		tokens := []string{} // TODO: Extract from credential manager or user input
-		jobStatus, err := e.pythonWorkers.ScanIDORSync(ctx, endpoint, tokens, 1, 100)
+		// Use Go IDOR scanner
+		idorFindings, err := e.idorScanner.Scan(ctx, endpoint, nil)
 		if err != nil {
 			dbLogger.Errorw("IDOR scan failed",
 				"error", err,
@@ -2205,14 +2383,16 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 			continue
 		}
 
-		if jobStatus.Status == "completed" && jobStatus.Result != nil {
-			// Convert Python worker results to findings
-			idorFindings := convertPythonIDORToFindings(jobStatus.Result, endpoint)
+		if len(idorFindings) > 0 {
 			findings = append(findings, idorFindings...)
-
 			dbLogger.Infow("IDOR scan completed",
 				"endpoint", endpoint,
 				"findings", len(idorFindings),
+				"component", "idor_scanner",
+			)
+		} else {
+			dbLogger.Debugw("IDOR scan completed - no findings",
+				"endpoint", endpoint,
 				"component", "idor_scanner",
 			)
 		}
@@ -2227,6 +2407,7 @@ func (e *BugBountyEngine) runIDORTests(ctx context.Context, assets []*AssetPrior
 		"findings", len(findings),
 		"duration", phase.Duration,
 		"endpoints_tested", len(idorEndpoints),
+		"component", "idor_scanner",
 	)
 
 	return findings, phase
@@ -2539,5 +2720,173 @@ func (l *loggerAdapter) Warn(msg string, keysAndValues ...interface{}) {
 }
 
 func (l *loggerAdapter) Error(msg string, keysAndValues ...interface{}) {
+	l.logger.Errorw(msg, keysAndValues...)
+}
+
+// IDORScannerAdapter adapts the IDOR scanner to core.Scanner interface
+type IDORScannerAdapter struct {
+	scanner *idor.IDORScanner
+	logger  *logger.Logger
+}
+
+// NewIDORScannerAdapter creates a new IDOR scanner adapter
+func NewIDORScannerAdapter(config idor.IDORConfig, log *logger.Logger) *IDORScannerAdapter {
+	// Create adapter for IDOR scanner logger
+	idorLogger := &idorLoggerAdapter{logger: log}
+	scanner := idor.NewIDORScanner(config, idorLogger)
+	return &IDORScannerAdapter{
+		scanner: scanner,
+		logger:  log,
+	}
+}
+
+func (a *IDORScannerAdapter) Name() string {
+	return "IDOR Scanner"
+}
+
+func (a *IDORScannerAdapter) Type() types.ScanType {
+	return types.ScanTypeAuth
+}
+
+func (a *IDORScannerAdapter) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
+	idorFindings, err := a.scanner.Scan(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+
+	findings := make([]types.Finding, 0, len(idorFindings))
+	for _, idorFinding := range idorFindings {
+		finding := types.Finding{
+			ID:          fmt.Sprintf("idor-%s", uuid.New().String()[:8]),
+			Tool:        "idor",
+			Type:        idorFinding.FindingType,
+			Severity:    idorFinding.Severity,
+			Title:       fmt.Sprintf("IDOR: %s", idorFinding.Description),
+			Description: fmt.Sprintf("%s\n\nImpact: %s", idorFinding.Evidence, idorFinding.Impact),
+			Evidence:    idorFinding.Evidence,
+			Solution:    idorFinding.Remediation,
+			Metadata: map[string]interface{}{
+				"url":           idorFinding.URL,
+				"method":        idorFinding.Method,
+				"original_id":   idorFinding.OriginalID,
+				"accessible_id": idorFinding.AccessibleID,
+				"status_code":   idorFinding.StatusCode,
+				"response_size": idorFinding.ResponseSize,
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		findings = append(findings, finding)
+	}
+	return findings, nil
+}
+
+func (a *IDORScannerAdapter) Validate(target string) error {
+	if target == "" {
+		return fmt.Errorf("target cannot be empty")
+	}
+	return nil
+}
+
+// idorLoggerAdapter adapts internal logger to IDOR scanner logger interface
+type idorLoggerAdapter struct {
+	logger *logger.Logger
+}
+
+func (l *idorLoggerAdapter) Debug(msg string, keysAndValues ...interface{}) {
+	l.logger.Debugw(msg, keysAndValues...)
+}
+
+func (l *idorLoggerAdapter) Info(msg string, keysAndValues ...interface{}) {
+	l.logger.Infow(msg, keysAndValues...)
+}
+
+func (l *idorLoggerAdapter) Warn(msg string, keysAndValues ...interface{}) {
+	l.logger.Warnw(msg, keysAndValues...)
+}
+
+func (l *idorLoggerAdapter) Error(msg string, keysAndValues ...interface{}) {
+	l.logger.Errorw(msg, keysAndValues...)
+}
+
+// RESTAPIScannerAdapter adapts restapi.RESTAPIScanner to core.Scanner interface
+type RESTAPIScannerAdapter struct {
+	scanner *restapi.RESTAPIScanner
+	logger  *logger.Logger
+}
+
+func NewRESTAPIScannerAdapter(config restapi.RESTAPIConfig, log *logger.Logger) *RESTAPIScannerAdapter {
+	restapiLogger := &restapiLoggerAdapter{logger: log}
+	scanner := restapi.NewRESTAPIScanner(config, restapiLogger)
+	return &RESTAPIScannerAdapter{scanner: scanner, logger: log}
+}
+
+func (a *RESTAPIScannerAdapter) Name() string {
+	return "rest_api"
+}
+
+func (a *RESTAPIScannerAdapter) Type() types.ScanType {
+	return types.ScanTypeWeb
+}
+
+func (a *RESTAPIScannerAdapter) Scan(ctx context.Context, target string, options map[string]string) ([]types.Finding, error) {
+	apiFindings, err := a.scanner.Scan(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+
+	findings := make([]types.Finding, 0, len(apiFindings))
+	for _, apiFinding := range apiFindings {
+		finding := types.Finding{
+			ID:          fmt.Sprintf("restapi-%s", uuid.New().String()[:8]),
+			Tool:        "rest_api",
+			Type:        apiFinding.FindingType,
+			Severity:    apiFinding.Severity,
+			Title:       fmt.Sprintf("REST API: %s", apiFinding.Description),
+			Description: fmt.Sprintf("%s\n\nImpact: %s", apiFinding.Evidence, apiFinding.Impact),
+			Evidence:    apiFinding.Evidence,
+			Solution:    apiFinding.Remediation,
+			Metadata: map[string]interface{}{
+				"url":              apiFinding.URL,
+				"method":           apiFinding.Method,
+				"endpoint":         apiFinding.Endpoint,
+				"status_code":      apiFinding.StatusCode,
+				"payload":          apiFinding.Payload,
+				"response":         apiFinding.Response,
+				"confidence_score": apiFinding.ConfidenceScore,
+			},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		findings = append(findings, finding)
+	}
+	return findings, nil
+}
+
+func (a *RESTAPIScannerAdapter) Validate(target string) error {
+	if target == "" {
+		return fmt.Errorf("target cannot be empty")
+	}
+	return nil
+}
+
+// restapiLoggerAdapter adapts internal logger to REST API scanner logger interface
+type restapiLoggerAdapter struct {
+	logger *logger.Logger
+}
+
+func (l *restapiLoggerAdapter) Debug(msg string, keysAndValues ...interface{}) {
+	l.logger.Debugw(msg, keysAndValues...)
+}
+
+func (l *restapiLoggerAdapter) Info(msg string, keysAndValues ...interface{}) {
+	l.logger.Infow(msg, keysAndValues...)
+}
+
+func (l *restapiLoggerAdapter) Warn(msg string, keysAndValues ...interface{}) {
+	l.logger.Warnw(msg, keysAndValues...)
+}
+
+func (l *restapiLoggerAdapter) Error(msg string, keysAndValues ...interface{}) {
 	l.logger.Errorw(msg, keysAndValues...)
 }
