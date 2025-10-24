@@ -1,47 +1,16 @@
 // Hera API - Browser Phishing Detection Integration
 //
-// ADVERSARIAL REVIEW STATUS (Round 4 - 2025-10-05):
+// ADVERSARIAL REVIEW STATUS (Round 5 - 2025-10-23):
 //
-//	WARNING: THIS CODE COMPILES BUT DOES NOT WORK
+//	STATUS: Database schema issues FIXED
 //
-// Multiple critical database schema mismatches prevent functionality.
+// Previous P0 database schema mismatches have been resolved:
+//  - hera_whois_cache schema now matches queries (✅ FIXED)
+//  - hera_threat_intel schema now matches queries (✅ FIXED)
+//  - hera_stats schema now matches queries (✅ FIXED)
+//  - Driver detection (getPlaceholder, currentDate, now) working (✅ FIXED)
 //
-//	P0 ISSUES (CRITICAL - System Broken):
-//
-// P0-1: Database Schema Mismatch in WHOIS Cache (Line 198)
-//
-//	Query: SELECT registration_date, registrar, age_days, raw_data FROM hera_whois_cache
-//	Actual Schema: Only has columns: domain, whois_data, created_at, expires_at
-//	Impact: WHOIS lookups fail 100% of the time
-//	Fix: Align schema with queries in internal/database/store.go:354
-//
-// P0-2: Database Schema Mismatch in Threat Intel (Line 299)
-//
-//	Query: SELECT source, verdict, score, details FROM hera_threat_intel
-//	Actual Schema: Only has columns: domain, malicious, sources, last_checked, expires_at
-//	Impact: Threat intel lookups fail 100% of the time
-//	Fix: Redesign schema to support multiple sources per domain
-//
-// P0-3: PostgreSQL-Specific SQL in SQLite Code (Lines 200, 418)
-//
-//	Uses: NOW() function and ON CONFLICT ... DO UPDATE (PostgreSQL only)
-//	Problem: Default config uses SQLite which doesn't support these
-//	Impact: All queries fail when using SQLite driver
-//	Fix: Use driver-agnostic SQL or detect driver type
-//
-// P0-4: Placeholder Mismatch (All database queries)
-//
-//	Uses: PostgreSQL placeholders ($1, $2, etc.)
-//	Problem: SQLite uses ? placeholders
-//	Impact: All queries fail with SQLite
-//	Fix: Use store.getPlaceholder() helper or pass driver info
-//
-// P0-5: Stats Table Schema Missing Key Columns (Line 417)
-//
-//		Query: INSERT INTO hera_stats (date, verdict, reputation_bucket, pattern, count)
-//		Actual Schema: Only has columns: id, event_type, domain, metadata, created_at
-//		Impact: Statistics logging fails 100% of the time
-//		Fix: Completely redesign stats table schema
+//	REMAINING ISSUES:
 //
 //	  P1 ISSUES (HIGH - Major Functionality Gaps):
 //

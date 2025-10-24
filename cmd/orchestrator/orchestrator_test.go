@@ -85,6 +85,10 @@ func (m *mockResultStore) GetSummary(ctx context.Context, scanID string) (*types
 	return &types.Summary{}, m.err
 }
 
+func (m *mockResultStore) SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error {
+	return m.err
+}
+
 func (m *mockResultStore) Close() error {
 	return m.err
 }
@@ -444,7 +448,7 @@ func TestConvertAuthInventoryToFindings_Empty(t *testing.T) {
 
 func TestConvertAuthInventoryToFindings_NetworkAuth(t *testing.T) {
 	inventory := &authdiscovery.AuthInventory{
-		NetworkAuth: &authdiscovery.NetworkAuth{
+		NetworkAuth: &authdiscovery.NetworkAuthMethods{
 			LDAP: []authdiscovery.LDAPEndpoint{
 				{
 					Host: "ldap.example.com",
@@ -467,8 +471,8 @@ func TestConvertAuthInventoryToFindings_NetworkAuth(t *testing.T) {
 
 func TestConvertAuthInventoryToFindings_WebAuth(t *testing.T) {
 	inventory := &authdiscovery.AuthInventory{
-		WebAuth: &authdiscovery.WebAuth{
-			FormLogin: []authdiscovery.FormLoginDetails{
+		WebAuth: &authdiscovery.WebAuthMethods{
+			FormLogin: []authdiscovery.FormLoginEndpoint{
 				{
 					URL:            "https://example.com/login",
 					Method:         "POST",
@@ -491,8 +495,8 @@ func TestConvertAuthInventoryToFindings_WebAuth(t *testing.T) {
 
 func TestConvertAuthInventoryToFindings_APIAuth(t *testing.T) {
 	inventory := &authdiscovery.AuthInventory{
-		APIAuth: &authdiscovery.APIAuth{
-			REST: []authdiscovery.RESTAuthDetails{
+		APIAuth: &authdiscovery.APIAuthMethods{
+			REST: []authdiscovery.RESTEndpoint{
 				{
 					URL: "https://api.example.com/v1",
 				},
@@ -533,18 +537,18 @@ func TestConvertAuthInventoryToFindings_CustomAuth(t *testing.T) {
 
 func TestConvertAuthInventoryToFindings_Multiple(t *testing.T) {
 	inventory := &authdiscovery.AuthInventory{
-		NetworkAuth: &authdiscovery.NetworkAuth{
+		NetworkAuth: &authdiscovery.NetworkAuthMethods{
 			LDAP: []authdiscovery.LDAPEndpoint{
 				{Host: "ldap.example.com", Port: 389, SSL: false},
 			},
 		},
-		WebAuth: &authdiscovery.WebAuth{
-			FormLogin: []authdiscovery.FormLoginDetails{
+		WebAuth: &authdiscovery.WebAuthMethods{
+			FormLogin: []authdiscovery.FormLoginEndpoint{
 				{URL: "https://example.com/login", Method: "POST"},
 			},
 		},
-		APIAuth: &authdiscovery.APIAuth{
-			REST: []authdiscovery.RESTAuthDetails{
+		APIAuth: &authdiscovery.APIAuthMethods{
+			REST: []authdiscovery.RESTEndpoint{
 				{URL: "https://api.example.com/v1"},
 			},
 		},
@@ -749,13 +753,13 @@ func BenchmarkRunComprehensiveBusinessLogicTests(b *testing.B) {
 
 func BenchmarkConvertAuthInventoryToFindings(b *testing.B) {
 	inventory := &authdiscovery.AuthInventory{
-		NetworkAuth: &authdiscovery.NetworkAuth{
+		NetworkAuth: &authdiscovery.NetworkAuthMethods{
 			LDAP: []authdiscovery.LDAPEndpoint{
 				{Host: "ldap.example.com", Port: 389, SSL: false},
 			},
 		},
-		WebAuth: &authdiscovery.WebAuth{
-			FormLogin: []authdiscovery.FormLoginDetails{
+		WebAuth: &authdiscovery.WebAuthMethods{
+			FormLogin: []authdiscovery.FormLoginEndpoint{
 				{URL: "https://example.com/login", Method: "POST"},
 			},
 		},

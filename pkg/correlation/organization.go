@@ -281,23 +281,37 @@ func (oc *OrganizationCorrelator) correlateFromDiscoveryTarget(ctx context.Conte
 
 // correlateFromString correlates from a simple string
 func (oc *OrganizationCorrelator) correlateFromString(ctx context.Context, input string, org *Organization) (*Organization, error) {
+	// Strip protocol if present (https://example.com → example.com)
+	normalizedInput := input
+	if strings.HasPrefix(input, "http://") {
+		normalizedInput = strings.TrimPrefix(input, "http://")
+	} else if strings.HasPrefix(input, "https://") {
+		normalizedInput = strings.TrimPrefix(input, "https://")
+	}
+	// Strip trailing slash if present
+	normalizedInput = strings.TrimSuffix(normalizedInput, "/")
+	// Strip path if present (example.com/path → example.com)
+	if idx := strings.Index(normalizedInput, "/"); idx != -1 {
+		normalizedInput = normalizedInput[:idx]
+	}
+
 	// Try to determine what the string is
-	if strings.Contains(input, "@") {
+	if strings.Contains(normalizedInput, "@") {
 		// Email
-		parts := strings.Split(input, "@")
+		parts := strings.Split(normalizedInput, "@")
 		if len(parts) == 2 {
 			return oc.correlateFromDomain(ctx, parts[1], org)
 		}
-	} else if net.ParseIP(input) != nil {
+	} else if net.ParseIP(normalizedInput) != nil {
 		// IP address
-		return oc.correlateFromIP(ctx, input, org)
-	} else if strings.Contains(input, ".") {
+		return oc.correlateFromIP(ctx, normalizedInput, org)
+	} else if strings.Contains(normalizedInput, ".") {
 		// Likely a domain
-		return oc.correlateFromDomain(ctx, input, org)
+		return oc.correlateFromDomain(ctx, normalizedInput, org)
 	} else {
 		// Assume company name
-		org.Name = input
-		oc.correlateCompanyName(ctx, input, org)
+		org.Name = normalizedInput
+		oc.correlateCompanyName(ctx, normalizedInput, org)
 		oc.secondPassCorrelation(ctx, org)
 		org.Confidence = oc.calculateConfidence(org)
 		return org, nil
