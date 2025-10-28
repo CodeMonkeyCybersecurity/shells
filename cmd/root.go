@@ -257,18 +257,14 @@ COMMANDS:
 		}
 
 		if !serverRunning {
-			// Start server in daemon mode
-			serveCmd, _, err := cmd.Root().Find([]string{"serve"})
-			if err == nil {
-				// Start serve in a goroutine so it doesn't block the scan
-				go func() {
-					if err := serveCmd.RunE(serveCmd, []string{}); err != nil {
-						log.Warnw("Web server failed to start", "error", err)
-					}
-				}()
-				// Give server time to start
-				time.Sleep(2 * time.Second)
-			}
+			// Start server in daemon mode (silently, no deprecation warning)
+			go func() {
+				if err := runServeInternal(cmd, []string{}); err != nil {
+					log.Warnw("Web server failed to start", "error", err)
+				}
+			}()
+			// Give server time to start
+			time.Sleep(2 * time.Second)
 		} else {
 			color.Green("✓ Web server already running\n\n")
 		}
@@ -439,6 +435,16 @@ func init() {
 	rootCmd.PersistentFlags().Bool("deep", false, "Deep scan mode - comprehensive testing")
 	rootCmd.PersistentFlags().Duration("timeout", 30*time.Minute, "Maximum scan time (default: 30m for comprehensive scan)")
 	rootCmd.PersistentFlags().String("scope", "", "Scope file defining authorized targets (.scope file)")
+
+	// Bug bounty platform integration flags
+	rootCmd.PersistentFlags().Bool("scope-validation", false, "Enable bug bounty program scope validation")
+	rootCmd.PersistentFlags().String("platform", "", "Bug bounty platform (hackerone, bugcrowd, intigriti, yeswehack)")
+	rootCmd.PersistentFlags().String("program", "", "Bug bounty program handle/slug")
+	rootCmd.PersistentFlags().Bool("scope-strict", false, "Strict mode: fail closed on unknown scope (default: fail open)")
+	viper.BindPFlag("scope.validation_enabled", rootCmd.PersistentFlags().Lookup("scope-validation"))
+	viper.BindPFlag("scope.platform", rootCmd.PersistentFlags().Lookup("platform"))
+	viper.BindPFlag("scope.program", rootCmd.PersistentFlags().Lookup("program"))
+	viper.BindPFlag("scope.strict_mode", rootCmd.PersistentFlags().Lookup("scope-strict"))
 
 	// API keys (environment variables only, never flags)
 	viper.BindEnv("shodan_api_key", "SHODAN_API_KEY")

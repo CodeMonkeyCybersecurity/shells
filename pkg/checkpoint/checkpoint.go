@@ -224,10 +224,24 @@ func (m *Manager) Save(ctx context.Context, state *State) error {
 		return fmt.Errorf("failed to marshal checkpoint state: %w", err)
 	}
 
-	// Write to file
-	filename := filepath.Join(m.checkpointDir, fmt.Sprintf("%s.json", state.ScanID))
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write checkpoint file: %w", err)
+	// P0-13 FIX: Atomic write using temp file + rename
+	// This ensures that if the process crashes during write, we don't leave a
+	// corrupted checkpoint file. The rename operation is atomic on POSIX systems.
+
+	finalFilename := filepath.Join(m.checkpointDir, fmt.Sprintf("%s.json", state.ScanID))
+	tempFilename := filepath.Join(m.checkpointDir, fmt.Sprintf(".%s.json.tmp", state.ScanID))
+
+	// P1-19 FIX: Write with 0600 permissions (owner read/write only) for security
+	// Checkpoints may contain sensitive scan targets and vulnerability findings
+	if err := os.WriteFile(tempFilename, data, 0600); err != nil {
+		return fmt.Errorf("failed to write temp checkpoint file: %w", err)
+	}
+
+	// Atomic rename: if this fails, temp file remains and final file is unchanged
+	if err := os.Rename(tempFilename, finalFilename); err != nil {
+		// Cleanup temp file on failure
+		os.Remove(tempFilename)
+		return fmt.Errorf("failed to atomically save checkpoint: %w", err)
 	}
 
 	return nil

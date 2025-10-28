@@ -168,18 +168,99 @@ func resumeFromCheckpoint(cmd *cobra.Command, scanID string) error {
 }
 
 // buildOrchestratorConfigFromCheckpoint extracts config from checkpoint metadata
-func buildOrchestratorConfigFromCheckpoint(cmd *cobra.Command, state *checkpoint.State) interface{} {
-	// Extract saved configuration from metadata
-	// This preserves the original scan's settings (quick mode, timeout, etc.)
+// P1-23 FIX: Actually restore configuration from checkpoint instead of discarding it
+func buildOrchestratorConfigFromCheckpoint(cmd *cobra.Command, state *checkpoint.State) orchestrator.BugBountyConfig {
+	// Start with default config
+	config := orchestrator.DefaultBugBountyConfig()
 
 	if state.Metadata == nil {
-		// No metadata, use default config
-		return buildOrchestratorConfig(cmd)
+		// No metadata, return defaults
+		return config
 	}
 
-	// TODO: Properly restore orchestrator config from checkpoint metadata
-	// For now, use default config
-	return buildOrchestratorConfig(cmd)
+	// Helper to safely extract values from metadata map
+	getBool := func(key string) bool {
+		if v, ok := state.Metadata[key].(bool); ok {
+			return v
+		}
+		return false
+	}
+
+	getInt := func(key string) int {
+		if v, ok := state.Metadata[key].(float64); ok { // JSON numbers are float64
+			return int(v)
+		}
+		return 0
+	}
+
+	getFloat64 := func(key string) float64 {
+		if v, ok := state.Metadata[key].(float64); ok {
+			return v
+		}
+		return 0
+	}
+
+	getString := func(key string) string {
+		if v, ok := state.Metadata[key].(string); ok {
+			return v
+		}
+		return ""
+	}
+
+	getDuration := func(key string) time.Duration {
+		if s := getString(key); s != "" {
+			if d, err := time.ParseDuration(s); err == nil {
+				return d
+			}
+		}
+		return 0
+	}
+
+	// Restore all config fields from checkpoint metadata
+	config.SkipDiscovery = getBool("quick_mode")
+	config.TotalTimeout = getDuration("total_timeout")
+	config.ScanTimeout = getDuration("scan_timeout")
+	config.DiscoveryTimeout = getDuration("discovery_timeout")
+	config.EnableDNS = getBool("enable_dns")
+	config.EnablePortScan = getBool("enable_port_scan")
+	config.EnableWebCrawl = getBool("enable_web_crawl")
+	config.EnableAuthTesting = getBool("enable_auth_testing")
+	config.EnableAPITesting = getBool("enable_api_testing")
+	config.EnableSCIMTesting = getBool("enable_scim_testing")
+	config.EnableGraphQLTesting = getBool("enable_graphql_testing")
+	config.EnableIDORTesting = getBool("enable_idor_testing")
+	config.EnableServiceFingerprint = getBool("enable_service_fingerprint")
+	config.EnableNucleiScan = getBool("enable_nuclei_scan")
+	config.MaxAssets = getInt("max_assets")
+	config.MaxDepth = getInt("max_depth")
+	config.ShowProgress = getBool("show_progress")
+	config.RateLimitPerSecond = getFloat64("rate_limit_per_second")
+	config.RateLimitBurst = getInt("rate_limit_burst")
+	config.EnableCheckpointing = getBool("enable_checkpointing")
+	config.CheckpointInterval = getDuration("checkpoint_interval")
+	config.EnableEnrichment = getBool("enable_enrichment")
+	config.EnrichmentLevel = getString("enrichment_level")
+	config.EnableWHOISAnalysis = getBool("enable_whois_analysis")
+	config.EnableCertTransparency = getBool("enable_cert_transparency")
+	config.EnableRelatedDomainDisc = getBool("enable_related_domain_disc")
+	config.BugBountyPlatform = getString("bug_bounty_platform")
+	config.BugBountyProgram = getString("bug_bounty_program")
+
+	// Provide defaults for any zero values (in case checkpoint is from older version)
+	if config.TotalTimeout == 0 {
+		config.TotalTimeout = 30 * time.Minute
+	}
+	if config.ScanTimeout == 0 {
+		config.ScanTimeout = 5 * time.Minute
+	}
+	if config.DiscoveryTimeout == 0 {
+		config.DiscoveryTimeout = 10 * time.Minute
+	}
+	if config.MaxAssets == 0 {
+		config.MaxAssets = 100
+	}
+
+	return config
 }
 
 // formatDuration formats a duration in human-readable form
@@ -199,8 +280,9 @@ func formatDuration(d time.Duration) string {
 
 // runOrchestratorWithResume runs the orchestrator in resume mode
 func runOrchestratorWithResume(ctx context.Context, state *checkpoint.State, cmd *cobra.Command, log *logger.Logger, store core.ResultStore) error {
-	// Parse configuration from flags (or restore from checkpoint metadata)
-	config := buildOrchestratorConfig(cmd)
+	// P1-23 FIX: Restore configuration from checkpoint metadata (not CLI flags)
+	// This ensures resumed scan has same settings as original scan
+	config := buildOrchestratorConfigFromCheckpoint(cmd, state)
 	
 	// Print banner
 	fmt.Println()

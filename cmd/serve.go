@@ -90,6 +90,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("Continuing with deprecated command...")
 	fmt.Println()
+	return runServeInternal(cmd, args)
+}
+
+// runServeInternal runs the serve command without deprecation warning (for internal use)
+func runServeInternal(cmd *cobra.Command, args []string) error {
 	// Handle daemon mode - fork process and exit parent
 	if daemonMode {
 		if os.Getenv("SHELLS_DAEMON_CHILD") != "1" {

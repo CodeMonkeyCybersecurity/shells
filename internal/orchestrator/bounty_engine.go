@@ -30,9 +30,11 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/idor"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/restapi"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scope"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 // BugBountyEngine orchestrates the full bug bounty scanning pipeline
@@ -47,6 +49,7 @@ type BugBountyEngine struct {
 	discoveryEngine     *discovery.Engine
 	orgCorrelator       *correlation.OrganizationCorrelator
 	certIntel           *certs.CertIntel
+	scopeManager        *scope.Manager // Bug bounty program scope management
 
 	// Scanners
 	samlScanner     *saml.SAMLScanner
@@ -140,6 +143,21 @@ type BugBountyConfig struct {
 	// Checkpointing settings
 	EnableCheckpointing bool          // Enable automatic checkpoint saves
 	CheckpointInterval  time.Duration // How often to save checkpoints (default: 5 minutes)
+
+	// Scope management settings (Bug Bounty Platform Integration)
+	EnableScopeValidation bool   // Validate assets against bug bounty program scope before testing
+	BugBountyPlatform     string // Platform to import scope from (hackerone, bugcrowd, intigriti, yeswehack)
+	BugBountyProgram      string // Program handle/slug to import scope from
+	ScopeStrictMode       bool   // Fail closed on ambiguous scope decisions (default: fail open)
+
+	// Platform API credentials (read from environment variables)
+	PlatformCredentials map[string]PlatformCredential // Platform name -> credentials
+}
+
+// PlatformCredential stores API credentials for bug bounty platforms
+type PlatformCredential struct {
+	Username string
+	APIKey   string
 }
 
 // DefaultBugBountyConfig returns comprehensive configuration for full asset discovery and testing
@@ -390,15 +408,13 @@ func NewBugBountyEngine(
 
 		// Initialize organization correlator with default clients
 		correlatorConfig := correlation.CorrelatorConfig{
-			EnableWhois:     config.EnableWHOISAnalysis,
-			EnableCerts:     config.EnableCertTransparency,
-			EnableASN:       true, // Always enable ASN for IP range discovery
-			EnableTrademark: false, // Too slow for real-time scanning
-			EnableLinkedIn:  false, // Requires API keys
-			EnableGitHub:    false, // Requires API keys
-			EnableCloud:     false, // Requires API keys
-			CacheTTL:        5 * time.Minute,
-			MaxWorkers:      10,
+			EnableWhois:    config.EnableWHOISAnalysis,
+			EnableCerts:    config.EnableCertTransparency,
+			EnableASN:      true,
+			EnableGitHub:   false,
+			EnableLinkedIn: false,
+			CacheTTL:       1 * time.Hour,
+			MaxWorkers:     5,
 		}
 		orgCorrelator = correlation.NewOrganizationCorrelator(correlatorConfig, logger)
 
@@ -488,6 +504,45 @@ func NewBugBountyEngine(
 		}
 	}
 
+	// Initialize scope manager for bug bounty program scope validation (if enabled)
+	var scopeManager *scope.Manager
+	if config.EnableScopeValidation {
+		// Get database connection from store
+		var db *sqlx.DB
+		if sqlStore, ok := store.(interface{ DB() *sqlx.DB }); ok {
+			db = sqlStore.DB()
+		} else {
+			logger.Warnw("Scope validation disabled - store does not provide DB access",
+				"component", "orchestrator",
+			)
+		}
+
+		if db != nil {
+			scopeConfig := &scope.Config{
+				AutoSync:         false, // Manual sync for now
+				CacheTTL:         1 * time.Hour,
+				ValidateWorkers:  10,
+				StrictMode:       config.ScopeStrictMode,
+				EnableMonitoring: false, // Disable monitoring for now
+			}
+			scopeManager = scope.NewManager(db, logger, scopeConfig)
+			logger.Infow("Scope manager initialized",
+				"strict_mode", config.ScopeStrictMode,
+				"component", "orchestrator",
+			)
+
+			// Import scope from bug bounty platform if specified
+			if config.BugBountyPlatform != "" && config.BugBountyProgram != "" {
+				logger.Infow("Bug bounty platform scope import requested",
+					"platform", config.BugBountyPlatform,
+					"program", config.BugBountyProgram,
+					"component", "orchestrator",
+				)
+				// Scope import will happen in Execute() before discovery
+			}
+		}
+	}
+
 	return &BugBountyEngine{
 		store:              store,
 		telemetry:          telemetry,
@@ -496,6 +551,7 @@ func NewBugBountyEngine(
 		discoveryEngine:    discoveryEngine,
 		orgCorrelator:      orgCorrelator,
 		certIntel:          certIntel,
+		scopeManager:       scopeManager,
 		samlScanner:        samlScanner,
 		oauth2Scanner:      oauth2Scanner,
 		webauthnScanner:    webauthnScanner,
@@ -607,20 +663,85 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	)
 
 	// Helper function to save checkpoint
+	// FIXED: Actually saves checkpoint state to disk for resume capability
 	saveCheckpoint := func(phase string, progress float64, completedTests []string, findings []types.Finding) {
 		if !e.checkpointEnabled || e.checkpointManager == nil {
 			return
 		}
 
-		// NOTE: Checkpointing is configured but full integration pending
-		// This would save checkpoint state for resume capability
-		dbLogger.Debugw("Checkpoint save point",
-			"scan_id", scanID,
-			"phase", phase,
-			"progress", progress,
-			"completed_tests", completedTests,
-			"findings_count", len(findings),
-		)
+		// Convert discovered assets for checkpoint serialization
+		checkpointAssets := checkpoint.ConvertDiscoveryAssets(result.DiscoveredAssets)
+
+		// Build checkpoint state
+		state := &checkpoint.State{
+			ScanID:           scanID,
+			Target:           target,
+			CreatedAt:        result.StartTime,
+			UpdatedAt:        time.Now(),
+			Progress:         progress,
+			CurrentPhase:     phase,
+			DiscoveredAssets: checkpointAssets,
+			CompletedTests:   completedTests,
+			Findings:         findings,
+			Metadata: map[string]interface{}{
+				// P1-3 FIX: Save COMPLETE config so resume behaves identically to original scan
+				"quick_mode":                  e.config.SkipDiscovery,
+				"total_timeout":               e.config.TotalTimeout.String(),
+				"scan_timeout":                e.config.ScanTimeout.String(),
+				"discovery_timeout":           e.config.DiscoveryTimeout.String(),
+				"enable_dns":                  e.config.EnableDNS,
+				"enable_port_scan":            e.config.EnablePortScan,
+				"enable_web_crawl":            e.config.EnableWebCrawl,
+				"enable_auth_testing":         e.config.EnableAuthTesting,
+				"enable_api_testing":          e.config.EnableAPITesting,
+				"enable_scim_testing":         e.config.EnableSCIMTesting,
+				"enable_graphql_testing":      e.config.EnableGraphQLTesting,
+				"enable_idor_testing":         e.config.EnableIDORTesting,
+				"enable_service_fingerprint":  e.config.EnableServiceFingerprint,
+				"enable_nuclei_scan":          e.config.EnableNucleiScan,
+				"max_assets":                  e.config.MaxAssets,
+				"max_depth":                   e.config.MaxDepth,
+				"show_progress":               e.config.ShowProgress,
+				"rate_limit_per_second":       e.config.RateLimitPerSecond,
+				"rate_limit_burst":            e.config.RateLimitBurst,
+				"enable_checkpointing":        e.config.EnableCheckpointing,
+				"checkpoint_interval":         e.config.CheckpointInterval.String(),
+				"enable_enrichment":           e.config.EnableEnrichment,
+				"enrichment_level":            e.config.EnrichmentLevel,
+				"enable_whois_analysis":       e.config.EnableWHOISAnalysis,
+				"enable_cert_transparency":    e.config.EnableCertTransparency,
+				"enable_related_domain_disc":  e.config.EnableRelatedDomainDisc,
+				"bug_bounty_platform":         e.config.BugBountyPlatform,
+				"bug_bounty_program":          e.config.BugBountyProgram,
+			},
+		}
+
+		// P0-1 FIX: Use background context for checkpoint save to survive Ctrl+C
+		// The parent ctx may be cancelled when user presses Ctrl+C, but we MUST save the checkpoint
+		// so the scan can be resumed later. Use a separate timeout context derived from Background.
+		saveCtx, saveCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer saveCancel()
+
+		// Save checkpoint to disk with isolated context
+		if err := e.checkpointManager.Save(saveCtx, state); err != nil {
+			dbLogger.Errorw("Failed to save checkpoint",
+				"error", err,
+				"scan_id", scanID,
+				"phase", phase,
+				"progress", progress,
+				"context_error", ctx.Err(), // Log if parent was cancelled
+			)
+			// Log but don't fail the scan - checkpointing is best-effort
+		} else {
+			dbLogger.Infow("Checkpoint saved successfully",
+				"scan_id", scanID,
+				"phase", phase,
+				"progress", progress,
+				"completed_tests", completedTests,
+				"findings_count", len(findings),
+				"assets_discovered", len(checkpointAssets),
+			)
+		}
 	}
 
 	// Checkpoint after scan initialization
@@ -642,10 +763,182 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		dbLogger.Warnw("  No deadline on parent context - unexpected!")
 	}
 
+	// Pre-Phase: Bug Bounty Platform Scope Import (if enabled)
+	if e.scopeManager != nil && e.config.BugBountyPlatform != "" && e.config.BugBountyProgram != "" {
+		scopeImportStart := time.Now()
+
+		// IMMEDIATE CLI FEEDBACK - Show user what's happening
+		fmt.Println()
+		fmt.Println("═══════════════════════════════════════════════════════════════")
+		fmt.Println(" Scope Import: Bug Bounty Program")
+		fmt.Println("═══════════════════════════════════════════════════════════════")
+		fmt.Printf("   Platform: %s\n", e.config.BugBountyPlatform)
+		fmt.Printf("   Program: %s\n", e.config.BugBountyProgram)
+		fmt.Printf("   • Fetching program scope from platform API...\n")
+		fmt.Println()
+
+		dbLogger.Infow(" Importing bug bounty program scope",
+			"platform", e.config.BugBountyPlatform,
+			"program", e.config.BugBountyProgram,
+			"component", "orchestrator",
+		)
+
+		// Get platform client
+		var platformType scope.Platform
+		switch strings.ToLower(e.config.BugBountyPlatform) {
+		case "hackerone", "h1":
+			platformType = scope.PlatformHackerOne
+		case "bugcrowd", "bc":
+			platformType = scope.PlatformBugcrowd
+		case "intigriti":
+			platformType = scope.PlatformIntigriti
+		case "yeswehack", "ywh":
+			platformType = scope.PlatformYesWeHack
+		default:
+			dbLogger.Errorw("Unsupported bug bounty platform",
+				"platform", e.config.BugBountyPlatform,
+				"supported", []string{"hackerone", "bugcrowd", "intigriti", "yeswehack"},
+				"component", "orchestrator",
+			)
+			fmt.Printf("   ⚠️  Unsupported platform: %s\n", e.config.BugBountyPlatform)
+			fmt.Printf("   Supported: hackerone, bugcrowd, intigriti, yeswehack\n")
+			fmt.Printf("   Continuing without scope validation...\n")
+			fmt.Println()
+			e.scopeManager = nil
+		}
+
+		if e.scopeManager != nil {
+			// Get platform client and fetch program
+			client := e.scopeManager.GetPlatformClient(platformType)
+			if client == nil {
+				dbLogger.Errorw("Platform client not available",
+					"platform", platformType,
+					"component", "orchestrator",
+				)
+				fmt.Printf("   ⚠️  Platform client not available\n")
+				fmt.Printf("   Continuing without scope validation...\n")
+				fmt.Println()
+				e.scopeManager = nil
+			} else {
+				// Configure client with API credentials if available
+				if cred, ok := e.config.PlatformCredentials[strings.ToLower(e.config.BugBountyPlatform)]; ok {
+					if cred.Username != "" && cred.APIKey != "" {
+						// Type assert to configure the client
+						if h1Client, ok := client.(*scope.HackerOneClient); ok {
+							h1Client.Configure(cred.Username, cred.APIKey)
+							dbLogger.Debugw("Configured HackerOne API credentials",
+								"username", cred.Username,
+								"component", "orchestrator",
+							)
+						} else if bcClient, ok := client.(*scope.BugcrowdClient); ok {
+							bcClient.Configure(cred.APIKey) // Bugcrowd uses API token only
+							dbLogger.Debugw("Configured Bugcrowd API credentials",
+								"component", "orchestrator",
+							)
+						}
+					} else {
+						dbLogger.Warnw("Platform credentials incomplete",
+							"platform", e.config.BugBountyPlatform,
+							"has_username", cred.Username != "",
+							"has_api_key", cred.APIKey != "",
+							"note", "Will attempt public API access",
+							"component", "orchestrator",
+						)
+					}
+				} else {
+					dbLogger.Infow("No platform credentials configured",
+						"platform", e.config.BugBountyPlatform,
+						"note", "Will attempt public API access",
+						"hint", fmt.Sprintf("Set %s_USERNAME and %s_API_KEY environment variables for private programs",
+							strings.ToUpper(e.config.BugBountyPlatform),
+							strings.ToUpper(e.config.BugBountyPlatform)),
+						"component", "orchestrator",
+					)
+				}
+
+				// Fetch program from platform
+				program, err := client.GetProgram(ctx, e.config.BugBountyProgram)
+				if err != nil {
+					dbLogger.Errorw("Failed to fetch bug bounty program",
+						"error", err,
+						"platform", e.config.BugBountyPlatform,
+						"program", e.config.BugBountyProgram,
+						"component", "orchestrator",
+					)
+					fmt.Printf("   ⚠️  Failed to fetch program: %v\n", err)
+
+					// Check if this looks like an authentication error
+					errStr := strings.ToLower(err.Error())
+					if strings.Contains(errStr, "401") || strings.Contains(errStr, "unauthorized") ||
+					   strings.Contains(errStr, "403") || strings.Contains(errStr, "forbidden") ||
+					   strings.Contains(errStr, "invalid credentials") {
+						fmt.Printf("\n   Authentication failed. For private programs, set:\n")
+						platformUpper := strings.ToUpper(e.config.BugBountyPlatform)
+						fmt.Printf("     export %s_USERNAME=your-username\n", platformUpper)
+						fmt.Printf("     export %s_API_KEY=your-api-key\n", platformUpper)
+						fmt.Println()
+					} else {
+						fmt.Printf("   Continuing without scope validation...\n")
+						fmt.Println()
+					}
+					e.scopeManager = nil
+				} else {
+					// Add program to scope manager
+					if err := e.scopeManager.AddProgram(program); err != nil {
+						dbLogger.Errorw("Failed to add program to scope manager",
+							"error", err,
+							"program", program.Name,
+							"component", "orchestrator",
+						)
+						fmt.Printf("   ⚠️  Failed to add program: %v\n", err)
+						fmt.Printf("   Continuing without scope validation...\n")
+						fmt.Println()
+						e.scopeManager = nil
+					} else {
+						dbLogger.Infow(" Bug bounty scope import completed",
+							"program_id", program.ID,
+							"duration", time.Since(scopeImportStart).String(),
+							"component", "orchestrator",
+						)
+
+						// Display scope summary
+						fmt.Printf("   ✓ Scope imported successfully\n")
+						fmt.Printf("   Program: %s\n", program.Name)
+						if len(program.Scope) > 0 {
+							fmt.Printf("   In-Scope Assets: %d\n", len(program.Scope))
+						}
+						if len(program.OutOfScope) > 0 {
+							fmt.Printf("   Out-of-Scope Assets: %d\n", len(program.OutOfScope))
+						}
+						if program.MaxBounty > 0 {
+							fmt.Printf("   Max Bounty: $%.0f\n", program.MaxBounty)
+						}
+						fmt.Printf("   Duration: %s\n", time.Since(scopeImportStart).Round(time.Millisecond))
+						fmt.Println()
+					}
+				}
+			}
+		}
+
+		saveCheckpoint("scope_import", 2.0, []string{"scope_import"}, []types.Finding{})
+	}
+
 	// Phase 0: Organization Footprinting (if enabled)
 	var orgDomains []string
 	if e.orgCorrelator != nil && !e.config.SkipDiscovery {
 		footprintStart := time.Now()
+
+		// IMMEDIATE CLI FEEDBACK - Show user what's happening
+		fmt.Println()
+		fmt.Println("═══════════════════════════════════════════════════════════════")
+		fmt.Println(" Phase 0: Organization Footprinting")
+		fmt.Println("═══════════════════════════════════════════════════════════════")
+		fmt.Printf("   Analyzing: %s\n", target)
+		fmt.Printf("   • WHOIS lookup for organization details...\n")
+		fmt.Printf("   • Certificate transparency logs for related domains...\n")
+		fmt.Printf("   • ASN discovery for IP ranges...\n")
+		fmt.Println()
+
 		dbLogger.Infow(" Phase 0: Organization Footprinting",
 			"target", target,
 			"enable_whois", e.config.EnableWHOISAnalysis,
@@ -918,6 +1211,121 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	// Checkpoint after prioritization
 	saveCheckpoint("prioritization", 35.0, []string{"discovery", "prioritization"}, []types.Finding{})
 
+	// Phase 2.5: Scope Validation (if enabled)
+	if e.scopeManager != nil {
+		scopeValidationStart := time.Now()
+
+		// IMMEDIATE CLI FEEDBACK
+		fmt.Println()
+		fmt.Println("═══════════════════════════════════════════════════════════════")
+		fmt.Println(" Scope Validation: Bug Bounty Program")
+		fmt.Println("═══════════════════════════════════════════════════════════════")
+		fmt.Printf("   Validating %d assets against program scope...\n", len(prioritized))
+		fmt.Println()
+
+		dbLogger.Infow(" Starting scope validation",
+			"assets_to_validate", len(prioritized),
+			"strict_mode", e.config.ScopeStrictMode,
+			"component", "orchestrator",
+		)
+
+		// Filter out-of-scope assets
+		inScopeAssets := make([]*AssetPriority, 0, len(prioritized))
+		outOfScopeAssets := make([]*AssetPriority, 0)
+		unknownAssets := make([]*AssetPriority, 0)
+
+		for _, asset := range prioritized {
+			// Validate asset against scope
+			validation, err := e.scopeManager.ValidateAsset(asset.Asset.Value)
+			if err != nil {
+				dbLogger.Warnw("Asset validation error - including asset",
+					"asset", asset.Asset.Value,
+					"error", err,
+					"component", "scope_validator",
+				)
+				// On error, include the asset (fail open)
+				unknownAssets = append(unknownAssets, asset)
+				inScopeAssets = append(inScopeAssets, asset)
+				continue
+			}
+
+			if validation.Status == scope.ScopeStatusInScope {
+				inScopeAssets = append(inScopeAssets, asset)
+				dbLogger.Debugw("Asset in scope",
+					"asset", asset.Asset.Value,
+					"program", validation.Program.Name,
+					"component", "scope_validator",
+				)
+			} else if validation.Status == scope.ScopeStatusOutOfScope {
+				outOfScopeAssets = append(outOfScopeAssets, asset)
+				dbLogger.Warnw("Asset out of scope - skipping",
+					"asset", asset.Asset.Value,
+					"reason", validation.Reason,
+					"component", "scope_validator",
+				)
+			} else {
+				// Unknown - behavior depends on strict mode
+				if e.config.ScopeStrictMode {
+					outOfScopeAssets = append(outOfScopeAssets, asset)
+					dbLogger.Warnw("Asset scope unknown (strict mode) - skipping",
+						"asset", asset.Asset.Value,
+						"component", "scope_validator",
+					)
+				} else {
+					unknownAssets = append(unknownAssets, asset)
+					inScopeAssets = append(inScopeAssets, asset)
+					dbLogger.Debugw("Asset scope unknown (permissive mode) - including",
+						"asset", asset.Asset.Value,
+						"component", "scope_validator",
+					)
+				}
+			}
+		}
+
+		dbLogger.Infow(" Scope validation completed",
+			"in_scope", len(inScopeAssets),
+			"out_of_scope", len(outOfScopeAssets),
+			"unknown", len(unknownAssets),
+			"duration", time.Since(scopeValidationStart).String(),
+			"component", "orchestrator",
+		)
+
+		// Display validation results
+		fmt.Printf("   ✓ Validation completed\n")
+		fmt.Printf("   In-Scope Assets: %d\n", len(inScopeAssets))
+		if len(outOfScopeAssets) > 0 {
+			fmt.Printf("   Out-of-Scope Assets: %d (skipped)\n", len(outOfScopeAssets))
+		}
+		if len(unknownAssets) > 0 {
+			fmt.Printf("   Unknown Scope Assets: %d (included in %s mode)\n",
+				len(unknownAssets),
+				func() string {
+					if e.config.ScopeStrictMode {
+						return "strict"
+					}
+					return "permissive"
+				}())
+		}
+		fmt.Printf("   Duration: %s\n", time.Since(scopeValidationStart).Round(time.Millisecond))
+		fmt.Println()
+
+		// Update prioritized list to only include in-scope assets
+		prioritized = inScopeAssets
+
+		if len(prioritized) == 0 {
+			dbLogger.Warnw("No in-scope assets to test after scope validation",
+				"component", "orchestrator",
+			)
+			fmt.Println("   ⚠️  No in-scope assets found - scan complete")
+			fmt.Println()
+
+			result.Status = "completed"
+			result.EndTime = time.Now()
+			result.Duration = result.EndTime.Sub(result.StartTime)
+			return result, nil
+		}
+	}
+
 	// Phase 3: Vulnerability Testing (parallel)
 	testingStart := time.Now()
 
@@ -938,6 +1346,38 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	if e.config.EnableSCIMTesting {
 		enabledScanners = append(enabledScanners, "scim")
 	}
+
+	// IMMEDIATE CLI FEEDBACK - Show user what's happening
+	fmt.Println()
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Println(" Phase 3: Vulnerability Testing")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Printf("   Assets to test: %d\n", len(prioritized))
+	fmt.Printf("   Enabled scanners: %s\n", strings.Join(enabledScanners, ", "))
+	fmt.Printf("   Scan timeout: %s\n", e.config.ScanTimeout)
+	fmt.Println()
+	if e.config.EnableAuthTesting {
+		fmt.Printf("   • Authentication testing (SAML, OAuth2, WebAuthn, JWT)...\n")
+	}
+	if e.config.EnableSCIMTesting {
+		fmt.Printf("   • SCIM provisioning vulnerabilities...\n")
+	}
+	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
+		fmt.Printf("   • GraphQL introspection and injection...\n")
+	}
+	if e.config.EnableAPITesting {
+		fmt.Printf("   • REST API security testing...\n")
+	}
+	if e.config.EnableIDORTesting {
+		fmt.Printf("   • IDOR (Insecure Direct Object Reference) testing...\n")
+	}
+	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
+		fmt.Printf("   • Nmap service fingerprinting...\n")
+	}
+	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
+		fmt.Printf("   • Nuclei CVE scanning...\n")
+	}
+	fmt.Println()
 
 	dbLogger.Infow(" Phase 3: Starting vulnerability testing",
 		"assets_to_test", len(prioritized),
@@ -1086,6 +1526,229 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	return result, nil
 }
 
+// ResumeFromCheckpoint resumes a scan from a saved checkpoint
+// This method loads the checkpoint state and continues execution from where it left off,
+// skipping completed phases and preserving all findings collected so far.
+func (e *BugBountyEngine) ResumeFromCheckpoint(ctx context.Context, state *checkpoint.State) (*BugBountyResult, error) {
+	execStart := time.Now()
+
+	// Use checkpoint scan ID
+	scanID := state.ScanID
+	target := state.Target
+
+	// Wrap logger with database event logger
+	dbLogger := logger.NewDBEventLogger(e.logger, e.store, scanID)
+
+	dbLogger.Infow("Resuming scan from checkpoint",
+		"scan_id", scanID,
+		"target", target,
+		"progress", state.Progress,
+		"current_phase", state.CurrentPhase,
+		"completed_tests", state.CompletedTests,
+		"findings_so_far", len(state.Findings),
+		"assets_discovered", len(state.DiscoveredAssets),
+	)
+
+	// Initialize progress tracker
+	tracker := progress.New(e.config.ShowProgress, dbLogger.Logger)
+	tracker.AddPhase("discovery", "Discovering assets")
+	tracker.AddPhase("prioritization", "Prioritizing targets")
+	tracker.AddPhase("testing", "Testing for vulnerabilities")
+	tracker.AddPhase("storage", "Storing results")
+
+	// Rebuild result from checkpoint
+	result := &BugBountyResult{
+		ScanID:           scanID,
+		Target:           target,
+		StartTime:        state.CreatedAt, // Original start time
+		Status:           "running",
+		PhaseResults:     make(map[string]PhaseResult),
+		Findings:         state.Findings, // Preserve existing findings
+		DiscoveredAssets: checkpoint.ConvertToDiscoveryAssets(state.DiscoveredAssets),
+	}
+
+	// P0-6 FIX: Calculate timeout based on work remaining, not elapsed time
+	// The old logic gave all resumed scans only 5 minutes if they were interrupted >30min ago.
+	// Instead, we estimate remaining work from progress percentage and allocate proportional time.
+
+	workCompleted := state.Progress / 100.0
+	workRemaining := 1.0 - workCompleted
+
+	// Estimate time needed = (total timeout) * (fraction of work remaining)
+	estimatedTimeNeeded := time.Duration(float64(e.config.TotalTimeout) * workRemaining)
+
+	// Apply reasonable bounds:
+	// - Minimum 5 minutes (even if 99% complete, give time for cleanup)
+	// - Maximum is the original total timeout (don't exceed configured limit)
+	remainingTimeout := estimatedTimeNeeded
+	if remainingTimeout < 5*time.Minute {
+		remainingTimeout = 5 * time.Minute
+	}
+	if remainingTimeout > e.config.TotalTimeout {
+		remainingTimeout = e.config.TotalTimeout
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, remainingTimeout)
+	defer cancel()
+
+	dbLogger.Infow("Resume context configured",
+		"progress_completed_pct", state.Progress,
+		"work_remaining_pct", workRemaining*100,
+		"estimated_time_needed", estimatedTimeNeeded,
+		"remaining_timeout_granted", remainingTimeout,
+		"original_timeout", e.config.TotalTimeout,
+		"elapsed_since_start", time.Since(state.CreatedAt),
+	)
+
+	// Declare all variables upfront to avoid goto issues
+	var assets []*discovery.Asset
+	var session *discovery.DiscoverySession
+	var discoveryPhaseResult PhaseResult
+	var prioritizedAssets []*AssetPriority
+	var completedTests map[string]bool
+	var newFindings []types.Finding
+	var phaseResults map[string]PhaseResult
+
+	// Determine where to resume from based on current phase
+	switch state.CurrentPhase {
+	case "initialized", "footprinting":
+		// Start from discovery
+		dbLogger.Infow("Resuming from discovery phase (checkpoint was early)")
+		goto discoveryPhase
+
+	case "discovery", "prioritization":
+		// Discovery complete, start testing
+		dbLogger.Infow("Skipping discovery phase (already completed)",
+			"assets_discovered", len(result.DiscoveredAssets),
+		)
+		tracker.CompletePhase("discovery")
+		tracker.CompletePhase("prioritization")
+		goto testingPhase
+
+	case "testing":
+		// Testing in progress, continue from completed tests
+		dbLogger.Infow("Resuming testing phase",
+			"completed_tests", state.CompletedTests,
+			"findings_so_far", len(result.Findings),
+		)
+		tracker.CompletePhase("discovery")
+		tracker.CompletePhase("prioritization")
+		tracker.StartPhase("testing")
+		goto continueTesting
+
+	case "storage":
+		// Nearly complete, just save and finish
+		dbLogger.Infow("Resuming storage phase (scan nearly complete)")
+		tracker.CompletePhase("discovery")
+		tracker.CompletePhase("prioritization")
+		tracker.CompletePhase("testing")
+		goto storagePhase
+
+	default:
+		dbLogger.Warnw("Unknown checkpoint phase, starting from beginning",
+			"phase", state.CurrentPhase,
+		)
+		goto discoveryPhase
+	}
+
+discoveryPhase:
+	// Run full discovery if not completed
+	tracker.StartPhase("discovery")
+
+	if e.config.SkipDiscovery {
+		// Quick mode: use target directly
+		normalizedTarget := target
+		if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+			normalizedTarget = "https://" + target
+		}
+		assets = []*discovery.Asset{
+			{Type: discovery.AssetTypeURL, Value: normalizedTarget, Priority: 100},
+		}
+		discoveryPhaseResult = PhaseResult{
+			Phase:    "discovery",
+			Status:   "skipped",
+			Duration: 0,
+		}
+	} else {
+		assets, session, discoveryPhaseResult = e.executeDiscoveryPhase(ctx, target, tracker, dbLogger)
+		result.DiscoverySession = session
+	}
+
+	result.DiscoveredAssets = assets
+	result.PhaseResults["discovery"] = discoveryPhaseResult
+	tracker.CompletePhase("discovery")
+
+testingPhase:
+	// Run vulnerability testing
+	tracker.StartPhase("testing")
+
+	// Prioritize assets for testing
+	prioritizedAssets = e.executePrioritizationPhase(result.DiscoveredAssets, dbLogger)
+
+	// Filter out already-tested assets if resuming mid-testing
+	completedTests = make(map[string]bool)
+	for _, test := range state.CompletedTests {
+		completedTests[test] = true
+	}
+
+	// Run testing on all assets (use existing testing phase but skip completed tests)
+	newFindings, phaseResults = e.executeTestingPhase(ctx, target, prioritizedAssets, tracker, dbLogger)
+	result.Findings = append(result.Findings, newFindings...)
+	for phase, pr := range phaseResults {
+		result.PhaseResults[phase] = pr
+	}
+
+	tracker.CompletePhase("testing")
+
+continueTesting:
+	// Already handled in testingPhase label
+
+storagePhase:
+	// Save all findings to database
+	tracker.StartPhase("storage")
+
+	// Set scan ID for all findings
+	for i := range result.Findings {
+		result.Findings[i].ScanID = scanID
+	}
+
+	// Save all findings at once
+	if err := e.store.SaveFindings(ctx, result.Findings); err != nil {
+		dbLogger.Errorw("Failed to save findings", "error", err, "count", len(result.Findings))
+	}
+
+	tracker.CompletePhase("storage")
+
+	// Update scan record with final status
+	result.Status = "completed"
+	result.Duration = time.Since(execStart)
+	result.EndTime = time.Now()
+	result.TestedAssets = len(result.DiscoveredAssets)
+	result.TotalFindings = len(result.Findings)
+
+	// Save final scan record
+	finalScan := &types.ScanRequest{
+		ID:          scanID,
+		Target:      target,
+		Type:        types.ScanTypeAuth,
+		Status:      types.ScanStatusCompleted,
+		CreatedAt:   state.CreatedAt,
+		CompletedAt: &result.EndTime,
+	}
+	if err := e.store.SaveScan(ctx, finalScan); err != nil {
+		dbLogger.Warnw("Failed to save final scan record", "error", err)
+	}
+
+	dbLogger.Infow("Scan resumed and completed successfully",
+		"scan_id", scanID,
+		"total_duration", result.Duration,
+		"total_findings", result.TotalFindings,
+		"tested_assets", result.TestedAssets,
+	)
+
+	return result, nil
+}
+
 // executeDiscoveryPhase runs asset discovery with timeout
 func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target string, tracker *progress.Tracker, dbLogger *logger.DBEventLogger) ([]*discovery.Asset, *discovery.DiscoverySession, PhaseResult) {
 	phaseStart := time.Now()
@@ -1108,6 +1771,24 @@ func (e *BugBountyEngine) executeDiscoveryPhase(ctx context.Context, target stri
 			"target", target,
 		)
 	}
+
+	// IMMEDIATE CLI FEEDBACK - Show user what's happening
+	fmt.Println()
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Println(" Phase 1: Asset Discovery")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Printf("   Target: %s\n", target)
+	if e.config.EnableDNS {
+		fmt.Printf("   • Subdomain enumeration (DNS, certs, search engines)...\n")
+	}
+	if e.config.EnablePortScan {
+		fmt.Printf("   • Port scanning for exposed services...\n")
+	}
+	if e.config.EnableWebCrawl {
+		fmt.Printf("   • Web crawling for endpoints and APIs...\n")
+	}
+	fmt.Printf("   • Timeout: %s\n", e.config.DiscoveryTimeout)
+	fmt.Println()
 
 	dbLogger.Infow(" Phase 1: Starting Asset Discovery",
 		"target", target,
@@ -1421,9 +2102,25 @@ func (e *BugBountyEngine) analyzeAssetFeatures(asset *discovery.Asset) AssetFeat
 }
 
 // executeTestingPhase runs all vulnerability tests in parallel
-func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string, assets []*AssetPriority, tracker *progress.Tracker, dbLogger *logger.DBEventLogger) ([]types.Finding, map[string]PhaseResult) {
+// P0-7 FIX: Add skipTests parameter to avoid re-running completed tests on resume
+func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string, assets []*AssetPriority, tracker *progress.Tracker, dbLogger *logger.DBEventLogger, skipTests []string) ([]types.Finding, map[string]PhaseResult) {
+	// Helper to check if test should be skipped
+	shouldSkip := func(testName string) bool {
+		for _, skip := range skipTests {
+			if skip == testName {
+				dbLogger.Infow("Skipping already-completed test",
+					"test", testName,
+					"component", "orchestrator",
+				)
+				return true
+			}
+		}
+		return false
+	}
+
 	dbLogger.Infow(" Phase 3: Starting vulnerability testing",
 		"assets", len(assets),
+		"skipping_tests", skipTests,
 		"component", "orchestrator",
 	)
 
@@ -1680,6 +2377,9 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
+				// Stream critical/high findings immediately to CLI
+				streamHighSeverityFinding(finding)
+
 				dbLogger.Infow(" SAML vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
@@ -1729,6 +2429,9 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
 
+				// Stream critical/high findings immediately to CLI
+				streamHighSeverityFinding(finding)
+
 				dbLogger.Infow(" OAuth2 vulnerability found",
 					"type", vuln.Type,
 					"severity", vuln.Severity,
@@ -1775,6 +2478,9 @@ func (e *BugBountyEngine) runAuthenticationTests(ctx context.Context, target str
 			for _, vuln := range report.Vulnerabilities {
 				finding := convertVulnerabilityToFinding(vuln, target)
 				findings = append(findings, finding)
+
+				// Stream critical/high findings immediately to CLI
+				streamHighSeverityFinding(finding)
 
 				dbLogger.Infow(" WebAuthn vulnerability found",
 					"type", vuln.Type,
@@ -2996,253 +3702,6 @@ func (l *restapiLoggerAdapter) Error(msg string, keysAndValues ...interface{}) {
 
 // ResumeFromCheckpoint resumes a scan from a saved checkpoint, skipping completed phases
 // TASK 10: Implements intelligent resume that skips already-completed work
-func (e *BugBountyEngine) ResumeFromCheckpoint(ctx context.Context, state *checkpoint.State) (*BugBountyResult, error) {
-	resumeStart := time.Now()
-	
-	// Reuse the scan ID from checkpoint
-	scanID := state.ScanID
-	
-	// Create DB logger for this resumed scan
-	dbLogger := logger.NewDBEventLogger(e.logger, e.store, scanID)
-	
-	dbLogger.Infow("⏯️  Resuming scan from checkpoint",
-		"scan_id", scanID,
-		"target", state.Target,
-		"progress", state.Progress,
-		"current_phase", state.CurrentPhase,
-		"completed_tests", state.CompletedTests,
-		"findings_so_far", len(state.Findings),
-		"checkpoint_age", time.Since(state.UpdatedAt).String(),
-	)
-	
-	// Initialize progress tracker
-	tracker := progress.New(e.config.ShowProgress, dbLogger.Logger)
-	tracker.AddPhase("discovery", "Discovering assets")
-	tracker.AddPhase("prioritization", "Prioritizing targets")
-	tracker.AddPhase("testing", "Testing for vulnerabilities")
-	tracker.AddPhase("storage", "Storing results")
-	
-	// Restore result from checkpoint
-	result := &BugBountyResult{
-		ScanID:       scanID,
-		Target:       state.Target,
-		StartTime:    state.CreatedAt,
-		Status:       "resuming",
-		PhaseResults: make(map[string]PhaseResult),
-		Findings:     state.Findings, // Restore previous findings
-	}
-	
-	// Apply total timeout
-	ctx, cancel := context.WithTimeout(ctx, e.config.TotalTimeout)
-	defer cancel()
-	
-	// Helper to check if a phase/test is completed
-	contains := func(slice []string, item string) bool {
-		for _, s := range slice {
-			if s == item {
-				return true
-			}
-		}
-		return false
-	}
-	
-	// Check which phases are already completed
-	skipDiscovery := contains(state.CompletedTests, "discovery")
-	skipPrioritization := contains(state.CompletedTests, "prioritization")
-	
-	// Phase 0: Organization Footprinting (always skip on resume - not stored in checkpoint)
-	dbLogger.Infow("⏭️  Skipping organization footprinting (not resumable)")
-	
-	// Phase 1: Asset Discovery
-	var assets []*discovery.Asset
-	var discoverySession *discovery.DiscoverySession
-	var discoveryPhase PhaseResult
-	
-	if skipDiscovery {
-		dbLogger.Infow("⏭️  Skipping discovery (already completed in checkpoint)",
-			"assets_count", len(state.DiscoveredAssets),
-		)
-		
-		// Convert checkpoint assets to discovery.Asset
-		assets = make([]*discovery.Asset, len(state.DiscoveredAssets))
-		for i, cpAsset := range state.DiscoveredAssets {
-			assets[i] = &discovery.Asset{
-				ID:    cpAsset.ID,
-				Type:  discovery.AssetType(cpAsset.Type),
-				Value: cpAsset.Value,
-				Domain: cpAsset.Domain,
-				IP:    cpAsset.IP,
-				Port:  cpAsset.Port,
-			}
-		}
-		
-		result.DiscoveredAssets = assets
-		tracker.UpdateProgress("discovery", 100)
-		
-		discoveryPhase = PhaseResult{
-			Phase:    "discovery",
-			Status:   "skipped",
-			Findings: 0,
-			Duration: 0,
-		}
-	} else {
-		dbLogger.Infow(" Running discovery phase...")
-		tracker.StartPhase("discovery")
-		assets, discoverySession, discoveryPhase = e.executeDiscoveryPhase(ctx, state.Target, tracker, dbLogger)
-		result.DiscoveredAssets = assets
-		result.DiscoverySession = discoverySession
-		tracker.CompletePhase("discovery")
-	}
-	
-	result.PhaseResults["discovery"] = discoveryPhase
-	result.DiscoveredAt = len(assets)
-	
-	// Phase 2: Asset Prioritization
-	var prioritized []*AssetPriority
-	
-	if skipPrioritization {
-		dbLogger.Infow("⏭️  Skipping prioritization (already completed in checkpoint)",
-			"assets_count", len(assets),
-		)
-		
-		// Create prioritized assets from discovery assets
-		prioritized = make([]*AssetPriority, len(assets))
-		for i, asset := range assets {
-			prioritized[i] = &AssetPriority{
-				Asset: asset,
-				Score: 50, // Default score for resumed assets
-			}
-		}
-		
-		tracker.UpdateProgress("prioritization", 100)
-	} else {
-		dbLogger.Infow(" Running prioritization phase...")
-		tracker.StartPhase("prioritization")
-		prioritized = e.executePrioritizationPhase(assets, dbLogger)
-		tracker.CompletePhase("prioritization")
-	}
-	
-	// Phase 3: Vulnerability Testing (skip individual tests that are completed)
-	dbLogger.Infow(" Running vulnerability testing phase (skipping completed tests)...")
-	tracker.StartPhase("testing")
-	
-	findings, phaseResults := e.executeTestingPhase(ctx, state.Target, prioritized, tracker, dbLogger)
-	
-	// Filter out tests that were already completed (they return 0 findings)
-	for testName := range phaseResults {
-		if contains(state.CompletedTests, testName) {
-			dbLogger.Debugw("Test already completed in checkpoint",
-				"test", testName,
-				"findings", phaseResults[testName].Findings,
-			)
-		}
-	}
-	
-	result.TestedAssets = len(prioritized)
-	result.Findings = append(result.Findings, findings...)
-	
-	for phase, pr := range phaseResults {
-		result.PhaseResults[phase] = pr
-	}
-	
-	tracker.CompletePhase("testing")
-	
-	// Phase 4: Storage (always run to save final state)
-	dbLogger.Infow(" Storing results...")
-	tracker.StartPhase("storage")
-
-	// TASK 14: Enrich findings before saving (same as Execute method)
-	if len(result.Findings) > 0 && e.enricher != nil {
-		dbLogger.Infow("Enriching findings with CVSS, exploits, and remediation guidance...",
-			"findings_count", len(result.Findings),
-			"enrichment_level", e.config.EnrichmentLevel,
-		)
-
-		enrichedFindings, err := e.enricher.EnrichFindings(ctx, result.Findings)
-		if err != nil {
-			dbLogger.Warnw("Enrichment failed - saving findings without enrichment",
-				"error", err,
-				"findings_count", len(result.Findings),
-			)
-		} else {
-			// Convert enriched findings back to types.Finding with metadata
-			for i := range result.Findings {
-				if enrichedFindings[i].CVSSScore != nil {
-					if result.Findings[i].Metadata == nil {
-						result.Findings[i].Metadata = make(map[string]interface{})
-					}
-					result.Findings[i].Metadata["cvss_score"] = enrichedFindings[i].CVSSScore.BaseScore
-					result.Findings[i].Metadata["cvss_vector"] = enrichedFindings[i].CVSSScore.Vector
-					result.Findings[i].Metadata["cvss_severity"] = enrichedFindings[i].CVSSScore.Severity
-				}
-
-				if enrichedFindings[i].ExploitInfo != nil && enrichedFindings[i].ExploitInfo.ExploitAvailable {
-					if result.Findings[i].Metadata == nil {
-						result.Findings[i].Metadata = make(map[string]interface{})
-					}
-					result.Findings[i].Metadata["exploit_available"] = true
-					result.Findings[i].Metadata["exploit_count"] = enrichedFindings[i].ExploitInfo.ExploitCount
-				}
-
-				if enrichedFindings[i].Remediation != nil {
-					if enrichedFindings[i].Remediation.Summary != "" {
-						result.Findings[i].Solution = enrichedFindings[i].Remediation.Summary
-					}
-					if result.Findings[i].Metadata == nil {
-						result.Findings[i].Metadata = make(map[string]interface{})
-					}
-					result.Findings[i].Metadata["remediation_priority"] = enrichedFindings[i].Remediation.Priority
-					result.Findings[i].Metadata["estimated_effort"] = enrichedFindings[i].Remediation.EstimatedEffort
-				}
-			}
-
-			dbLogger.Infow("Findings enriched successfully",
-				"enriched_count", len(enrichedFindings),
-			)
-		}
-	}
-
-	// Save all findings to database
-	for i := range result.Findings {
-		result.Findings[i].ScanID = scanID
-	}
-	if err := e.store.SaveFindings(ctx, result.Findings); err != nil {
-		dbLogger.Errorw("Failed to save findings",
-			"error", err,
-			"findings_count", len(result.Findings),
-		)
-	}
-	
-	// Update scan record
-	result.EndTime = time.Now()
-	result.Duration = result.EndTime.Sub(result.StartTime)
-	result.Status = "completed"
-	
-	finalScan := &types.ScanRequest{
-		ID:          scanID,
-		Target:      state.Target,
-		Type:        types.ScanTypeAuth,
-		Status:      types.ScanStatusCompleted,
-		CreatedAt:   result.StartTime,
-		CompletedAt: &result.EndTime,
-	}
-	
-	if err := e.store.SaveScan(ctx, finalScan); err != nil {
-		dbLogger.Warnw("Failed to update scan record", "error", err)
-	}
-	
-	tracker.CompletePhase("storage")
-	
-	dbLogger.Infow("✅ Resumed scan completed",
-		"scan_id", scanID,
-		"total_duration", result.Duration.String(),
-		"resume_duration", time.Since(resumeStart).String(),
-		"findings", len(result.Findings),
-		"skipped_phases", []string{},
-	)
-
-	return result, nil
-}
 
 // displayOrganizationFootprinting displays user-friendly organization footprinting results to CLI
 func (e *BugBountyEngine) displayOrganizationFootprinting(org *correlation.Organization, duration time.Duration) {
@@ -3456,4 +3915,115 @@ func (e *BugBountyEngine) displayScanSummary(result *BugBountyResult) {
 	fmt.Printf("    • Web dashboard: http://localhost:8080 (if server running)\n")
 
 	fmt.Println("═══════════════════════════════════════════════════════════════\n")
+}
+
+// streamHighSeverityFinding displays critical/high findings immediately to CLI
+// This provides real-time feedback during scans instead of waiting until the end
+func streamHighSeverityFinding(finding types.Finding) {
+	// Only stream CRITICAL and HIGH severity findings
+	if finding.Severity != types.SeverityCritical && finding.Severity != types.SeverityHigh {
+		return
+	}
+
+	// Color coding for severity
+	severityStr := fmt.Sprintf("[%s]", finding.Severity)
+	if finding.Severity == types.SeverityCritical {
+		severityStr = fmt.Sprintf("\033[1;31m[CRITICAL]\033[0m") // Bold Red
+	} else if finding.Severity == types.SeverityHigh {
+		severityStr = fmt.Sprintf("\033[1;33m[HIGH]\033[0m") // Bold Yellow
+	}
+
+	// Immediate CLI output
+	fmt.Println()
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Printf(" %s VULNERABILITY FOUND\n", severityStr)
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Printf("   Title: %s\n", finding.Title)
+	fmt.Printf("   Type: %s\n", finding.Type)
+	fmt.Printf("   Tool: %s\n", finding.Tool)
+	fmt.Printf("   Severity: %s\n", finding.Severity)
+	if finding.Description != "" {
+		// Truncate long descriptions
+		desc := finding.Description
+		if len(desc) > 200 {
+			desc = desc[:197] + "..."
+		}
+		fmt.Printf("   Description: %s\n", desc)
+	}
+	fmt.Println("═══════════════════════════════════════════════════════════════")
+	fmt.Println()
+}
+
+// ExecuteWithPipeline runs the bug bounty scan using the Kill Chain aligned pipeline
+//
+// ADVERSARIAL REVIEW: P0 FIX #3 - Feedback Loop Implementation
+// - This is the NEW execution path that uses the Kill Chain aligned pipeline
+// - Replaces the old Execute() method's chaotic scanning
+// - Implements iterative reconnaissance (findings → new assets → re-scan)
+// - Clear phase boundaries with checkpointing
+//
+// USAGE:
+//   Old way: engine.Execute(ctx, target) // Chaotic, no clear phases
+//   New way: engine.ExecuteWithPipeline(ctx, target) // Kill Chain aligned, iterative
+//
+// MIGRATION PATH:
+//   1. Update cmd/root.go to call ExecuteWithPipeline instead of Execute
+//   2. Test with: shells example.com --use-pipeline
+//   3. Once stable, make ExecuteWithPipeline the default
+//   4. Deprecate old Execute() method
+func (e *BugBountyEngine) ExecuteWithPipeline(ctx context.Context, target string) (*PipelineResult, error) {
+	e.logger.Infow("Starting Kill Chain aligned pipeline execution",
+		"target", target,
+		"total_timeout", e.config.TotalTimeout.String(),
+	)
+
+	// Apply total timeout to context
+	ctx, cancel := context.WithTimeout(ctx, e.config.TotalTimeout)
+	defer cancel()
+
+	// Create pipeline with all necessary engines
+	pipeline, err := NewPipeline(
+		target,
+		e.config,
+		e.logger,
+		e.store,
+		e.discoveryEngine,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pipeline: %w", err)
+	}
+
+	// Initialize phase engines
+	pipeline.weaponizationEngine = NewWeaponizationEngine(e.config, e.logger)
+	pipeline.exploitationEngine = NewExploitationEngine(e.config, e.logger)
+	
+	// Initialize correlation engine with existing correlator and enricher
+	var exploitChainer *correlation.ExploitChainer
+	if e.config.EnableEnrichment {
+		// Create vulnerability correlator (was unused before P1 FIX #6)
+		exploitChainer = correlation.NewExploitChainer()
+	}
+	
+	pipeline.correlationEngine = NewCorrelationEngine(
+		e.config,
+		e.logger,
+		exploitChainer,
+		e.enricher,
+	)
+
+	// Execute pipeline (includes feedback loop)
+	result, err := pipeline.Execute(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("pipeline execution failed: %w", err)
+	}
+
+	e.logger.Infow("Pipeline execution completed successfully",
+		"scan_id", result.ScanID,
+		"duration", result.Duration.String(),
+		"iterations", result.Iterations,
+		"total_findings", result.TotalFindings,
+		"exploit_chains", result.ExploitChains,
+	)
+
+	return result, nil
 }

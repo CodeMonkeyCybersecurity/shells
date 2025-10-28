@@ -4,6 +4,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -125,7 +126,7 @@ func buildOrchestratorConfig(cmd *cobra.Command) orchestrator.BugBountyConfig {
 		// Quick mode: Fast triage, critical vulns only (< 30 seconds total)
 		// TASK 8 FIX: Enable minimal web crawl for auth endpoint discovery
 		// Auth vulns (Golden SAML, JWT confusion, OAuth2 bypass) are HIGH-VALUE findings
-		config.SkipDiscovery = false // CHANGED: Need discovery for auth endpoints
+		config.SkipDiscovery = false              // CHANGED: Need discovery for auth endpoints
 		config.DiscoveryTimeout = 5 * time.Second // Fast auth endpoint discovery
 		config.ScanTimeout = 30 * time.Second
 		config.TotalTimeout = 1 * time.Minute
@@ -133,12 +134,12 @@ func buildOrchestratorConfig(cmd *cobra.Command) orchestrator.BugBountyConfig {
 		config.MaxDepth = 1 // Minimal depth for speed, enough for auth discovery
 		config.EnableDNS = false
 		config.EnablePortScan = false
-		config.EnableWebCrawl = true // CHANGED: Allow minimal crawl for auth endpoints
+		config.EnableWebCrawl = true    // CHANGED: Allow minimal crawl for auth endpoints
 		config.EnableAPITesting = false // Skip in quick mode
 		config.EnableLogicTesting = false
-		config.EnableAuthTesting = true // ENABLED: Auth testing is high-value for bug bounties
+		config.EnableAuthTesting = true  // ENABLED: Auth testing is high-value for bug bounties
 		config.EnableIDORTesting = false // Skip IDOR in quick mode
-		config.EnableNucleiScan = false // Skip Nuclei in quick mode
+		config.EnableNucleiScan = false  // Skip Nuclei in quick mode
 		config.EnableSCIMTesting = false // Skip SCIM in quick mode
 	} else if deep {
 		// Deep mode: Comprehensive testing (< 15 minutes total)
@@ -161,6 +162,59 @@ func buildOrchestratorConfig(cmd *cobra.Command) orchestrator.BugBountyConfig {
 	// Always enable progress for main command
 	config.ShowProgress = true
 	config.Verbose = false
+
+	// Bug bounty platform integration settings
+	if scopeValidation, _ := cmd.Flags().GetBool("scope-validation"); scopeValidation {
+		config.EnableScopeValidation = true
+	}
+	if platform, _ := cmd.Flags().GetString("platform"); platform != "" {
+		config.BugBountyPlatform = platform
+		config.EnableScopeValidation = true // Auto-enable if platform specified
+	}
+	if program, _ := cmd.Flags().GetString("program"); program != "" {
+		config.BugBountyProgram = program
+	}
+	if scopeStrict, _ := cmd.Flags().GetBool("scope-strict"); scopeStrict {
+		config.ScopeStrictMode = true
+	}
+
+	// Load platform API credentials from environment variables
+	config.PlatformCredentials = make(map[string]orchestrator.PlatformCredential)
+
+	// HackerOne credentials
+	if h1User := os.Getenv("HACKERONE_USERNAME"); h1User != "" {
+		config.PlatformCredentials["hackerone"] = orchestrator.PlatformCredential{
+			Username: h1User,
+			APIKey:   os.Getenv("HACKERONE_API_KEY"),
+		}
+		config.PlatformCredentials["h1"] = config.PlatformCredentials["hackerone"] // Alias
+	}
+
+	// Bugcrowd credentials
+	if bcUser := os.Getenv("BUGCROWD_USERNAME"); bcUser != "" {
+		config.PlatformCredentials["bugcrowd"] = orchestrator.PlatformCredential{
+			Username: bcUser,
+			APIKey:   os.Getenv("BUGCROWD_API_KEY"),
+		}
+		config.PlatformCredentials["bc"] = config.PlatformCredentials["bugcrowd"] // Alias
+	}
+
+	// Intigriti credentials
+	if intUser := os.Getenv("INTIGRITI_USERNAME"); intUser != "" {
+		config.PlatformCredentials["intigriti"] = orchestrator.PlatformCredential{
+			Username: intUser,
+			APIKey:   os.Getenv("INTIGRITI_API_KEY"),
+		}
+	}
+
+	// YesWeHack credentials
+	if ywhUser := os.Getenv("YESWEHACK_USERNAME"); ywhUser != "" {
+		config.PlatformCredentials["yeswehack"] = orchestrator.PlatformCredential{
+			Username: ywhUser,
+			APIKey:   os.Getenv("YESWEHACK_API_KEY"),
+		}
+		config.PlatformCredentials["ywh"] = config.PlatformCredentials["yeswehack"] // Alias
+	}
 
 	return config
 }

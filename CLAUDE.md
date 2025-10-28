@@ -757,14 +757,50 @@ shells results search --term "Golden SAML"
   - Backend logging: Use `log.Debugw()`, `log.Warnw()`, `log.Errorw()` with component tags
   - Progress updates: Use periodic `log.Infow()` with progress_pct field
   - Interactive prompts: Log intent before/after using structured logging
-- **ALL documentation must be inline in code files** (ENFORCED):
-  - Strategic documentation: Header comments in relevant package/file
-  - Tactical notes: Inline comments at exact location in code
-  - Architecture decisions: Document in main package file (e.g., pkg/hera/hera.go)
-  - Fix summaries: Inline with ADVERSARIAL REVIEW STATUS blocks
-  - NEVER create standalone .md files for fix summaries, architecture docs, implementation status, or code review results
-  - ONLY create standalone .md for: README.md, CLAUDE.md, CONTRIBUTING.md
-  - When asked to document work, default to inline comments in code
+
+### Documentation Standards (ENFORCED - SAVE TOKENS)
+
+**CRITICAL: Documentation is expensive. Minimize wasteful .md file creation.**
+
+**Inline Documentation ONLY** (99% of cases):
+- Strategic documentation: Header comments in relevant package/file
+- Tactical notes: Inline comments at exact location in code
+- Architecture decisions: Document in main package file header (e.g., pkg/hera/hera.go)
+- Fix summaries: Inline with ADVERSARIAL REVIEW STATUS blocks in affected files
+- Implementation notes: Inline comments where code lives
+- API documentation: godoc comments on exported functions/types
+
+**ROADMAP.md for Planning** (use for plans and future work):
+- Feature roadmap and future enhancements
+- Multi-step implementation plans
+- Strategic priorities and timelines
+- Deferred work and technical debt backlog
+- Breaking changes planned for future versions
+
+**Standalone .md Files** (ONLY these three):
+- README.md - User-facing project documentation
+- CLAUDE.md - This file, instructions for Claude Code
+- CONTRIBUTING.md - Contribution guidelines (if it exists)
+
+**NEVER create standalone .md files for:**
+- Fix summaries or work logs
+- Architecture documentation
+- Implementation status or progress reports
+- Code review results
+- Analysis or investigation notes
+- Feature documentation
+- API documentation
+
+**When asked to "document" something:**
+1. Default to inline code comments
+2. If planning future work, add to ROADMAP.md
+3. Only create new .md files if explicitly required AND user confirms
+
+**Token Cost Reality:**
+- Reading large .md files costs 1000s of tokens
+- Inline docs are read with code (already loaded)
+- ROADMAP.md is small, scoped, efficient
+- Every unnecessary .md file wastes user's API budget
 
 ### Priority System
 
