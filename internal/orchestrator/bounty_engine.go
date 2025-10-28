@@ -572,6 +572,7 @@ func NewBugBountyEngine(
 }
 
 // BugBountyResult contains the complete results of a bug bounty scan
+// P0-2 FIX: Add mutex to protect concurrent access to DiscoveredAssets
 type BugBountyResult struct {
 	ScanID           string
 	Target           string
@@ -587,6 +588,7 @@ type BugBountyResult struct {
 	OrganizationInfo *correlation.Organization      // Organization footprinting results
 	DiscoverySession *discovery.DiscoverySession    // Asset discovery session metadata
 	DiscoveredAssets []*discovery.Asset              // Discovered assets for display
+	assetsMutex      sync.RWMutex                    // P0-2: Protects DiscoveredAssets from race conditions
 }
 
 // PhaseResult contains results from a specific phase
@@ -669,8 +671,10 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 			return
 		}
 
-		// Convert discovered assets for checkpoint serialization
+		// P0-2 FIX: Lock assets during read to prevent race condition with concurrent modifications
+		result.assetsMutex.RLock()
 		checkpointAssets := checkpoint.ConvertDiscoveryAssets(result.DiscoveredAssets)
+		result.assetsMutex.RUnlock()
 
 		// Build checkpoint state
 		state := &checkpoint.State{
@@ -1131,7 +1135,10 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 		if lastSession != nil {
 			result.DiscoverySession = lastSession
 		}
-		result.DiscoveredAssets = assets // Store assets for display
+		// P0-2 FIX: Lock during write to prevent race with checkpoint save
+		result.assetsMutex.Lock()
+		result.DiscoveredAssets = assets
+		result.assetsMutex.Unlock()
 
 		phaseResult = PhaseResult{
 			Phase:     "discovery",
@@ -1406,7 +1413,8 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	}
 
 	tracker.StartPhase("testing")
-	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized, tracker, dbLogger)
+	// Normal run: no tests to skip (empty slice)
+	findings, phaseResults := e.executeTestingPhase(ctx, target, prioritized, tracker, dbLogger, []string{})
 
 	testingDuration := time.Since(testingStart)
 	dbLogger.Infow(" Testing phase completed",
@@ -1674,7 +1682,11 @@ discoveryPhase:
 		result.DiscoverySession = session
 	}
 
+	// P0-2 FIX: Lock during write to prevent race with checkpoint save
+	result.assetsMutex.Lock()
 	result.DiscoveredAssets = assets
+	result.assetsMutex.Unlock()
+
 	result.PhaseResults["discovery"] = discoveryPhaseResult
 	tracker.CompletePhase("discovery")
 
@@ -1691,8 +1703,9 @@ testingPhase:
 		completedTests[test] = true
 	}
 
+	// P0-7 FIX: Pass completedTests to skip already-run tests on resume
 	// Run testing on all assets (use existing testing phase but skip completed tests)
-	newFindings, phaseResults = e.executeTestingPhase(ctx, target, prioritizedAssets, tracker, dbLogger)
+	newFindings, phaseResults = e.executeTestingPhase(ctx, target, prioritizedAssets, tracker, dbLogger, state.CompletedTests)
 	result.Findings = append(result.Findings, newFindings...)
 	for phase, pr := range phaseResults {
 		result.PhaseResults[phase] = pr
@@ -2165,7 +2178,7 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 	var wg sync.WaitGroup
 
 	// Authentication Testing
-	if e.config.EnableAuthTesting {
+	if e.config.EnableAuthTesting && !shouldSkip("auth") {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -2176,10 +2189,12 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Unlock()
 			updateTestProgress()
 		}()
+	} else if shouldSkip("auth") {
+		updateTestProgress() // Count as completed
 	}
 
 	// SCIM Testing
-	if e.config.EnableSCIMTesting {
+	if e.config.EnableSCIMTesting && !shouldSkip("scim") {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -2190,10 +2205,12 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Unlock()
 			updateTestProgress()
 		}()
+	} else if shouldSkip("scim") {
+		updateTestProgress()
 	}
 
 	// API Testing
-	if e.config.EnableAPITesting {
+	if e.config.EnableAPITesting && !shouldSkip("api") {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -2204,10 +2221,12 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Unlock()
 			updateTestProgress()
 		}()
+	} else if shouldSkip("api") {
+		updateTestProgress()
 	}
 
 	// Nmap Service Fingerprinting
-	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
+	if e.config.EnableServiceFingerprint && e.nmapScanner != nil && !shouldSkip("nmap") {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -2218,10 +2237,12 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Unlock()
 			updateTestProgress()
 		}()
+	} else if shouldSkip("nmap") {
+		updateTestProgress()
 	}
 
 	// Nuclei Vulnerability Scanning
-	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
+	if e.config.EnableNucleiScan && e.nucleiScanner != nil && !shouldSkip("nuclei") {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -2232,10 +2253,12 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Unlock()
 			updateTestProgress()
 		}()
+	} else if shouldSkip("nuclei") {
+		updateTestProgress()
 	}
 
 	// GraphQL Testing (Go scanner + optional Python GraphCrawler)
-	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
+	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil && !shouldSkip("graphql") {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -2246,10 +2269,12 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Unlock()
 			updateTestProgress()
 		}()
+	} else if shouldSkip("graphql") {
+		updateTestProgress()
 	}
 
 	// IDOR Testing (Go scanner)
-	if e.config.EnableIDORTesting && e.idorScanner != nil {
+	if e.config.EnableIDORTesting && e.idorScanner != nil && !shouldSkip("idor") {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -2260,6 +2285,8 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 			mu.Unlock()
 			updateTestProgress()
 		}()
+	} else if shouldSkip("idor") {
+		updateTestProgress()
 	}
 
 	// Wait for all tests to complete
