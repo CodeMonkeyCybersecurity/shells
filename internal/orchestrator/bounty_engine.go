@@ -79,6 +79,7 @@ type BugBountyEngine struct {
 	// Output and Persistence (REFACTORED: extracted from bounty_engine.go)
 	outputFormatter      *OutputFormatter
 	persistenceManager   *PersistenceManager
+	platformIntegration  *PlatformIntegration
 
 	// Configuration
 	config BugBountyConfig
@@ -492,164 +493,15 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	}
 
 	// Pre-Phase: Bug Bounty Platform Scope Import (if enabled)
-	if e.scopeManager != nil && e.config.BugBountyPlatform != "" && e.config.BugBountyProgram != "" {
-		scopeImportStart := time.Now()
-
-		// IMMEDIATE CLI FEEDBACK - Show user what's happening
-		fmt.Println()
-		fmt.Println("═══════════════════════════════════════════════════════════════")
-		fmt.Println(" Scope Import: Bug Bounty Program")
-		fmt.Println("═══════════════════════════════════════════════════════════════")
-		fmt.Printf("   Platform: %s\n", e.config.BugBountyPlatform)
-		fmt.Printf("   Program: %s\n", e.config.BugBountyProgram)
-		fmt.Printf("   • Fetching program scope from platform API...\n")
-		fmt.Println()
-
-		dbLogger.Infow(" Importing bug bounty program scope",
-			"platform", e.config.BugBountyPlatform,
-			"program", e.config.BugBountyProgram,
-			"component", "orchestrator",
-		)
-
-		// Get platform client
-		var platformType scope.Platform
-		switch strings.ToLower(e.config.BugBountyPlatform) {
-		case "hackerone", "h1":
-			platformType = scope.PlatformHackerOne
-		case "bugcrowd", "bc":
-			platformType = scope.PlatformBugcrowd
-		case "intigriti":
-			platformType = scope.PlatformIntigriti
-		case "yeswehack", "ywh":
-			platformType = scope.PlatformYesWeHack
-		default:
-			dbLogger.Errorw("Unsupported bug bounty platform",
-				"platform", e.config.BugBountyPlatform,
-				"supported", []string{"hackerone", "bugcrowd", "intigriti", "yeswehack"},
-				"component", "orchestrator",
-			)
-			fmt.Printf("   ⚠️  Unsupported platform: %s\n", e.config.BugBountyPlatform)
-			fmt.Printf("   Supported: hackerone, bugcrowd, intigriti, yeswehack\n")
-			fmt.Printf("   Continuing without scope validation...\n")
-			fmt.Println()
+	if e.platformIntegration != nil {
+		scopeImported := e.platformIntegration.ImportScope(ctx, updateProgress, saveCheckpoint)
+		if !scopeImported {
+			// Scope import failed or disabled - disable scope validation
 			e.scopeManager = nil
+		} else {
+			// Scope imported successfully - update scopeManager reference
+			e.scopeManager = e.platformIntegration.GetScopeManager()
 		}
-
-		if e.scopeManager != nil {
-			// Get platform client and fetch program
-			client := e.scopeManager.GetPlatformClient(platformType)
-			if client == nil {
-				dbLogger.Errorw("Platform client not available",
-					"platform", platformType,
-					"component", "orchestrator",
-				)
-				fmt.Printf("   ⚠️  Platform client not available\n")
-				fmt.Printf("   Continuing without scope validation...\n")
-				fmt.Println()
-				e.scopeManager = nil
-			} else {
-				// Configure client with API credentials if available
-				if cred, ok := e.config.PlatformCredentials[strings.ToLower(e.config.BugBountyPlatform)]; ok {
-					if cred.Username != "" && cred.APIKey != "" {
-						// Type assert to configure the client
-						if h1Client, ok := client.(*scope.HackerOneClient); ok {
-							h1Client.Configure(cred.Username, cred.APIKey)
-							dbLogger.Debugw("Configured HackerOne API credentials",
-								"username", cred.Username,
-								"component", "orchestrator",
-							)
-						} else if bcClient, ok := client.(*scope.BugcrowdClient); ok {
-							bcClient.Configure(cred.APIKey) // Bugcrowd uses API token only
-							dbLogger.Debugw("Configured Bugcrowd API credentials",
-								"component", "orchestrator",
-							)
-						}
-					} else {
-						dbLogger.Warnw("Platform credentials incomplete",
-							"platform", e.config.BugBountyPlatform,
-							"has_username", cred.Username != "",
-							"has_api_key", cred.APIKey != "",
-							"note", "Will attempt public API access",
-							"component", "orchestrator",
-						)
-					}
-				} else {
-					dbLogger.Infow("No platform credentials configured",
-						"platform", e.config.BugBountyPlatform,
-						"note", "Will attempt public API access",
-						"hint", fmt.Sprintf("Set %s_USERNAME and %s_API_KEY environment variables for private programs",
-							strings.ToUpper(e.config.BugBountyPlatform),
-							strings.ToUpper(e.config.BugBountyPlatform)),
-						"component", "orchestrator",
-					)
-				}
-
-				// Fetch program from platform
-				program, err := client.GetProgram(ctx, e.config.BugBountyProgram)
-				if err != nil {
-					dbLogger.Errorw("Failed to fetch bug bounty program",
-						"error", err,
-						"platform", e.config.BugBountyPlatform,
-						"program", e.config.BugBountyProgram,
-						"component", "orchestrator",
-					)
-					fmt.Printf("   ⚠️  Failed to fetch program: %v\n", err)
-
-					// Check if this looks like an authentication error
-					errStr := strings.ToLower(err.Error())
-					if strings.Contains(errStr, "401") || strings.Contains(errStr, "unauthorized") ||
-						strings.Contains(errStr, "403") || strings.Contains(errStr, "forbidden") ||
-						strings.Contains(errStr, "invalid credentials") {
-						fmt.Printf("\n   Authentication failed. For private programs, set:\n")
-						platformUpper := strings.ToUpper(e.config.BugBountyPlatform)
-						fmt.Printf("     export %s_USERNAME=your-username\n", platformUpper)
-						fmt.Printf("     export %s_API_KEY=your-api-key\n", platformUpper)
-						fmt.Println()
-					} else {
-						fmt.Printf("   Continuing without scope validation...\n")
-						fmt.Println()
-					}
-					e.scopeManager = nil
-				} else {
-					// Add program to scope manager
-					if err := e.scopeManager.AddProgram(program); err != nil {
-						dbLogger.Errorw("Failed to add program to scope manager",
-							"error", err,
-							"program", program.Name,
-							"component", "orchestrator",
-						)
-						fmt.Printf("   ⚠️  Failed to add program: %v\n", err)
-						fmt.Printf("   Continuing without scope validation...\n")
-						fmt.Println()
-						e.scopeManager = nil
-					} else {
-						dbLogger.Infow(" Bug bounty scope import completed",
-							"program_id", program.ID,
-							"duration", time.Since(scopeImportStart).String(),
-							"component", "orchestrator",
-						)
-
-						// Display scope summary
-						fmt.Printf("   ✓ Scope imported successfully\n")
-						fmt.Printf("   Program: %s\n", program.Name)
-						if len(program.Scope) > 0 {
-							fmt.Printf("   In-Scope Assets: %d\n", len(program.Scope))
-						}
-						if len(program.OutOfScope) > 0 {
-							fmt.Printf("   Out-of-Scope Assets: %d\n", len(program.OutOfScope))
-						}
-						if program.MaxBounty > 0 {
-							fmt.Printf("   Max Bounty: $%.0f\n", program.MaxBounty)
-						}
-						fmt.Printf("   Duration: %s\n", time.Since(scopeImportStart).Round(time.Millisecond))
-						fmt.Println()
-					}
-				}
-			}
-		}
-
-		updateProgress("scope_import", 2.0, []string{"scope_import"})
-		saveCheckpoint("scope_import", 2.0, []string{"scope_import"}, []types.Finding{})
 	}
 
 	// Phase 0: Organization Footprinting (if enabled)

@@ -88,26 +88,28 @@ func (f *EngineFactory) Build() (*BugBountyEngine, error) {
 	checkpointMgr := f.buildCheckpointManager()
 	outputFormatter := f.buildOutputFormatter()
 	persistenceMgr := f.buildPersistenceManager(enricher, checkpointMgr)
+	platformIntegration := f.buildPlatformIntegration(scopeManager)
 
 	engine := &BugBountyEngine{
-		store:              f.store,
-		telemetry:          f.telemetry,
-		logger:             f.logger,
-		rateLimiter:        rateLimiter,
-		discoveryEngine:    discoveryEngine,
-		orgCorrelator:      orgCorrelator,
-		certIntel:          certIntel,
-		scopeManager:       scopeManager,
-		authDiscovery:      authDiscovery,
-		scannerManager:     scannerMgr,
-		pythonWorkers:      pythonWorkers,
-		enricher:           enricher,
-		checkpointEnabled:  f.config.EnableCheckpointing,
-		checkpointInterval: f.config.CheckpointInterval,
-		checkpointManager:  checkpointMgr,
-		outputFormatter:    outputFormatter,
-		persistenceManager: persistenceMgr,
-		config:             f.config,
+		store:               f.store,
+		telemetry:           f.telemetry,
+		logger:              f.logger,
+		rateLimiter:         rateLimiter,
+		discoveryEngine:     discoveryEngine,
+		orgCorrelator:       orgCorrelator,
+		certIntel:           certIntel,
+		scopeManager:        scopeManager,
+		authDiscovery:       authDiscovery,
+		scannerManager:      scannerMgr,
+		pythonWorkers:       pythonWorkers,
+		enricher:            enricher,
+		checkpointEnabled:   f.config.EnableCheckpointing,
+		checkpointInterval:  f.config.CheckpointInterval,
+		checkpointManager:   checkpointMgr,
+		outputFormatter:     outputFormatter,
+		persistenceManager:  persistenceMgr,
+		platformIntegration: platformIntegration,
+		config:              f.config,
 	}
 
 	f.logger.Infow("BugBountyEngine built successfully",
@@ -500,5 +502,10 @@ func (f *EngineFactory) buildPersistenceManager(enricher *enrichment.ResultEnric
 		logger:            f.logger,
 		config:            f.config,
 	}
+}
+
+// buildPlatformIntegration creates platform integration manager for bug bounty scope import
+func (f *EngineFactory) buildPlatformIntegration(scopeManager *scope.Manager) *PlatformIntegration {
+	return NewPlatformIntegration(scopeManager, f.logger, f.config)
 }
 

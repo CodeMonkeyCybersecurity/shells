@@ -1,25 +1,745 @@
 # Shells Point-and-Click Implementation Roadmap
 
 **Generated**: 2025-10-28
-**Status**: Phase 1 (P0 Critical Fixes) - Ready to Execute
+**Last Updated**: 2025-10-30
+**Status**: Week 1 (Execution Flow Merger) - In Progress
 **Goal**: Complete the "point-and-click" vision where `shells target.com` discovers and tests everything automatically
 
 ---
 
 ## Executive Summary
 
-**Current State**: Solid architectural foundation, but critical gaps between vision and implementation
-**Overall Grade**: B- (Good architecture, incomplete execution)
-**Estimated Total Timeline**: 10-14 working days for P0+P1 completion
+**Current State**: Two execution paths (legacy Execute() + new Pipeline), need to merge
+**Overall Grade**: B (Good architecture, duplicate execution logic)
+**Estimated Total Timeline**: Week 1 (Merger) + 3 weeks (P0+P1) = 4 weeks total
+
+### Critical Discovery (2025-10-30)
+
+**Investigation completed** into Execute() vs ExecuteWithPipeline():
+- **Production Reality**: Execute() is the ONLY production path (used in 2 commands)
+- **Pipeline Status**: Zero production usage, missing 5 critical features
+- **Blocker Identified**: Cannot delete Execute() without porting features to pipeline
+- **Solution**: Extract shared modules, merge execution paths gradually
 
 ### Key Issues Identified
 
+**PRIORITY 0 (URGENT - Week 1)**:
+1. **Duplicate Execution Paths** - Execute() and ExecuteWithPipeline() both exist, causing confusion
+2. **Pipeline Missing Critical Features** - 5 blockers prevent production use
+3. **434 Lines of Duplicate Code** - Platform integration, org footprinting, scope validation, checkpoint service
+
+**PRIORITY 1 (Week 2-4 - Original P0/P1)**:
 1. **Checkpoint Save is Non-Functional** (P0) - Users lose scan progress
 2. **Discovery Finds 50 Assets, Tests 1** (P0) - 98% of attack surface ignored
 3. **No Temporal Asset Tracking** (P0) - Cannot answer "what changed?"
 4. **Zero Integration Tests** (P0) - Silent breakage in production
 5. **Organization Domains Not Scanned** (P1) - Missing related infrastructure
 6. **Asset Relationship Graph Empty** (P1) - Cannot query "show related assets"
+
+---
+
+## Week 1: Execution Flow Merger (NEW - Priority 0)
+
+**Generated**: 2025-10-30
+**Status**: 📋 PLANNING COMPLETE - Ready to Execute
+**Priority**: P0 - CRITICAL ARCHITECTURE
+**Impact**: Unifies two execution paths, enables safe pipeline migration
+**Timeline**: 7 working days
+
+### Problem Statement: Two Competing Execution Paths
+
+**Investigation Results** (2025-10-30):
+
+#### Question 1: Is ExecuteWithPipeline() production-ready?
+**Answer**: ❌ **NO**
+- Only 1 basic integration test (TestFullPipelineWithMockScanners)
+- Zero production usage (0 references in cmd/ directory)
+- No dedicated test file (no pipeline_test.go)
+- Missing 5 critical production features
+
+#### Question 2: Does production code call Execute()?
+**Answer**: ✅ **YES** - Production depends on Execute()
+- `cmd/orchestrator_main.go:85` - Main orchestrator command
+- `cmd/hunt.go:157` - Bug bounty hunting mode
+- Both commands access BugBountyResult struct fields
+- Execute() is the ONLY production execution path
+
+#### Question 3: Does checkpoint resume work with pipeline?
+**Answer**: ⚠️ **PARTIAL**
+- Pipeline can SAVE checkpoints (checkpoint.Manager integrated)
+- Pipeline CANNOT RESUME (no NewPipelineWithCheckpoint method)
+- ResumeFromCheckpoint() only works with Execute() (212-line method with goto logic)
+- checkpoint.State format incompatible with pipeline phases
+
+#### Question 4: Are there unique Execute() features?
+**Answer**: ✅ **YES** - 6 critical production features missing from pipeline
+
+**Execute() Unique Features**:
+
+1. **Bug Bounty Platform Integration** (lines 494-653, 160 lines)
+   - ⚠️ CRITICAL BLOCKER
+   - Fetches scope from HackerOne/Bugcrowd/Intigriti APIs
+   - Imports program rules (in-scope/out-of-scope)
+   - Configures authorization boundaries
+   - **Why critical**: Without this, users scan wrong targets and violate bug bounty rules
+
+2. **Organization Footprinting** (lines 656-767, 112 lines)
+   - ⚠️ HIGH VALUE
+   - WHOIS lookups, cert transparency
+   - Maps company name → all related domains
+   - **Why valuable**: Discovers 5-10x more assets than single-domain scan
+
+3. **Periodic Checkpoint Saver** (lines 435-483, 49 lines)
+   - ⚠️ RELIABILITY BLOCKER
+   - Background goroutine saves every N seconds
+   - Survives long-running phases (60+ min discovery)
+   - P0-21 FIX: Prevents 59-minute loss if discovery crashes
+   - **Why critical**: Without this, hour-long scans lose all progress on crash
+
+4. **Scope Validation** (lines 948-1060, 113 lines)
+   - ⚠️ SAFETY BLOCKER
+   - Filters discovered assets against scope rules
+   - Prevents testing out-of-scope targets
+   - Displays warnings to user
+   - **Why critical**: Without this, tool tests unauthorized targets (legal risk)
+
+5. **Resume from Checkpoint** (lines 1267-1479, 212 lines)
+   - ⚠️ CRITICAL BLOCKER
+   - Loads checkpoint.State
+   - Skips completed phases using goto
+   - Preserves findings and discovered assets
+   - Work-remaining based timeout calculation (P0-6 FIX)
+   - **Why critical**: Without resume, hour-long scans can't recover from crashes
+
+6. **CLI Progress Display** (throughout Execute())
+   - ⚠️ UX ISSUE
+   - Real-time progress to stdout (fmt.Printf)
+   - Organization footprinting display
+   - Asset discovery display with counts
+   - **Why valuable**: Users see what's happening (not just logs)
+
+**Pipeline Unique Features** (Better architecture, missing production features):
+
+1. **Feedback Loop** (P0 FIX #3) ✅
+   - Findings trigger new reconnaissance
+   - Iterative discovery (max 3 iterations)
+   - Example: IDOR finds /api/v2 → triggers new discovery
+
+2. **Intelligent Scanner Selection** (P0 FIX #2) ✅
+   - Uses IntelligentScannerSelector (Execute() has it but doesn't use it)
+   - Tech stack → vulnerability mapping
+   - Rails detected → test for CVE-2022-XXXX
+
+3. **Exploit Chain Detection** (P1 FIX #6) ✅
+   - VulnerabilityCorrelator (exists in Execute() but never called)
+   - Multi-vulnerability chains
+   - Business impact analysis
+
+4. **Correct Test Ordering** (P1 FIX #5) ✅
+   - Authentication BEFORE API testing
+   - Access control REQUIRES auth sessions
+   - Dependency-aware execution
+
+**Verdict**: Cannot delete Execute() - 5 production blockers. Need hybrid merge approach.
+
+---
+
+### Solution: Extract Shared Modules + Gradual Migration
+
+**Strategy**: Create reusable modules that BOTH execution paths use, enabling safe incremental validation.
+
+**Benefits**:
+- ✅ Keep Execute() working (no production risk)
+- ✅ Add missing features to pipeline (achieve parity)
+- ✅ Delete duplicate code gradually (DRY principle)
+- ✅ Test thoroughly before switching default (safe migration)
+- ✅ Remove legacy code when proven stable (clean codebase)
+
+### Week 1 Implementation Plan: Module Extraction
+
+#### Day 1-2: Extract Platform Integration Module (Priority 1)
+
+**New File**: `internal/orchestrator/platform_integration.go` (~200 lines)
+
+**Responsibilities**:
+- Load platform credentials from environment (HACKERONE_*, BUGCROWD_*, etc.)
+- Fetch program scope from bug bounty platform APIs
+- Configure scope manager with program rules
+- Handle authentication errors gracefully
+
+**Extracted From**: `internal/orchestrator/bounty_engine.go` lines 494-653 (160 lines)
+
+**Public API**:
+```go
+type PlatformIntegration struct {
+    scopeManager *scope.Manager
+    logger       *logger.Logger
+    config       BugBountyConfig
+}
+
+func NewPlatformIntegration(scopeManager *scope.Manager, logger *logger.Logger, config BugBountyConfig) *PlatformIntegration
+
+func (p *PlatformIntegration) ImportScope(ctx context.Context, platformName, programID string) error
+
+func (p *PlatformIntegration) GetPlatformClient(platformName string) (platform.Client, error)
+```
+
+**Usage in Execute()**:
+```go
+// Before (160 lines):
+if e.config.PlatformName != "" {
+    // ... 160 lines of platform client fetching, program loading, scope configuration
+}
+
+// After (10 lines):
+if e.config.PlatformName != "" {
+    if err := e.platformIntegration.ImportScope(ctx, e.config.PlatformName, e.config.ProgramID); err != nil {
+        return result, fmt.Errorf("platform scope import failed: %w", err)
+    }
+}
+```
+
+**Usage in ExecuteWithPipeline()**:
+```go
+// In phaseClassification():
+if p.config.PlatformName != "" {
+    if err := p.platformIntegration.ImportScope(ctx, p.config.PlatformName, p.config.ProgramID); err != nil {
+        return fmt.Errorf("platform scope import failed: %w", err)
+    }
+}
+```
+
+**Testing**:
+- `TestPlatformIntegrationImportScope` - With valid credentials
+- `TestPlatformIntegrationAuthError` - With invalid credentials
+- `TestPlatformIntegrationNoPlatform` - When platform not specified
+
+**Success Criteria**:
+- ✅ Deletes 160 lines from bounty_engine.go
+- ✅ Execute() uses extracted module
+- ✅ ExecuteWithPipeline() can use extracted module
+- ✅ Tests pass
+- ✅ Build succeeds
+
+---
+
+#### Day 3: Extract Organization Footprinting Module (Priority 2)
+
+**New File**: `internal/orchestrator/organization_footprinting.go` (~150 lines)
+
+**Responsibilities**:
+- WHOIS lookups for organization details
+- Certificate transparency for related domains
+- ASN discovery for IP ranges
+- Return correlation.Organization with related assets
+
+**Extracted From**: `internal/orchestrator/bounty_engine.go` lines 656-767 (112 lines)
+
+**Public API**:
+```go
+type OrganizationFootprinting struct {
+    correlator *correlation.OrganizationCorrelator
+    logger     *logger.Logger
+    config     BugBountyConfig
+}
+
+func NewOrganizationFootprinting(correlator *correlation.OrganizationCorrelator, logger *logger.Logger, config BugBountyConfig) *OrganizationFootprinting
+
+func (o *OrganizationFootprinting) Correlate(ctx context.Context, target string) (*correlation.Organization, error)
+
+func (o *OrganizationFootprinting) DisplayResults(org *correlation.Organization)
+```
+
+**Usage in Execute()**:
+```go
+// Before (112 lines):
+if e.config.EnableOrgFootprinting {
+    // ... 112 lines of organization correlation, display
+}
+
+// After (15 lines):
+if e.config.EnableOrgFootprinting {
+    org, err := e.orgFootprinting.Correlate(ctx, target)
+    if err != nil {
+        dbLogger.Warnw("Organization footprinting failed", "error", err)
+    } else {
+        result.OrganizationInfo = org
+        e.orgFootprinting.DisplayResults(org)
+    }
+}
+```
+
+**Usage in ExecuteWithPipeline()**:
+```go
+// In phaseReconnaissance() BEFORE discovery:
+if p.config.EnableOrgFootprinting {
+    org, err := p.orgFootprinting.Correlate(ctx, p.state.Target)
+    if err == nil {
+        p.state.OrganizationInfo = org
+        // Expand target list to include related domains
+        for _, domain := range org.Domains {
+            p.state.TargetDomains = append(p.state.TargetDomains, domain)
+        }
+    }
+}
+```
+
+**Testing**:
+- `TestOrganizationFootprintingCorrelate` - With real organization
+- `TestOrganizationFootprintingNoResults` - When no related domains
+- `TestOrganizationFootprintingDisplay` - Output formatting
+
+**Success Criteria**:
+- ✅ Deletes 112 lines from bounty_engine.go
+- ✅ Execute() uses extracted module
+- ✅ ExecuteWithPipeline() uses extracted module (org discovery enabled)
+- ✅ Tests pass
+
+---
+
+#### Day 4: Extract Scope Validator Module (Priority 3)
+
+**New File**: `internal/orchestrator/scope_validator.go` (~150 lines)
+
+**Responsibilities**:
+- Filter assets against program scope rules
+- Display scope warnings to user (CLI output)
+- Track in-scope vs out-of-scope counts
+- Legal safety (prevents unauthorized scanning)
+
+**Extracted From**: `internal/orchestrator/bounty_engine.go` lines 948-1060 (113 lines)
+
+**Public API**:
+```go
+type ScopeValidator struct {
+    scopeManager *scope.Manager
+    logger       *logger.Logger
+    config       BugBountyConfig
+}
+
+func NewScopeValidator(scopeManager *scope.Manager, logger *logger.Logger, config BugBountyConfig) *ScopeValidator
+
+func (s *ScopeValidator) Filter(ctx context.Context, assets []*discovery.Asset) (inScope, outOfScope []*discovery.Asset)
+
+func (s *ScopeValidator) DisplayValidationResults(inScopeCount, outOfScopeCount int, duration time.Duration)
+```
+
+**Usage in Execute()**:
+```go
+// Before (113 lines):
+// Phase 2.5: Scope Validation
+// ... 113 lines of scope filtering, warnings, display
+
+// After (8 lines):
+// Phase 2.5: Scope Validation
+inScopeAssets, outOfScopeAssets := e.scopeValidator.Filter(ctx, allAssets)
+e.scopeValidator.DisplayValidationResults(len(inScopeAssets), len(outOfScopeAssets), duration)
+result.InScopeAssets = len(inScopeAssets)
+result.OutOfScopeAssets = len(outOfScopeAssets)
+```
+
+**Usage in ExecuteWithPipeline()**:
+```go
+// In phase_reconnaissance.go AFTER discovery completes:
+if p.scopeValidator != nil && p.config.EnableScopeValidation {
+    inScope, outOfScope := p.scopeValidator.Filter(ctx, discoveredAssets)
+    p.logger.Infow("Scope validation complete",
+        "in_scope", len(inScope),
+        "out_of_scope", len(outOfScope))
+    discoveredAssets = inScope // Only test in-scope assets
+}
+```
+
+**Testing**:
+- `TestScopeValidatorFilterInScope` - With in-scope assets
+- `TestScopeValidatorFilterOutOfScope` - With out-of-scope assets
+- `TestScopeValidatorMixed` - With both in and out of scope
+- `TestScopeValidatorNoScope` - When no scope configured
+
+**Success Criteria**:
+- ✅ Deletes 113 lines from bounty_engine.go
+- ✅ Execute() uses extracted module
+- ✅ ExecuteWithPipeline() uses extracted module (scope filtering enabled)
+- ✅ Tests pass
+- ✅ CRITICAL: Legal safety maintained
+
+---
+
+#### Day 5: Extract Checkpoint Service Module (Priority 4)
+
+**New File**: `internal/orchestrator/checkpoint_service.go` (~100 lines)
+
+**Responsibilities**:
+- Start periodic checkpoint saver goroutine
+- Save checkpoint every N seconds (configurable interval)
+- Survive long-running phases (60+ min discovery)
+- Cancel gracefully on context done
+- Use background context for save (survives Ctrl+C)
+
+**Extracted From**: `internal/orchestrator/bounty_engine.go` lines 435-483 (49 lines)
+
+**Public API**:
+```go
+type CheckpointService struct {
+    manager  CheckpointManager
+    logger   *logger.Logger
+    interval time.Duration
+    stopChan chan struct{}
+    wg       sync.WaitGroup
+}
+
+func NewCheckpointService(manager CheckpointManager, logger *logger.Logger, interval time.Duration) *CheckpointService
+
+func (c *CheckpointService) StartPeriodicSaver(ctx context.Context, state CheckpointState)
+
+func (c *CheckpointService) Stop()
+```
+
+**Usage in Execute()**:
+```go
+// Before (49 lines):
+// Start periodic checkpoint saver
+go func() {
+    ticker := time.NewTicker(checkpointInterval)
+    defer ticker.Stop()
+    for {
+        select {
+        case <-ticker.C:
+            // ... 30 lines of checkpoint save logic
+        case <-ctx.Done():
+            return
+        }
+    }
+}()
+
+// After (5 lines):
+checkpointService := NewCheckpointService(e.checkpointManager, dbLogger, e.config.CheckpointInterval)
+checkpointService.StartPeriodicSaver(ctx, result)
+defer checkpointService.Stop()
+```
+
+**Usage in ExecuteWithPipeline()**:
+```go
+// In pipeline.Execute():
+if p.config.EnableCheckpointing && p.checkpointManager != nil {
+    checkpointService := NewCheckpointService(p.checkpointManager, p.logger, p.config.CheckpointInterval)
+    checkpointService.StartPeriodicSaver(ctx, p.state)
+    defer checkpointService.Stop()
+}
+```
+
+**Testing**:
+- `TestCheckpointServicePeriodicSave` - Saves every N seconds
+- `TestCheckpointServiceStop` - Graceful shutdown
+- `TestCheckpointServiceCtrlC` - Survives context cancellation
+- `TestCheckpointServiceLongRunning` - 60+ minute phase simulation
+
+**Success Criteria**:
+- ✅ Deletes 49 lines from bounty_engine.go
+- ✅ Execute() uses extracted module
+- ✅ ExecuteWithPipeline() uses extracted module
+- ✅ Tests pass
+- ✅ CRITICAL: Prevents data loss during long phases
+
+---
+
+#### Day 6: Add Pipeline Resume Capability (Priority 5)
+
+**Modify**: `internal/orchestrator/pipeline.go` (~150 lines added)
+
+**New Constructor**:
+```go
+func NewPipelineWithCheckpoint(
+    state *checkpoint.State,
+    config BugBountyConfig,
+    logger *logger.Logger,
+    store core.ResultStore,
+    discoveryEngine *discovery.Engine,
+) (*Pipeline, error) {
+    p := &Pipeline{
+        state:           convertCheckpointToPipelineState(state),
+        config:          config,
+        logger:          logger,
+        store:           store,
+        discoveryEngine: discoveryEngine,
+        completedPhases: parseCompletedPhases(state), // NEW
+    }
+
+    // Initialize platform integration if scope was imported
+    if state.PlatformName != "" {
+        p.platformIntegration = NewPlatformIntegration(p.scopeManager, logger, config)
+        // Reload scope from database
+        p.platformIntegration.ReloadScope(state.PlatformName, state.ProgramID)
+    }
+
+    // Initialize other modules...
+    return p, nil
+}
+```
+
+**Helper Functions**:
+```go
+func convertCheckpointToPipelineState(state *checkpoint.State) *PipelineState {
+    return &PipelineState{
+        ScanID:           state.ScanID,
+        Target:           state.Target,
+        Findings:         state.Findings,
+        DiscoveredAssets: checkpoint.ConvertToDiscoveryAssets(state.DiscoveredAssets),
+        Progress:         state.Progress,
+        CurrentPhase:     mapLegacyPhase(state.CurrentPhase),
+    }
+}
+
+func mapLegacyPhase(legacyPhase string) string {
+    // Map Execute() phase names to pipeline phase names
+    mapping := map[string]string{
+        "discovery":      "reconnaissance",
+        "prioritization": "weaponization",
+        "testing":        "exploitation",
+        "storage":        "reporting",
+    }
+    if pipelinePhase, ok := mapping[legacyPhase]; ok {
+        return pipelinePhase
+    }
+    return legacyPhase
+}
+
+func parseCompletedPhases(state *checkpoint.State) []string {
+    // Determine which phases are complete based on current phase
+    completed := []string{}
+    phases := []string{"classification", "reconnaissance", "weaponization", "exploitation", "correlation", "reporting"}
+
+    currentIdx := -1
+    for i, phase := range phases {
+        if phase == state.CurrentPhase {
+            currentIdx = i
+            break
+        }
+    }
+
+    if currentIdx > 0 {
+        completed = phases[:currentIdx]
+    }
+
+    return completed
+}
+```
+
+**Modify Execute() Method**:
+```go
+func (p *Pipeline) Execute(ctx context.Context) (*PipelineResult, error) {
+    phases := []PhaseInfo{
+        {Name: "classification", Func: p.phaseClassification},
+        {Name: "reconnaissance", Func: p.phaseReconnaissance},
+        {Name: "weaponization", Func: p.weaponization.Execute},
+        {Name: "exploitation", Func: p.exploitation.Execute},
+        {Name: "correlation", Func: p.correlation.Execute},
+        {Name: "reporting", Func: p.phaseReporting},
+    }
+
+    for _, phase := range phases {
+        // NEW: Skip if already completed (resume support)
+        if p.isPhaseComplete(phase.Name) {
+            p.logger.Infow("Skipping completed phase (resume)",
+                "phase", phase.Name,
+                "scan_id", p.state.ScanID)
+            continue
+        }
+
+        p.logger.Infow("Executing phase", "phase", phase.Name)
+
+        if err := phase.Func(ctx); err != nil {
+            return nil, fmt.Errorf("phase %s failed: %w", phase.Name, err)
+        }
+
+        p.markPhaseComplete(phase.Name)
+
+        // Save checkpoint after each phase
+        if p.checkpointService != nil {
+            p.checkpointService.Save(ctx, p.state)
+        }
+    }
+
+    return p.buildResult(), nil
+}
+
+func (p *Pipeline) isPhaseComplete(phaseName string) bool {
+    for _, completed := range p.completedPhases {
+        if completed == phaseName {
+            return true
+        }
+    }
+    return false
+}
+
+func (p *Pipeline) markPhaseComplete(phaseName string) {
+    p.completedPhases = append(p.completedPhases, phaseName)
+}
+```
+
+**Update bounty_engine.go ResumeFromCheckpoint()**:
+```go
+func (e *BugBountyEngine) ResumeFromCheckpoint(ctx context.Context, state *checkpoint.State) (*BugBountyResult, error) {
+    e.logger.Infow("Resuming from checkpoint",
+        "scan_id", state.ScanID,
+        "phase", state.CurrentPhase,
+        "progress", state.Progress)
+
+    // Detect which execution path was used
+    if state.ExecutionPath == "pipeline" || state.CurrentPhase == "weaponization" {
+        // Resume using pipeline
+        pipeline, err := NewPipelineWithCheckpoint(state, e.config, e.logger, e.store, e.discoveryEngine)
+        if err != nil {
+            return nil, fmt.Errorf("failed to create pipeline from checkpoint: %w", err)
+        }
+
+        pipelineResult, err := pipeline.Execute(ctx)
+        if err != nil {
+            return nil, err
+        }
+
+        // Convert PipelineResult → BugBountyResult
+        return convertPipelineResultToBugBountyResult(pipelineResult), nil
+    }
+
+    // Resume using legacy Execute() (existing 212-line logic preserved)
+    return e.resumeWithLegacyPath(ctx, state)
+}
+```
+
+**Testing**:
+- `TestPipelineResumeFromCheckpoint` - Resume after each phase
+- `TestPipelineResumeSkipsCompleted` - Completed phases not re-run
+- `TestPipelineResumePreservesFindings` - Findings from before crash preserved
+- `TestPipelineResumePhaseMapping` - Legacy → pipeline phase mapping
+
+**Success Criteria**:
+- ✅ Pipeline can resume from checkpoint
+- ✅ Phase skip logic works correctly
+- ✅ Findings and assets preserved
+- ✅ Tests pass
+- ✅ CRITICAL: Removes resume blocker
+
+---
+
+#### Day 7: Refactor Execute() to Use Extracted Modules
+
+**Modify**: `internal/orchestrator/bounty_engine.go`
+
+**Changes**:
+1. Replace platform integration code (lines 494-653) with module call
+2. Replace org footprinting code (lines 656-767) with module call
+3. Replace checkpoint service code (lines 435-483) with module call
+4. Replace scope validation code (lines 948-1060) with module call
+
+**Before** (2,248 lines):
+- Lines 494-653: Platform integration (160 lines)
+- Lines 656-767: Organization footprinting (112 lines)
+- Lines 435-483: Checkpoint service (49 lines)
+- Lines 948-1060: Scope validation (113 lines)
+- **Total to extract**: 434 lines
+
+**After** (~1,814 lines):
+- Platform integration: 10 lines (calls module)
+- Organization footprinting: 15 lines (calls module)
+- Checkpoint service: 5 lines (calls module)
+- Scope validation: 8 lines (calls module)
+- **Total replacement**: 38 lines
+- **Net reduction**: 434 - 38 = 396 lines deleted
+
+**Testing**:
+- Run all existing tests: `go test ./internal/orchestrator/... -v`
+- Verify Execute() still works with modules
+- Verify checkpoint resume still works
+- Verify platform integration still works
+- Integration test with real scan
+
+**Success Criteria**:
+- ✅ bounty_engine.go reduced from 2,248 → ~1,814 lines (19% reduction)
+- ✅ All existing tests pass
+- ✅ Build succeeds
+- ✅ Execute() backward compatible (no breaking changes)
+- ✅ Production commands work unchanged
+
+---
+
+### Week 1 Summary: Files Created/Modified
+
+**New Files** (4 modules, ~600 lines total):
+1. `internal/orchestrator/platform_integration.go` (~200 lines)
+2. `internal/orchestrator/organization_footprinting.go` (~150 lines)
+3. `internal/orchestrator/scope_validator.go` (~150 lines)
+4. `internal/orchestrator/checkpoint_service.go` (~100 lines)
+
+**Modified Files**:
+1. `internal/orchestrator/bounty_engine.go` (2,248 → ~1,814 lines, -434 lines)
+2. `internal/orchestrator/pipeline.go` (+150 lines for resume capability)
+3. `internal/orchestrator/phase_reconnaissance.go` (+20 lines for scope filtering)
+4. `ROADMAP.md` (this file - documented investigation and plan)
+
+**Test Files** (new, ~400 lines total):
+1. `internal/orchestrator/platform_integration_test.go` (~100 lines)
+2. `internal/orchestrator/organization_footprinting_test.go` (~100 lines)
+3. `internal/orchestrator/scope_validator_test.go` (~100 lines)
+4. `internal/orchestrator/checkpoint_service_test.go` (~100 lines)
+
+**Net Code Change**:
+- Deleted from bounty_engine.go: -434 lines
+- New module code: +600 lines
+- Pipeline resume: +150 lines
+- **Net addition**: +316 lines (but eliminates duplication, enables pipeline feature parity)
+
+---
+
+### Week 1 Success Criteria
+
+**Day 1-2 Complete When**:
+- ✅ platform_integration.go created and tested
+- ✅ Execute() uses platform_integration module
+- ✅ 160 lines deleted from bounty_engine.go
+- ✅ Build succeeds, tests pass
+
+**Day 3 Complete When**:
+- ✅ organization_footprinting.go created and tested
+- ✅ Execute() uses organization_footprinting module
+- ✅ 112 lines deleted from bounty_engine.go
+- ✅ Build succeeds, tests pass
+
+**Day 4 Complete When**:
+- ✅ scope_validator.go created and tested
+- ✅ Execute() uses scope_validator module
+- ✅ 113 lines deleted from bounty_engine.go
+- ✅ Build succeeds, tests pass
+- ✅ CRITICAL: Legal safety maintained
+
+**Day 5 Complete When**:
+- ✅ checkpoint_service.go created and tested
+- ✅ Execute() uses checkpoint_service module
+- ✅ 49 lines deleted from bounty_engine.go
+- ✅ Build succeeds, tests pass
+- ✅ CRITICAL: Prevents data loss
+
+**Day 6 Complete When**:
+- ✅ Pipeline has resume capability
+- ✅ NewPipelineWithCheckpoint() constructor works
+- ✅ Phase skip logic correct
+- ✅ Legacy → pipeline phase mapping works
+- ✅ Tests pass
+
+**Day 7 Complete When**:
+- ✅ All modules integrated into Execute()
+- ✅ bounty_engine.go reduced to ~1,814 lines (19% reduction)
+- ✅ All existing tests pass
+- ✅ Production commands work unchanged
+- ✅ Build succeeds
+
+**Week 1 Final Success**:
+- ✅ 4 new reusable modules created
+- ✅ Execute() uses all 4 modules (434 lines deleted)
+- ✅ Pipeline CAN use all 4 modules (feature parity achievable)
+- ✅ Pipeline has resume capability (blocker removed)
+- ✅ Zero breaking changes (backward compatible)
+- ✅ All tests pass, build succeeds
 
 ---
 
