@@ -81,6 +81,7 @@ type BugBountyEngine struct {
 	persistenceManager        *PersistenceManager
 	platformIntegration       *PlatformIntegration
 	organizationFootprinting  *OrganizationFootprinting
+	scopeValidator            *ScopeValidator
 
 	// Configuration
 	config BugBountyConfig
@@ -703,105 +704,11 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	saveCheckpoint("prioritization", 35.0, []string{"discovery", "prioritization"}, []types.Finding{})
 
 	// Phase 2.5: Scope Validation (if enabled)
-	if e.scopeManager != nil {
-		scopeValidationStart := time.Now()
-
-		// IMMEDIATE CLI FEEDBACK
-		fmt.Println()
-		fmt.Println("═══════════════════════════════════════════════════════════════")
-		fmt.Println(" Scope Validation: Bug Bounty Program")
-		fmt.Println("═══════════════════════════════════════════════════════════════")
-		fmt.Printf("   Validating %d assets against program scope...\n", len(prioritized))
-		fmt.Println()
-
-		dbLogger.Infow(" Starting scope validation",
-			"assets_to_validate", len(prioritized),
-			"strict_mode", e.config.ScopeStrictMode,
-			"component", "orchestrator",
-		)
-
-		// Filter out-of-scope assets
-		inScopeAssets := make([]*scanners.AssetPriority, 0, len(prioritized))
-		outOfScopeAssets := make([]*scanners.AssetPriority, 0)
-		unknownAssets := make([]*scanners.AssetPriority, 0)
-
-		for _, asset := range prioritized {
-			// Validate asset against scope
-			validation, err := e.scopeManager.ValidateAsset(asset.Asset.Value)
-			if err != nil {
-				dbLogger.Warnw("Asset validation error - including asset",
-					"asset", asset.Asset.Value,
-					"error", err,
-					"component", "scope_validator",
-				)
-				// On error, include the asset (fail open)
-				unknownAssets = append(unknownAssets, asset)
-				inScopeAssets = append(inScopeAssets, asset)
-				continue
-			}
-
-			if validation.Status == scope.ScopeStatusInScope {
-				inScopeAssets = append(inScopeAssets, asset)
-				dbLogger.Debugw("Asset in scope",
-					"asset", asset.Asset.Value,
-					"program", validation.Program.Name,
-					"component", "scope_validator",
-				)
-			} else if validation.Status == scope.ScopeStatusOutOfScope {
-				outOfScopeAssets = append(outOfScopeAssets, asset)
-				dbLogger.Warnw("Asset out of scope - skipping",
-					"asset", asset.Asset.Value,
-					"reason", validation.Reason,
-					"component", "scope_validator",
-				)
-			} else {
-				// Unknown - behavior depends on strict mode
-				if e.config.ScopeStrictMode {
-					outOfScopeAssets = append(outOfScopeAssets, asset)
-					dbLogger.Warnw("Asset scope unknown (strict mode) - skipping",
-						"asset", asset.Asset.Value,
-						"component", "scope_validator",
-					)
-				} else {
-					unknownAssets = append(unknownAssets, asset)
-					inScopeAssets = append(inScopeAssets, asset)
-					dbLogger.Debugw("Asset scope unknown (permissive mode) - including",
-						"asset", asset.Asset.Value,
-						"component", "scope_validator",
-					)
-				}
-			}
-		}
-
-		dbLogger.Infow(" Scope validation completed",
-			"in_scope", len(inScopeAssets),
-			"out_of_scope", len(outOfScopeAssets),
-			"unknown", len(unknownAssets),
-			"duration", time.Since(scopeValidationStart).String(),
-			"component", "orchestrator",
-		)
-
-		// Display validation results
-		fmt.Printf("   ✓ Validation completed\n")
-		fmt.Printf("   In-Scope Assets: %d\n", len(inScopeAssets))
-		if len(outOfScopeAssets) > 0 {
-			fmt.Printf("   Out-of-Scope Assets: %d (skipped)\n", len(outOfScopeAssets))
-		}
-		if len(unknownAssets) > 0 {
-			fmt.Printf("   Unknown Scope Assets: %d (included in %s mode)\n",
-				len(unknownAssets),
-				func() string {
-					if e.config.ScopeStrictMode {
-						return "strict"
-					}
-					return "permissive"
-				}())
-		}
-		fmt.Printf("   Duration: %s\n", time.Since(scopeValidationStart).Round(time.Millisecond))
-		fmt.Println()
+	if e.scopeValidator != nil && e.scopeValidator.IsEnabled() {
+		validationResult := e.scopeValidator.FilterAssets(prioritized)
 
 		// Update prioritized list to only include in-scope assets
-		prioritized = inScopeAssets
+		prioritized = validationResult.InScope
 
 		if len(prioritized) == 0 {
 			dbLogger.Warnw("No in-scope assets to test after scope validation",

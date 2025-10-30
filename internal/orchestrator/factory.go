@@ -90,6 +90,7 @@ func (f *EngineFactory) Build() (*BugBountyEngine, error) {
 	persistenceMgr := f.buildPersistenceManager(enricher, checkpointMgr)
 	platformIntegration := f.buildPlatformIntegration(scopeManager)
 	orgFootprinting := f.buildOrganizationFootprinting(orgCorrelator, outputFormatter)
+	scopeValidatorInst := f.buildScopeValidator(scopeManager)
 
 	engine := &BugBountyEngine{
 		store:                    f.store,
@@ -111,6 +112,7 @@ func (f *EngineFactory) Build() (*BugBountyEngine, error) {
 		persistenceManager:       persistenceMgr,
 		platformIntegration:      platformIntegration,
 		organizationFootprinting: orgFootprinting,
+		scopeValidator:           scopeValidatorInst,
 		config:                   f.config,
 	}
 
@@ -517,5 +519,10 @@ func (f *EngineFactory) buildOrganizationFootprinting(
 	outputFormatter *OutputFormatter,
 ) *OrganizationFootprinting {
 	return NewOrganizationFootprinting(orgCorrelator, outputFormatter, f.logger, f.config)
+}
+
+// buildScopeValidator creates scope validator for bug bounty program validation
+func (f *EngineFactory) buildScopeValidator(scopeManager *scope.Manager) *ScopeValidator {
+	return NewScopeValidator(scopeManager, f.logger, f.config)
 }
 
