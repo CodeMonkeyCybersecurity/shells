@@ -167,18 +167,72 @@ type State struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// Validate checks if checkpoint state is valid and safe to use
+// P0-11/12/25 FIX: Validate all required fields before resume
+func (s *State) Validate() error {
+	// P0-11: Check required string fields
+	if s.ScanID == "" {
+		return fmt.Errorf("invalid checkpoint: empty scan_id")
+	}
+	if s.Target == "" {
+		return fmt.Errorf("invalid checkpoint: empty target")
+	}
+	if s.CurrentPhase == "" {
+		return fmt.Errorf("invalid checkpoint: empty current_phase")
+	}
+
+	// P0-25: Check timestamps
+	if s.CreatedAt.IsZero() {
+		return fmt.Errorf("invalid checkpoint: zero created_at timestamp")
+	}
+	if s.UpdatedAt.IsZero() {
+		return fmt.Errorf("invalid checkpoint: zero updated_at timestamp")
+	}
+	if s.UpdatedAt.Before(s.CreatedAt) {
+		return fmt.Errorf("invalid checkpoint: updated_at before created_at")
+	}
+
+	// P0-12: Validate progress percentage
+	if s.Progress < 0 || s.Progress > 100 {
+		return fmt.Errorf("invalid checkpoint: progress %.2f out of range [0, 100]", s.Progress)
+	}
+
+	// Validate current phase value
+	validPhases := map[string]bool{
+		"initialized":    true,
+		"footprinting":   true,
+		"scope_import":   true,
+		"discovery":      true,
+		"prioritization": true,
+		"testing":        true,
+		"storage":        true,
+		"completed":      true,
+	}
+	if !validPhases[s.CurrentPhase] {
+		return fmt.Errorf("invalid checkpoint: unknown phase '%s'", s.CurrentPhase)
+	}
+
+	return nil
+}
+
 // Asset is a simplified version of discovery.Asset for checkpoint serialization
+// P0-16 FIX: Added missing fields (Priority, Source, Confidence, DiscoveredAt, LastSeen)
 type Asset struct {
-	ID         string            `json:"id"`
-	Type       string            `json:"type"`
-	Value      string            `json:"value"`
-	Domain     string            `json:"domain,omitempty"`
-	IP         string            `json:"ip,omitempty"`
-	Port       int               `json:"port,omitempty"`
-	Protocol   string            `json:"protocol,omitempty"`
-	Title      string            `json:"title,omitempty"`
-	Technology []string          `json:"technology,omitempty"`
-	Metadata   map[string]string `json:"metadata,omitempty"`
+	ID           string            `json:"id"`
+	Type         string            `json:"type"`
+	Value        string            `json:"value"`
+	Domain       string            `json:"domain,omitempty"`
+	IP           string            `json:"ip,omitempty"`
+	Port         int               `json:"port,omitempty"`
+	Protocol     string            `json:"protocol,omitempty"`
+	Title        string            `json:"title,omitempty"`
+	Technology   []string          `json:"technology,omitempty"`
+	Metadata     map[string]string `json:"metadata,omitempty"`
+	Priority     int               `json:"priority"`               // P0-16: Asset testing priority
+	Source       string            `json:"source,omitempty"`       // P0-16: Discovery source (crt.sh, dns, etc.)
+	Confidence   float64           `json:"confidence"`             // P0-16: Reliability score
+	DiscoveredAt time.Time         `json:"discovered_at"`          // P0-16: When first found
+	LastSeen     time.Time         `json:"last_seen,omitempty"`    // P0-16: When last confirmed
 }
 
 // Manager handles checkpoint storage and retrieval
@@ -276,6 +330,12 @@ func (m *Manager) Load(ctx context.Context, scanID string) (*State, error) {
 	var state State
 	if err := json.Unmarshal(data, &state); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal checkpoint: %w (file may be corrupted)", err)
+	}
+
+	// P0-11/12/25 FIX: Validate checkpoint before returning
+	// This catches corrupt files, invalid progress values, zero timestamps, etc.
+	if err := state.Validate(); err != nil {
+		return nil, fmt.Errorf("checkpoint validation failed: %w", err)
 	}
 
 	return &state, nil
@@ -386,16 +446,21 @@ func ConvertDiscoveryAssets(assets []*discovery.Asset) []Asset {
 	converted := make([]Asset, len(assets))
 	for i, asset := range assets {
 		converted[i] = Asset{
-			ID:         asset.ID,
-			Type:       string(asset.Type),
-			Value:      asset.Value,
-			Domain:     asset.Domain,
-			IP:         asset.IP,
-			Port:       asset.Port,
-			Protocol:   asset.Protocol,
-			Title:      asset.Title,
-			Technology: asset.Technology,
-			Metadata:   asset.Metadata,
+			ID:           asset.ID,
+			Type:         string(asset.Type),
+			Value:        asset.Value,
+			Domain:       asset.Domain,
+			IP:           asset.IP,
+			Port:         asset.Port,
+			Protocol:     asset.Protocol,
+			Title:        asset.Title,
+			Technology:   asset.Technology,
+			Metadata:     asset.Metadata,
+			Priority:     asset.Priority,     // P0-16: Preserve priority
+			Source:       asset.Source,       // P0-16: Preserve source
+			Confidence:   asset.Confidence,   // P0-16: Preserve confidence
+			DiscoveredAt: asset.DiscoveredAt, // P0-16: Preserve timestamps
+			LastSeen:     asset.LastSeen,     // P0-16: Preserve last seen
 		}
 	}
 	return converted
@@ -406,16 +471,21 @@ func ConvertToDiscoveryAssets(assets []Asset) []*discovery.Asset {
 	converted := make([]*discovery.Asset, len(assets))
 	for i, asset := range assets {
 		converted[i] = &discovery.Asset{
-			ID:         asset.ID,
-			Type:       discovery.AssetType(asset.Type),
-			Value:      asset.Value,
-			Domain:     asset.Domain,
-			IP:         asset.IP,
-			Port:       asset.Port,
-			Protocol:   asset.Protocol,
-			Title:      asset.Title,
-			Technology: asset.Technology,
-			Metadata:   asset.Metadata,
+			ID:           asset.ID,
+			Type:         discovery.AssetType(asset.Type),
+			Value:        asset.Value,
+			Domain:       asset.Domain,
+			IP:           asset.IP,
+			Port:         asset.Port,
+			Protocol:     asset.Protocol,
+			Title:        asset.Title,
+			Technology:   asset.Technology,
+			Metadata:     asset.Metadata,
+			Priority:     asset.Priority,     // P0-16: Restore priority
+			Source:       asset.Source,       // P0-16: Restore source
+			Confidence:   asset.Confidence,   // P0-16: Restore confidence
+			DiscoveredAt: asset.DiscoveredAt, // P0-16: Restore timestamps
+			LastSeen:     asset.LastSeen,     // P0-16: Restore last seen
 		}
 	}
 	return converted
