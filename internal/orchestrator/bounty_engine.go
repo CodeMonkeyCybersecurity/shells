@@ -77,9 +77,10 @@ type BugBountyEngine struct {
 	checkpointManager  CheckpointManager
 
 	// Output and Persistence (REFACTORED: extracted from bounty_engine.go)
-	outputFormatter      *OutputFormatter
-	persistenceManager   *PersistenceManager
-	platformIntegration  *PlatformIntegration
+	outputFormatter           *OutputFormatter
+	persistenceManager        *PersistenceManager
+	platformIntegration       *PlatformIntegration
+	organizationFootprinting  *OrganizationFootprinting
 
 	// Configuration
 	config BugBountyConfig
@@ -506,116 +507,21 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 
 	// Phase 0: Organization Footprinting (if enabled)
 	var orgDomains []string
-	if e.orgCorrelator != nil && !e.config.SkipDiscovery {
-		footprintStart := time.Now()
-
-		// IMMEDIATE CLI FEEDBACK - Show user what's happening
-		fmt.Println()
-		fmt.Println("═══════════════════════════════════════════════════════════════")
-		fmt.Println(" Phase 0: Organization Footprinting")
-		fmt.Println("═══════════════════════════════════════════════════════════════")
-		fmt.Printf("   Analyzing: %s\n", target)
-		fmt.Printf("   • WHOIS lookup for organization details...\n")
-		fmt.Printf("   • Certificate transparency logs for related domains...\n")
-		fmt.Printf("   • ASN discovery for IP ranges...\n")
-		fmt.Println()
-
-		dbLogger.Infow(" Phase 0: Organization Footprinting",
-			"target", target,
-			"enable_whois", e.config.EnableWHOISAnalysis,
-			"enable_cert_transparency", e.config.EnableCertTransparency,
-			"enable_related_domains", e.config.EnableRelatedDomainDisc,
-			"component", "orchestrator",
-		)
-
-		// Correlate organization from target
-		org, err := e.orgCorrelator.FindOrganizationAssets(ctx, target)
-		if err != nil {
-			// ENHANCED ERROR LOGGING: Provide detailed diagnostics
-			dbLogger.Errorw("CRITICAL: Organization footprinting failed",
-				"error", err,
-				"error_type", fmt.Sprintf("%T", err),
-				"target", target,
-				"whois_enabled", e.config.EnableWHOISAnalysis,
-				"cert_enabled", e.config.EnableCertTransparency,
-				"asn_enabled", true,
-				"elapsed_time", time.Since(footprintStart).String(),
-				"component", "orchestrator",
-			)
-
-			// Store failed phase result
-			result.PhaseResults["footprinting"] = PhaseResult{
-				Phase:     "footprinting",
-				Status:    "failed",
-				StartTime: footprintStart,
-				EndTime:   time.Now(),
-				Duration:  time.Since(footprintStart),
-				Error:     err.Error(),
+	if e.organizationFootprinting != nil && e.organizationFootprinting.IsEnabled() {
+		footprintResult := e.organizationFootprinting.CorrelateOrganization(ctx, target, updateProgress, saveCheckpoint)
+		if footprintResult != nil {
+			// Store organization info and domains
+			if footprintResult.Organization != nil {
+				result.OrganizationInfo = footprintResult.Organization
 			}
-		} else if org == nil {
-			// NULL RESULT: Correlation returned nil without error
-			dbLogger.Warnw(" Organization footprinting returned nil (no error)",
-				"target", target,
-				"elapsed_time", time.Since(footprintStart).String(),
-				"component", "orchestrator",
-			)
+			orgDomains = footprintResult.Domains
 
-			result.PhaseResults["footprinting"] = PhaseResult{
-				Phase:     "footprinting",
-				Status:    "completed",
-				StartTime: footprintStart,
-				EndTime:   time.Now(),
-				Duration:  time.Since(footprintStart),
-				Findings:  0,
-			}
-		} else {
-			// Store org info for later display
-			result.OrganizationInfo = org // Add to result for display
-
-			dbLogger.Infow(" Organization footprinting completed",
-				"organization_name", org.Name,
-				"domains_found", len(org.Domains),
-				"asns_found", len(org.ASNs),
-				"ip_ranges_found", len(org.IPRanges),
-				"certificates_found", len(org.Certificates),
-				"confidence", org.Confidence,
-				"sources", org.Sources,
-				"duration", time.Since(footprintStart).String(),
-				"component", "orchestrator",
-			)
-
-			// USER-FRIENDLY CLI DISPLAY
-			e.outputFormatter.DisplayOrganizationFootprinting(org, time.Since(footprintStart))
-
-			// Store discovered domains for parallel scanning
-			orgDomains = org.Domains
-
-			// Log each discovered domain
-			for i, domain := range org.Domains {
-				dbLogger.Infow(" Discovered related domain",
-					"index", i+1,
-					"domain", domain,
-					"organization", org.Name,
-					"component", "orchestrator",
-				)
-			}
-
-			// Store organization metadata in result
+			// Store phase result
 			if result.PhaseResults == nil {
 				result.PhaseResults = make(map[string]PhaseResult)
 			}
-			result.PhaseResults["footprinting"] = PhaseResult{
-				Phase:     "footprinting",
-				Status:    "completed",
-				StartTime: footprintStart,
-				EndTime:   time.Now(),
-				Duration:  time.Since(footprintStart),
-				Findings:  len(org.Domains), // Count domains as findings
-			}
+			result.PhaseResults["footprinting"] = footprintResult.PhaseResult
 		}
-
-		updateProgress("footprinting", 5.0, []string{"footprinting"})
-		saveCheckpoint("footprinting", 5.0, []string{"footprinting"}, []types.Finding{})
 	}
 
 	// Phase 1: Asset Discovery (or skip if configured)

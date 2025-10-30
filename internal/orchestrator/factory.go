@@ -89,27 +89,29 @@ func (f *EngineFactory) Build() (*BugBountyEngine, error) {
 	outputFormatter := f.buildOutputFormatter()
 	persistenceMgr := f.buildPersistenceManager(enricher, checkpointMgr)
 	platformIntegration := f.buildPlatformIntegration(scopeManager)
+	orgFootprinting := f.buildOrganizationFootprinting(orgCorrelator, outputFormatter)
 
 	engine := &BugBountyEngine{
-		store:               f.store,
-		telemetry:           f.telemetry,
-		logger:              f.logger,
-		rateLimiter:         rateLimiter,
-		discoveryEngine:     discoveryEngine,
-		orgCorrelator:       orgCorrelator,
-		certIntel:           certIntel,
-		scopeManager:        scopeManager,
-		authDiscovery:       authDiscovery,
-		scannerManager:      scannerMgr,
-		pythonWorkers:       pythonWorkers,
-		enricher:            enricher,
-		checkpointEnabled:   f.config.EnableCheckpointing,
-		checkpointInterval:  f.config.CheckpointInterval,
-		checkpointManager:   checkpointMgr,
-		outputFormatter:     outputFormatter,
-		persistenceManager:  persistenceMgr,
-		platformIntegration: platformIntegration,
-		config:              f.config,
+		store:                    f.store,
+		telemetry:                f.telemetry,
+		logger:                   f.logger,
+		rateLimiter:              rateLimiter,
+		discoveryEngine:          discoveryEngine,
+		orgCorrelator:            orgCorrelator,
+		certIntel:                certIntel,
+		scopeManager:             scopeManager,
+		authDiscovery:            authDiscovery,
+		scannerManager:           scannerMgr,
+		pythonWorkers:            pythonWorkers,
+		enricher:                 enricher,
+		checkpointEnabled:        f.config.EnableCheckpointing,
+		checkpointInterval:       f.config.CheckpointInterval,
+		checkpointManager:        checkpointMgr,
+		outputFormatter:          outputFormatter,
+		persistenceManager:       persistenceMgr,
+		platformIntegration:      platformIntegration,
+		organizationFootprinting: orgFootprinting,
+		config:                   f.config,
 	}
 
 	f.logger.Infow("BugBountyEngine built successfully",
@@ -507,5 +509,13 @@ func (f *EngineFactory) buildPersistenceManager(enricher *enrichment.ResultEnric
 // buildPlatformIntegration creates platform integration manager for bug bounty scope import
 func (f *EngineFactory) buildPlatformIntegration(scopeManager *scope.Manager) *PlatformIntegration {
 	return NewPlatformIntegration(scopeManager, f.logger, f.config)
+}
+
+// buildOrganizationFootprinting creates organization footprinting manager
+func (f *EngineFactory) buildOrganizationFootprinting(
+	orgCorrelator *correlation.OrganizationCorrelator,
+	outputFormatter *OutputFormatter,
+) *OrganizationFootprinting {
+	return NewOrganizationFootprinting(orgCorrelator, outputFormatter, f.logger, f.config)
 }
 
