@@ -204,13 +204,10 @@ func TestResultSetPhaseResult(t *testing.T) {
 		})
 	}
 
-	// Verify all phases stored
-	result.mu.RLock()
-	count := len(result.PhaseResults)
-	result.mu.RUnlock()
-
-	if count != 4 {
-		t.Errorf("Expected 4 phase results, got %d", count)
+	// Verify all phases stored using thread-safe getter
+	allPhases := result.GetAllPhaseResults()
+	if len(allPhases) != 4 {
+		t.Errorf("Expected 4 phase results, got %d", len(allPhases))
 	}
 
 	t.Log("SUCCESS: SetPhaseResult stores multiple phases correctly")
@@ -245,13 +242,10 @@ func TestResultConcurrentPhaseUpdates(t *testing.T) {
 
 	wg.Wait()
 
-	// Verify all phases present
-	result.mu.RLock()
-	count := len(result.PhaseResults)
-	result.mu.RUnlock()
-
-	if count != 5 {
-		t.Errorf("Expected 5 phases, got %d", count)
+	// Verify all phases present using thread-safe getter
+	allPhases := result.GetAllPhaseResults()
+	if len(allPhases) != 5 {
+		t.Errorf("Expected 5 phases, got %d", len(allPhases))
 	}
 
 	t.Log("SUCCESS: Concurrent phase updates work correctly")
@@ -266,21 +260,15 @@ func TestResultStatusUpdate(t *testing.T) {
 		Status:    "running",
 	}
 
-	// Update status multiple times
+	// Update status multiple times using thread-safe setter
 	statuses := []string{"running", "testing", "storing", "completed"}
 	for _, status := range statuses {
-		result.mu.Lock()
-		result.Status = status
-		result.mu.Unlock()
+		result.SetStatus(status)
 	}
 
-	// Read final status
-	result.mu.RLock()
-	finalStatus := result.Status
-	result.mu.RUnlock()
-
-	if finalStatus != "completed" {
-		t.Errorf("Expected status 'completed', got '%s'", finalStatus)
+	// Read final status - access directly since Status is in basic metadata
+	if result.Status != "completed" {
+		t.Errorf("Expected status 'completed', got '%s'", result.Status)
 	}
 
 	t.Log("SUCCESS: Status updates work correctly")
@@ -302,15 +290,15 @@ func TestResultSeverityCounts(t *testing.T) {
 		},
 	}
 
-	// Count severities (this happens in storeResults)
+	// Count severities using thread-safe getter
 	criticalCount := 0
 	highCount := 0
 	mediumCount := 0
 	lowCount := 0
 	infoCount := 0
 
-	result.mu.RLock()
-	for _, f := range result.Findings {
+	findings := result.GetFindings()
+	for _, f := range findings {
 		switch f.Severity {
 		case types.SeverityCritical:
 			criticalCount++
@@ -324,7 +312,6 @@ func TestResultSeverityCounts(t *testing.T) {
 			infoCount++
 		}
 	}
-	result.mu.RUnlock()
 
 	if criticalCount != 2 {
 		t.Errorf("Expected 2 critical findings, got %d", criticalCount)

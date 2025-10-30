@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator/scanners"
@@ -97,7 +99,6 @@ func (m *MockScanner) Execute(ctx context.Context, assets []*scanners.AssetPrior
 type MockResultStore struct {
 	savedScans    map[string]*types.ScanRequest
 	savedFindings map[string][]types.Finding
-	savedEvents   map[string][]types.Event
 	mu            sync.RWMutex
 }
 
@@ -106,7 +107,6 @@ func NewMockResultStore() *MockResultStore {
 	return &MockResultStore{
 		savedScans:    make(map[string]*types.ScanRequest),
 		savedFindings: make(map[string][]types.Finding),
-		savedEvents:   make(map[string][]types.Event),
 	}
 }
 
@@ -155,21 +155,115 @@ func (m *MockResultStore) GetFindings(ctx context.Context, scanID string) ([]typ
 	return findings, nil
 }
 
-func (m *MockResultStore) SaveEvent(ctx context.Context, event *types.Event) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.savedEvents[event.ScanID] = append(m.savedEvents[event.ScanID], *event)
+// Additional methods to satisfy core.ResultStore interface
+func (m *MockResultStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*types.ScanRequest, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var scans []*types.ScanRequest
+	for _, scan := range m.savedScans {
+		scans = append(scans, scan)
+	}
+	return scans, nil
+}
+
+func (m *MockResultStore) GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var findings []types.Finding
+	for _, scanFindings := range m.savedFindings {
+		for _, finding := range scanFindings {
+			if finding.Severity == severity {
+				findings = append(findings, finding)
+			}
+		}
+	}
+	return findings, nil
+}
+
+func (m *MockResultStore) QueryFindings(ctx context.Context, query core.FindingQuery) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var findings []types.Finding
+	for _, scanFindings := range m.savedFindings {
+		findings = append(findings, scanFindings...)
+	}
+	return findings, nil
+}
+
+func (m *MockResultStore) GetFindingStats(ctx context.Context) (*core.FindingStats, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	stats := &core.FindingStats{
+		Total:      0,
+		BySeverity: make(map[types.Severity]int),
+		ByTool:     make(map[string]int),
+		ByType:     make(map[string]int),
+		ByTarget:   make(map[string]int),
+	}
+	for _, scanFindings := range m.savedFindings {
+		stats.Total += len(scanFindings)
+		for _, finding := range scanFindings {
+			stats.BySeverity[finding.Severity]++
+			stats.ByTool[finding.Tool]++
+			stats.ByType[finding.Type]++
+		}
+	}
+	return stats, nil
+}
+
+func (m *MockResultStore) GetRecentCriticalFindings(ctx context.Context, limit int) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var findings []types.Finding
+	for _, scanFindings := range m.savedFindings {
+		for _, finding := range scanFindings {
+			if finding.Severity == types.SeverityCritical {
+				findings = append(findings, finding)
+			}
+		}
+	}
+	if len(findings) > limit {
+		findings = findings[:limit]
+	}
+	return findings, nil
+}
+
+func (m *MockResultStore) SearchFindings(ctx context.Context, searchTerm string, limit int) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var findings []types.Finding
+	for _, scanFindings := range m.savedFindings {
+		findings = append(findings, scanFindings...)
+	}
+	if len(findings) > limit {
+		findings = findings[:limit]
+	}
+	return findings, nil
+}
+
+func (m *MockResultStore) SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error {
 	return nil
 }
 
-func (m *MockResultStore) GetEvents(ctx context.Context, scanID string) ([]types.Event, error) {
+func (m *MockResultStore) GetSummary(ctx context.Context, scanID string) (*types.Summary, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	events, ok := m.savedEvents[scanID]
-	if !ok {
-		return []types.Event{}, nil
+	findings := m.savedFindings[scanID]
+	severityCounts := make(map[types.Severity]int)
+	toolCounts := make(map[string]int)
+	for _, finding := range findings {
+		severityCounts[finding.Severity]++
+		toolCounts[finding.Tool]++
 	}
-	return events, nil
+	return &types.Summary{
+		Total:      len(findings),
+		BySeverity: severityCounts,
+		ByTool:     toolCounts,
+	}, nil
+}
+
+func (m *MockResultStore) Close() error {
+	return nil
 }
 
 // GetSavedFindingsCount returns count of findings saved for a scan
@@ -181,36 +275,44 @@ func (m *MockResultStore) GetSavedFindingsCount(scanID string) int {
 
 // MockTelemetry implements core.Telemetry interface for testing
 type MockTelemetry struct {
-	events []string
-	mu     sync.Mutex
+	scanCount     int
+	findingCount  int
+	workerMetrics int
+	mu            sync.Mutex
 }
 
 // NewMockTelemetry creates a mock telemetry client
 func NewMockTelemetry() *MockTelemetry {
-	return &MockTelemetry{
-		events: []string{},
-	}
+	return &MockTelemetry{}
 }
 
-func (m *MockTelemetry) TrackEvent(ctx context.Context, event string, properties map[string]interface{}) error {
+func (m *MockTelemetry) RecordScan(scanType types.ScanType, duration float64, success bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.events = append(m.events, event)
+	m.scanCount++
+}
+
+func (m *MockTelemetry) RecordFinding(severity types.Severity) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.findingCount++
+}
+
+func (m *MockTelemetry) RecordWorkerMetrics(status *types.WorkerStatus) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.workerMetrics++
+}
+
+func (m *MockTelemetry) Close() error {
 	return nil
 }
 
-func (m *MockTelemetry) TrackError(ctx context.Context, err error, properties map[string]interface{}) error {
+// GetScanCount returns how many scans were recorded
+func (m *MockTelemetry) GetScanCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.events = append(m.events, fmt.Sprintf("error: %v", err))
-	return nil
-}
-
-// GetEventCount returns how many events were tracked
-func (m *MockTelemetry) GetEventCount() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return len(m.events)
+	return m.scanCount
 }
 
 // CreateMockAssets creates a set of mock discovery assets for testing
@@ -264,10 +366,10 @@ func CreateMockFindings(scanID string, count int) []types.Finding {
 
 // CreateTestLogger creates a logger for testing with appropriate config
 func CreateTestLogger() (*logger.Logger, error) {
-	cfg := logger.Config{
-		Level:  "info",
-		Format: "text",
-		Output: "stdout",
+	cfg := config.LoggerConfig{
+		Level:       "info",
+		Format:      "text",
+		OutputPaths: []string{"stdout"},
 	}
 	return logger.New(cfg)
 }

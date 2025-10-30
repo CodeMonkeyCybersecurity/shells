@@ -105,7 +105,7 @@ func (o *OutputFormatter) DisplayOrganizationFootprinting(org *correlation.Organ
 	}
 
 	fmt.Printf("\n  Data Sources: %s\n", strings.Join(org.Sources, ", "))
-	fmt.Println("═══════════════════════════════════════════════════════════════\n")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
 }
 
 // DisplayDiscoveryResults shows asset discovery results
@@ -194,7 +194,7 @@ func (o *OutputFormatter) DisplayDiscoveryResults(assets []*discovery.Asset, dur
 		}
 	}
 
-	fmt.Println("═══════════════════════════════════════════════════════════════\n")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
 }
 
 // DisplayScanSummary shows final scan results summary
@@ -255,7 +255,7 @@ func (o *OutputFormatter) DisplayScanSummary(result *BugBountyResult) {
 	fmt.Printf("    • Export report: shells results export %s --format html\n", result.ScanID)
 	fmt.Printf("    • Web dashboard: http://localhost:8080 (if server running)\n")
 
-	fmt.Println("═══════════════════════════════════════════════════════════════\n")
+	fmt.Println("═══════════════════════════════════════════════════════════════")
 }
 
 // StreamHighSeverityFinding displays critical/high findings in real-time
