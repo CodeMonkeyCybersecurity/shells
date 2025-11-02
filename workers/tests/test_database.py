@@ -131,6 +131,93 @@ class TestDatabaseClient:
                 )
 
     @patch('workers.service.database.psycopg2.connect')
+    @patch('workers.service.database.uuid.uuid4')
+    def test_save_finding_normalizes_severity_uppercase(self, mock_uuid, mock_connect, db_client):
+        """Test save_finding normalizes uppercase severity to lowercase"""
+        # Setup mocks
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        finding_id = "test-uuid-456"
+        mock_uuid.return_value = finding_id
+
+        # Call with UPPERCASE severity
+        result_id = db_client.save_finding(
+            scan_id="scan-123",
+            tool="test-tool",
+            finding_type="TEST",
+            severity="CRITICAL",  # UPPERCASE input
+            title="Test finding"
+        )
+
+        # Verify lowercase was saved to database
+        call_args = mock_cursor.execute.call_args
+        params = call_args[0][1]
+        saved_severity = params[4]  # severity is 5th parameter (index 4)
+        assert saved_severity == "critical"  # lowercase in DB
+        assert result_id == finding_id
+
+    @patch('workers.service.database.psycopg2.connect')
+    @patch('workers.service.database.uuid.uuid4')
+    def test_save_finding_normalizes_severity_lowercase(self, mock_uuid, mock_connect, db_client):
+        """Test save_finding accepts lowercase severity"""
+        # Setup mocks
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        finding_id = "test-uuid-789"
+        mock_uuid.return_value = finding_id
+
+        # Call with lowercase severity (already correct)
+        result_id = db_client.save_finding(
+            scan_id="scan-123",
+            tool="test-tool",
+            finding_type="TEST",
+            severity="high",  # lowercase input
+            title="Test finding"
+        )
+
+        # Verify lowercase was saved to database
+        call_args = mock_cursor.execute.call_args
+        params = call_args[0][1]
+        saved_severity = params[4]
+        assert saved_severity == "high"  # lowercase in DB
+        assert result_id == finding_id
+
+    @patch('workers.service.database.psycopg2.connect')
+    @patch('workers.service.database.uuid.uuid4')
+    def test_save_finding_normalizes_severity_mixedcase(self, mock_uuid, mock_connect, db_client):
+        """Test save_finding normalizes mixed case severity"""
+        # Setup mocks
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        finding_id = "test-uuid-mix"
+        mock_uuid.return_value = finding_id
+
+        # Call with MixedCase severity
+        result_id = db_client.save_finding(
+            scan_id="scan-123",
+            tool="test-tool",
+            finding_type="TEST",
+            severity="MeDiUm",  # MixedCase input
+            title="Test finding"
+        )
+
+        # Verify lowercase was saved to database
+        call_args = mock_cursor.execute.call_args
+        params = call_args[0][1]
+        saved_severity = params[4]
+        assert saved_severity == "medium"  # lowercase in DB
+        assert result_id == finding_id
+
+    @patch('workers.service.database.psycopg2.connect')
     @patch('workers.service.database.execute_values')
     @patch('workers.service.database.uuid.uuid4')
     def test_save_findings_batch(self, mock_uuid, mock_execute_values, mock_connect, db_client):
@@ -192,6 +279,54 @@ class TestDatabaseClient:
                     tool="test-tool",
                     findings=findings
                 )
+
+    @patch('workers.service.database.psycopg2.connect')
+    @patch('workers.service.database.execute_values')
+    @patch('workers.service.database.uuid.uuid4')
+    def test_save_findings_batch_normalizes_severity(self, mock_uuid, mock_execute_values, mock_connect, db_client):
+        """Test save_findings_batch normalizes severity to lowercase"""
+        # Setup mocks
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_connect.return_value = mock_conn
+
+        # Mock UUID generation
+        mock_uuid.side_effect = [f"uuid-{i}" for i in range(3)]
+
+        findings = [
+            {
+                "type": "IDOR",
+                "severity": "CRITICAL",  # UPPERCASE
+                "title": "Finding 1",
+            },
+            {
+                "type": "XSS",
+                "severity": "high",  # lowercase
+                "title": "Finding 2",
+            },
+            {
+                "type": "SQLi",
+                "severity": "MeDiUm",  # MixedCase
+                "title": "Finding 3",
+            }
+        ]
+
+        # Call save_findings_batch
+        result_ids = db_client.save_findings_batch(
+            scan_id="scan-123",
+            tool="test-tool",
+            findings=findings
+        )
+
+        # Verify all severities normalized to lowercase
+        call_args = mock_execute_values.call_args
+        values = call_args[0][2]  # Third argument is the values list
+
+        assert len(values) == 3
+        assert values[0][4] == "critical"  # Normalized from CRITICAL
+        assert values[1][4] == "high"      # Already lowercase
+        assert values[2][4] == "medium"    # Normalized from MeDiUm
 
     def test_save_findings_batch_invalid_severity(self, db_client):
         """Test save_findings_batch rejects invalid severity"""

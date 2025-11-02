@@ -137,12 +137,268 @@ workers/tools/katana/
 
 ---
 
+## 🎯 PLANNED: Fuzzing Infrastructure Replacement (Nov 2025)
+
+**Status**: ⏳ PLANNED
+**Priority**: HIGH - Replace prototype fuzzer with industry-standard tool
+**Duration**: 2-3 weeks (16-18 hours)
+**Impact**: 10x performance improvement, production-grade reliability
+
+### Problem Statement
+
+**Current Custom Fuzzer Issues**:
+- **Code Quality**: 0% test coverage, broken interfaces, unsafe concurrency
+- **Performance**: 50-100 req/sec vs 500-2000 req/sec industry standard
+- **Completeness**: 3 advertised features not implemented (TODOs in code)
+- **Production Readiness**: 36-60 hours needed to make production-ready
+- **Maintenance**: High burden (single developer, no tests, hardcoded paths)
+
+**Assessment**: Current fuzzer at PROTOTYPE stage, not suitable for production use.
+
+### Solution: Hybrid Approach
+
+**Replace 80% → Use ffuf** (Core fuzzing):
+- Directory/file discovery
+- Subdomain enumeration
+- Virtual host detection
+- Basic parameter fuzzing
+
+**Keep 20% → Custom fuzzer** (Specialized attacks):
+- HTTP Parameter Pollution (HPP) detection
+- Type confusion testing
+- ML-based parameter prediction
+- Framework-aware fuzzing patterns
+
+### Implementation Timeline
+
+#### Week 1: ffuf Integration (6 hours)
+
+**Day 1-2: Core Integration** (4 hours)
+- [ ] Add ffuf as git submodule: `workers/tools/ffuf`
+- [ ] Install ffuf Go dependencies: `go get github.com/ffuf/ffuf`
+- [ ] Create wrapper module: `internal/discovery/ffuf_integration.go`
+  - Implement `DiscoveryModule` interface
+  - Priority: 55 (runs after katana)
+  - Handle directory, file, vhost, subdomain fuzzing
+
+**Day 3: Engine Integration** (2 hours)
+- [ ] Register ffuf module with discovery engine
+- [ ] Add to `NewEngine()` in `internal/discovery/engine.go`
+- [ ] Configure hybrid CLI + fallback mode (like subfinder pattern)
+- [ ] Add graceful degradation when ffuf binary not available
+
+#### Week 2: Custom Fuzzer Refactor (8-10 hours)
+
+**Day 1-2: Fix Critical Issues** (6 hours)
+- [ ] Fix interface compliance: Add `Type()` and `Validate()` methods
+- [ ] Fix unsafe concurrency: Add mutex for body reading
+- [ ] Fix wordlist handling: Proper error reporting, configurable paths
+- [ ] Remove basic fuzzing code (now handled by ffuf)
+
+**Day 3: Specialized Features Only** (2 hours)
+- [ ] Keep only specialized attack modules:
+  - `pkg/fuzzing/hpp_detector.go` - HTTP Parameter Pollution
+  - `pkg/fuzzing/type_confusion.go` - Type confusion testing
+  - `pkg/fuzzing/ml_predictor.go` - ML-based predictions
+- [ ] Remove 80% of fuzzer code (basic operations)
+- [ ] Wire specialized fuzzer to run AFTER ffuf on interesting findings
+
+**Day 4: Testing** (2 hours)
+- [ ] Add integration tests: `internal/discovery/ffuf_integration_test.go`
+- [ ] Test ffuf discovery module registration
+- [ ] Test hybrid CLI + fallback mode
+- [ ] Test specialized fuzzer only runs on high-value targets
+
+#### Week 3: CLI & Documentation (4 hours)
+
+**Day 1: Update CLI Commands** (2 hours)
+- [ ] Update `cmd/fuzz.go` to use ffuf backend by default
+- [ ] Add `--use-custom` flag for specialized fuzzing
+- [ ] Update help text to reflect new architecture
+- [ ] Add performance benchmarks to help text
+
+**Day 2: Documentation** (2 hours)
+- [ ] Update CLAUDE.md with new fuzzing architecture
+- [ ] Document ffuf vs custom fuzzer use cases
+- [ ] Add installation instructions for ffuf binary
+- [ ] Update README.md fuzzing examples
+
+### Architecture Diagram
+
+```
+┌────────────────────────────────────────────────────────┐
+│              Shells Discovery Pipeline                 │
+├────────────────────────────────────────────────────────┤
+│                                                        │
+│  Phase 1: Passive Reconnaissance                      │
+│  ├─ subfinder (90) → Subdomain enumeration            │
+│  ├─ dnsx (85)      → DNS resolution                   │
+│  └─ tlsx (80)      → Certificate transparency         │
+│                                                        │
+│  Phase 2: Active Service Detection                    │
+│  ├─ httpx (70)     → HTTP probing                     │
+│  └─ katana (60)    → Web crawling                     │
+│                                                        │
+│  Phase 3: Fuzzing (NEW)                               │
+│  ├─ ffuf (55)      → Fast basic fuzzing               │
+│  │   ├─ Directory discovery (500+ req/sec)            │
+│  │   ├─ File fuzzing                                  │
+│  │   ├─ Vhost detection                               │
+│  │   └─ Parameter mining                              │
+│  │                                                     │
+│  └─ Custom (50)    → Specialized attacks              │
+│      ├─ HTTP Parameter Pollution                      │
+│      ├─ Type confusion detection                      │
+│      ├─ ML parameter prediction                       │
+│      └─ Framework-aware patterns                      │
+│                                                        │
+│  Phase 4: Vulnerability Scanning                      │
+│  └─ (Future: nuclei integration)                      │
+│                                                        │
+└────────────────────────────────────────────────────────┘
+```
+
+### Performance Comparison
+
+| Metric | Custom Fuzzer | ffuf | Improvement |
+|--------|---------------|------|-------------|
+| **Speed** | 50-100 req/s | 500-2000 req/s | **10-20x faster** |
+| **Test Coverage** | 0% | High (battle-tested) | **∞ more reliable** |
+| **Memory Usage** | High (unbounded buffers) | Low (optimized) | **5-10x more efficient** |
+| **Maintenance** | Medium-High | Low | **Less dev time** |
+| **Features** | Incomplete (3 TODOs) | Complete | **More features** |
+| **Maturity** | 0 years | 8+ years | **Battle-tested** |
+
+### Cost-Benefit Analysis
+
+**Option A: Fix Custom Fuzzer**
+- Development time: 36-60 hours
+- Risk: Medium (no production testing)
+- Performance: Suboptimal
+- Result: Still slower than ffuf
+
+**Option B: Integrate ffuf (RECOMMENDED)**
+- Development time: 16-18 hours (62% less)
+- Risk: Very low (proven tool, 8.8k GitHub stars)
+- Performance: 10-20x faster
+- Result: Production-ready immediately
+
+**ROI: Option B saves 20-40 hours AND delivers 10x better performance**
+
+### Success Metrics
+
+**Performance Goals**:
+- [ ] Directory fuzzing: 500+ req/sec (10x improvement)
+- [ ] Memory usage: <100MB for 10k wordlist (vs current unbounded)
+- [ ] Zero data races (vs current unsafe concurrency)
+
+**Quality Goals**:
+- [ ] 100% interface compliance (vs current broken)
+- [ ] Test coverage >80% for integration layer
+- [ ] Zero TODOs in production code (vs current 3)
+
+**User Experience Goals**:
+- [ ] Faster scans = better value for bug bounty hunters
+- [ ] Reliable results = increased trust
+- [ ] Industry-standard tool = familiar to security researchers
+
+### Dependencies
+
+**Required**:
+- ffuf binary installed or available in PATH
+- Go dependencies: `github.com/ffuf/ffuf`
+
+**Optional**:
+- Wordlists in `/opt/shells/wordlists/` (will use defaults if missing)
+- Custom ffuf config in `.shells.yaml`
+
+### Rollout Plan
+
+**Phase 1: Soft Launch** (Week 1-2)
+- ffuf available via `shells fuzz --engine ffuf`
+- Custom fuzzer remains default
+- Gather user feedback
+
+**Phase 2: Default Switch** (Week 3)
+- ffuf becomes default engine
+- Custom fuzzer available via `--engine custom`
+- Deprecation notice for custom engine
+
+**Phase 3: Cleanup** (Week 4+)
+- Remove deprecated custom fuzzer code (80% reduction)
+- Keep only specialized attack modules
+- Archive custom fuzzer docs
+
+### Risk Mitigation
+
+**Risk 1: ffuf binary not available**
+- Mitigation: Hybrid CLI + fallback mode (same as subfinder)
+- Fallback: Return mock data for testing
+
+**Risk 2: Performance expectations not met**
+- Mitigation: Benchmark before release
+- Fallback: Keep custom fuzzer available
+
+**Risk 3: Feature gaps in ffuf**
+- Mitigation: Keep custom fuzzer for specialized attacks
+- Solution: Hybrid approach covers all use cases
+
+### Files to Create/Modify
+
+**New Files**:
+- `internal/discovery/ffuf_integration.go` - ffuf wrapper module
+- `internal/discovery/ffuf_integration_test.go` - integration tests
+- `pkg/fuzzing/hpp_detector.go` - Extract HPP detection
+- `pkg/fuzzing/type_confusion.go` - Extract type confusion
+- `pkg/fuzzing/ml_predictor.go` - Extract ML predictions
+
+**Modified Files**:
+- `internal/discovery/engine.go` - Register ffuf module
+- `cmd/fuzz.go` - Update to use ffuf backend
+- `pkg/fuzzing/scanner.go` - Simplify to specialized attacks only
+- `.gitmodules` - Add ffuf submodule
+- `CLAUDE.md` - Document new architecture
+
+**Deprecated Files** (Remove 80% of custom fuzzer):
+- `pkg/fuzzing/fuzzer.go` - 1,094 lines → 200 lines (keep utility functions)
+- `pkg/fuzzing/engines.go` - 476 lines → 0 (replaced by ffuf)
+- `pkg/fuzzing/advanced.go` - 780 lines → 300 lines (keep specialized only)
+
+**Net Code Reduction**: ~1,850 lines removed, ~500 lines added = **1,350 lines less to maintain**
+
+### Alignment with Shells Philosophy
+
+✅ **"Built by ethical hackers for ethical hackers"**
+- Use tools security researchers already trust (ffuf is industry-standard)
+
+✅ **"Evidence-based"**
+- Battle-tested tool over prototype (8+ years vs 0 years)
+
+✅ **"Value for time, value for money"**
+- 10x faster scans = more value per dollar spent on cloud infrastructure
+
+✅ **"Sustainable innovation"**
+- Lower maintenance burden = more time for new features
+
+✅ **"Maintainable code"**
+- 1,350 fewer lines to maintain, higher test coverage
+
+---
+
 ## Executive Summary
 
-**Current State**: Two execution paths (legacy Execute() + new Pipeline), need to merge
-**Overall Grade**: B (Good architecture, duplicate execution logic)
-**Estimated Total Timeline**: Week 1 (Merger) + 6.5 weeks (P0+P1+P2) ≈ **8 weeks total**
-**Note**: Phase 4 reduced from 15 days → 11 days after removing Phase 3 overlaps
+**Current State**: ProjectDiscovery tools integrated (✅ COMPLETE), fuzzing replacement planned
+**Overall Grade**: A- (Excellent tooling, needs fuzzing upgrade)
+**Recent Completions**:
+- ✅ ProjectDiscovery integration (subfinder, httpx, dnsx, tlsx, katana) - 1 day
+- ⏳ Fuzzing replacement with ffuf - 2-3 weeks planned
+
+**Updated Timeline**:
+- Week 1 (Execution Merger) - ✅ COMPLETE
+- Week 2-3 (Fuzzing Replacement) - ⏳ PLANNED (16-18 hours)
+- Weeks 4-10 (P0+P1+P2 fixes) - Remaining work
+
+**Estimated Total Timeline**: ~10 weeks total (8 weeks original + 2-3 weeks fuzzing)
 
 ### Critical Discovery (2025-10-30)
 

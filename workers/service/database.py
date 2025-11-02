@@ -4,6 +4,12 @@ PostgreSQL Database Integration for Python Workers
 Saves scan findings to PostgreSQL for integration with Shells Go application.
 
 P0-4 FIX: PostgreSQL integration for findings persistence
+
+IMPORTANT: Severity Normalization (2025-10-30)
+- All severity values are normalized to lowercase before saving to database
+- This matches Go's canonical format: "critical", "high", "medium", "low", "info"
+- Accepts both uppercase and lowercase input for compatibility
+- Ensures Python findings are queryable by Go CLI (shells results query --severity critical)
 """
 import os
 import json
@@ -91,11 +97,16 @@ class DatabaseClient:
         finding_id = str(uuid.uuid4())
         now = datetime.utcnow()
 
-        # Validate severity
-        valid_severities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
-        if severity not in valid_severities:
+        # Normalize severity to lowercase (matches Go canonical format)
+        # Accepts both uppercase and lowercase for compatibility
+        severity_lower = severity.lower()
+
+        # Validate severity (Go uses lowercase: critical, high, medium, low, info)
+        valid_severities = ["critical", "high", "medium", "low", "info"]
+        if severity_lower not in valid_severities:
             raise ValueError(
-                f"Invalid severity '{severity}'. Must be one of {valid_severities}"
+                f"Invalid severity '{severity}'. "
+                f"Must be one of {valid_severities} (case-insensitive)"
             )
 
         query = """
@@ -117,7 +128,7 @@ class DatabaseClient:
                     scan_id,
                     tool,
                     finding_type,
-                    severity,
+                    severity_lower,  # Use normalized lowercase severity
                     title,
                     description,
                     evidence,
@@ -187,12 +198,15 @@ class DatabaseClient:
             finding_id = str(uuid.uuid4())
             finding_ids.append(finding_id)
 
-            # Validate severity
-            valid_severities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
-            if finding["severity"] not in valid_severities:
+            # Normalize severity to lowercase (matches Go canonical format)
+            severity_lower = finding["severity"].lower()
+
+            # Validate severity (Go uses lowercase: critical, high, medium, low, info)
+            valid_severities = ["critical", "high", "medium", "low", "info"]
+            if severity_lower not in valid_severities:
                 raise ValueError(
                     f"Invalid severity '{finding['severity']}'. "
-                    f"Must be one of {valid_severities}"
+                    f"Must be one of {valid_severities} (case-insensitive)"
                 )
 
             values.append(
@@ -201,7 +215,7 @@ class DatabaseClient:
                     scan_id,
                     tool,
                     finding["type"],
-                    finding["severity"],
+                    severity_lower,  # Use normalized lowercase severity
                     finding["title"],
                     finding.get("description", ""),
                     finding.get("evidence", ""),

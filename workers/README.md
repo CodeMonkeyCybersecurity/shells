@@ -397,24 +397,56 @@ from workers.service.database import get_db_client
 db = get_db_client()
 
 # Save single finding
+# Note: Severity is automatically normalized to lowercase (matches Go format)
 finding_id = db.save_finding(
     scan_id="scan-123",
     tool="custom_idor",
     finding_type="IDOR",
-    severity="HIGH",
+    severity="HIGH",  # Accepts uppercase, lowercase, or mixed case
     title="User can access other users' data",
     description="User B can read User A's profile",
     evidence="GET /api/users/123 -> 200 OK",
     metadata={"user_id": 123, "endpoint": "/api/users/{id}"}
 )
+# Saves as "high" in database (lowercase)
 
 # Save multiple findings in batch
 findings = [{"type": "IDOR", "severity": "HIGH", "title": "..."}]
 finding_ids = db.save_findings_batch(scan_id, "custom_idor", findings)
 
-# Query findings
-critical_findings = db.get_findings_by_severity(scan_id, "CRITICAL")
+# Query findings (use lowercase severity)
+critical_findings = db.get_findings_by_severity(scan_id, "critical")
 total_count = db.get_scan_findings_count(scan_id)
+```
+
+#### Severity Normalization
+
+**IMPORTANT**: All severity values are automatically normalized to lowercase before saving to the database.
+
+**Why?** Go uses lowercase severity constants (`"critical"`, `"high"`, `"medium"`, `"low"`, `"info"`), and the Go CLI queries with lowercase values. This ensures Python findings are queryable by Go.
+
+**Compatibility**:
+- ✅ Accepts: `"CRITICAL"`, `"critical"`, `"CrItIcAl"` (all work)
+- ✅ Saves as: `"critical"` (always lowercase in database)
+- ✅ Go CLI: `shells results query --severity critical` (finds Python findings)
+
+**Valid Severity Values** (case-insensitive):
+- `critical` / `CRITICAL`
+- `high` / `HIGH`
+- `medium` / `MEDIUM`
+- `low` / `LOW`
+- `info` / `INFO`
+
+**Migration for Existing Data**:
+
+If you have existing findings with uppercase severity values:
+
+```bash
+# Run migration script
+psql $DATABASE_DSN -f workers/migrate_severity_case.sql
+
+# Or with docker-compose
+docker-compose exec postgres psql -U shells -d shells -f /app/workers/migrate_severity_case.sql
 ```
 
 ## Troubleshooting

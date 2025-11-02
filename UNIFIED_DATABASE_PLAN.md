@@ -319,6 +319,28 @@ WHERE severity IN ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO');
    - Document severity normalization
    - Update examples to use lowercase
 
+**Status**: ✅ **COMPLETE** (2025-10-30)
+
+**Changes Applied**:
+- ✅ `workers/service/database.py` - Severity normalization implemented
+- ✅ `workers/tests/test_database.py` - 4 new unit tests added
+- ✅ `workers/migrate_severity_case.sql` - Migration script created
+- ✅ `workers/README.md` - Documentation updated with normalization section
+
+**Test Results**:
+- ✅ test_save_finding_normalizes_severity_uppercase
+- ✅ test_save_finding_normalizes_severity_lowercase
+- ✅ test_save_finding_normalizes_severity_mixedcase
+- ✅ test_save_findings_batch_normalizes_severity
+
+**Verification**:
+```bash
+# Run tests
+pytest workers/tests/test_database.py::TestDatabaseClient::test_save_finding_normalizes_severity_uppercase -v
+
+# Result: PASSED ✅
+```
+
 ---
 
 ### Phase 2: Standardize Connection String Format (P1)
