@@ -56,6 +56,9 @@ const (
 	AssetTypeCertificate  AssetType = "certificate"
 	AssetTypePort         AssetType = "port"
 	AssetTypeService      AssetType = "service"
+	AssetTypeWebApp       AssetType = "web_app"
+	AssetTypeFunction     AssetType = "function"
+	AssetTypeKubernetes   AssetType = "kubernetes"
 )
 
 // OrganizationInfo represents information about related organizations

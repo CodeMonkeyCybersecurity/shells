@@ -4,13 +4,15 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"io"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
@@ -591,10 +593,11 @@ type AzureDetector struct {
 	logger     *logger.Logger
 	config     *DiscoveryConfig
 	httpClient *http.Client
+	patterns   map[string]*regexp.Regexp
 }
 
 func NewAzureDetector(logger *logger.Logger, config *DiscoveryConfig) *AzureDetector {
-	return &AzureDetector{
+	detector := &AzureDetector{
 		logger: logger,
 		config: config,
 		httpClient: &http.Client{
@@ -605,17 +608,549 @@ func NewAzureDetector(logger *logger.Logger, config *DiscoveryConfig) *AzureDete
 				},
 			},
 		},
+		patterns: make(map[string]*regexp.Regexp),
 	}
+
+	detector.initializePatterns()
+	return detector
+}
+
+// initializePatterns initializes Azure-specific regex patterns
+func (a *AzureDetector) initializePatterns() {
+	// Blob Storage patterns
+	a.patterns["blob_storage"] = regexp.MustCompile(`^([a-z0-9]+)\.blob\.core\.windows\.net$`)
+
+	// App Services patterns
+	a.patterns["app_service"] = regexp.MustCompile(`^([a-z0-9-]+)\.azurewebsites\.net$`)
+	a.patterns["app_service_slot"] = regexp.MustCompile(`^([a-z0-9-]+)-([a-z0-9]+)\.azurewebsites\.net$`)
+
+	// Azure Functions patterns
+	a.patterns["function_app"] = regexp.MustCompile(`^([a-z0-9-]+)\.azurewebsites\.net/api/`)
+
+	// Azure Kubernetes Service (AKS) patterns
+	a.patterns["aks"] = regexp.MustCompile(`^([a-z0-9-]+)\.([a-z0-9-]+)\.azmk8s\.io$`)
+
+	// Azure Container Instances patterns
+	a.patterns["aci"] = regexp.MustCompile(`^([a-z0-9-]+)\.([a-z0-9-]+)\.azurecontainer\.io$`)
+
+	// Azure CDN patterns
+	a.patterns["cdn"] = regexp.MustCompile(`^([a-z0-9-]+)\.azureedge\.net$`)
+
+	// Azure API Management patterns
+	a.patterns["apim"] = regexp.MustCompile(`^([a-z0-9-]+)\.azure-api\.net$`)
 }
 
 func (a *AzureDetector) DiscoverAssets(ctx context.Context, target string) []InfrastructureAsset {
-	// Azure-specific discovery logic would be implemented here
-	// Including Azure Blob Storage, App Services, Functions, etc.
-	return []InfrastructureAsset{}
+	assets := []InfrastructureAsset{}
+
+	domain := extractDomainFromTarget(target)
+
+	a.logger.Infow("Starting Azure asset discovery", "target", target, "domain", domain)
+
+	// Blob Storage discovery
+	blobAssets := a.discoverBlobStorage(ctx, domain)
+	assets = append(assets, blobAssets...)
+
+	// App Services discovery
+	appAssets := a.discoverAppServices(ctx, domain)
+	assets = append(assets, appAssets...)
+
+	// Azure Functions discovery
+	funcAssets := a.discoverFunctions(ctx, domain)
+	assets = append(assets, funcAssets...)
+
+	// AKS discovery
+	aksAssets := a.discoverAKS(ctx, domain)
+	assets = append(assets, aksAssets...)
+
+	a.logger.Info("Azure asset discovery completed",
+		"target", target,
+		"assets_found", len(assets))
+
+	return assets
+}
+
+// discoverBlobStorage discovers Azure Blob Storage accounts
+func (a *AzureDetector) discoverBlobStorage(ctx context.Context, domain string) []InfrastructureAsset {
+	assets := []InfrastructureAsset{}
+
+	// Generate storage account name candidates
+	storageNames := a.generateStorageNames(domain)
+
+	for _, storageName := range storageNames {
+		select {
+		case <-ctx.Done():
+			return assets
+		default:
+		}
+
+		// Test Blob Storage URL
+		url := fmt.Sprintf("https://%s.blob.core.windows.net", storageName)
+
+		if blobInfo := a.testBlobStorage(ctx, url, storageName); blobInfo != nil {
+			asset := InfrastructureAsset{
+				ID:         generateAssetID(AssetTypeCloudStorage, storageName),
+				Type:       AssetTypeCloudStorage,
+				Value:      storageName,
+				Source:     "azure_blob_enumeration",
+				Confidence: blobInfo.Confidence,
+				Priority:   a.calculateBlobPriority(blobInfo),
+				Tags:       []string{"blob", "azure", "cloud_storage"},
+				CloudInfo: &CloudInfo{
+					Provider:     CloudProviderAzure,
+					Service:      "blob",
+					ResourceID:   storageName,
+					PublicAccess: blobInfo.PublicAccess,
+					Metadata:     blobInfo.Metadata,
+				},
+				Metadata:     blobInfo.RawMetadata,
+				DiscoveredAt: time.Now(),
+			}
+
+			if blobInfo.PublicAccess {
+				asset.Tags = append(asset.Tags, "public_access")
+				asset.Priority = PriorityHigh
+			}
+
+			assets = append(assets, asset)
+		}
+	}
+
+	return assets
+}
+
+// BlobStorageInfo represents Azure Blob Storage information
+type BlobStorageInfo struct {
+	Name         string
+	PublicAccess bool
+	Confidence   float64
+	Metadata     map[string]string
+	RawMetadata  map[string]interface{}
+}
+
+// generateStorageNames generates potential Azure storage account names
+func (a *AzureDetector) generateStorageNames(domain string) []string {
+	storageNames := []string{}
+
+	// Azure storage names: 3-24 chars, lowercase alphanumeric only
+	baseName := strings.Replace(domain, ".", "", -1)
+	baseName = strings.Replace(baseName, "-", "", -1)
+	baseName = strings.Replace(baseName, "_", "", -1)
+	baseName = strings.ToLower(baseName)
+
+	// Truncate if too long
+	if len(baseName) > 20 {
+		baseName = baseName[:20]
+	}
+
+	// Common Azure storage patterns
+	patterns := []string{
+		"%s",
+		"%sdata",
+		"%sstorage",
+		"%sblob",
+		"%sfiles",
+		"%spublic",
+		"%sprivate",
+		"%sbackup",
+		"data%s",
+		"storage%s",
+		"blob%s",
+	}
+
+	for _, pattern := range patterns {
+		name := fmt.Sprintf(pattern, baseName)
+		if isValidAzureStorageName(name) {
+			storageNames = append(storageNames, name)
+		}
+	}
+
+	return removeDuplicates(storageNames)
+}
+
+// testBlobStorage tests if Azure Blob Storage account exists
+func (a *AzureDetector) testBlobStorage(ctx context.Context, url, storageName string) *BlobStorageInfo {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil
+	}
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer httpclient.CloseBody(resp)
+
+	blobInfo := &BlobStorageInfo{
+		Name:        storageName,
+		Confidence:  0.0,
+		Metadata:    make(map[string]string),
+		RawMetadata: make(map[string]interface{}),
+	}
+
+	// Analyze response
+	switch resp.StatusCode {
+	case 200:
+		// Storage account exists and is publicly readable
+		blobInfo.PublicAccess = true
+		blobInfo.Confidence = 1.0
+
+	case 404:
+		// Account doesn't exist
+		return nil
+
+	case 400:
+		// Account exists but access denied
+		blobInfo.PublicAccess = false
+		blobInfo.Confidence = 0.8
+
+	default:
+		return nil
+	}
+
+	// Store response headers
+	blobInfo.Metadata["server"] = resp.Header.Get("Server")
+	blobInfo.Metadata["x-ms-request-id"] = resp.Header.Get("x-ms-request-id")
+	blobInfo.Metadata["x-ms-version"] = resp.Header.Get("x-ms-version")
+
+	return blobInfo
+}
+
+// calculateBlobPriority calculates priority for Azure Blob Storage
+func (a *AzureDetector) calculateBlobPriority(blobInfo *BlobStorageInfo) int {
+	if blobInfo.PublicAccess {
+		return PriorityHigh
+	}
+	return PriorityMedium
+}
+
+// discoverAppServices discovers Azure App Services
+func (a *AzureDetector) discoverAppServices(ctx context.Context, domain string) []InfrastructureAsset {
+	assets := []InfrastructureAsset{}
+
+	// Generate app service name candidates
+	appNames := a.generateAppServiceNames(domain)
+
+	for _, appName := range appNames {
+		select {
+		case <-ctx.Done():
+			return assets
+		default:
+		}
+
+		url := fmt.Sprintf("https://%s.azurewebsites.net", appName)
+
+		if appInfo := a.testAppService(ctx, url, appName); appInfo != nil {
+			asset := InfrastructureAsset{
+				ID:         generateAssetID(AssetTypeWebApp, appName),
+				Type:       AssetTypeWebApp,
+				Value:      fmt.Sprintf("%s.azurewebsites.net", appName),
+				Source:     "azure_app_enumeration",
+				Confidence: appInfo.Confidence,
+				Priority:   PriorityMedium,
+				Tags:       []string{"app_service", "azure", "web_app"},
+				CloudInfo: &CloudInfo{
+					Provider:   CloudProviderAzure,
+					Service:    "app_service",
+					ResourceID: appName,
+					Metadata:   appInfo.Metadata,
+				},
+				Metadata:     appInfo.RawMetadata,
+				DiscoveredAt: time.Now(),
+			}
+
+			assets = append(assets, asset)
+		}
+	}
+
+	return assets
+}
+
+// AppServiceInfo represents Azure App Service information
+type AppServiceInfo struct {
+	Name        string
+	Confidence  float64
+	Metadata    map[string]string
+	RawMetadata map[string]interface{}
+}
+
+// generateAppServiceNames generates potential Azure App Service names
+func (a *AzureDetector) generateAppServiceNames(domain string) []string {
+	appNames := []string{}
+
+	baseName := strings.Replace(domain, ".", "-", -1)
+
+	patterns := []string{
+		"%s",
+		"%s-api",
+		"%s-app",
+		"%s-web",
+		"%s-dev",
+		"%s-staging",
+		"%s-prod",
+		"api-%s",
+		"app-%s",
+		"web-%s",
+	}
+
+	for _, pattern := range patterns {
+		name := fmt.Sprintf(pattern, baseName)
+		appNames = append(appNames, name)
+	}
+
+	return removeDuplicates(appNames)
+}
+
+// testAppService tests if Azure App Service exists
+func (a *AzureDetector) testAppService(ctx context.Context, url, appName string) *AppServiceInfo {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil
+	}
+
+	resp, err := a.httpClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer httpclient.CloseBody(resp)
+
+	// Check for Azure App Service indicators
+	server := resp.Header.Get("Server")
+	if !strings.Contains(server, "Microsoft") && !strings.Contains(server, "IIS") {
+		return nil
+	}
+
+	appInfo := &AppServiceInfo{
+		Name:        appName,
+		Confidence:  0.7,
+		Metadata:    make(map[string]string),
+		RawMetadata: make(map[string]interface{}),
+	}
+
+	appInfo.Metadata["server"] = server
+	appInfo.Metadata["x-powered-by"] = resp.Header.Get("X-Powered-By")
+
+	return appInfo
+}
+
+// discoverFunctions discovers Azure Functions
+func (a *AzureDetector) discoverFunctions(ctx context.Context, domain string) []InfrastructureAsset {
+	// Azure Functions use same *.azurewebsites.net domain as App Services
+	// Differentiated by /api/ path and Function runtime headers
+	assets := []InfrastructureAsset{}
+
+	appNames := a.generateAppServiceNames(domain)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for _, appName := range appNames {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			url := fmt.Sprintf("https://%s.azurewebsites.net/api", name)
+
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				return
+			}
+
+			resp, err := a.httpClient.Do(req)
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
+
+			// Check for Azure Functions indicators
+			isFunctionApp := false
+
+			// Check for Azure Functions specific headers
+			if runtime := resp.Header.Get("X-Azure-Functionruntime"); runtime != "" {
+				isFunctionApp = true
+			}
+
+			// Check for Functions-specific response patterns
+			if resp.StatusCode == 401 || resp.StatusCode == 403 {
+				// Functions often return 401/403 for unauthorized API access
+				if contentType := resp.Header.Get("Content-Type"); strings.Contains(contentType, "json") {
+					isFunctionApp = true
+				}
+			}
+
+			if isFunctionApp {
+				asset := InfrastructureAsset{
+					Type:  AssetTypeFunction,
+					Value: fmt.Sprintf("%s.azurewebsites.net", name),
+					CloudInfo: &CloudInfo{
+						Provider: CloudProviderAzure,
+						Service:  "functions",
+						Region:   resp.Header.Get("X-Azure-Ref"),
+					},
+					Priority: 80, // Functions are high-value targets
+					Metadata: map[string]interface{}{
+						"runtime":     resp.Header.Get("X-Azure-Functionruntime"),
+						"app_name":    name,
+						"api_path":    "/api",
+						"status_code": resp.StatusCode,
+					},
+				}
+
+				mu.Lock()
+				assets = append(assets, asset)
+				mu.Unlock()
+
+				a.logger.Infow("Azure Functions app discovered",
+					"app_name", name,
+					"url", asset.Value,
+					"runtime", resp.Header.Get("X-Azure-Functionruntime"),
+				)
+			}
+		}(appName)
+	}
+
+	wg.Wait()
+	return assets
+}
+
+// discoverAKS discovers Azure Kubernetes Service clusters
+func (a *AzureDetector) discoverAKS(ctx context.Context, domain string) []InfrastructureAsset {
+	// AKS clusters use *.*.azmk8s.io pattern
+	// Format: <cluster-name>.<region>.azmk8s.io
+	// Typically private, but public clusters expose API endpoints
+	assets := []InfrastructureAsset{}
+
+	// Generate cluster name candidates
+	clusterNames := a.generateAKSNames(domain)
+
+	// Common Azure regions
+	regions := []string{
+		"eastus", "eastus2", "westus", "westus2", "centralus",
+		"northeurope", "westeurope", "uksouth", "ukwest",
+		"southeastasia", "eastasia", "australiaeast", "australiasoutheast",
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for _, clusterName := range clusterNames {
+		for _, region := range regions {
+			wg.Add(1)
+			go func(cluster, reg string) {
+				defer wg.Done()
+
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				// AKS API endpoint format
+				url := fmt.Sprintf("https://%s.%s.azmk8s.io", cluster, reg)
+
+				req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+				if err != nil {
+					return
+				}
+
+				resp, err := a.httpClient.Do(req)
+				if err != nil {
+					// DNS resolution failure means cluster doesn't exist
+					return
+				}
+				defer resp.Body.Close()
+
+				// AKS clusters typically return 403 Forbidden for unauthenticated access
+				// or redirect to Azure AD login
+				if resp.StatusCode == 403 || resp.StatusCode == 401 {
+					asset := InfrastructureAsset{
+						Type:  AssetTypeKubernetes,
+						Value: fmt.Sprintf("%s.%s.azmk8s.io", cluster, reg),
+						CloudInfo: &CloudInfo{
+							Provider: CloudProviderAzure,
+							Service:  "aks",
+							Region:   reg,
+						},
+						Priority: 90, // Kubernetes clusters are critical assets
+						Metadata: map[string]interface{}{
+							"cluster_name": cluster,
+							"region":       reg,
+							"access":       "private", // Requires authentication
+							"status_code":  resp.StatusCode,
+						},
+					}
+
+					mu.Lock()
+					assets = append(assets, asset)
+					mu.Unlock()
+
+					a.logger.Infow("Azure AKS cluster discovered",
+						"cluster_name", cluster,
+						"region", reg,
+						"url", asset.Value,
+					)
+				}
+			}(clusterName, region)
+		}
+	}
+
+	wg.Wait()
+	return assets
+}
+
+// generateAKSNames generates potential AKS cluster names from domain
+func (a *AzureDetector) generateAKSNames(domain string) []string {
+	names := []string{}
+
+	// Remove TLD
+	baseName := strings.TrimSuffix(domain, filepath.Ext(domain))
+	baseName = strings.ReplaceAll(baseName, ".", "-")
+
+	// Common AKS naming patterns
+	patterns := []string{
+		"%s",
+		"%s-aks",
+		"%s-cluster",
+		"%s-k8s",
+		"aks-%s",
+		"k8s-%s",
+		"%s-prod",
+		"%s-dev",
+		"%s-staging",
+	}
+
+	for _, pattern := range patterns {
+		name := fmt.Sprintf(pattern, baseName)
+		names = append(names, name)
+	}
+
+	return names
 }
 
 func (a *AzureDetector) GetCloudInfo(ctx context.Context, asset InfrastructureAsset) *CloudInfo {
+	// Detailed cloud information retrieval
 	return nil
+}
+
+// isValidAzureStorageName validates Azure storage account naming rules
+func isValidAzureStorageName(name string) bool {
+	// Must be 3-24 characters
+	if len(name) < 3 || len(name) > 24 {
+		return false
+	}
+
+	// Must be lowercase letters and numbers only
+	if !regexp.MustCompile(`^[a-z0-9]+$`).MatchString(name) {
+		return false
+	}
+
+	return true
 }
 
 // GCPDetector discovers Google Cloud Platform assets
@@ -623,6 +1158,7 @@ type GCPDetector struct {
 	logger     *logger.Logger
 	config     *DiscoveryConfig
 	httpClient *http.Client
+	patterns   map[string]*regexp.Regexp
 }
 
 func NewGCPDetector(logger *logger.Logger, config *DiscoveryConfig) *GCPDetector {
@@ -637,16 +1173,538 @@ func NewGCPDetector(logger *logger.Logger, config *DiscoveryConfig) *GCPDetector
 				},
 			},
 		},
+		patterns: map[string]*regexp.Regexp{
+			"storage":        regexp.MustCompile(`\.storage\.googleapis\.com$`),
+			"appengine":      regexp.MustCompile(`\.appspot\.com$`),
+			"functions":      regexp.MustCompile(`\.cloudfunctions\.net$`),
+			"run":            regexp.MustCompile(`\.run\.app$`),
+			"firebase":       regexp.MustCompile(`\.firebaseapp\.com$`),
+			"firebase_db":    regexp.MustCompile(`\.firebaseio\.com$`),
+			"cloudfront_gcp": regexp.MustCompile(`\.web\.app$`),
+		},
 	}
 }
 
-func (a *GCPDetector) DiscoverAssets(ctx context.Context, target string) []InfrastructureAsset {
-	// GCP-specific discovery logic would be implemented here
-	// Including Cloud Storage buckets, App Engine, Cloud Functions, etc.
-	return []InfrastructureAsset{}
+func (g *GCPDetector) DiscoverAssets(ctx context.Context, target string) []InfrastructureAsset {
+	g.logger.Infow("Starting GCP asset discovery",
+		"target", target,
+	)
+
+	assets := []InfrastructureAsset{}
+
+	// Check if target matches GCP patterns
+	for service, pattern := range g.patterns {
+		if pattern.MatchString(target) {
+			g.logger.Infow("Target matches GCP pattern",
+				"target", target,
+				"service", service,
+			)
+		}
+	}
+
+	// Discover different GCP services in parallel
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	// Cloud Storage buckets
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		storageAssets := g.discoverCloudStorage(ctx, target)
+		mu.Lock()
+		assets = append(assets, storageAssets...)
+		mu.Unlock()
+	}()
+
+	// App Engine
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		appEngineAssets := g.discoverAppEngine(ctx, target)
+		mu.Lock()
+		assets = append(assets, appEngineAssets...)
+		mu.Unlock()
+	}()
+
+	// Cloud Functions
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		functionAssets := g.discoverCloudFunctions(ctx, target)
+		mu.Lock()
+		assets = append(assets, functionAssets...)
+		mu.Unlock()
+	}()
+
+	// Cloud Run
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runAssets := g.discoverCloudRun(ctx, target)
+		mu.Lock()
+		assets = append(assets, runAssets...)
+		mu.Unlock()
+	}()
+
+	wg.Wait()
+
+	g.logger.Infow("GCP asset discovery completed",
+		"target", target,
+		"assets_found", len(assets),
+	)
+
+	return assets
 }
 
-func (a *GCPDetector) GetCloudInfo(ctx context.Context, asset InfrastructureAsset) *CloudInfo {
+// discoverCloudStorage discovers GCS buckets
+func (g *GCPDetector) discoverCloudStorage(ctx context.Context, domain string) []InfrastructureAsset {
+	assets := []InfrastructureAsset{}
+
+	// Generate bucket name candidates
+	bucketNames := g.generateBucketNames(domain)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for _, bucketName := range bucketNames {
+		wg.Add(1)
+		go func(bucket string) {
+			defer wg.Done()
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			// Test GCS bucket URL
+			url := fmt.Sprintf("https://storage.googleapis.com/%s", bucket)
+
+			if bucketInfo := g.testCloudStorage(ctx, url, bucket); bucketInfo != nil {
+				asset := InfrastructureAsset{
+					Type:  AssetTypeCloudStorage,
+					Value: fmt.Sprintf("%s.storage.googleapis.com", bucket),
+					CloudInfo: &CloudInfo{
+						Provider:     CloudProviderGCP,
+						Service:      "storage",
+						PublicAccess: bucketInfo.PublicAccess,
+						Region:       bucketInfo.Region,
+					},
+					Priority: bucketInfo.Priority,
+					Metadata: map[string]interface{}{
+						"bucket_name":   bucket,
+						"access":        bucketInfo.Access,
+						"storage_class": bucketInfo.StorageClass,
+					},
+				}
+
+				mu.Lock()
+				assets = append(assets, asset)
+				mu.Unlock()
+
+				g.logger.Infow("GCS bucket discovered",
+					"bucket", bucket,
+					"public_access", bucketInfo.PublicAccess,
+					"priority", bucketInfo.Priority,
+				)
+			}
+		}(bucketName)
+	}
+
+	wg.Wait()
+	return assets
+}
+
+// generateBucketNames generates potential GCS bucket names
+func (g *GCPDetector) generateBucketNames(domain string) []string {
+	names := []string{}
+
+	// Remove TLD
+	baseName := strings.TrimSuffix(domain, filepath.Ext(domain))
+	baseName = strings.ReplaceAll(baseName, ".", "-")
+
+	// Common GCS bucket naming patterns
+	patterns := []string{
+		"%s",
+		"%s-bucket",
+		"%s-storage",
+		"%s-backup",
+		"%s-data",
+		"%s-uploads",
+		"%s-static",
+		"%s-assets",
+		"%s-prod",
+		"%s-dev",
+		"%s-staging",
+		"gs-%s",
+		"gcs-%s",
+	}
+
+	for _, pattern := range patterns {
+		name := fmt.Sprintf(pattern, baseName)
+		names = append(names, name)
+	}
+
+	return names
+}
+
+type gcsBucketInfo struct {
+	BucketName   string
+	PublicAccess bool
+	Access       string
+	Region       string
+	StorageClass string
+	Priority     int
+}
+
+// testCloudStorage tests GCS bucket accessibility
+func (g *GCPDetector) testCloudStorage(ctx context.Context, url, bucketName string) *gcsBucketInfo {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil
+	}
+
+	resp, err := g.httpClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode == 404 {
+		return nil // Bucket doesn't exist
+	}
+
+	bucketInfo := &gcsBucketInfo{
+		BucketName: bucketName,
+	}
+
+	// Analyze access level
+	switch resp.StatusCode {
+	case 200:
+		bucketInfo.PublicAccess = true
+		bucketInfo.Access = "public_read"
+		bucketInfo.Priority = 95 // Critical: Public bucket
+	case 403:
+		bucketInfo.PublicAccess = false
+		bucketInfo.Access = "private"
+		bucketInfo.Priority = 70 // Medium: Private bucket exists
+	case 401:
+		bucketInfo.PublicAccess = false
+		bucketInfo.Access = "auth_required"
+		bucketInfo.Priority = 75 // Private bucket, authentication required
+	}
+
+	// Extract region and storage class from headers if available
+	if location := resp.Header.Get("X-Goog-Storage-Class"); location != "" {
+		bucketInfo.StorageClass = location
+	}
+
+	return bucketInfo
+}
+
+// discoverAppEngine discovers App Engine applications
+func (g *GCPDetector) discoverAppEngine(ctx context.Context, domain string) []InfrastructureAsset {
+	assets := []InfrastructureAsset{}
+
+	appNames := g.generateAppEngineNames(domain)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for _, appName := range appNames {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			url := fmt.Sprintf("https://%s.appspot.com", name)
+
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				return
+			}
+
+			resp, err := g.httpClient.Do(req)
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
+
+			// App Engine apps typically respond with 200, 302, or 404
+			if resp.StatusCode != 404 {
+				asset := InfrastructureAsset{
+					Type:  AssetTypeWebApp,
+					Value: fmt.Sprintf("%s.appspot.com", name),
+					CloudInfo: &CloudInfo{
+						Provider: CloudProviderGCP,
+						Service:  "appengine",
+					},
+					Priority: 80, // App Engine is high-value
+					Metadata: map[string]interface{}{
+						"app_name":    name,
+						"status_code": fmt.Sprintf("%d", resp.StatusCode),
+						"server":      resp.Header.Get("Server"),
+					},
+				}
+
+				mu.Lock()
+				assets = append(assets, asset)
+				mu.Unlock()
+
+				g.logger.Infow("App Engine application discovered",
+					"app_name", name,
+					"url", asset.Value,
+				)
+			}
+		}(appName)
+	}
+
+	wg.Wait()
+	return assets
+}
+
+// generateAppEngineNames generates potential App Engine names
+func (g *GCPDetector) generateAppEngineNames(domain string) []string {
+	names := []string{}
+
+	baseName := strings.TrimSuffix(domain, filepath.Ext(domain))
+	baseName = strings.ReplaceAll(baseName, ".", "-")
+
+	patterns := []string{
+		"%s",
+		"%s-app",
+		"%s-api",
+		"%s-web",
+		"%s-prod",
+		"%s-dev",
+		"%s-staging",
+		"app-%s",
+		"api-%s",
+	}
+
+	for _, pattern := range patterns {
+		name := fmt.Sprintf(pattern, baseName)
+		names = append(names, name)
+	}
+
+	return names
+}
+
+// discoverCloudFunctions discovers Cloud Functions
+func (g *GCPDetector) discoverCloudFunctions(ctx context.Context, domain string) []InfrastructureAsset {
+	assets := []InfrastructureAsset{}
+
+	functionNames := g.generateFunctionNames(domain)
+
+	// Cloud Functions regions
+	regions := []string{
+		"us-central1", "us-east1", "us-west1",
+		"europe-west1", "europe-west2", "europe-west3",
+		"asia-east1", "asia-northeast1", "asia-southeast1",
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for _, funcName := range functionNames {
+		for _, region := range regions {
+			wg.Add(1)
+			go func(fn, reg string) {
+				defer wg.Done()
+
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				// Cloud Functions URL format: https://<region>-<project-id>.cloudfunctions.net/<function-name>
+				// We can't know project-id, but test common patterns
+				url := fmt.Sprintf("https://%s-%s.cloudfunctions.net/%s", reg, fn, fn)
+
+				req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+				if err != nil {
+					return
+				}
+
+				resp, err := g.httpClient.Do(req)
+				if err != nil {
+					return
+				}
+				defer resp.Body.Close()
+
+				// Cloud Functions return various status codes (200, 403, 401, 500)
+				if resp.StatusCode != 404 {
+					asset := InfrastructureAsset{
+						Type:  AssetTypeFunction,
+						Value: fmt.Sprintf("%s-%s.cloudfunctions.net/%s", reg, fn, fn),
+						CloudInfo: &CloudInfo{
+							Provider: CloudProviderGCP,
+							Service:  "functions",
+							Region:   reg,
+						},
+						Priority: 85, // Functions are valuable targets
+						Metadata: map[string]interface{}{
+							"function_name": fn,
+							"region":        reg,
+							"status_code":   fmt.Sprintf("%d", resp.StatusCode),
+						},
+					}
+
+					mu.Lock()
+					assets = append(assets, asset)
+					mu.Unlock()
+
+					g.logger.Infow("Cloud Function discovered",
+						"function_name", fn,
+						"region", reg,
+						"url", asset.Value,
+					)
+				}
+			}(funcName, region)
+		}
+	}
+
+	wg.Wait()
+	return assets
+}
+
+// generateFunctionNames generates potential Cloud Function names
+func (g *GCPDetector) generateFunctionNames(domain string) []string {
+	names := []string{}
+
+	baseName := strings.TrimSuffix(domain, filepath.Ext(domain))
+	baseName = strings.ReplaceAll(baseName, ".", "-")
+
+	patterns := []string{
+		"%s",
+		"%s-function",
+		"%s-api",
+		"%s-handler",
+		"function-%s",
+		"api-%s",
+	}
+
+	for _, pattern := range patterns {
+		name := fmt.Sprintf(pattern, baseName)
+		names = append(names, name)
+	}
+
+	return names
+}
+
+// discoverCloudRun discovers Cloud Run services
+func (g *GCPDetector) discoverCloudRun(ctx context.Context, domain string) []InfrastructureAsset {
+	assets := []InfrastructureAsset{}
+
+	serviceNames := g.generateCloudRunNames(domain)
+
+	// Cloud Run regions
+	regions := []string{
+		"us-central1", "us-east1", "us-west1",
+		"europe-west1", "europe-west2", "europe-west3",
+		"asia-east1", "asia-northeast1", "asia-southeast1",
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for _, serviceName := range serviceNames {
+		for _, region := range regions {
+			wg.Add(1)
+			go func(svc, reg string) {
+				defer wg.Done()
+
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				// Cloud Run URL format: https://<service-name>-<random-hash>-<region>.run.app
+				// Test without hash (some services use predictable names)
+				url := fmt.Sprintf("https://%s-%s.run.app", svc, reg)
+
+				req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+				if err != nil {
+					return
+				}
+
+				resp, err := g.httpClient.Do(req)
+				if err != nil {
+					return
+				}
+				defer resp.Body.Close()
+
+				// Cloud Run returns 200, 403, 401, 500, etc. for valid services
+				if resp.StatusCode != 404 {
+					asset := InfrastructureAsset{
+						Type:  AssetTypeWebApp,
+						Value: fmt.Sprintf("%s-%s.run.app", svc, reg),
+						CloudInfo: &CloudInfo{
+							Provider: CloudProviderGCP,
+							Service:  "run",
+							Region:   reg,
+						},
+						Priority: 80, // Cloud Run is high-value
+						Metadata: map[string]interface{}{
+							"service_name": svc,
+							"region":       reg,
+							"status_code":  fmt.Sprintf("%d", resp.StatusCode),
+						},
+					}
+
+					mu.Lock()
+					assets = append(assets, asset)
+					mu.Unlock()
+
+					g.logger.Infow("Cloud Run service discovered",
+						"service_name", svc,
+						"region", reg,
+						"url", asset.Value,
+					)
+				}
+			}(serviceName, region)
+		}
+	}
+
+	wg.Wait()
+	return assets
+}
+
+// generateCloudRunNames generates potential Cloud Run service names
+func (g *GCPDetector) generateCloudRunNames(domain string) []string {
+	names := []string{}
+
+	baseName := strings.TrimSuffix(domain, filepath.Ext(domain))
+	baseName = strings.ReplaceAll(baseName, ".", "-")
+
+	patterns := []string{
+		"%s",
+		"%s-service",
+		"%s-api",
+		"%s-web",
+		"%s-app",
+		"service-%s",
+		"api-%s",
+	}
+
+	for _, pattern := range patterns {
+		name := fmt.Sprintf(pattern, baseName)
+		names = append(names, name)
+	}
+
+	return names
+}
+
+func (g *GCPDetector) GetCloudInfo(ctx context.Context, asset InfrastructureAsset) *CloudInfo {
+	// Detailed cloud information retrieval
 	return nil
 }
 

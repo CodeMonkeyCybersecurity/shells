@@ -97,9 +97,10 @@ func (m *MockScanner) Execute(ctx context.Context, assets []*scanners.AssetPrior
 
 // MockResultStore implements core.ResultStore interface for testing
 type MockResultStore struct {
-	savedScans    map[string]*types.ScanRequest
-	savedFindings map[string][]types.Finding
-	mu            sync.RWMutex
+	savedScans     map[string]*types.ScanRequest
+	savedFindings  map[string][]types.Finding
+	SaveScanCalled bool // Track if SaveScan was called (for integration tests)
+	mu             sync.RWMutex
 }
 
 // NewMockResultStore creates a mock result store
@@ -114,6 +115,7 @@ func (m *MockResultStore) SaveScan(ctx context.Context, scan *types.ScanRequest)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.savedScans[scan.ID] = scan
+	m.SaveScanCalled = true
 	return nil
 }
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/utils"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/utils"
 	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"

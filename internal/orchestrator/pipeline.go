@@ -118,6 +118,8 @@ package orchestrator
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
@@ -190,10 +192,11 @@ type PipelineState struct {
 	PhaseErrors     map[PipelinePhase][]string
 
 	// Discovery results (Phase 1)
-	DiscoverySession *discovery.DiscoverySession
-	DiscoveredAssets []discovery.Asset // All discovered assets (before filtering)
-	InScopeAssets    []discovery.Asset // Filtered by scope validation
-	OutOfScopeAssets []discovery.Asset // Excluded by scope rules
+	DiscoverySession     *discovery.DiscoverySession
+	DiscoveredAssets     []discovery.Asset // All discovered assets (before filtering)
+	InScopeAssets        []discovery.Asset // Filtered by scope validation
+	OutOfScopeAssets     []discovery.Asset // Excluded by scope rules
+	OrganizationContext  *discovery.OrganizationContext // Organization context for scope expansion
 
 	// Weaponization results (Phase 2)
 	AttackSurface       *AttackSurface           // Analyzed attack surface
@@ -597,11 +600,81 @@ func (p *Pipeline) saveCheckpoint(ctx context.Context) error {
 func (p *Pipeline) extractNewAssetsFromFindings() []discovery.Asset {
 	// Extract new assets discovered during exploitation
 	// Example: IDOR testing finds /api/v2/internal → new API endpoint
-	// This will be implemented to parse findings for new URLs/domains
 	newAssets := []discovery.Asset{}
+	seenAssets := make(map[string]bool)
 
-	// TODO: Implement asset extraction from finding evidence
-	// For now, return empty (no feedback loop active)
+	// Build map of already-discovered assets for deduplication
+	for _, asset := range p.state.DiscoveredAssets {
+		seenAssets[asset.Value] = true
+	}
+
+	// Parse findings for new domains, IPs, URLs, and endpoints
+	for _, finding := range p.state.RawFindings {
+		// Extract from evidence field
+		if finding.Evidence != "" {
+			extracted := extractAssetsFromText(finding.Evidence)
+			for _, asset := range extracted {
+				if !seenAssets[asset.Value] {
+					newAssets = append(newAssets, asset)
+					seenAssets[asset.Value] = true
+				}
+			}
+		}
+
+		// Extract from metadata (API endpoints, subdomains, etc.)
+		if finding.Metadata != nil {
+			if endpoint, ok := finding.Metadata["endpoint"].(string); ok && endpoint != "" {
+				asset := discovery.Asset{
+					ID:          uuid.New().String(),
+					Type:        discovery.AssetTypeURL,
+					Value:       endpoint,
+					Source:      "finding_metadata",
+					Confidence:  0.9,
+					DiscoveredAt: time.Now(),
+				}
+				if !seenAssets[asset.Value] {
+					newAssets = append(newAssets, asset)
+					seenAssets[asset.Value] = true
+				}
+			}
+			if subdomain, ok := finding.Metadata["subdomain"].(string); ok && subdomain != "" {
+				asset := discovery.Asset{
+					ID:          uuid.New().String(),
+					Type:        discovery.AssetTypeDomain,
+					Value:       subdomain,
+					Source:      "finding_metadata",
+					Confidence:  0.9,
+					DiscoveredAt: time.Now(),
+				}
+				if !seenAssets[asset.Value] {
+					newAssets = append(newAssets, asset)
+					seenAssets[asset.Value] = true
+				}
+			}
+			if ip, ok := finding.Metadata["ip_address"].(string); ok && ip != "" {
+				asset := discovery.Asset{
+					ID:          uuid.New().String(),
+					Type:        discovery.AssetTypeIP,
+					Value:       ip,
+					Source:      "finding_metadata",
+					Confidence:  0.9,
+					DiscoveredAt: time.Now(),
+				}
+				if !seenAssets[asset.Value] {
+					newAssets = append(newAssets, asset)
+					seenAssets[asset.Value] = true
+				}
+			}
+		}
+	}
+
+	if len(newAssets) > 0 {
+		p.logger.Infow("Extracted new assets from findings",
+			"new_assets_count", len(newAssets),
+			"feedback_loop", "active",
+			"phase", p.state.CurrentPhase.String(),
+		)
+	}
 
 	return newAssets
 }
@@ -647,4 +720,109 @@ type PipelineResult struct {
 // GetState returns the current pipeline state (for checkpointing)
 func (p *Pipeline) GetState() *PipelineState {
 	return p.state
+}
+
+// extractAssetsFromText parses text (evidence, descriptions) for domains, IPs, and URLs
+func extractAssetsFromText(text string) []discovery.Asset {
+	assets := []discovery.Asset{}
+
+	// Regex patterns for asset extraction
+	domainPattern := regexp.MustCompile(`(?i)\b([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b`)
+	ipPattern := regexp.MustCompile(`\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b`)
+	urlPattern := regexp.MustCompile(`https?://[^\s<>"{}|\\^\[\]` + "`" + `]+`)
+
+	// Extract URLs (highest priority - most specific)
+	urlMatches := urlPattern.FindAllString(text, -1)
+	for _, url := range urlMatches {
+		assets = append(assets, discovery.Asset{
+			ID:          uuid.New().String(),
+			Type:        discovery.AssetTypeURL,
+			Value:       url,
+			Source:      "finding_evidence",
+			Confidence:  0.95,
+			DiscoveredAt: time.Now(),
+		})
+	}
+
+	// Extract domains
+	domainMatches := domainPattern.FindAllString(text, -1)
+	for _, domain := range domainMatches {
+		// Skip common false positives
+		if isCommonFalsePositive(domain) {
+			continue
+		}
+		assets = append(assets, discovery.Asset{
+			ID:          uuid.New().String(),
+			Type:        discovery.AssetTypeDomain,
+			Value:       domain,
+			Source:      "finding_evidence",
+			Confidence:  0.85,
+			DiscoveredAt: time.Now(),
+		})
+	}
+
+	// Extract IP addresses
+	ipMatches := ipPattern.FindAllString(text, -1)
+	for _, ip := range ipMatches {
+		// Skip invalid IPs (e.g., version numbers)
+		if isValidIP(ip) {
+			assets = append(assets, discovery.Asset{
+				ID:          uuid.New().String(),
+				Type:        discovery.AssetTypeIP,
+				Value:       ip,
+				Source:      "finding_evidence",
+				Confidence:  0.9,
+				DiscoveredAt: time.Now(),
+			})
+		}
+	}
+
+	return assets
+}
+
+// isCommonFalsePositive filters out common false positive domains
+func isCommonFalsePositive(domain string) bool {
+	falsePositives := []string{
+		"example.com", "example.org", "example.net",
+		"localhost.localdomain", "test.com", "test.local",
+		"w3.org", "ietf.org", "rfc-editor.org",
+		"schema.org", "xmlns.com",
+	}
+
+	lowerDomain := strings.ToLower(domain)
+	for _, fp := range falsePositives {
+		if lowerDomain == fp {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidIP checks if an IP address is valid and not a false positive
+func isValidIP(ip string) bool {
+	parts := strings.Split(ip, ".")
+	if len(parts) != 4 {
+		return false
+	}
+
+	for _, part := range parts {
+		num := 0
+		for _, c := range part {
+			if c < '0' || c > '9' {
+				return false
+			}
+			num = num*10 + int(c-'0')
+		}
+		if num > 255 {
+			return false
+		}
+	}
+
+	// Skip private/reserved ranges for external scanning
+	// (keep them for internal networks)
+	firstOctet := 0
+	fmt.Sscanf(parts[0], "%d", &firstOctet)
+
+	// Allow all IPs - let scope validation handle filtering
+	return true
 }

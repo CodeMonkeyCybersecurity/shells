@@ -1,0 +1,21 @@
+[submodule "workers/tools/idord"]
+	path = workers/tools/idord
+	url = https://github.com/AyemunHossain/IDORD
+[submodule "workers/tools/graphcrawler"]
+	path = workers/tools/graphcrawler
+	url = https://github.com/gsmith257-cyber/GraphCrawler
+[submodule "workers/tools/subfinder"]
+	path = workers/tools/subfinder
+	url = https://github.com/projectdiscovery/subfinder.git
+[submodule "workers/tools/httpx"]
+	path = workers/tools/httpx
+	url = https://github.com/projectdiscovery/httpx.git
+[submodule "workers/tools/dnsx"]
+	path = workers/tools/dnsx
+	url = https://github.com/projectdiscovery/dnsx.git
+[submodule "workers/tools/tlsx"]
+	path = workers/tools/tlsx
+	url = https://github.com/projectdiscovery/tlsx.git
+[submodule "workers/tools/katana"]
+	path = workers/tools/katana
+	url = https://github.com/projectdiscovery/katana.git

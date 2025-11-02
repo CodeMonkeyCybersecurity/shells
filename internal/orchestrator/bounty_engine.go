@@ -16,9 +16,6 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/progress"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/ratelimit"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/checkpoint"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/enrichment"
@@ -49,21 +46,8 @@ type BugBountyEngine struct {
 	scopeManager    *scope.Manager // Bug bounty program scope management
 	authDiscovery   *auth.AuthDiscoveryEngine
 
-	// Scanners (REFACTORED: unified manager replaces 14 individual scanner fields)
+	// Scanners (REFACTORED: unified manager replaces individual scanner fields)
 	scannerManager *scanners.Manager
-
-	// DEPRECATED: Individual scanner fields kept temporarily for backward compatibility
-	// These will be removed once all references are migrated to scannerManager
-	// TODO: Remove after migration complete
-	samlScanner     *saml.SAMLScanner         // DEPRECATED: Use scannerManager.Get("authentication")
-	oauth2Scanner   *oauth2.OAuth2Scanner     // DEPRECATED: Use scannerManager.Get("authentication")
-	webauthnScanner *webauthn.WebAuthnScanner // DEPRECATED: Use scannerManager.Get("authentication")
-	scimScanner     core.Scanner              // DEPRECATED: Use scannerManager.Get("scim")
-	nmapScanner     core.Scanner              // DEPRECATED: Use scannerManager.Get("nmap")
-	nucleiScanner   core.Scanner              // DEPRECATED: Use scannerManager.Get("nuclei")
-	graphqlScanner  core.Scanner              // DEPRECATED: Use scannerManager.Get("graphql")
-	idorScanner     core.Scanner              // DEPRECATED: Use scannerManager.Get("idor")
-	restapiScanner  core.Scanner              // DEPRECATED: Use scannerManager.Get("api")
 
 	// Python worker client (optional - for GraphCrawler)
 	pythonWorkers *workers.Client
@@ -131,6 +115,13 @@ type BugBountyConfig struct {
 	EnableXSSTesting     bool // Cross-site scripting detection
 	EnableNucleiScan     bool // Nuclei vulnerability templates (CVEs, misconfigurations)
 
+	// Cloud security testing
+	EnableCloudAudit bool   // Multi-cloud security auditing (Prowler)
+	CloudProviders   []string // ["aws", "azure", "gcp"] - providers to audit
+	CloudProfile     string // CIS profile: "cis", "hipaa", "gdpr", "pci-dss"
+	AWSProfile       string // AWS credential profile (default: "default")
+	AWSRegions       []string // AWS regions to scan (default: all)
+
 	// Database and persistence
 	EnableTemporalSnapshots bool          // Track changes over time (historical comparison)
 	SnapshotInterval        time.Duration // How often to snapshot (for repeated scans)
@@ -152,13 +143,17 @@ type BugBountyConfig struct {
 	CheckpointInterval  time.Duration // How often to save checkpoints (default: 5 minutes)
 
 	// Scope management settings (Bug Bounty Platform Integration)
-	EnableScopeValidation bool   // Validate assets against bug bounty program scope before testing
-	BugBountyPlatform     string // Platform to import scope from (hackerone, bugcrowd, intigriti, yeswehack)
-	BugBountyProgram      string // Program handle/slug to import scope from
-	ScopeStrictMode       bool   // Fail closed on ambiguous scope decisions (default: fail open)
+	EnableScopeValidation          bool   // Validate assets against bug bounty program scope before testing
+	EnableAssetRelationshipMapping bool   // Build relationships between assets for org-based scope expansion
+	BugBountyPlatform              string // Platform to import scope from (hackerone, bugcrowd, intigriti, yeswehack)
+	BugBountyProgram               string // Program handle/slug to import scope from
+	ScopeStrictMode                bool   // Fail closed on ambiguous scope decisions (default: fail open)
 
 	// Platform API credentials (read from environment variables)
 	PlatformCredentials map[string]PlatformCredential // Platform name -> credentials
+
+	// Discovery configuration (passed to discovery engine)
+	DiscoveryConfig *discovery.DiscoveryConfig
 }
 
 // PlatformCredential stores API credentials for bug bounty platforms
@@ -204,6 +199,13 @@ func DefaultBugBountyConfig() BugBountyConfig {
 		EnableXSSTesting:     true, // Reflected, stored, DOM-based XSS
 		EnableNucleiScan:     true, // Nuclei vulnerability scanner (CVEs, misconfigurations, exposures)
 
+		// Cloud security auditing
+		EnableCloudAudit: false,            // Disabled by default (requires cloud credentials)
+		CloudProviders:   []string{"aws"}, // AWS only by default
+		CloudProfile:     "cis",            // CIS benchmarks
+		AWSProfile:       "default",        // AWS credential profile
+		AWSRegions:       []string{},       // Empty = all regions
+
 		// Database and persistence - track everything over time
 		EnableTemporalSnapshots: true,           // Save snapshots for historical comparison
 		SnapshotInterval:        24 * time.Hour, // Daily snapshots for repeated scans
@@ -223,6 +225,10 @@ func DefaultBugBountyConfig() BugBountyConfig {
 		// Checkpointing (enabled by default for graceful shutdown)
 		EnableCheckpointing: true,            // Save checkpoints automatically
 		CheckpointInterval:  5 * time.Minute, // Save every 5 minutes during long scans
+
+		// Asset relationship mapping and scope expansion (ENABLED FOR INTELLIGENCE LOOP)
+		EnableScopeValidation:          false, // Default: allow all discovered assets (override with --scope-validation)
+		EnableAssetRelationshipMapping: true,  // CRITICAL: Build org relationships (microsoft.com → azure.com)
 	}
 }
 
@@ -732,14 +738,20 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	if e.config.EnableAuthTesting {
 		enabledScanners = append(enabledScanners, "auth")
 	}
-	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
-		enabledScanners = append(enabledScanners, "nmap")
+	if e.config.EnableServiceFingerprint {
+		if _, ok := e.scannerManager.Get("nmap"); ok {
+			enabledScanners = append(enabledScanners, "nmap")
+		}
 	}
-	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
-		enabledScanners = append(enabledScanners, "nuclei")
+	if e.config.EnableNucleiScan {
+		if _, ok := e.scannerManager.Get("nuclei"); ok {
+			enabledScanners = append(enabledScanners, "nuclei")
+		}
 	}
-	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
-		enabledScanners = append(enabledScanners, "graphql")
+	if e.config.EnableGraphQLTesting {
+		if _, ok := e.scannerManager.Get("graphql"); ok {
+			enabledScanners = append(enabledScanners, "graphql")
+		}
 	}
 	if e.config.EnableSCIMTesting {
 		enabledScanners = append(enabledScanners, "scim")
@@ -760,8 +772,10 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	if e.config.EnableSCIMTesting {
 		fmt.Printf("   • SCIM provisioning vulnerabilities...\n")
 	}
-	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
-		fmt.Printf("   • GraphQL introspection and injection...\n")
+	if e.config.EnableGraphQLTesting {
+		if _, ok := e.scannerManager.Get("graphql"); ok {
+			fmt.Printf("   • GraphQL introspection and injection...\n")
+		}
 	}
 	if e.config.EnableAPITesting {
 		fmt.Printf("   • REST API security testing...\n")
@@ -769,11 +783,15 @@ func (e *BugBountyEngine) Execute(ctx context.Context, target string) (*BugBount
 	if e.config.EnableIDORTesting {
 		fmt.Printf("   • IDOR (Insecure Direct Object Reference) testing...\n")
 	}
-	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
-		fmt.Printf("   • Nmap service fingerprinting...\n")
+	if e.config.EnableServiceFingerprint {
+		if _, ok := e.scannerManager.Get("nmap"); ok {
+			fmt.Printf("   • Nmap service fingerprinting...\n")
+		}
 	}
-	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
-		fmt.Printf("   • Nuclei CVE scanning...\n")
+	if e.config.EnableNucleiScan {
+		if _, ok := e.scannerManager.Get("nuclei"); ok {
+			fmt.Printf("   • Nuclei CVE scanning...\n")
+		}
 	}
 	fmt.Println()
 
@@ -1517,17 +1535,25 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 	if e.config.EnableAPITesting {
 		totalTests++
 	}
-	if e.config.EnableServiceFingerprint && e.nmapScanner != nil {
-		totalTests++
+	if e.config.EnableServiceFingerprint {
+		if _, ok := e.scannerManager.Get("nmap"); ok {
+			totalTests++
+		}
 	}
-	if e.config.EnableNucleiScan && e.nucleiScanner != nil {
-		totalTests++
+	if e.config.EnableNucleiScan {
+		if _, ok := e.scannerManager.Get("nuclei"); ok {
+			totalTests++
+		}
 	}
-	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil {
-		totalTests++
+	if e.config.EnableGraphQLTesting {
+		if _, ok := e.scannerManager.Get("graphql"); ok {
+			totalTests++
+		}
 	}
-	if e.config.EnableIDORTesting && e.idorScanner != nil {
-		totalTests++
+	if e.config.EnableIDORTesting {
+		if _, ok := e.scannerManager.Get("idor"); ok {
+			totalTests++
+		}
 	}
 
 	updateTestProgress := func() {
@@ -1590,65 +1616,73 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 	}
 
 	// Nmap Service Fingerprinting
-	if e.config.EnableServiceFingerprint && e.nmapScanner != nil && !shouldSkip("nmap") {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			findings, result := e.runNmapScans(ctx, assets, dbLogger)
-			mu.Lock()
-			allFindings = append(allFindings, findings...)
-			phaseResults["nmap"] = result
-			mu.Unlock()
-			updateTestProgress()
-		}()
+	if e.config.EnableServiceFingerprint && !shouldSkip("nmap") {
+		if _, ok := e.scannerManager.Get("nmap"); ok {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				findings, result := e.runNmapScans(ctx, assets, dbLogger)
+				mu.Lock()
+				allFindings = append(allFindings, findings...)
+				phaseResults["nmap"] = result
+				mu.Unlock()
+				updateTestProgress()
+			}()
+		}
 	} else if shouldSkip("nmap") {
 		updateTestProgress()
 	}
 
 	// Nuclei Vulnerability Scanning
-	if e.config.EnableNucleiScan && e.nucleiScanner != nil && !shouldSkip("nuclei") {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			findings, result := e.runNucleiScans(ctx, assets, dbLogger)
-			mu.Lock()
-			allFindings = append(allFindings, findings...)
-			phaseResults["nuclei"] = result
-			mu.Unlock()
-			updateTestProgress()
-		}()
+	if e.config.EnableNucleiScan && !shouldSkip("nuclei") {
+		if _, ok := e.scannerManager.Get("nuclei"); ok {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				findings, result := e.runNucleiScans(ctx, assets, dbLogger)
+				mu.Lock()
+				allFindings = append(allFindings, findings...)
+				phaseResults["nuclei"] = result
+				mu.Unlock()
+				updateTestProgress()
+			}()
+		}
 	} else if shouldSkip("nuclei") {
 		updateTestProgress()
 	}
 
 	// GraphQL Testing (Go scanner + optional Python GraphCrawler)
-	if e.config.EnableGraphQLTesting && e.graphqlScanner != nil && !shouldSkip("graphql") {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			findings, result := e.runGraphQLTests(ctx, assets, dbLogger)
-			mu.Lock()
-			allFindings = append(allFindings, findings...)
-			phaseResults["graphql"] = result
-			mu.Unlock()
-			updateTestProgress()
-		}()
+	if e.config.EnableGraphQLTesting && !shouldSkip("graphql") {
+		if _, ok := e.scannerManager.Get("graphql"); ok {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				findings, result := e.runGraphQLTests(ctx, assets, dbLogger)
+				mu.Lock()
+				allFindings = append(allFindings, findings...)
+				phaseResults["graphql"] = result
+				mu.Unlock()
+				updateTestProgress()
+			}()
+		}
 	} else if shouldSkip("graphql") {
 		updateTestProgress()
 	}
 
 	// IDOR Testing (Go scanner)
-	if e.config.EnableIDORTesting && e.idorScanner != nil && !shouldSkip("idor") {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			findings, result := e.runIDORTests(ctx, assets, dbLogger)
-			mu.Lock()
-			allFindings = append(allFindings, findings...)
-			phaseResults["idor"] = result
-			mu.Unlock()
-			updateTestProgress()
-		}()
+	if e.config.EnableIDORTesting && !shouldSkip("idor") {
+		if _, ok := e.scannerManager.Get("idor"); ok {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				findings, result := e.runIDORTests(ctx, assets, dbLogger)
+				mu.Lock()
+				allFindings = append(allFindings, findings...)
+				phaseResults["idor"] = result
+				mu.Unlock()
+				updateTestProgress()
+			}()
+		}
 	} else if shouldSkip("idor") {
 		updateTestProgress()
 	}
@@ -1684,7 +1718,9 @@ func (e *BugBountyEngine) GetRateLimiter() *ratelimit.Limiter {
 //  2. Test with: shells example.com --use-pipeline
 //  3. Once stable, make ExecuteWithPipeline the default
 //  4. Deprecate old Execute() method
-func (e *BugBountyEngine) ExecuteWithPipeline(ctx context.Context, target string) (*PipelineResult, error) {
+func (e *BugBountyEngine) ExecuteWithPipeline(ctx context.Context, target string) (*BugBountyResult, error) {
+	startTime := time.Now()
+
 	e.logger.Infow("Starting Kill Chain aligned pipeline execution",
 		"target", target,
 		"total_timeout", e.config.TotalTimeout.String(),
@@ -1725,20 +1761,64 @@ func (e *BugBountyEngine) ExecuteWithPipeline(ctx context.Context, target string
 	)
 
 	// Execute pipeline (includes feedback loop)
-	result, err := pipeline.Execute(ctx)
+	pipelineResult, err := pipeline.Execute(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("pipeline execution failed: %w", err)
 	}
 
 	e.logger.Infow("Pipeline execution completed successfully",
-		"scan_id", result.ScanID,
-		"duration", result.Duration.String(),
-		"iterations", result.Iterations,
-		"total_findings", result.TotalFindings,
-		"exploit_chains", result.ExploitChains,
+		"scan_id", pipelineResult.ScanID,
+		"duration", pipelineResult.Duration.String(),
+		"iterations", pipelineResult.Iterations,
+		"total_findings", pipelineResult.TotalFindings,
+		"exploit_chains", pipelineResult.ExploitChains,
 	)
 
+	// Convert PipelineResult to BugBountyResult for compatibility with display functions
+	state := pipeline.GetState()
+	result := &BugBountyResult{
+		ScanID:           pipelineResult.ScanID,
+		Target:           target,
+		StartTime:        startTime,
+		EndTime:          time.Now(),
+		Duration:         pipelineResult.Duration,
+		Status:           "completed",
+		DiscoveredAt:     pipelineResult.TotalAssets,
+		TestedAssets:     pipelineResult.InScopeAssets,
+		TotalFindings:    pipelineResult.TotalFindings,
+		Findings:         state.EnrichedFindings,
+		PhaseResults:     make(map[string]PhaseResult),
+		DiscoverySession: state.DiscoverySession,
+	}
+
+	// Convert discovered assets from []discovery.Asset to []*discovery.Asset
+	for i := range state.DiscoveredAssets {
+		result.DiscoveredAssets = append(result.DiscoveredAssets, &state.DiscoveredAssets[i])
+	}
+
+	// Set organization info if available
+	if state.OrganizationContext != nil {
+		result.OrganizationInfo = &correlation.Organization{
+			Name:         state.OrganizationContext.OrgName,
+			Domains:      state.OrganizationContext.KnownDomains,
+			IPRanges:     state.OrganizationContext.KnownIPRanges,
+			Subsidiaries: state.OrganizationContext.Subsidiaries,
+			Technologies: extractTechnologies(state.OrganizationContext.Technologies),
+		}
+	}
+
 	return result, nil
+}
+
+// extractTechnologies converts technology strings to Technology structs
+func extractTechnologies(techStrings []string) []correlation.Technology {
+	techs := make([]correlation.Technology, 0, len(techStrings))
+	for _, techStr := range techStrings {
+		techs = append(techs, correlation.Technology{
+			Name: techStr,
+		})
+	}
+	return techs
 }
 
 // DEPRECATED STUB METHODS: These delegate to scannerManager for backward compatibility

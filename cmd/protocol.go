@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/adapters"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/adapters"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/protocol"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/spf13/cobra"

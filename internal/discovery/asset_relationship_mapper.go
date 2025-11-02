@@ -143,6 +143,23 @@ func NewAssetRelationshipMapper(config *DiscoveryConfig, logger *logger.Logger) 
 
 	correlator := correlation.NewEnhancedOrganizationCorrelator(correlatorConfig, logger)
 
+	// Initialize correlator clients (CRITICAL FIX - without this, all lookups silently fail)
+	whoisClient := correlation.NewDefaultWhoisClient(logger)
+	certClient := correlation.NewDefaultCertificateClient(logger) // Uses enhanced client with TLS fallback
+	asnClient := correlation.NewDefaultASNClient(logger)
+	cloudClient := correlation.NewDefaultCloudClient(logger)
+
+	// Wire up clients to enable WHOIS, certificate, ASN, and cloud lookups
+	correlator.SetClients(
+		whoisClient,
+		certClient,
+		asnClient,
+		nil, // trademark (optional - requires API key)
+		nil, // linkedin (optional - requires API key)
+		nil, // github (optional - requires API key)
+		cloudClient,
+	)
+
 	return &AssetRelationshipMapper{
 		config:         config,
 		logger:         logger,
@@ -1239,4 +1256,66 @@ func (arm *AssetRelationshipMapper) extractDomain(value string) string {
 	// Extract domain from various asset types (URL, IP, etc.)
 	// Simplified implementation
 	return value
+}
+
+// GetRelationships returns all discovered asset relationships
+func (arm *AssetRelationshipMapper) GetRelationships() []*AssetRelationship {
+	arm.mutex.RLock()
+	defer arm.mutex.RUnlock()
+
+	relationships := make([]*AssetRelationship, 0, len(arm.relationships))
+	for _, rel := range arm.relationships {
+		relationships = append(relationships, rel)
+	}
+	return relationships
+}
+
+// GetAsset returns an asset by ID
+func (arm *AssetRelationshipMapper) GetAsset(id string) *Asset {
+	arm.mutex.RLock()
+	defer arm.mutex.RUnlock()
+
+	return arm.assets[id]
+}
+
+// GetOrganizationContext builds organization context from discovered relationships
+func (arm *AssetRelationshipMapper) GetOrganizationContext() *OrganizationContext {
+	arm.mutex.RLock()
+	defer arm.mutex.RUnlock()
+
+	// Build basic context from discovered assets
+	orgCtx := &OrganizationContext{
+		KnownDomains:  []string{},
+		KnownIPRanges: []string{},
+		EmailPatterns: []string{},
+		Subsidiaries:  []string{},
+		Technologies:  []string{},
+	}
+
+	// Extract domains, IPs, and other info from assets
+	for _, asset := range arm.assets {
+		switch asset.Type {
+		case AssetTypeDomain:
+			orgCtx.KnownDomains = append(orgCtx.KnownDomains, asset.Value)
+		case AssetTypeIP:
+			orgCtx.KnownIPRanges = append(orgCtx.KnownIPRanges, asset.Value)
+		}
+
+		// Extract technology from asset metadata
+		for _, tech := range asset.Technology {
+			orgCtx.Technologies = append(orgCtx.Technologies, tech)
+		}
+	}
+
+	// Extract organization name from first domain if available
+	if len(orgCtx.KnownDomains) > 0 {
+		// Use first domain as org name (simplified)
+		orgCtx.OrgName = orgCtx.KnownDomains[0]
+	}
+
+	if len(orgCtx.KnownDomains) > 0 || len(orgCtx.KnownIPRanges) > 0 {
+		return orgCtx
+	}
+
+	return nil
 }

@@ -14,6 +14,7 @@ const (
 	TargetTypeCompany     TargetType = "company"
 	TargetTypeEmail       TargetType = "email"
 	TargetTypeDomain      TargetType = "domain"
+	TargetTypeSubdomain   TargetType = "subdomain"
 	TargetTypeIP          TargetType = "ip"
 	TargetTypeIPRange     TargetType = "ip_range"
 	TargetTypeNetwork     TargetType = "network"
@@ -86,6 +87,7 @@ const (
 	AssetTypeWebApp            AssetType = "web_app"
 	AssetTypeContainerRegistry AssetType = "container_registry"
 	AssetTypeVulnerability     AssetType = "vulnerability"
+	AssetTypeOther             AssetType = "other"
 )
 
 // Relationship represents a relationship between assets

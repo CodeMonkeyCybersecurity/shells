@@ -103,7 +103,50 @@ services:
     ports:
       - "8090:8090"
     command: ["zap.sh", "-daemon", "-port", "8090", "-host", "0.0.0.0", "-config", "api.key=webscan-api-key"]
-    
+
+  # Python Worker Service - FastAPI API server
+  shells-python-api:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/workers.Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      POSTGRES_DSN: "postgresql://shells:${POSTGRES_PASSWORD:-shells_dev_password}@postgres:5432/shells"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # Python Worker Service - RQ Workers (scalable)
+  shells-rq-workers:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/workers.Dockerfile
+    command: ["rq", "worker", "shells-scanners", "--url", "redis://redis:6379"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      shells-python-api:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379
+      POSTGRES_DSN: "postgresql://shells:${POSTGRES_PASSWORD:-shells_dev_password}@postgres:5432/shells"
+      PYTHONPATH: /app
+    deploy:
+      replicas: 4  # 4 RQ worker processes
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

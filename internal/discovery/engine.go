@@ -81,6 +81,15 @@ func NewEngineWithScopeValidator(discoveryConfig *DiscoveryConfig, structLog *lo
 	// Register default modules
 	// Context-aware discovery
 	engine.RegisterModule(NewContextAwareDiscovery(discoveryConfig, structLog))
+
+	// Register ProjectDiscovery tools (highest priority - passive/active recon)
+	engine.RegisterModule(NewSubfinderModule(discoveryConfig, structLog)) // Subdomain enumeration
+	engine.RegisterModule(NewDnsxModule(discoveryConfig, structLog))      // DNS resolution
+	engine.RegisterModule(NewTlsxModule(discoveryConfig, structLog))      // Certificate transparency
+	engine.RegisterModule(NewHttpxModule(discoveryConfig, structLog))     // HTTP probing
+	engine.RegisterModule(NewKatanaModule(discoveryConfig, structLog))    // Web crawling
+
+	// Register existing discovery modules
 	engine.RegisterModule(NewDomainDiscovery(discoveryConfig, structLog))
 	engine.RegisterModule(NewNetworkDiscovery(discoveryConfig, structLog))
 	engine.RegisterModule(NewTechnologyDiscovery(discoveryConfig, structLog))
@@ -655,13 +664,22 @@ func (e *Engine) filterCDNAssets(session *DiscoverySession) {
 	}
 }
 
-// In NewEngine or a setup function
+// RegisterDefaultModules registers all default discovery modules
+// Called during engine initialization to set up the discovery pipeline
 func (e *Engine) RegisterDefaultModules() {
 	// Register organization correlation first (highest priority)
 	// TODO: Fix import cycle before enabling - NewOrgCorrelationModule is in pkg/auth/discovery
 	// e.RegisterModule(NewOrgCorrelationModule(e.config, e.logger))
 
-	// Then existing modules
+	// Register ProjectDiscovery tools (passive and active reconnaissance)
+	// Priority order: subfinder (90) > dnsx (85) > tlsx (80) > httpx (70) > katana (60)
+	e.RegisterModule(NewSubfinderModule(e.config, e.logger)) // Passive subdomain enumeration
+	e.RegisterModule(NewDnsxModule(e.config, e.logger))      // DNS resolution and records
+	e.RegisterModule(NewTlsxModule(e.config, e.logger))      // Certificate transparency logs
+	e.RegisterModule(NewHttpxModule(e.config, e.logger))     // HTTP probing and tech detection
+	e.RegisterModule(NewKatanaModule(e.config, e.logger))    // Deep web crawling
+
+	// Register existing modules
 	e.RegisterModule(NewDomainDiscovery(e.config, e.logger))
 	e.RegisterModule(NewNetworkDiscovery(e.config, e.logger))
 	e.RegisterModule(NewTechnologyDiscovery(e.config, e.logger))

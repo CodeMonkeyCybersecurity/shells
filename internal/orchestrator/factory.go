@@ -16,7 +16,9 @@ package orchestrator
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	configpkg "github.com/CodeMonkeyCybersecurity/shells/internal/config"
@@ -24,6 +26,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator/scanners"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator/scanners/cloud"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/api"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nmap"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/nuclei"
@@ -34,6 +37,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/enrichment"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/prowler"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/certs"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/idor"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/restapi"
@@ -439,6 +443,44 @@ func (f *EngineFactory) buildScannerManager(logAdapter *loggerAdapter, authDisco
 			return nil, err
 		}
 		f.logger.Infow("IDOR scanner registered", "component", "factory")
+	}
+
+	// Register Prowler cloud security scanner
+	if f.config.EnableCloudAudit {
+		prowlerConfig := prowler.Config{
+			CacheDir:     filepath.Join(os.TempDir(), "prowler_cache"),
+			ParallelJobs: 5,
+			OutputFormat: "json",
+			Timeout:      30 * time.Minute,
+		}
+
+		prowlerClient, err := prowler.NewClient(prowlerConfig, f.logger)
+		if err != nil {
+			f.logger.Warnw("Prowler scanner disabled - failed to initialize",
+				"error", err,
+				"component", "factory",
+			)
+		} else {
+			cloudScannerConfig := cloud.ProwlerConfig{
+				Providers:    f.config.CloudProviders,
+				AWSProfile:   f.config.AWSProfile,
+				AWSRegions:   f.config.AWSRegions,
+				CISProfile:   f.config.CloudProfile,
+				MaxWorkers:   5,
+				Timeout:      30 * time.Minute,
+				OutputFormat: "json",
+			}
+
+			prowlerScanner := cloud.NewProwlerScanner(prowlerClient, f.logger, cloudScannerConfig)
+			if err := mgr.Register("prowler", prowlerScanner); err != nil {
+				return nil, err
+			}
+			f.logger.Infow("Prowler cloud scanner registered",
+				"providers", f.config.CloudProviders,
+				"profile", f.config.CloudProfile,
+				"component", "factory",
+			)
+		}
 	}
 
 	stats := mgr.GetStats()

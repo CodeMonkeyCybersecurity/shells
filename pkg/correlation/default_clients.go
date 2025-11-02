@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/certlogs"
 	"github.com/likexian/whois"
 	whoisparser "github.com/likexian/whois-parser"
 )
@@ -68,22 +69,69 @@ func (c *DefaultWhoisClient) Lookup(ctx context.Context, domain string) (*WhoisD
 
 // DefaultCertificateClient uses the existing certificate intelligence
 type DefaultCertificateClient struct {
-	logger *logger.Logger
+	logger   *logger.Logger
+	ctClient *certlogs.CTLogClient
 }
 
 func NewDefaultCertificateClient(logger *logger.Logger) CertificateClient {
-	return &DefaultCertificateClient{logger: logger}
+	// Use enhanced client with multiple fallback sources (direct TLS + CT logs)
+	return NewEnhancedCertificateClient(logger)
 }
 
 func (c *DefaultCertificateClient) GetCertificates(ctx context.Context, domain string) ([]CertificateInfo, error) {
-	// TODO: Implement certificate transparency lookup
-	return []CertificateInfo{}, nil
+	// Query certificate transparency logs via crt.sh
+	certs, err := c.ctClient.SearchDomain(ctx, domain)
+	if err != nil {
+		c.logger.Warnw("Certificate transparency search failed",
+			"domain", domain,
+			"error", err,
+		)
+		return []CertificateInfo{}, nil // Return empty on error, don't fail discovery
+	}
+
+	// Convert to CertificateInfo format
+	certInfos := make([]CertificateInfo, 0, len(certs))
+	for _, cert := range certs {
+		certInfo := CertificateInfo{
+			Subject:   cert.SubjectCN,
+			Issuer:    cert.Issuer,
+			SANs:      cert.SANs,
+			NotBefore: cert.NotBefore,
+			NotAfter:  cert.NotAfter,
+		}
+		certInfos = append(certInfos, certInfo)
+	}
+
+	c.logger.Infow("Certificate transparency search completed",
+		"domain", domain,
+		"certificates_found", len(certInfos),
+	)
+
+	return certInfos, nil
 }
 
 func (c *DefaultCertificateClient) SearchByOrganization(ctx context.Context, org string) ([]CertificateInfo, error) {
-	// This would require crt.sh API or similar
-	// For now, return empty
-	return []CertificateInfo{}, nil
+	// crt.sh supports searching by organization O= field
+	// We can search for the org name and filter results
+	certs, err := c.ctClient.SearchDomain(ctx, org)
+	if err != nil {
+		return []CertificateInfo{}, nil // Return empty on error
+	}
+
+	// Convert to CertificateInfo format
+	certInfos := make([]CertificateInfo, 0, len(certs))
+	for _, cert := range certs {
+		certInfo := CertificateInfo{
+			Subject:   cert.SubjectCN,
+			Issuer:    cert.Issuer,
+			SANs:      cert.SANs,
+			NotBefore: cert.NotBefore,
+			NotAfter:  cert.NotAfter,
+		}
+		certInfos = append(certInfos, certInfo)
+	}
+
+	return certInfos, nil
 }
 
 // DefaultASNClient implements basic ASN lookups
