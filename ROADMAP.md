@@ -152,7 +152,7 @@ log.Infow("Running authentication tests",
 
 **Action**: Complete remediation across all commands
 
-**PROGRESS**: 🔄 IN PROGRESS (cmd/auth.go COMPLETE)
+**PROGRESS**: 🔄 IN PROGRESS (5/48 files complete - 10.4%)
 
 **Completed** ✅:
 - [x] cmd/auth.go (ALL 4 commands + test runners)
@@ -162,14 +162,40 @@ log.Infow("Running authentication tests",
   - authAllCmd - Comprehensive analysis with full metrics
   - Pattern: getAuthLogger() → log.Infow() → completion metrics
 
-**Remaining**:
+- [x] cmd/smuggle.go (ALL 3 commands)
+  - smuggleDetectCmd - Request smuggling detection with technique tracking
+  - smuggleExploitCmd - Exploitation with findings metrics
+  - smugglePocCmd - PoC generation with structured logging
+
+- [x] cmd/discover.go (1 command)
+  - Asset discovery with progress tracking
+  - Metrics: total_discovered, high_value_assets, relationships, duration
+
+- [x] cmd/scim.go (ALL 3 commands)
+  - scimDiscoverCmd - SCIM endpoint discovery with timeout handling
+  - scimTestCmd - Vulnerability testing with test parameter tracking
+  - scimProvisionCmd - Provisioning security testing with dry-run support
+
+- [x] cmd/results.go (ALL 10 commands)
+  - resultsListCmd - List scans with filtering, pagination tracking
+  - resultsGetCmd - Get scan details with findings_count, status metrics
+  - resultsExportCmd - Export with format, data_size_bytes, file output tracking
+  - resultsSummaryCmd - Summary generation with total_scans, days tracking
+  - resultsQueryCmd - Advanced querying with comprehensive filter logging
+  - resultsStatsCmd - Statistics with total_findings, critical_findings_count
+  - resultsIdentityChainsCmd - Identity chain analysis with session tracking
+  - resultsDiffCmd - Scan comparison with new/fixed vulnerability counts
+  - resultsHistoryCmd - Scan history with scans_count tracking
+  - resultsChangesCmd - Time window analysis with change detection metrics
+
+**Remaining** (43 files):
 - [ ] Priority 1: User-facing commands
-  - [ ] cmd/scan.go, cmd/smuggle.go, cmd/scim.go
-  - [ ] cmd/results.go, cmd/discover.go
-- [ ] Priority 2: Background commands
   - [ ] cmd/workflow.go, cmd/platform.go
-- [ ] Priority 3: Utility commands
+  - [ ] cmd/schedule.go, cmd/serve.go
+- [ ] Priority 2: Background commands
   - [ ] cmd/config.go, cmd/self_update.go
+  - [ ] cmd/db.go, cmd/resume.go
+- [ ] Priority 3: Other cmd/* files (36 remaining)
 
 **Pattern Established**: Use cmd/auth.go as reference implementation
 ```go
@@ -195,7 +221,7 @@ log.Infow("Operation completed",
 
 **Acceptance Criteria**:
 - [x] cmd/auth.go uses internal/logger.Logger
-- [ ] Zero fmt.Print* in cmd/* files (1/48 files complete)
+- [ ] Zero fmt.Print* in cmd/* files (5/48 files complete - 10.4%)
 - [ ] All commands use internal/logger.Logger
 - [x] Console output remains human-friendly
 
