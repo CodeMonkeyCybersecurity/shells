@@ -35,6 +35,8 @@ var resultsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List scan results",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		target, _ := cmd.Flags().GetString("target")
 		status, _ := cmd.Flags().GetString("status")
 		scanType, _ := cmd.Flags().GetString("type")
@@ -42,8 +44,17 @@ var resultsListCmd = &cobra.Command{
 		offset, _ := cmd.Flags().GetInt("offset")
 		output, _ := cmd.Flags().GetString("output")
 
+		logger.Infow("Listing scan results",
+			"target", target,
+			"status", status,
+			"type", scanType,
+			"limit", limit,
+			"offset", offset,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
@@ -60,8 +71,10 @@ var resultsListCmd = &cobra.Command{
 			filter.Type = types.ScanType(scanType)
 		}
 
+		start := time.Now()
 		scans, err := store.ListScans(GetContext(), filter)
 		if err != nil {
+			logger.Errorw("Failed to list scans", "error", err, "filter", filter)
 			return fmt.Errorf("failed to list scans: %w", err)
 		}
 
@@ -72,6 +85,12 @@ var resultsListCmd = &cobra.Command{
 			printScanList(scans)
 		}
 
+		logger.Infow("Scan list completed",
+			"results_count", len(scans),
+			"target", target,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -81,17 +100,28 @@ var resultsGetCmd = &cobra.Command{
 	Short: "Get results for a specific scan",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		scanID := args[0]
 		output, _ := cmd.Flags().GetString("output")
 		showFindings, _ := cmd.Flags().GetBool("show-findings")
 
+		logger.Infow("Retrieving scan details",
+			"scan_id", scanID,
+			"show_findings", showFindings,
+			"output_format", output,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
+		start := time.Now()
 		scan, err := store.GetScan(GetContext(), scanID)
 		if err != nil {
+			logger.Errorw("Failed to get scan", "error", err, "scan_id", scanID)
 			return fmt.Errorf("failed to get scan: %w", err)
 		}
 
@@ -99,6 +129,7 @@ var resultsGetCmd = &cobra.Command{
 		if showFindings {
 			findings, err = store.GetFindings(GetContext(), scanID)
 			if err != nil {
+				logger.Errorw("Failed to get findings", "error", err, "scan_id", scanID)
 				return fmt.Errorf("failed to get findings: %w", err)
 			}
 		}
@@ -125,6 +156,14 @@ var resultsGetCmd = &cobra.Command{
 			printScanDetails(scan, findings)
 		}
 
+		logger.Infow("Scan details retrieved",
+			"scan_id", scanID,
+			"findings_count", len(findings),
+			"target", scan.Target,
+			"status", scan.Status,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -134,17 +173,28 @@ var resultsExportCmd = &cobra.Command{
 	Short: "Export scan results",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		scanID := args[0]
 		format, _ := cmd.Flags().GetString("format")
 		outputFile, _ := cmd.Flags().GetString("output")
 
+		logger.Infow("Exporting scan results",
+			"scan_id", scanID,
+			"format", format,
+			"output_file", outputFile,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
+		start := time.Now()
 		findings, err := store.GetFindings(GetContext(), scanID)
 		if err != nil {
+			logger.Errorw("Failed to get findings", "error", err, "scan_id", scanID)
 			return fmt.Errorf("failed to get findings: %w", err)
 		}
 
@@ -157,10 +207,12 @@ var resultsExportCmd = &cobra.Command{
 		case "html":
 			data, err = exportHTML(findings)
 		default:
+			logger.Errorw("Unsupported export format", "format", format)
 			return fmt.Errorf("unsupported format: %s", format)
 		}
 
 		if err != nil {
+			logger.Errorw("Failed to format results", "error", err, "format", format)
 			return fmt.Errorf("failed to format results: %w", err)
 		}
 
@@ -168,10 +220,20 @@ var resultsExportCmd = &cobra.Command{
 			fmt.Print(string(data))
 		} else {
 			if err := os.WriteFile(outputFile, data, 0644); err != nil {
+				logger.Errorw("Failed to write export file", "error", err, "file", outputFile)
 				return fmt.Errorf("failed to write file: %w", err)
 			}
 			fmt.Printf("Results exported to %s\n", outputFile)
 		}
+
+		logger.Infow("Export completed",
+			"scan_id", scanID,
+			"format", format,
+			"findings_count", len(findings),
+			"output_file", outputFile,
+			"data_size_bytes", len(data),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
 
 		return nil
 	},
@@ -181,15 +243,24 @@ var resultsSummaryCmd = &cobra.Command{
 	Use:   "summary",
 	Short: "Get summary of all scan results",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		days, _ := cmd.Flags().GetInt("days")
 		output, _ := cmd.Flags().GetString("output")
 
+		logger.Infow("Generating scan summary",
+			"days", days,
+			"output_format", output,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
 		// Get scans from the last N days
+		start := time.Now()
 		fromDate := time.Now().AddDate(0, 0, -days).Format(time.RFC3339)
 		filter := core.ScanFilter{
 			FromDate: &fromDate,
@@ -198,6 +269,7 @@ var resultsSummaryCmd = &cobra.Command{
 
 		scans, err := store.ListScans(GetContext(), filter)
 		if err != nil {
+			logger.Errorw("Failed to list scans", "error", err, "days", days)
 			return fmt.Errorf("failed to list scans: %w", err)
 		}
 
@@ -210,6 +282,12 @@ var resultsSummaryCmd = &cobra.Command{
 		} else {
 			printSummary(summary, days)
 		}
+
+		logger.Infow("Summary generated",
+			"days", days,
+			"total_scans", summary.TotalScans,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
 
 		return nil
 	},
@@ -493,6 +571,8 @@ Examples:
   shells results query --search "injection" --limit 20
   shells results query --target example.com --severity high,critical`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		// Get flags
 		scanID, _ := cmd.Flags().GetString("scan-id")
 		severity, _ := cmd.Flags().GetString("severity")
@@ -505,8 +585,20 @@ Examples:
 		offset, _ := cmd.Flags().GetInt("offset")
 		output, _ := cmd.Flags().GetString("output")
 
+		logger.Infow("Querying findings",
+			"scan_id", scanID,
+			"severity", severity,
+			"tool", tool,
+			"type", findingType,
+			"target", target,
+			"search", search,
+			"days", days,
+			"limit", limit,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
@@ -538,8 +630,10 @@ Examples:
 		}
 
 		// Execute query
+		start := time.Now()
 		findings, err := store.QueryFindings(GetContext(), query)
 		if err != nil {
+			logger.Errorw("Failed to query findings", "error", err, "query", query)
 			return fmt.Errorf("failed to query findings: %w", err)
 		}
 
@@ -550,6 +644,14 @@ Examples:
 		} else {
 			printQueryResults(findings, query)
 		}
+
+		logger.Infow("Query completed",
+			"findings_count", len(findings),
+			"severity", severity,
+			"tool", tool,
+			"target", target,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
 
 		return nil
 	},
@@ -567,16 +669,23 @@ Shows:
   - Most common vulnerability types
   - Most active scanning tools`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		output, _ := cmd.Flags().GetString("output")
+
+		logger.Infow("Generating finding statistics", "output_format", output)
 
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
 		// Get statistics
+		start := time.Now()
 		stats, err := store.GetFindingStats(GetContext())
 		if err != nil {
+			logger.Errorw("Failed to get statistics", "error", err)
 			return fmt.Errorf("failed to get statistics: %w", err)
 		}
 
@@ -584,6 +693,7 @@ Shows:
 		criticalFindings, err := store.GetRecentCriticalFindings(GetContext(), 5)
 		if err != nil {
 			// Non-fatal, continue without critical findings
+			logger.Warnw("Failed to get recent critical findings", "error", err)
 			criticalFindings = []types.Finding{}
 		}
 
@@ -598,6 +708,12 @@ Shows:
 		} else {
 			printStats(stats, criticalFindings)
 		}
+
+		logger.Infow("Statistics generated",
+			"total_findings", stats.Total,
+			"critical_findings_count", len(criticalFindings),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
 
 		return nil
 	},
@@ -754,17 +870,25 @@ var resultsIdentityChainsCmd = &cobra.Command{
 	Long:  `Display identity vulnerability chains discovered during asset discovery and scanning.`,
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		output, _ := cmd.Flags().GetString("output")
 		severity, _ := cmd.Flags().GetString("severity")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 
 		if len(args) == 0 {
+			logger.Infow("Listing sessions with identity chains", "output_format", output)
 			// List available sessions with identity chains
 			return listSessionsWithChains(output)
 		}
 
 		// Show chains for specific session
 		sessionID := args[0]
+		logger.Infow("Displaying identity chains",
+			"session_id", sessionID,
+			"severity_filter", severity,
+			"verbose", verbose,
+		)
 		return showIdentityChains(sessionID, severity, verbose, output)
 	},
 }
@@ -840,36 +964,50 @@ Examples:
   shells results diff scan-old scan-new --output json`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		scanID1 := args[0]
 		scanID2 := args[1]
 		output, _ := cmd.Flags().GetString("output")
 
+		logger.Infow("Comparing scan results",
+			"scan_id_1", scanID1,
+			"scan_id_2", scanID2,
+			"output_format", output,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
 		ctx := GetContext()
+		start := time.Now()
 
 		// Get both scans
 		scan1, err := store.GetScan(ctx, scanID1)
 		if err != nil {
+			logger.Errorw("Failed to get scan 1", "error", err, "scan_id", scanID1)
 			return fmt.Errorf("failed to get scan 1: %w", err)
 		}
 
 		scan2, err := store.GetScan(ctx, scanID2)
 		if err != nil {
+			logger.Errorw("Failed to get scan 2", "error", err, "scan_id", scanID2)
 			return fmt.Errorf("failed to get scan 2: %w", err)
 		}
 
 		// Get findings for both scans
 		findings1, err := store.GetFindings(ctx, scanID1)
 		if err != nil {
+			logger.Errorw("Failed to get findings for scan 1", "error", err, "scan_id", scanID1)
 			return fmt.Errorf("failed to get findings for scan 1: %w", err)
 		}
 
 		findings2, err := store.GetFindings(ctx, scanID2)
 		if err != nil {
+			logger.Errorw("Failed to get findings for scan 2", "error", err, "scan_id", scanID2)
 			return fmt.Errorf("failed to get findings for scan 2: %w", err)
 		}
 
@@ -899,6 +1037,14 @@ Examples:
 			displayScanDiff(scan1, scan2, newFindings, fixedFindings)
 		}
 
+		logger.Infow("Scan comparison completed",
+			"scan_id_1", scanID1,
+			"scan_id_2", scanID2,
+			"new_vulnerabilities", len(newFindings),
+			"fixed_vulnerabilities", len(fixedFindings),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -915,16 +1061,26 @@ Examples:
   shells results history example.com --output json`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		target := args[0]
 		limit, _ := cmd.Flags().GetInt("limit")
 		output, _ := cmd.Flags().GetString("output")
 
+		logger.Infow("Retrieving scan history",
+			"target", target,
+			"limit", limit,
+			"output_format", output,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
 		ctx := GetContext()
+		start := time.Now()
 
 		// Get all scans for this target
 		filter := core.ScanFilter{
@@ -934,10 +1090,12 @@ Examples:
 
 		scans, err := store.ListScans(ctx, filter)
 		if err != nil {
+			logger.Errorw("Failed to list scans", "error", err, "target", target)
 			return fmt.Errorf("failed to list scans: %w", err)
 		}
 
 		if len(scans) == 0 {
+			logger.Infow("No scans found", "target", target)
 			fmt.Printf("No scans found for target: %s\n", target)
 			return nil
 		}
@@ -946,7 +1104,7 @@ Examples:
 		scanHistory := make([]map[string]interface{}, len(scans))
 		for i, scan := range scans {
 			findings, _ := store.GetFindings(ctx, scan.ID)
-			
+
 			scanHistory[i] = map[string]interface{}{
 				"scan_id":    scan.ID,
 				"created_at": scan.CreatedAt,
@@ -967,6 +1125,12 @@ Examples:
 			displayScanHistory(target, scans, scanHistory)
 		}
 
+		logger.Infow("Scan history retrieved",
+			"target", target,
+			"scans_count", len(scans),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -983,24 +1147,36 @@ Examples:
   shells results changes example.com --from 2024-01-01 --to 2024-02-01`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
 		target := args[0]
 		sinceDuration, _ := cmd.Flags().GetString("since")
 		fromDate, _ := cmd.Flags().GetString("from")
 		toDate, _ := cmd.Flags().GetString("to")
 		output, _ := cmd.Flags().GetString("output")
 
+		logger.Infow("Analyzing changes over time",
+			"target", target,
+			"since", sinceDuration,
+			"from", fromDate,
+			"to", toDate,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
 		ctx := GetContext()
+		start := time.Now()
 
 		// Calculate time window
 		var startTime, endTime time.Time
 		if sinceDuration != "" {
 			duration, err := parseDuration(sinceDuration)
 			if err != nil {
+				logger.Errorw("Invalid duration", "error", err, "duration", sinceDuration)
 				return fmt.Errorf("invalid duration: %w", err)
 			}
 			startTime = time.Now().Add(-duration)
@@ -1009,13 +1185,16 @@ Examples:
 			var err error
 			startTime, err = time.Parse("2006-01-02", fromDate)
 			if err != nil {
+				logger.Errorw("Invalid from date", "error", err, "from_date", fromDate)
 				return fmt.Errorf("invalid from date: %w", err)
 			}
 			endTime, err = time.Parse("2006-01-02", toDate)
 			if err != nil {
+				logger.Errorw("Invalid to date", "error", err, "to_date", toDate)
 				return fmt.Errorf("invalid to date: %w", err)
 			}
 		} else {
+			logger.Errorw("Missing time range parameters", "error", "must specify --since or --from/--to")
 			return fmt.Errorf("must specify either --since or --from/--to")
 		}
 
@@ -1027,6 +1206,7 @@ Examples:
 
 		allScans, err := store.ListScans(ctx, filter)
 		if err != nil {
+			logger.Errorw("Failed to list scans", "error", err, "target", target)
 			return fmt.Errorf("failed to list scans: %w", err)
 		}
 
@@ -1039,6 +1219,7 @@ Examples:
 		}
 
 		if len(scans) == 0 {
+			logger.Infow("No scans in time window", "target", target, "start", startTime, "end", endTime)
 			fmt.Printf("No scans found for %s in time window\n", target)
 			return nil
 		}
@@ -1070,6 +1251,14 @@ Examples:
 		} else {
 			displayChangesOverTime(target, startTime, endTime, len(scans), firstScan, lastScan, newFindings, fixedFindings)
 		}
+
+		logger.Infow("Changes analysis completed",
+			"target", target,
+			"scans_in_window", len(scans),
+			"new_vulnerabilities", len(newFindings),
+			"fixed_vulnerabilities", len(fixedFindings),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
 
 		return nil
 	},
