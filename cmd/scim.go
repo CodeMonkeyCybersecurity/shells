@@ -55,6 +55,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
+		logger := GetLogger().WithComponent("scim")
 
 		// Get flags
 		authToken, _ := cmd.Flags().GetString("auth-token")
@@ -64,6 +65,12 @@ Examples:
 		timeout, _ := cmd.Flags().GetString("timeout")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		logger.Infow("Starting SCIM endpoint discovery",
+			"target", target,
+			"auth_type", authType,
+			"timeout", timeout,
+		)
 
 		// Build options
 		options := map[string]string{
@@ -81,22 +88,33 @@ Examples:
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
+		start := time.Now()
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
 			if strings.Contains(err.Error(), "context deadline exceeded") {
+				logger.Warnw("SCIM discovery timed out, performing basic endpoint check", "target", target)
 				fmt.Printf("  SCIM discovery timed out, performing basic endpoint check\n")
 				performBasicSCIMCheck(target)
 				return nil
 			}
+			logger.Errorw("SCIM discovery failed", "error", err, "target", target)
 			return fmt.Errorf("SCIM discovery failed: %w", err)
 		}
 
 		// Output results
 		if output != "" {
 			outputFindings(findings, output, "json")
+			logger.Infow("Results written to file", "file", output, "findings_count", len(findings))
 		} else {
 			printSCIMDiscoveryResults(findings, verbose)
 		}
+
+		logger.Infow("SCIM discovery completed",
+			"target", target,
+			"findings_count", len(findings),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -122,6 +140,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
+		logger := GetLogger().WithComponent("scim")
 
 		// Get flags
 		authToken, _ := cmd.Flags().GetString("auth-token")
@@ -136,6 +155,16 @@ Examples:
 		testProvision, _ := cmd.Flags().GetBool("test-provision")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		logger.Infow("Starting SCIM vulnerability testing",
+			"target", target,
+			"auth_type", authType,
+			"test_all", testAll,
+			"test_filters", testFilters,
+			"test_auth", testAuth,
+			"test_bulk", testBulk,
+			"test_provision", testProvision,
+		)
 
 		// Build options
 		options := map[string]string{
@@ -174,17 +203,27 @@ Examples:
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
+		start := time.Now()
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
+			logger.Errorw("SCIM testing failed", "error", err, "target", target)
 			return fmt.Errorf("SCIM testing failed: %w", err)
 		}
 
 		// Output results
 		if output != "" {
 			outputFindings(findings, output, "json")
+			logger.Infow("Results written to file", "file", output, "findings_count", len(findings))
 		} else {
 			printSCIMTestResults(findings, verbose)
 		}
+
+		logger.Infow("SCIM testing completed",
+			"target", target,
+			"findings_count", len(findings),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -207,6 +246,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
+		logger := GetLogger().WithComponent("scim")
 
 		// Get flags
 		authToken, _ := cmd.Flags().GetString("auth-token")
@@ -217,6 +257,13 @@ Examples:
 		testPrivesc, _ := cmd.Flags().GetBool("test-privesc")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		logger.Infow("Starting SCIM provisioning security testing",
+			"target", target,
+			"auth_type", authType,
+			"dry_run", dryRun,
+			"test_privesc", testPrivesc,
+		)
 
 		// Build options
 		options := map[string]string{
@@ -241,17 +288,28 @@ Examples:
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
+		start := time.Now()
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
+			logger.Errorw("SCIM provisioning test failed", "error", err, "target", target)
 			return fmt.Errorf("SCIM provisioning test failed: %w", err)
 		}
 
 		// Output results
 		if output != "" {
 			outputFindings(findings, output, "json")
+			logger.Infow("Results written to file", "file", output, "findings_count", len(findings))
 		} else {
 			printSCIMProvisionResults(findings, verbose)
 		}
+
+		logger.Infow("SCIM provisioning testing completed",
+			"target", target,
+			"findings_count", len(findings),
+			"dry_run", dryRun,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
