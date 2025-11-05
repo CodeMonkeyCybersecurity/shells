@@ -1,9 +1,243 @@
 # Shells Point-and-Click Implementation Roadmap
 
 **Generated**: 2025-10-28
-**Last Updated**: 2025-10-30
-**Status**: ProjectDiscovery Integration - ✅ COMPLETE
+**Last Updated**: 2025-11-05
+**Status**: Code Quality & Testing Initiative - 🔄 IN PROGRESS
 **Goal**: Complete the "point-and-click" vision where `shells target.com` discovers and tests everything automatically
+
+---
+
+## 🔍 CURRENT FOCUS: Code Quality & Testing Initiative (2025-11-05)
+
+**Status**: 🔄 IN PROGRESS
+**Trigger**: Adversarial analysis identified technical debt from rapid development
+**Impact**: Foundation for sustainable, reliable security tool development
+
+### Overview
+
+Adversarial analysis of 387 Go files revealed:
+- ✅ **Excellent infrastructure**: otelzap logging, database layer, architecture
+- ⚠️ **Inconsistent application**: 48 files use fmt.Print instead of structured logging
+- ⚠️ **Low test coverage**: 10% (39 tests / 387 files) vs 60-80% industry standard
+- ⚠️ **Documentation proliferation**: ~4,900 lines of prohibited standalone .md files
+- ⚠️ **Technical debt**: 163 TODO/FIXME comments across 46 files
+
+**Philosophy Alignment**: These issues contradict our core principles:
+- **Evidence-based**: Can't verify correctness without tests
+- **Human-centric**: Inconsistent output frustrates users and blocks automation
+- **Sustainable innovation**: Technical debt compounds over time
+
+---
+
+### Phase 1: Quick Wins (THIS SESSION - 2-4 hours)
+
+**Priority**: P1 (High Impact, Low Effort)
+**Goal**: Address highest-visibility issues and establish patterns
+
+#### Task 1.1: Documentation Consolidation (P1 - 2 hours) ✅ READY
+
+**Problem**: CLAUDE.md prohibits standalone .md for fixes/analysis, yet recent commits added ~4,900 lines
+
+**Action**: Consolidate per CLAUDE.md standards
+- [ ] Move to ROADMAP.md (planning content):
+  - [ ] INTELLIGENCE_LOOP_IMPROVEMENT_PLAN.md → "Intelligence Loop" section
+  - [ ] UNIFIED_DATABASE_PLAN.md → "Database Unification" section
+  - [ ] workers/PHASE1_COMPLETE.md → "Workers Phase 1" section
+  - [ ] workers/PHASE1_UNIFIED_DB_COMPLETE.md → "Workers Database" section
+- [ ] Move to inline/godoc (implementation content):
+  - [ ] P0_FIXES_SUMMARY.md → ADVERSARIAL REVIEW STATUS blocks in affected files
+  - [ ] REFACTORING_2025-10-30.md → Inline comments in refactored files
+  - [ ] CERTIFICATE_DISCOVERY_PROOF.md → Godoc in pkg/correlation/cert_client_enhanced.go
+- [ ] Delete (obsolete):
+  - [ ] ALTERNATIVE_CERT_SOURCES.md (research notes - no longer needed)
+  - [ ] INTELLIGENCE_LOOP_TRACE.md (analysis - captured in code)
+  - [ ] workers/SCANNER_CLI_ANALYSIS.md (captured in implementation)
+
+**Evidence**: Official Go docs: "Use godoc comments for code, markdown only for README/CONTRIBUTING/ROADMAP"
+
+**Impact**:
+- ✅ Reduces context loading costs (thousands of tokens saved)
+- ✅ Keeps docs close to code (reduces drift)
+- ✅ Aligns with Go community standards
+
+#### Task 1.2: Authentication Logging Fix (P1 - 2 hours) ✅ READY
+
+**Problem**: cmd/auth.go (907 lines, highest visibility) uses fmt.Printf instead of structured logging
+
+**Action**: Systematic replacement with otelzap
+- [ ] Replace custom Logger (lines 832-867) with internal/logger.Logger
+- [ ] Replace all fmt.Printf with log.Infow() (71 occurrences in auth.go)
+- [ ] Add structured fields: target, protocol, scan_id, component
+- [ ] Maintain console-friendly output (Format="console" supports emojis)
+
+**Pattern**:
+```go
+// BEFORE
+fmt.Printf("🧪 Running authentication tests for: %s\n", target)
+
+// AFTER
+log.Infow("Running authentication tests",
+    "target", target,
+    "protocol", protocol,
+    "component", "auth_testing",
+)
+```
+
+**Evidence**: Uber Zap FAQ: "Never use fmt.Print in production - breaks observability"
+
+**Impact**:
+- ✅ Enables trace correlation across auth workflows
+- ✅ Parseable output for automation
+- ✅ Establishes pattern for other commands
+
+#### Task 1.3: TODO Audit & Quick Cleanup (P2 - 1 hour) ✅ READY
+
+**Problem**: 163 TODO/FIXME comments indicate incomplete work
+
+**Action**: Triage and resolve
+- [ ] Complete trivial TODOs immediately:
+  - [ ] internal/logger/logger.go:65-66 (version/environment from config)
+  - [ ] Other <30min TODOs
+- [ ] Move long-term TODOs to ROADMAP.md
+- [ ] Create GitHub issues for mid-term work
+- [ ] Delete obsolete TODOs
+
+**Evidence**: Technical debt compounds - address early or track explicitly
+
+**Impact**:
+- ✅ Cleans up codebase
+- ✅ Makes remaining work visible
+- ✅ Prevents forgotten features
+
+---
+
+### Phase 2: Foundation Work (THIS WEEK - 5-8 days)
+
+**Priority**: P1 (Critical for Trust)
+**Goal**: Achieve minimum viable quality standards
+
+#### Task 2.1: Test Coverage - Security Critical Paths (P1 - 3-5 days)
+
+**Problem**: 10% test coverage for a security tool (industry standard: 60-80%)
+
+**Action**: Prioritize security-critical testing
+- [ ] cmd/auth.go tests (907 lines, NO tests currently)
+- [ ] pkg/auth/saml/scanner.go - Golden SAML attack tests
+- [ ] pkg/auth/oauth2/scanner.go - JWT algorithm confusion tests
+- [ ] pkg/auth/webauthn/scanner.go - Virtual authenticator tests
+- [ ] pkg/scim/scanner.go - SCIM provisioning vulnerability tests
+- [ ] pkg/smuggling/detection.go - Request smuggling detection tests
+
+**Testing Requirements**:
+- Unit tests (test individual functions)
+- Integration tests (test component interactions)
+- Fuzzing tests (test with malformed inputs - CRITICAL for security)
+- Race detection (go test -race)
+
+**Evidence**: Go security best practices: "Security tools MUST test themselves"
+
+**Impact**:
+- ✅ Verifies security claims
+- ✅ Prevents regressions
+- ✅ Builds user trust (bug bounty hunters stake reputation on results)
+
+**Acceptance Criteria**:
+- [ ] 80%+ coverage for authentication packages
+- [ ] Fuzz tests for all parsers (SAML, JWT, SCIM)
+- [ ] All tests pass with -race flag
+
+#### Task 2.2: Systematic Logging Remediation (P1 - 2-3 days)
+
+**Problem**: 48 files use fmt.Print* (violates CLAUDE.md)
+
+**Action**: Complete remediation across all commands
+- [ ] Priority 1: User-facing commands
+  - [ ] cmd/scan.go, cmd/smuggle.go, cmd/scim.go
+  - [ ] cmd/results.go, cmd/discover.go
+- [ ] Priority 2: Background commands
+  - [ ] cmd/workflow.go, cmd/platform.go
+- [ ] Priority 3: Utility commands
+  - [ ] cmd/config.go, cmd/self_update.go
+
+**Pattern**: Use cmd/auth.go (Task 1.2) as reference implementation
+
+**Evidence**: OpenTelemetry docs: "Structured logs enable trace correlation"
+
+**Impact**:
+- ✅ Consistent, parseable output across ALL commands
+- ✅ Full trace correlation for debugging
+- ✅ Enables automation and monitoring
+
+**Acceptance Criteria**:
+- [ ] Zero fmt.Print* in cmd/* files
+- [ ] All commands use internal/logger.Logger
+- [ ] Console output remains human-friendly
+
+---
+
+### Phase 3: Shift-Left Prevention (NEXT SPRINT - 1-2 days)
+
+**Priority**: P2 (Prevent Future Issues)
+**Goal**: Automate quality checks
+
+#### Task 3.1: CI/CD Quality Gates (P2 - 1 day)
+
+**Action**: Prevent issues before merge
+- [ ] Pre-commit hook: Block fmt.Print* in .go files
+- [ ] CI coverage check: Fail if coverage drops below 60%
+- [ ] CI security scan: Run gosec, govulncheck on every PR
+- [ ] PR template: Checklist for tests, race detection, security scan
+
+**Evidence**: Shift-left principle: "Catch issues early when fix cost is lowest"
+
+#### Task 3.2: Linter Configuration (P2 - 4 hours)
+
+**Action**: Automated code quality enforcement
+- [ ] Add forbidigo linter: Block fmt.Print*
+- [ ] Add golangci-lint config with security rules
+- [ ] Add coverage badge to README.md (visibility)
+
+---
+
+### Success Metrics
+
+**After Phase 1** (This Session):
+- ✅ Documentation follows CLAUDE.md standards (zero prohibited .md files)
+- ✅ cmd/auth.go uses structured logging (pattern for others)
+- ✅ TODO count reduced by 50%+
+
+**After Phase 2** (This Week):
+- ✅ 80%+ coverage for authentication packages
+- ✅ Zero fmt.Print* in cmd/* files
+- ✅ All fuzz tests passing
+
+**After Phase 3** (Next Sprint):
+- ✅ CI fails on quality violations
+- ✅ New code automatically meets standards
+
+---
+
+### Alignment with Core Principles
+
+**Evidence-Based**:
+- Tests provide evidence of correctness
+- Structured logs provide evidence for analysis
+- Coverage metrics provide evidence of quality
+
+**Human-Centric**:
+- Consistent output (structured logging) serves both humans AND machines
+- Tests prevent incorrect results that damage user trust/reputation
+- Clear documentation reduces barriers to contribution
+
+**Sustainable Innovation**:
+- Quality gates prevent tech debt accumulation
+- Good tests enable confident refactoring
+- Inline docs stay synchronized with code
+
+**Collaboration**:
+- Adversarial analysis identifies what works AND what doesn't
+- Patterns (auth.go logging fix) enable others to follow
+- Clear standards (CLAUDE.md) guide contributions
 
 ---
 
