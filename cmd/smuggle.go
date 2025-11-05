@@ -54,6 +54,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
+		log := GetLogger().WithComponent("smuggling")
 
 		// Get flags
 		technique, _ := cmd.Flags().GetString("technique")
@@ -64,6 +65,14 @@ Examples:
 		verifySSL, _ := cmd.Flags().GetBool("verify-ssl")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		log.Infow("Starting HTTP request smuggling detection",
+			"target", target,
+			"technique", technique,
+			"differential", differential,
+			"timing", timing,
+			"timeout", timeout,
+		)
 
 		// Build options
 		options := map[string]string{
@@ -82,17 +91,27 @@ Examples:
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
+		start := time.Now()
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
+			log.Errorw("Smuggling detection failed", "error", err, "target", target)
 			return fmt.Errorf("smuggling detection failed: %w", err)
 		}
 
 		// Output results
 		if output != "" {
 			outputSmugglingResults(findings, output, "json")
+			log.Infow("Results written to file", "file", output, "findings_count", len(findings))
 		} else {
 			printSmugglingDetectionResults(findings, verbose)
 		}
+
+		log.Infow("Smuggling detection completed",
+			"target", target,
+			"findings_count", len(findings),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -115,6 +134,7 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
+		log := GetLogger().WithComponent("smuggling")
 
 		// Get flags
 		technique, _ := cmd.Flags().GetString("technique")
@@ -123,6 +143,13 @@ Examples:
 		timeout, _ := cmd.Flags().GetString("timeout")
 		output, _ := cmd.Flags().GetString("output")
 		verbose, _ := cmd.Flags().GetBool("verbose")
+
+		log.Infow("Starting HTTP request smuggling exploitation",
+			"target", target,
+			"technique", technique,
+			"target_path", targetPath,
+			"generate_poc", generatePoC,
+		)
 
 		// Build options
 		options := map[string]string{
@@ -139,17 +166,27 @@ Examples:
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
+		start := time.Now()
 		findings, err := scanner.Scan(ctx, target, options)
 		if err != nil {
+			log.Errorw("Smuggling exploitation failed", "error", err, "target", target)
 			return fmt.Errorf("smuggling exploitation failed: %w", err)
 		}
 
 		// Output results
 		if output != "" {
 			outputSmugglingResults(findings, output, "json")
+			log.Infow("Exploitation results written to file", "file", output, "findings_count", len(findings))
 		} else {
 			printSmugglingExploitResults(findings, verbose)
 		}
+
+		log.Infow("Smuggling exploitation completed",
+			"target", target,
+			"findings_count", len(findings),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -172,11 +209,18 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		target := args[0]
+		log := GetLogger().WithComponent("smuggling")
 
 		// Get flags
 		technique, _ := cmd.Flags().GetString("technique")
 		targetPath, _ := cmd.Flags().GetString("target-path")
 		output, _ := cmd.Flags().GetString("output")
+
+		log.Infow("Generating HTTP request smuggling PoCs",
+			"target", target,
+			"technique", technique,
+			"target_path", targetPath,
+		)
 
 		// Generate PoCs
 		pocs := generatePoCs(target, technique, targetPath)
@@ -184,8 +228,10 @@ Examples:
 		// Output results
 		if output != "" {
 			if err := os.WriteFile(output, []byte(strings.Join(pocs, "\n\n")), 0644); err != nil {
+				log.Errorw("Failed to write PoCs to file", "error", err, "file", output)
 				return fmt.Errorf("failed to write PoCs to file: %w", err)
 			}
+			log.Infow("PoCs written to file", "file", output, "poc_count", len(pocs))
 			fmt.Printf("PoCs written to %s\n", output)
 		} else {
 			fmt.Printf("📝 HTTP Request Smuggling PoCs\n")
@@ -194,6 +240,12 @@ Examples:
 				fmt.Printf("%s\n\n", poc)
 			}
 		}
+
+		log.Infow("PoC generation completed",
+			"target", target,
+			"poc_count", len(pocs),
+		)
+
 		return nil
 	},
 }
