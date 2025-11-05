@@ -55,7 +55,14 @@ func init() {
 
 // runDiscoveryOnly runs discovery without testing
 func runDiscoveryOnly(target string) error {
-	fmt.Printf(" Starting asset discovery for: %s\n", target)
+	logger := GetLogger().WithComponent("discovery")
+
+	logger.Infow("Starting asset discovery",
+		"target", target,
+		"max_depth", discoverMaxDepth,
+		"max_assets", discoverMaxAssets,
+		"output_format", discoverOutput,
+	)
 
 	// Create discovery configuration
 	config := discovery.DefaultDiscoveryConfig()
@@ -63,45 +70,63 @@ func runDiscoveryOnly(target string) error {
 	config.MaxAssets = discoverMaxAssets
 
 	// Create discovery engine
-	engine := discovery.NewEngine(config, log.WithComponent("discovery"))
+	engine := discovery.NewEngine(config, logger)
 
 	// Create context with timeout for discovery
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
 
 	// Start discovery (passing context for timeout)
+	start := time.Now()
 	session, err := engine.StartDiscovery(ctx, target)
 	if err != nil {
+		logger.Errorw("Failed to start discovery", "error", err, "target", target)
 		return fmt.Errorf("failed to start discovery: %w", err)
 	}
 
 	if discoverVerbose {
-		fmt.Printf(" Discovery session: %s\n", session.ID)
-		fmt.Printf(" Target type: %s\n", session.Target.Type)
+		logger.Debugw("Discovery session details",
+			"session_id", session.ID,
+			"target_type", session.Target.Type)
 		fmt.Printf("🎲 Confidence: %.0f%%\n", session.Target.Confidence*100)
 	}
 
 	// Monitor discovery progress
-	log.Info("⏳ Discovery in progress...", "component", "discover")
+	logger.Infow("Discovery in progress", "session_id", session.ID)
 
 	for {
 		session, err := engine.GetSession(session.ID)
 		if err != nil {
+			logger.Errorw("Failed to get session", "error", err, "session_id", session.ID)
 			return fmt.Errorf("failed to get session: %w", err)
 		}
 
 		if discoverVerbose {
+			logger.Debugw("Discovery progress",
+				"progress_pct", session.Progress,
+				"total_discovered", session.TotalDiscovered,
+				"high_value_assets", session.HighValueAssets,
+			)
 			fmt.Printf("\r🔄 Progress: %.0f%% | Assets: %d | High-Value: %d",
 				session.Progress, session.TotalDiscovered, session.HighValueAssets)
 		}
 
 		if session.Status == discovery.StatusCompleted {
+			logger.Infow("Discovery completed successfully",
+				"session_id", session.ID,
+				"total_discovered", session.TotalDiscovered,
+				"high_value_assets", session.HighValueAssets,
+			)
 			if discoverVerbose {
-				log.Info("\n Discovery completed!", "component", "discover")
+				fmt.Printf("\n Discovery completed!\n")
 			}
 			break
 		} else if session.Status == discovery.StatusFailed {
-			log.Info("\n Discovery failed!", "component", "discover")
+			logger.Errorw("Discovery failed",
+				"session_id", session.ID,
+				"errors", session.Errors,
+			)
+			fmt.Printf("\n Discovery failed!\n")
 			for _, errMsg := range session.Errors {
 				fmt.Printf("   Error: %s\n", errMsg)
 			}
@@ -114,8 +139,17 @@ func runDiscoveryOnly(target string) error {
 	// Get final results
 	session, err = engine.GetSession(session.ID)
 	if err != nil {
+		logger.Errorw("Failed to get final session", "error", err, "session_id", session.ID)
 		return fmt.Errorf("failed to get final session: %w", err)
 	}
+
+	logger.Infow("Asset discovery completed",
+		"target", target,
+		"total_discovered", session.TotalDiscovered,
+		"high_value_assets", session.HighValueAssets,
+		"relationships", len(session.Relationships),
+		"duration_seconds", time.Since(start).Seconds(),
+	)
 
 	// Output results based on format
 	switch discoverOutput {

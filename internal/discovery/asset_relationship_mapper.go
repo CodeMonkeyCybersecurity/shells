@@ -143,6 +143,14 @@ func NewAssetRelationshipMapper(config *DiscoveryConfig, logger *logger.Logger) 
 
 	correlator := correlation.NewEnhancedOrganizationCorrelator(correlatorConfig, logger)
 
+	// ADVERSARIAL REVIEW STATUS (2025-10-30)
+	// Issue: OrganizationCorrelator was created but clients (WHOIS, Certificate, ASN, Cloud) were never initialized
+	//        All lookups silently failed with "if client != nil" checks - no errors logged
+	// Root Cause: pkg/correlation/organization.go requires SetClients() but was never called
+	// Fix: Initialize and wire up all correlator clients below
+	// Impact: WHOIS lookups (org name), certificate lookups (SANs), ASN lookups (IP ownership), cloud detection now work
+	// Priority: P0 (silent feature failure)
+
 	// Initialize correlator clients (CRITICAL FIX - without this, all lookups silently fail)
 	whoisClient := correlation.NewDefaultWhoisClient(logger)
 	certClient := correlation.NewDefaultCertificateClient(logger) // Uses enhanced client with TLS fallback

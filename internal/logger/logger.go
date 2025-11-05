@@ -60,11 +60,21 @@ func New(cfg config.LoggerConfig) (*Logger, error) {
 	}
 
 	// Add standard fields for security scanning context
+	// Version and environment can be set via build flags or config
+	version := "1.0.0"
+	if cfg.Version != "" {
+		version = cfg.Version
+	}
+	environment := "production"
+	if cfg.Environment != "" {
+		environment = cfg.Environment
+	}
+
 	zapConfig.InitialFields = map[string]interface{}{
 		"service":     "shells",
-		"version":     "1.0.0", // TODO: Get from build info
+		"version":     version,
 		"component":   "logger",
-		"environment": "production", // TODO: Get from config
+		"environment": environment,
 	}
 
 	baseLogger, err := zapConfig.Build(

@@ -42,26 +42,38 @@ var platformProgramsCmd = &cobra.Command{
 	Use:   "programs",
 	Short: "List available bug bounty programs",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("platform")
+
 		// P0-2 FIX: Check flag parsing errors
 		platform, err := cmd.Flags().GetString("platform")
 		if err != nil {
+			logger.Errorw("Invalid platform flag", "error", err)
 			return fmt.Errorf("invalid --platform flag: %w", err)
 		}
 		output, err := cmd.Flags().GetString("output")
 		if err != nil {
+			logger.Errorw("Invalid output flag", "error", err)
 			return fmt.Errorf("invalid --output flag: %w", err)
 		}
 
+		logger.Infow("Listing bug bounty programs",
+			"platform", platform,
+			"output_format", output,
+		)
+
 		client, err := getPlatformClient(platform)
 		if err != nil {
+			logger.Errorw("Failed to get platform client", "error", err, "platform", platform)
 			return err
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		start := time.Now()
 		programs, err := client.GetPrograms(ctx)
 		if err != nil {
+			logger.Errorw("Failed to get programs", "error", err, "platform", platform)
 			return fmt.Errorf("failed to get programs: %w", err)
 		}
 
@@ -69,12 +81,19 @@ var platformProgramsCmd = &cobra.Command{
 			// P0-3 FIX: Check JSON marshaling errors
 			jsonData, err := json.MarshalIndent(programs, "", "  ")
 			if err != nil {
+				logger.Errorw("Failed to marshal programs to JSON", "error", err)
 				return fmt.Errorf("failed to marshal programs to JSON: %w", err)
 			}
 			fmt.Println(string(jsonData))
 		} else {
 			printPrograms(programs)
 		}
+
+		logger.Infow("Programs retrieved",
+			"platform", platform,
+			"programs_count", len(programs),
+			"duration_seconds", time.Since(start).Seconds(),
+		)
 
 		return nil
 	},
@@ -85,28 +104,42 @@ var platformSubmitCmd = &cobra.Command{
 	Short: "Submit a finding to a bug bounty platform",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("platform")
+
 		findingID := args[0]
 		// P0-2 FIX: Check flag parsing errors
 		platform, err := cmd.Flags().GetString("platform")
 		if err != nil {
+			logger.Errorw("Invalid platform flag", "error", err)
 			return fmt.Errorf("invalid --platform flag: %w", err)
 		}
 		programHandle, err := cmd.Flags().GetString("program")
 		if err != nil {
+			logger.Errorw("Invalid program flag", "error", err)
 			return fmt.Errorf("invalid --program flag: %w", err)
 		}
 		dryRun, err := cmd.Flags().GetBool("dry-run")
 		if err != nil {
+			logger.Errorw("Invalid dry-run flag", "error", err)
 			return fmt.Errorf("invalid --dry-run flag: %w", err)
 		}
 
+		logger.Infow("Submitting finding to platform",
+			"finding_id", findingID,
+			"platform", platform,
+			"program", programHandle,
+			"dry_run", dryRun,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
 		// Get finding from database
 		// Note: FindingQuery doesn't have FindingID field, so we need to get by ID differently
+		start := time.Now()
 		var findings []types.Finding
 		// For now, query all and filter (TODO: add GetFindingByID method to store)
 		allFindings, err := store.QueryFindings(GetContext(), core.FindingQuery{
@@ -121,6 +154,7 @@ var platformSubmitCmd = &cobra.Command{
 			}
 		}
 		if err != nil || len(findings) == 0 {
+			logger.Errorw("Finding not found", "error", err, "finding_id", findingID)
 			return fmt.Errorf("finding not found: %s", findingID)
 		}
 		finding := findings[0]
@@ -129,9 +163,14 @@ var platformSubmitCmd = &cobra.Command{
 		report := convertFindingToReport(&finding, programHandle)
 
 		if dryRun {
-			log.Info("DRY RUN - Report would be submitted:", "component", "platform")
+			logger.Infow("DRY RUN - Report would be submitted",
+				"finding_id", findingID,
+				"platform", platform,
+				"program", programHandle,
+			)
 			reportJSON, err := json.MarshalIndent(report, "", "  ")
 			if err != nil {
+				logger.Errorw("Failed to marshal report to JSON", "error", err)
 				return fmt.Errorf("failed to marshal report to JSON: %w", err)
 			}
 			fmt.Println(string(reportJSON))
@@ -141,6 +180,7 @@ var platformSubmitCmd = &cobra.Command{
 		// Get platform client
 		client, err := getPlatformClient(platform)
 		if err != nil {
+			logger.Errorw("Failed to get platform client", "error", err, "platform", platform)
 			return err
 		}
 
@@ -150,6 +190,7 @@ var platformSubmitCmd = &cobra.Command{
 		// Submit report
 		response, err := client.Submit(ctx, report)
 		if err != nil {
+			logger.Errorw("Failed to submit report", "error", err, "platform", platform, "finding_id", findingID)
 			return fmt.Errorf("failed to submit report: %w", err)
 		}
 
@@ -165,8 +206,17 @@ var platformSubmitCmd = &cobra.Command{
 			err = fmt.Errorf("database store type assertion failed")
 		}
 		if err != nil {
+			logger.Warnw("Failed to record submission in database", "error", err, "finding_id", findingID)
 			fmt.Printf("Warning: Failed to record submission in database: %v\n", err)
 		}
+
+		logger.Infow("Submission completed",
+			"finding_id", findingID,
+			"platform", platform,
+			"report_id", response.ReportID,
+			"status", response.Status,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
 
 		return nil
 	},
@@ -176,21 +226,34 @@ var platformValidateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate platform credentials",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("platform")
+
 		platform, _ := cmd.Flags().GetString("platform")
+
+		logger.Infow("Validating platform credentials", "platform", platform)
 
 		client, err := getPlatformClient(platform)
 		if err != nil {
+			logger.Errorw("Failed to get platform client", "error", err, "platform", platform)
 			return err
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
+		start := time.Now()
 		if err := client.ValidateCredentials(ctx); err != nil {
+			logger.Errorw("Credentials invalid", "error", err, "platform", platform)
 			return fmt.Errorf(" Credentials invalid: %w", err)
 		}
 
 		fmt.Printf(" Credentials valid for %s\n", client.Name())
+
+		logger.Infow("Credentials validated",
+			"platform", platform,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -206,16 +269,26 @@ This command will:
 3. Submit findings that meet the minimum severity threshold
 4. Record submissions in the database`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("platform")
+
 		severity, _ := cmd.Flags().GetString("severity")
 		scanID, _ := cmd.Flags().GetString("scan-id")
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
+		logger.Infow("Starting auto-submit",
+			"severity", severity,
+			"scan_id", scanID,
+			"dry_run", dryRun,
+		)
+
 		store := GetStore()
 		if store == nil {
+			logger.Errorw("Database not initialized", "error", "store is nil")
 			return fmt.Errorf("database not initialized")
 		}
 
 		// Query findings
+		start := time.Now()
 		query := core.FindingQuery{
 			Severity: severity,
 			Limit:    100,
@@ -226,15 +299,23 @@ This command will:
 
 		findings, err := store.QueryFindings(GetContext(), query)
 		if err != nil {
+			logger.Errorw("Failed to query findings", "error", err, "severity", severity)
 			return fmt.Errorf("failed to query findings: %w", err)
 		}
 
 		if len(findings) == 0 {
-			log.Info("No findings match the criteria", "component", "platform")
+			logger.Infow("No findings match the criteria",
+				"severity", severity,
+				"scan_id", scanID,
+			)
 			return nil
 		}
 
 		fmt.Printf("Found %d findings to process\n", len(findings))
+		logger.Infow("Found findings to process",
+			"findings_count", len(findings),
+			"severity", severity,
+		)
 
 		// Get configuration
 		cfg := GetConfig()
@@ -299,6 +380,15 @@ This command will:
 		}
 
 		fmt.Printf("\n Summary: %d submitted, %d errors\n", submitted, errors)
+
+		logger.Infow("Auto-submit completed",
+			"findings_processed", len(findings),
+			"submitted", submitted,
+			"errors", errors,
+			"dry_run", dryRun,
+			"duration_seconds", time.Since(start).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -521,7 +611,7 @@ func storeSubmission(store *database.Store, findingID, platform string, response
 
 // printPrograms prints programs in a table format
 func printPrograms(programs []*platforms.Program) {
-	log.Info("\nBug Bounty Programs:", "component", "platform")
+	fmt.Println("\nBug Bounty Programs:")
 	fmt.Println(strings.Repeat("=", 80))
 	for _, p := range programs {
 		fmt.Printf("\n %s (%s)\n", p.Name, p.Handle)
