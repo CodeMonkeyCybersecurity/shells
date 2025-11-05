@@ -152,7 +152,7 @@ log.Infow("Running authentication tests",
 
 **Action**: Complete remediation across all commands
 
-**PROGRESS**: 🔄 IN PROGRESS (5/48 files complete - 10.4%)
+**PROGRESS**: 🔄 IN PROGRESS (7/48 files complete - 14.6%)
 
 **Completed** ✅:
 - [x] cmd/auth.go (ALL 4 commands + test runners)
@@ -188,9 +188,20 @@ log.Infow("Running authentication tests",
   - resultsHistoryCmd - Scan history with scans_count tracking
   - resultsChangesCmd - Time window analysis with change detection metrics
 
-**Remaining** (43 files):
+- [x] cmd/workflow.go (ALL 4 commands)
+  - workflowRunCmd - Workflow execution with parallel/concurrency tracking
+  - workflowListCmd - List workflows with workflows_count metric
+  - workflowCreateCmd - Custom workflow creation with structured logging
+  - workflowStatusCmd - Workflow status checking with structured logging
+
+- [x] cmd/platform.go (ALL 4 commands)
+  - platformProgramsCmd - Bug bounty programs list with programs_count
+  - platformSubmitCmd - Finding submission with comprehensive tracking (finding_id, platform, report_id, status)
+  - platformValidateCmd - Credential validation with duration metrics
+  - platformAutoSubmitCmd - Auto-submit with findings_processed, submitted, errors tracking
+
+**Remaining** (41 files):
 - [ ] Priority 1: User-facing commands
-  - [ ] cmd/workflow.go, cmd/platform.go
   - [ ] cmd/schedule.go, cmd/serve.go
 - [ ] Priority 2: Background commands
   - [ ] cmd/config.go, cmd/self_update.go
@@ -221,9 +232,14 @@ log.Infow("Operation completed",
 
 **Acceptance Criteria**:
 - [x] cmd/auth.go uses internal/logger.Logger
-- [ ] Zero fmt.Print* in cmd/* files (5/48 files complete - 10.4%)
+- [ ] Zero fmt.Print* in cmd/* files (7/48 files complete - 14.6%)
 - [ ] All commands use internal/logger.Logger
 - [x] Console output remains human-friendly
+
+**Milestone Progress**:
+- ✅ **10% milestone**: Reached at cmd/results.go (5 files)
+- 🎯 **20% milestone**: Target at 10 files (currently at 7 files - 70% of way there)
+- 📊 **Commands completed**: 29 commands across 7 files
 
 ---
 
