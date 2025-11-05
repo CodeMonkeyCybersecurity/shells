@@ -28,13 +28,15 @@ var workflowRunCmd = &cobra.Command{
 	Short: "Run a workflow against a target",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("workflow")
+
 		workflowName := args[0]
 		target := args[1]
 
 		parallel, _ := cmd.Flags().GetBool("parallel")
 		maxConcurrency, _ := cmd.Flags().GetInt("concurrency")
 
-		log.Info("Starting workflow execution",
+		logger.Infow("Starting workflow execution",
 			"workflow", workflowName,
 			"target", target,
 			"parallel", parallel,
@@ -45,6 +47,10 @@ var workflowRunCmd = &cobra.Command{
 		workflows := workflow.GetPredefinedWorkflows()
 		wf, exists := workflows[workflowName]
 		if !exists {
+			logger.Errorw("Workflow not found",
+				"workflow", workflowName,
+				"available", getWorkflowNames(workflows),
+			)
 			return fmt.Errorf("workflow '%s' not found. Available workflows: %v",
 				workflowName, getWorkflowNames(workflows))
 		}
@@ -59,9 +65,15 @@ var workflowRunCmd = &cobra.Command{
 		// engine := workflow.NewWorkflowEngine(plugins, store, queue, telemetry, log)
 		// result, err := engine.ExecuteWorkflow(GetContext(), wf, target)
 
-		log.Info("Workflow execution would start here",
+		logger.Infow("Workflow execution would start here",
 			"steps", len(wf.Steps),
 			"description", wf.Description,
+		)
+
+		logger.Warnw("Workflow execution not yet implemented",
+			"workflow", workflowName,
+			"target", target,
+			"reason", "need to wire up dependencies",
 		)
 
 		return fmt.Errorf("workflow execution not yet implemented - need to wire up dependencies")
@@ -72,6 +84,10 @@ var workflowListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available workflows",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("workflow")
+
+		logger.Infow("Listing available workflows")
+
 		workflows := workflow.GetPredefinedWorkflows()
 
 		fmt.Printf("Available Workflows:\n\n")
@@ -94,6 +110,10 @@ var workflowListCmd = &cobra.Command{
 			fmt.Printf("\n%s\n\n", strings.Repeat("=", 50))
 		}
 
+		logger.Infow("Workflow list displayed",
+			"workflows_count", len(workflows),
+		)
+
 		return nil
 	},
 }
@@ -103,12 +123,19 @@ var workflowCreateCmd = &cobra.Command{
 	Short: "Create a custom workflow from JSON file",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("workflow")
+
 		name := args[0]
 		filename := args[1]
 
-		log.Infow("Creating custom workflow", "name", name, "file", filename)
+		logger.Infow("Creating custom workflow", "name", name, "file", filename)
 
 		// TODO: Implement workflow creation from JSON
+		logger.Warnw("Custom workflow creation not yet implemented",
+			"name", name,
+			"file", filename,
+		)
+
 		return fmt.Errorf("custom workflow creation not yet implemented")
 	},
 }
@@ -118,11 +145,17 @@ var workflowStatusCmd = &cobra.Command{
 	Short: "Get status of running workflow",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("workflow")
+
 		workflowID := args[0]
 
-		log.Infow("Getting workflow status", "workflow_id", workflowID)
+		logger.Infow("Getting workflow status", "workflow_id", workflowID)
 
 		// TODO: Implement workflow status checking
+		logger.Warnw("Workflow status checking not yet implemented",
+			"workflow_id", workflowID,
+		)
+
 		return fmt.Errorf("workflow status checking not yet implemented")
 	},
 }
