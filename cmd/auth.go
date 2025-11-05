@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/federation"
@@ -65,10 +67,16 @@ Examples:
 			return fmt.Errorf("--target is required")
 		}
 
-		// Create logger
-		logger := NewLogger(verbose)
+		// Create structured logger
+		log, err := getAuthLogger(verbose)
+		if err != nil {
+			return fmt.Errorf("failed to initialize logger: %w", err)
+		}
 
-		fmt.Printf(" Discovering authentication methods for: %s\n\n", target)
+		log.Infow("Discovering authentication methods",
+			"target", target,
+			"output_format", output,
+		)
 
 		// Use comprehensive authentication discovery
 		discoveryConfig := &discovery.Config{
@@ -90,14 +98,14 @@ Examples:
 		}
 
 		// Also run legacy discovery for federation
-		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
+		crossAnalyzer := common.NewCrossProtocolAnalyzer(log)
 		legacyConfig, _ := crossAnalyzer.AnalyzeTarget(target)
 
 		domain := extractDomain(target)
 		httpClient := &http.Client{
 			Timeout: 30 * time.Second,
 		}
-		discoverer := federation.NewFederationDiscoverer(httpClient, logger)
+		discoverer := federation.NewFederationDiscoverer(httpClient, log)
 		federationResult := discoverer.DiscoverAllProviders(domain)
 
 		// Create combined result
@@ -141,6 +149,17 @@ Examples:
 		} else {
 			printComprehensiveDiscoveryResults(result)
 		}
+
+		log.Infow("Authentication discovery completed",
+			"target", target,
+			"total_endpoints", result.Summary.TotalEndpoints,
+			"protocols_found", result.Summary.ProtocolsFound,
+			"federation_providers", result.Summary.FederationProviders,
+			"has_saml", result.Summary.HasSAML,
+			"has_oauth2", result.Summary.HasOAuth2,
+			"has_webauthn", result.Summary.HasWebAuthn,
+		)
+
 		return nil
 	},
 }
@@ -829,41 +848,23 @@ func saveReportToFile(report *common.AuthReport, filename string) error {
 	return os.WriteFile(filename, jsonData, 0644)
 }
 
-// Logger implementation
-type Logger struct {
-	verbose bool
-}
-
-func NewLogger(verbose bool) *Logger {
-	return &Logger{verbose: verbose}
-}
-
-func (l *Logger) Info(msg string, keysAndValues ...interface{}) {
-	if l.verbose {
-		fmt.Printf("[INFO] %s", msg)
-		if len(keysAndValues) > 0 {
-			fmt.Printf(" %v", keysAndValues)
-		}
-		fmt.Println()
+// getAuthLogger creates a properly configured logger for auth commands
+// Uses console format for user-friendly output while maintaining structure
+func getAuthLogger(verbose bool) (*logger.Logger, error) {
+	logLevel := "info"
+	if verbose {
+		logLevel = "debug"
 	}
-}
 
-func (l *Logger) Error(msg string, keysAndValues ...interface{}) {
-	fmt.Printf("[ERROR] %s", msg)
-	if len(keysAndValues) > 0 {
-		fmt.Printf(" %v", keysAndValues)
+	log, err := logger.New(config.LoggerConfig{
+		Level:  logLevel,
+		Format: "console", // Console format supports emojis and is human-friendly
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
-	fmt.Println()
-}
 
-func (l *Logger) Debug(msg string, keysAndValues ...interface{}) {
-	if l.verbose {
-		fmt.Printf("[DEBUG] %s", msg)
-		if len(keysAndValues) > 0 {
-			fmt.Printf(" %v", keysAndValues)
-		}
-		fmt.Println()
-	}
+	return log.WithComponent("auth"), nil
 }
 
 func init() {
