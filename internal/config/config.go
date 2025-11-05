@@ -22,6 +22,8 @@ type LoggerConfig struct {
 	Level       string   `mapstructure:"level"`
 	Format      string   `mapstructure:"format"`
 	OutputPaths []string `mapstructure:"output_paths"`
+	Version     string   `mapstructure:"version"`     // Optional: version for log fields (default: "1.0.0")
+	Environment string   `mapstructure:"environment"` // Optional: environment for log fields (default: "production")
 }
 
 type DatabaseConfig struct {
