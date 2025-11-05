@@ -195,34 +195,37 @@ Examples:
 			protocol = "all"
 		}
 
-		// Create logger
-		logger := NewLogger(verbose)
-
-		fmt.Printf("🧪 Running authentication tests for: %s\n", target)
-		if protocol != "all" {
-			fmt.Printf(" Protocol: %s\n", strings.ToUpper(protocol))
+		// Create structured logger
+		log, err := getAuthLogger(verbose)
+		if err != nil {
+			return fmt.Errorf("failed to initialize logger: %w", err)
 		}
-		fmt.Println()
+
+		log.Infow("Running authentication tests",
+			"target", target,
+			"protocol", strings.ToUpper(protocol),
+			"output_format", output,
+		)
 
 		var report *common.AuthReport
-		var err error
+		var testErr error
 
 		// Run tests based on protocol
 		switch protocol {
 		case "saml":
-			report, err = runSAMLTests(target, logger)
+			report, testErr = runSAMLTests(target, log)
 		case "oauth2":
-			report, err = runOAuth2Tests(target, logger)
+			report, testErr = runOAuth2Tests(target, log)
 		case "webauthn":
-			report, err = runWebAuthnTests(target, logger)
+			report, testErr = runWebAuthnTests(target, log)
 		case "all":
-			report, err = runAllTests(target, logger)
+			report, testErr = runAllTests(target, log)
 		default:
 			return fmt.Errorf("unknown protocol '%s'. Supported: saml, oauth2, webauthn, all", protocol)
 		}
 
-		if err != nil {
-			return fmt.Errorf("authentication tests failed: %w", err)
+		if testErr != nil {
+			return fmt.Errorf("authentication tests failed: %w", testErr)
 		}
 
 		// Save results to database
@@ -239,9 +242,9 @@ Examples:
 		}
 
 		if err := saveAuthResultsToDatabase(target, report, dbScanType); err != nil {
-			fmt.Printf("Warning: Failed to save results to database: %v\n", err)
+			log.Warnw("Failed to save results to database", "error", err)
 		} else {
-			fmt.Printf(" Results saved to database\n")
+			log.Infow("Results saved to database", "scan_type", dbScanType)
 		}
 
 		// Output results
@@ -251,6 +254,16 @@ Examples:
 		} else {
 			printTestResults(report)
 		}
+
+		log.Infow("Authentication tests completed",
+			"target", target,
+			"protocol", protocol,
+			"vulnerabilities_found", report.Summary.TotalVulnerabilities,
+			"critical", report.Summary.BySeverity["CRITICAL"],
+			"high", report.Summary.BySeverity["HIGH"],
+			"duration_seconds", report.EndTime.Sub(report.StartTime).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -286,21 +299,27 @@ Examples:
 			maxDepth = 5
 		}
 
-		// Create logger
-		logger := NewLogger(verbose)
+		// Create structured logger
+		log, err := getAuthLogger(verbose)
+		if err != nil {
+			return fmt.Errorf("failed to initialize logger: %w", err)
+		}
 
-		fmt.Printf("🔗 Finding authentication bypass chains for: %s\n", target)
-		fmt.Printf(" Maximum chain depth: %d\n\n", maxDepth)
+		log.Infow("Finding authentication bypass chains",
+			"target", target,
+			"max_depth", maxDepth,
+			"output_format", output,
+		)
 
 		// Analyze target for vulnerabilities
-		crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
-		config, err := crossAnalyzer.AnalyzeTarget(target)
-		if err != nil {
-			return fmt.Errorf("target analysis failed: %w", err)
+		crossAnalyzer := common.NewCrossProtocolAnalyzer(log)
+		config, analyzeErr := crossAnalyzer.AnalyzeTarget(target)
+		if analyzeErr != nil {
+			return fmt.Errorf("target analysis failed: %w", analyzeErr)
 		}
 
 		// Find attack chains
-		chainAnalyzer := common.NewAuthChainAnalyzer(logger)
+		chainAnalyzer := common.NewAuthChainAnalyzer(log)
 		chains := chainAnalyzer.FindBypassChains(config.Configuration, config.Vulnerabilities)
 
 		// Create result
@@ -333,6 +352,15 @@ Examples:
 		} else {
 			printChainResults(result)
 		}
+
+		log.Infow("Attack chain analysis completed",
+			"target", target,
+			"total_chains", result.Summary.TotalChains,
+			"critical_chains", result.Summary.CriticalChains,
+			"high_chains", result.Summary.HighChains,
+			"longest_chain", result.Summary.LongestChain,
+		)
+
 		return nil
 	},
 }
@@ -364,31 +392,37 @@ Examples:
 			return fmt.Errorf("--target is required")
 		}
 
-		// Create logger
-		logger := NewLogger(verbose)
+		// Create structured logger
+		log, err := getAuthLogger(verbose)
+		if err != nil {
+			return fmt.Errorf("failed to initialize logger: %w", err)
+		}
 
-		fmt.Printf(" Running comprehensive authentication security analysis\n")
-		fmt.Printf(" Target: %s\n\n", target)
+		log.Infow("Running comprehensive authentication security analysis",
+			"target", target,
+			"output_format", output,
+			"save_report", saveReport != "",
+		)
 
 		// Run comprehensive analysis
-		report, err := runComprehensiveAnalysis(target, logger)
-		if err != nil {
-			return fmt.Errorf("comprehensive analysis failed: %w", err)
+		report, analyzeErr := runComprehensiveAnalysis(target, log)
+		if analyzeErr != nil {
+			return fmt.Errorf("comprehensive analysis failed: %w", analyzeErr)
 		}
 
 		// Save results to database
 		if err := saveAuthResultsToDatabase(target, report, types.ScanTypeAuth); err != nil {
-			fmt.Printf("Warning: Failed to save results to database: %v\n", err)
+			log.Warnw("Failed to save results to database", "error", err)
 		} else {
-			fmt.Printf(" Results saved to database\n")
+			log.Infow("Results saved to database", "scan_type", types.ScanTypeAuth)
 		}
 
 		// Save report if requested
 		if saveReport != "" {
 			if err := saveReportToFile(report, saveReport); err != nil {
-				fmt.Printf("Warning: Failed to save report: %v\n", err)
+				log.Warnw("Failed to save report", "error", err, "file", saveReport)
 			} else {
-				fmt.Printf("📄 Report saved to: %s\n", saveReport)
+				log.Infow("Report saved to file", "file", saveReport)
 			}
 		}
 
@@ -399,6 +433,16 @@ Examples:
 		} else {
 			printComprehensiveResults(report)
 		}
+
+		log.Infow("Comprehensive authentication analysis completed",
+			"target", target,
+			"total_vulnerabilities", report.Summary.TotalVulnerabilities,
+			"attack_chains", report.Summary.AttackChains,
+			"critical", report.Summary.BySeverity["CRITICAL"],
+			"high", report.Summary.BySeverity["HIGH"],
+			"duration_seconds", report.EndTime.Sub(report.StartTime).Seconds(),
+		)
+
 		return nil
 	},
 }
@@ -428,29 +472,29 @@ type ChainSummary struct {
 
 // Test runner functions
 
-func runSAMLTests(target string, logger common.Logger) (*common.AuthReport, error) {
-	scanner := saml.NewSAMLScanner(logger)
+func runSAMLTests(target string, log *logger.Logger) (*common.AuthReport, error) {
+	scanner := saml.NewSAMLScanner(log)
 	return scanner.Scan(target, map[string]interface{}{})
 }
 
-func runOAuth2Tests(target string, logger common.Logger) (*common.AuthReport, error) {
-	scanner := oauth2.NewOAuth2Scanner(logger)
+func runOAuth2Tests(target string, log *logger.Logger) (*common.AuthReport, error) {
+	scanner := oauth2.NewOAuth2Scanner(log)
 	return scanner.Scan(target, map[string]interface{}{})
 }
 
-func runWebAuthnTests(target string, logger common.Logger) (*common.AuthReport, error) {
-	scanner := webauthn.NewWebAuthnScanner(logger)
+func runWebAuthnTests(target string, log *logger.Logger) (*common.AuthReport, error) {
+	scanner := webauthn.NewWebAuthnScanner(log)
 	return scanner.Scan(target, map[string]interface{}{})
 }
 
-func runAllTests(target string, logger common.Logger) (*common.AuthReport, error) {
-	crossAnalyzer := common.NewCrossProtocolAnalyzer(logger)
+func runAllTests(target string, log *logger.Logger) (*common.AuthReport, error) {
+	crossAnalyzer := common.NewCrossProtocolAnalyzer(log)
 	return crossAnalyzer.AnalyzeTarget(target)
 }
 
-func runComprehensiveAnalysis(target string, logger common.Logger) (*common.AuthReport, error) {
+func runComprehensiveAnalysis(target string, log *logger.Logger) (*common.AuthReport, error) {
 	// This would implement comprehensive analysis including all protocols
-	return runAllTests(target, logger)
+	return runAllTests(target, log)
 }
 
 // Output functions
