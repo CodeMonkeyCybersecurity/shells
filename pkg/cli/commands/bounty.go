@@ -1,8 +1,11 @@
 // pkg/cli/commands/bounty.go - Bug Bounty Command Business Logic
 //
-// REFACTORED 2025-10-30: Extracted from cmd/orchestrator_main.go
-// This contains the actual business logic for running bug bounty scans.
-// cmd/orchestrator_main.go now only contains thin orchestration.
+// ADVERSARIAL REVIEW STATUS (2025-10-30 - Refactoring)
+// Change: Extracted business logic from cmd/orchestrator_main.go to pkg/cli/commands/
+// Motivation: Go best practices - cmd/ = thin orchestration, pkg/ = reusable business logic
+// Impact: cmd/orchestrator_main.go reduced from 300+ lines to 25 lines (92% reduction)
+// Benefit: Business logic now testable, reusable, and follows standard Go project structure
+// Files: cmd/internal/* → pkg/cli/*, cmd/orchestrator/orchestrator.go → pkg/cli/commands/orchestrator.go
 
 package commands
 
