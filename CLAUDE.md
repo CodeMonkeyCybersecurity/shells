@@ -336,11 +336,27 @@ shells resume scan-12345
 
 ## Logging Standards
 
-**CRITICAL: ALL output must use structured otelzap logging - no fmt.Print/Printf/Println anywhere**
+**CRITICAL: Use structured otelzap logging for operational/metrics logging**
+
+### Logging Policy (Pragmatic Approach)
+
+**Operational & Metrics Logging** (REQUIRED - use structured logging):
+- ✅ Use `log.Infow()`, `log.Debugw()`, `log.Warnw()`, `log.Errorw()`
+- ✅ Add structured fields: target, duration_ms, findings_count, component
+- ✅ Enable distributed tracing and observability
+- ❌ NEVER use fmt.Print in library code (pkg/, internal/)
+
+**User-Facing Console Output** (ACCEPTABLE - use fmt.Print):
+- ✅ `fmt.Printf()` for formatted tables, visual output, progress indicators
+- ✅ `fmt.Println()` for JSON output to stdout
+- ✅ User-friendly formatting with emojis, colors, alignment
+- ⚠️ Only in command handlers (cmd/*), not in library code
+
+**Rationale**: Operational logging needs structure for tracing/metrics, but user console output prioritizes readability and formatting control.
 
 ### Structured Logging with OpenTelemetry
 
-shells uses **otelzap** (OpenTelemetry + Zap) for ALL output, including user-facing messages. This provides:
+shells uses **otelzap** (OpenTelemetry + Zap) for operational logging and metrics. This provides:
 - Distributed tracing across services
 - Structured JSON logs for parsing/analysis
 - Machine-readable output for automation
@@ -364,23 +380,39 @@ log = log.WithComponent("scanner")
 
 ### Logging Patterns
 
-#### User-Facing Messages (CLI Output)
+#### User-Facing Console Output (CLI Output)
 
-Use `logger.Info()` for user-facing messages (NOT fmt.Print):
+**Console Formatting** (ACCEPTABLE - use fmt.Print for readability):
 
 ```go
-//  WRONG - Never use fmt.Print
-fmt.Println(" Scan completed!")
-fmt.Printf("Found %d vulnerabilities\n", count)
+// ACCEPTABLE in cmd/* - User-friendly console output
+fmt.Printf(" Scan completed!\n")
+fmt.Printf("═══════════════════════════════════════\n")
+fmt.Printf(" Target: %s\n", target)
+fmt.Printf("  • Total findings: %d\n", count)
+fmt.Printf("  • Critical: %d\n", criticalCount)
 
-//  CORRECT - Always use structured logging
-log.Info(" Scan completed!")
-log.Infow("Scan results",
-    "vulnerabilities_found", count,
-    "scan_duration", duration,
+// JSON output
+if outputFormat == "json" {
+    jsonData, _ := json.MarshalIndent(result, "", "  ")
+    fmt.Println(string(jsonData))
+}
+```
+
+**Operational Logging** (REQUIRED - always log metrics):
+
+```go
+// REQUIRED - Structured logging for metrics/tracing
+log.Infow("Scan completed",
     "target", target,
+    "vulnerabilities_found", count,
+    "critical_count", criticalCount,
+    "scan_duration_ms", duration.Milliseconds(),
+    "component", "scanner",
 )
 ```
+
+**Pattern**: Commands should use BOTH - fmt.Print for user console, log.Infow for metrics.
 
 #### Background/Service Logging
 
@@ -456,17 +488,26 @@ log.Infow("API key configured",
 
 ### Migration Rules
 
-When migrating from fmt.Print to otelzap:
+**For Command Handlers (cmd/*):**
 
-1. **User-facing messages** → `log.Info()` or `log.Infow()`
-2. **Error messages** → `log.Errorw()` with structured error field
-3. **Debug output** → `log.Debugw()` with context fields
-4. **Progress bars** → Periodic `log.Infow()` with progress percentage
-5. **Interactive prompts** → Log intent before/after, use `log.Info()` for messages
+1. **Operational metrics** → ALWAYS add `log.Infow()` at start/end of operations
+2. **User console output** → Use `fmt.Printf()` for tables, visual formatting
+3. **JSON output** → Use `fmt.Println(string(jsonData))`
+4. **Error messages** → Use BOTH: `log.Errorw()` for tracing + `fmt.Printf()` for user
+5. **Progress updates** → Periodic `log.Infow()` with progress_pct field
+
+**For Library Code (pkg/, internal/):**
+
+1. **NEVER use fmt.Print** → Always return errors or use structured logging
+2. **All logging** → Use `log.Debugw()`, `log.Infow()`, `log.Warnw()`, `log.Errorw()`
+3. **Error returns** → Wrap with `fmt.Errorf()` for context
+4. **Avoid panic** → Return errors instead (except in init() for config validation)
 
 ### Debugging Tips
 
-- Use structured logging with otelzap for all output (no fmt.Print)
+- Operational logging: Use structured otelzap with `log.Debugw()`, `log.Infow()`
+- Console output: Use `fmt.Printf()` for user-facing messages in cmd/*
+- Library code: NEVER use fmt.Print - always use structured logging
 - Enable debug logging: `--log-level debug`
 - Use OpenTelemetry tracing for distributed operations
 - Check worker logs for scanning issues
@@ -752,11 +793,12 @@ shells results search --term "Golden SAML"
 
 - **No emojis in code or documentation**: Keep it professional and parseable
 - **Prefer editing existing files over creating new ones**: Avoid file proliferation
-- **ALL output must use structured otelzap logging**: No fmt.Print/Printf/Println anywhere in codebase
-  - CLI user output: Use `log.Info()` and `log.Infow()` with structured fields
-  - Backend logging: Use `log.Debugw()`, `log.Warnw()`, `log.Errorw()` with component tags
-  - Progress updates: Use periodic `log.Infow()` with progress_pct field
-  - Interactive prompts: Log intent before/after using structured logging
+- **Pragmatic logging approach**: Structured logging for metrics, fmt.Print acceptable for user console
+  - Command handlers (cmd/*): Use BOTH `log.Infow()` for metrics AND `fmt.Printf()` for user output
+  - Library code (pkg/, internal/): NEVER use fmt.Print - always use structured logging
+  - Operational metrics: Always log with `log.Infow()` including duration_ms, target, component
+  - User console: `fmt.Printf()` acceptable for tables, visual output, formatted results
+  - JSON output: Use `fmt.Println(string(jsonData))`
 
 ### Documentation Standards (ENFORCED - SAVE TOKENS)
 
