@@ -1406,6 +1406,192 @@ func (s *sqlStore) MarkFindingFalsePositive(ctx context.Context, findingID strin
 	return nil
 }
 
+// GetRegressions returns findings that were marked as fixed and then reopened (regressions)
+func (s *sqlStore) GetRegressions(ctx context.Context, limit int) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetRegressions",
+		"limit", limit,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE status = %s
+		ORDER BY created_at DESC
+		LIMIT %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2))
+
+	rows, err := s.db.QueryContext(ctx, query, types.FindingStatusReopened, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query regressions: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetVulnerabilityTimeline returns all instances of a specific vulnerability across scans (full lifecycle)
+func (s *sqlStore) GetVulnerabilityTimeline(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetVulnerabilityTimeline",
+		"fingerprint", fingerprint,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE fingerprint = %s
+		ORDER BY created_at ASC
+	`, s.getPlaceholder(1))
+
+	rows, err := s.db.QueryContext(ctx, query, fingerprint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query vulnerability timeline: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetFindingsByFingerprint returns all findings with a specific fingerprint (across all scans)
+func (s *sqlStore) GetFindingsByFingerprint(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetFindingsByFingerprint",
+		"fingerprint", fingerprint,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE fingerprint = %s
+		ORDER BY created_at DESC
+	`, s.getPlaceholder(1))
+
+	rows, err := s.db.QueryContext(ctx, query, fingerprint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query findings by fingerprint: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetNewFindings returns findings that first appeared after a specific date
+func (s *sqlStore) GetNewFindings(ctx context.Context, sinceDate time.Time) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetNewFindings",
+		"since_date", sinceDate,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	// Get findings where first_scan_id's created_at is after sinceDate
+	query := fmt.Sprintf(`
+		SELECT f.id, f.scan_id, f.tool, f.type, f.severity, f.title, f.description,
+			   f.evidence, f.solution, f.refs, f.metadata,
+			   f.fingerprint, f.first_scan_id, f.status, f.verified, f.false_positive,
+			   f.created_at, f.updated_at
+		FROM findings f
+		INNER JOIN (
+			SELECT fingerprint, MIN(created_at) as first_seen
+			FROM findings
+			GROUP BY fingerprint
+		) first ON f.fingerprint = first.fingerprint
+		WHERE first.first_seen >= %s
+		  AND f.status = %s
+		ORDER BY first.first_seen DESC
+	`, s.getPlaceholder(1), s.getPlaceholder(2))
+
+	rows, err := s.db.QueryContext(ctx, query, sinceDate, types.FindingStatusNew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query new findings: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetFixedFindings returns findings that have been marked as fixed
+func (s *sqlStore) GetFixedFindings(ctx context.Context, limit int) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetFixedFindings",
+		"limit", limit,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE status = %s
+		ORDER BY updated_at DESC
+		LIMIT %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2))
+
+	rows, err := s.db.QueryContext(ctx, query, types.FindingStatusFixed, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query fixed findings: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// scanFindings is a helper function to scan rows into Finding structs
+func (s *sqlStore) scanFindings(rows *sql.Rows) ([]types.Finding, error) {
+	findings := []types.Finding{}
+
+	for rows.Next() {
+		var finding types.Finding
+		var refsJSON, metaJSON string
+
+		err := rows.Scan(
+			&finding.ID, &finding.ScanID, &finding.Tool, &finding.Type,
+			&finding.Severity, &finding.Title, &finding.Description,
+			&finding.Evidence, &finding.Solution, &refsJSON, &metaJSON,
+			&finding.Fingerprint, &finding.FirstScanID, &finding.Status,
+			&finding.Verified, &finding.FalsePositive,
+			&finding.CreatedAt, &finding.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan finding: %w", err)
+		}
+
+		if refsJSON != "" {
+			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
+				s.logger.Warn("Failed to unmarshal references for finding", "finding_id", finding.ID, "error", err)
+			}
+		}
+
+		if metaJSON != "" {
+			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
+				s.logger.Warn("Failed to unmarshal metadata for finding", "finding_id", finding.ID, "error", err)
+			}
+		}
+
+		findings = append(findings, finding)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating findings: %w", err)
+	}
+
+	return findings, nil
+}
+
 func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summary, error) {
 	summary := &types.Summary{
 		BySeverity: make(map[types.Severity]int),
