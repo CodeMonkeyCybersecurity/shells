@@ -258,16 +258,25 @@ artemis example.com --enable-monitoring  # Automatically sets up monitoring
 
 ---
 
-## 4. Mail Scanner - TODO
+## 4. Mail Scanner - ✅ COMPLETE
 
-**Status**: NOT IMPLEMENTED (marked "COMING SOON" in scanner_executor.go:64-69)
+**Status**: FULLY IMPLEMENTED and integrated into scanner executor
 
-**Integration Point**: `cmd/scanner_executor.go:64-69` (replace warning with implementation)
+**Files Created**:
+- `pkg/scanners/mail/types.go` - Mail finding and service type definitions
+- `pkg/scanners/mail/scanner.go` - Comprehensive mail server security scanner (600+ lines)
 
-**Implementation Strategy**:
+**Files Modified**:
+- `cmd/scanner_executor.go:65-68` - Replace "COMING SOON" with executeMailScanner call
+- `cmd/scanner_executor.go:401-471` - executeMailScanner function implementation
+- `cmd/scanner_executor.go:15` - Import mail scanner package
 
-### Step 1: Create Mail Scanner Module
-Create `pkg/scanners/mail/scanner.go`:
+**Integration Point**: `cmd/scanner_executor.go:65-68` (replaced COMING SOON warning)
+
+**Mail Security Tests Implemented**:
+
+### Scanner Module Created
+`pkg/scanners/mail/scanner.go` implements:
 
 ```go
 package mail
@@ -568,7 +577,7 @@ platforms:
 - ✅ **Rumble Integration**: COMPLETE - Fully wired into Phase 1 discovery
 - ✅ **Advanced OAuth2**: COMPLETE - Fully wired into auth scanner with 10 security tests
 - ✅ **Monitoring**: COMPLETE - Wired into Phase 7 reporting (logs monitoring setup)
-- ⏳ **Mail Scanner**: Implementation strategy provided
+- ✅ **Mail Scanner**: COMPLETE - Full SMTP/POP3/IMAP security testing (open relay, SPF/DMARC, etc.)
 - ⏳ **API Scanner**: Implementation strategy provided
 
-**Next Steps**: Implement items 4-5 using the integration points and strategies documented above.
+**Next Steps**: Implement item 5 (API scanner) using the integration points documented above.

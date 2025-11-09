@@ -12,6 +12,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/oauth2"
 	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/mail"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
@@ -63,11 +64,9 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 			}
 
 		case discovery.ScannerTypeMail:
-			// Mail scanner not yet implemented - skip for now
-			log.Warnw("Mail scanner not yet implemented - skipping",
-				"targets", rec.Targets,
-				"status", "[COMING SOON]",
-				"note", "Mail server testing will be added in future release")
+			if err := executeMailScanner(ctx, rec); err != nil {
+				log.LogError(ctx, err, "Mail scanner failed")
+			}
 
 		case discovery.ScannerTypeAPI:
 			// API scanner not yet implemented - skip for now
@@ -399,21 +398,77 @@ func executeSmugglingScanner(ctx context.Context, rec discovery.ScannerRecommend
 	return nil
 }
 
-// executeMailScanner - STUB - NOT YET IMPLEMENTED
-// TODO: Implement mail server vulnerability testing in future release
-// Planned features:
-// 1. Check webmail interface for XSS/SQLi
-// 2. Test SMTP AUTH bypass
-// 3. Check for open relay
-// 4. Test default credentials
-// 5. Mail header injection
-// 6. Check for exposed admin panels
-/*
+// executeMailScanner executes mail server security tests
 func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
-	// Stub implementation - not yet ready for use
+	log.Infow("Running mail server security tests",
+		"targets", rec.Targets,
+		"priority", rec.Priority,
+	)
+
+	// Create mail scanner instance
+	mailScanner := mail.NewScanner(log, 30*time.Second)
+
+	var allFindings []types.Finding
+
+	for _, target := range rec.Targets {
+		log.Infow("Scanning mail server", "target", target)
+
+		// Run comprehensive mail security tests
+		mailFindings, err := mailScanner.ScanMailServers(ctx, target)
+		if err != nil {
+			log.Warnw("Mail server scan failed",
+				"error", err,
+				"target", target)
+			continue
+		}
+
+		// Convert mail findings to common Finding format
+		for _, mailFinding := range mailFindings {
+			finding := types.Finding{
+				ID:          fmt.Sprintf("mail-%s-%s-%d", mailFinding.Service, mailFinding.VulnerabilityType, time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        fmt.Sprintf("Mail_%s", mailFinding.VulnerabilityType),
+				Severity:    mailFinding.Severity,
+				Title:       mailFinding.Title,
+				Description: mailFinding.Description,
+				Evidence:    mailFinding.Evidence,
+				Tool:        "mail-scanner",
+				Remediation: mailFinding.Remediation,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Metadata: map[string]interface{}{
+					"mail_host":      mailFinding.Host,
+					"mail_port":      mailFinding.Port,
+					"mail_service":   mailFinding.Service,
+					"tls_supported":  mailFinding.TLSSupported,
+					"spf_record":     mailFinding.SPFRecord,
+					"dmarc_record":   mailFinding.DMARCRecord,
+					"dkim_present":   mailFinding.DKIMPresent,
+					"banner":         mailFinding.Banner,
+					"capabilities":   mailFinding.Capabilities,
+				},
+			}
+
+			allFindings = append(allFindings, finding)
+		}
+
+		log.Infow("Mail server scan completed",
+			"target", target,
+			"vulnerabilities_found", len(mailFindings),
+		)
+	}
+
+	// Save findings to database
+	if store != nil && len(allFindings) > 0 {
+		if err := store.SaveFindings(ctx, allFindings); err != nil {
+			log.Errorw("Failed to save mail findings", "error", err)
+			return err
+		}
+		log.Infow("Saved mail security findings", "count", len(allFindings))
+	}
+
 	return nil
 }
-*/
 
 // executeAPIScanner - STUB - NOT YET IMPLEMENTED
 // TODO: Implement API security testing in future release
