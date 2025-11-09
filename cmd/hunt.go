@@ -167,7 +167,7 @@ func runHuntCommand(cmd *cobra.Command, args []string) error {
 		if err := saveHuntReport(result, outputFile); err != nil {
 			log.Errorw("Failed to save report", "error", err, "file", outputFile)
 		} else {
-			fmt.Printf("\n✓ Detailed report saved to: %s\n", outputFile)
+			fmt.Printf("\nDetailed report saved to: %s\n", outputFile)
 		}
 	}
 
@@ -236,11 +236,11 @@ func displayHuntResults(result *orchestrator.BugBountyResult) {
 		log.Info("═══ Top Findings ═══", "component", "hunt")
 		displayTopFindings(result.Findings, 5)
 	} else {
-		color.New(color.FgGreen).Println("✓ No vulnerabilities found")
+		color.New(color.FgGreen).Println("No vulnerabilities found")
 	}
 
 	fmt.Println()
-	fmt.Printf("✓ Scan complete in %s\n", result.Duration.Round(time.Second))
+	fmt.Printf("Scan complete in %s\n", result.Duration.Round(time.Second))
 	fmt.Printf("  Scan ID: %s\n", result.ScanID)
 }
 

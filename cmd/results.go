@@ -539,7 +539,7 @@ func printSummary(summary *ScanSummary, days int) {
 	}
 
 	if len(summary.RecentScans) > 0 {
-		fmt.Printf("\\n🕐 Recent Scans:\\n")
+		fmt.Printf("\\nRecent Scans:\\n")
 		for _, scan := range summary.RecentScans {
 			status := ""
 			if scan.Status == types.ScanStatusFailed {
@@ -928,14 +928,14 @@ func showIdentityChains(sessionID, severityFilter string, verbose bool, output s
 	fmt.Println()
 
 	log.Info(" Chain Detection Features:", "component", "results")
-	log.Info("   ✓ Maps identity asset relationships", "component", "results")
-	log.Info("   ✓ Detects trust relationship vulnerabilities", "component", "results")
-	log.Info("   ✓ Identifies attack path chaining opportunities", "component", "results")
-	log.Info("   ✓ Analyzes cross-protocol vulnerabilities", "component", "results")
-	log.Info("   ✓ Provides proof-of-concept payloads", "component", "results")
+	log.Info("   - Maps identity asset relationships", "component", "results")
+	log.Info("   - Detects trust relationship vulnerabilities", "component", "results")
+	log.Info("   - Identifies attack path chaining opportunities", "component", "results")
+	log.Info("   - Analyzes cross-protocol vulnerabilities", "component", "results")
+	log.Info("   - Provides proof-of-concept payloads", "component", "results")
 	fmt.Println()
 
-	log.Info("💡 Next Steps:", "component", "results")
+	log.Info("Next Steps:", "component", "results")
 	log.Info("   1. Run discovery with: shells [target]", "component", "results")
 	log.Info("   2. Identity chains will be automatically analyzed", "component", "results")
 	log.Info("   3. High-impact chains will be logged in real-time", "component", "results")
@@ -1331,7 +1331,7 @@ func displayScanDiff(scan1, scan2 *types.ScanRequest, newFindings, fixedFindings
 	}
 
 	if len(fixedFindings) > 0 {
-		fmt.Printf("  ✓ %d vulnerabilities fixed:\n", len(fixedFindings))
+		fmt.Printf("  %d vulnerabilities fixed:\n", len(fixedFindings))
 		for _, f := range fixedFindings {
 			severityColor := getSeverityColor(f.Severity)
 			fmt.Printf("    • [%s] %s\n", severityColor(string(f.Severity)), f.Title)
@@ -1382,7 +1382,7 @@ func displayChangesOverTime(target string, startTime, endTime time.Time, scanCou
 	}
 
 	if len(fixedFindings) > 0 {
-		fmt.Printf("  ✓ %d vulnerabilities fixed:\n", len(fixedFindings))
+		fmt.Printf("  %d vulnerabilities fixed:\n", len(fixedFindings))
 		for _, f := range fixedFindings {
 			severityColor := getSeverityColor(f.Severity)
 			fmt.Printf("    • [%s] %s\n", severityColor(string(f.Severity)), f.Title)

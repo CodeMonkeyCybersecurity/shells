@@ -161,7 +161,7 @@ var configShowCmd = &cobra.Command{
 		// Show config file location
 		homeDir, _ := os.UserHomeDir()
 		configDir := filepath.Join(homeDir, ".shells")
-		fmt.Printf("\n📁 Config directory: %s\n", configDir)
+		fmt.Printf("\nConfig directory: %s\n", configDir)
 
 		return nil
 	},

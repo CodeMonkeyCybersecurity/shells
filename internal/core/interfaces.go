@@ -42,6 +42,11 @@ type ResultStore interface {
 	GetRecentCriticalFindings(ctx context.Context, limit int) ([]types.Finding, error)
 	SearchFindings(ctx context.Context, searchTerm string, limit int) ([]types.Finding, error)
 
+	// Correlation results (attack chains, insights)
+	SaveCorrelationResults(ctx context.Context, results []types.CorrelationResult) error
+	GetCorrelationResults(ctx context.Context, scanID string) ([]types.CorrelationResult, error)
+	GetCorrelationResultsByType(ctx context.Context, insightType string) ([]types.CorrelationResult, error)
+
 	// Scan event logging for UI
 	SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error
 

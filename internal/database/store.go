@@ -64,10 +64,12 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -648,6 +650,112 @@ func (s *sqlStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*ty
 	return scans, nil
 }
 
+// generateFindingFingerprint creates a hash for deduplication across scans
+// Fingerprint is based on: tool + type + title + target (normalized)
+// Target is extracted from metadata["target"] or metadata["endpoint"] or metadata["url"]
+func generateFindingFingerprint(finding types.Finding) string {
+	// Extract target information from metadata
+	target := ""
+	if finding.Metadata != nil {
+		// Try common target field names
+		if t, ok := finding.Metadata["target"].(string); ok {
+			target = t
+		} else if ep, ok := finding.Metadata["endpoint"].(string); ok {
+			target = ep
+		} else if url, ok := finding.Metadata["url"].(string); ok {
+			target = url
+		} else if host, ok := finding.Metadata["host"].(string); ok {
+			target = host
+		} else if param, ok := finding.Metadata["parameter"].(string); ok {
+			// For parameter-specific vulns (e.g., XSS in specific param)
+			target = param
+		}
+	}
+
+	// If no target in metadata, extract from evidence (first line or URL pattern)
+	if target == "" && finding.Evidence != "" {
+		// Try to extract URL or endpoint from evidence
+		// Look for common patterns like "GET /path" or "https://..."
+		evidenceLines := strings.Split(finding.Evidence, "\n")
+		if len(evidenceLines) > 0 {
+			firstLine := strings.TrimSpace(evidenceLines[0])
+			// Extract HTTP method + path pattern
+			if strings.Contains(firstLine, "GET ") || strings.Contains(firstLine, "POST ") ||
+				strings.Contains(firstLine, "PUT ") || strings.Contains(firstLine, "DELETE ") {
+				parts := strings.Fields(firstLine)
+				if len(parts) >= 2 {
+					target = parts[1] // The path
+				}
+			} else if strings.HasPrefix(firstLine, "http://") || strings.HasPrefix(firstLine, "https://") {
+				// Extract hostname and path
+				if idx := strings.Index(firstLine, "://"); idx != -1 {
+					remaining := firstLine[idx+3:]
+					if slashIdx := strings.Index(remaining, "/"); slashIdx != -1 {
+						target = remaining[:slashIdx] + remaining[slashIdx:strings.IndexAny(remaining, "? \t")]
+					} else {
+						target = remaining
+					}
+				}
+			}
+		}
+	}
+
+	// Normalize: lowercase and trim whitespace
+	normalized := fmt.Sprintf("%s:%s:%s:%s",
+		strings.ToLower(strings.TrimSpace(finding.Tool)),
+		strings.ToLower(strings.TrimSpace(finding.Type)),
+		strings.ToLower(strings.TrimSpace(finding.Title)),
+		strings.ToLower(strings.TrimSpace(target)),
+	)
+
+	// Generate SHA256 hash
+	hash := sha256.Sum256([]byte(normalized))
+	return fmt.Sprintf("%x", hash[:16]) // Use first 16 bytes (32 hex chars)
+}
+
+// checkDuplicateFinding checks if a finding with the same fingerprint exists in previous scans
+// Returns: (isDuplicate, firstScanID, previousStatus, error)
+// Also detects regressions when a "fixed" vulnerability reappears
+func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, string, error) {
+	// Get the most recent occurrence to check for regressions
+	recentQuery := `
+		SELECT first_scan_id, scan_id, status
+		FROM findings
+		WHERE fingerprint = $1
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+
+	var firstScanID, scanID, previousStatus string
+	err := tx.QueryRowContext(ctx, recentQuery, fingerprint).Scan(&firstScanID, &scanID, &previousStatus)
+	if err == sql.ErrNoRows {
+		// Not a duplicate - this is the first occurrence
+		return false, currentScanID, "", nil
+	}
+	if err != nil {
+		return false, "", "", fmt.Errorf("failed to check duplicate: %w", err)
+	}
+
+	// If first_scan_id is empty (old data before migration), use the scan_id we found
+	if firstScanID == "" {
+		firstScanID = scanID
+	}
+
+	// Check for regression (previously fixed vulnerability reappearing)
+	if previousStatus == string(types.FindingStatusFixed) {
+		s.logger.Errorw("REGRESSION DETECTED: Previously fixed vulnerability has reappeared",
+			"fingerprint", fingerprint,
+			"first_scan_id", firstScanID,
+			"last_seen_scan", scanID,
+			"current_scan", currentScanID,
+			"impact", "CRITICAL",
+		)
+		return true, firstScanID, string(types.FindingStatusReopened), nil
+	}
+
+	return true, firstScanID, previousStatus, nil
+}
+
 func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) error {
 	start := time.Now()
 	ctx, span := s.logger.StartOperation(ctx, "database.SaveFindings",
@@ -675,6 +783,9 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	// Count findings by severity for logging
 	severityCounts := make(map[types.Severity]int)
 	toolCounts := make(map[string]int)
+	statusCounts := make(map[string]int)
+	duplicateCount := 0
+
 	for _, finding := range findings {
 		severityCounts[finding.Severity]++
 		toolCounts[finding.Tool]++
@@ -714,10 +825,14 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	query := `
 		INSERT INTO findings (
 			id, scan_id, tool, type, severity, title, description,
-			evidence, solution, refs, metadata, created_at, updated_at
+			evidence, solution, refs, metadata,
+			fingerprint, first_scan_id, status, verified, false_positive,
+			created_at, updated_at
 		) VALUES (
 			:id, :scan_id, :tool, :type, :severity, :title, :description,
-			:evidence, :solution, :refs, :metadata, :created_at, :updated_at
+			:evidence, :solution, :refs, :metadata,
+			:fingerprint, :first_scan_id, :status, :verified, :false_positive,
+			:created_at, :updated_at
 		)
 	`
 
@@ -726,6 +841,50 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 
 	for i, finding := range findings {
 		findingStart := time.Now()
+
+		// Generate fingerprint for deduplication (includes target for uniqueness)
+		fingerprint := generateFindingFingerprint(finding)
+
+		// Check if this is a duplicate from a previous scan (also detects regressions)
+		isDuplicate, firstScanID, previousStatus, err := s.checkDuplicateFinding(ctx, tx, fingerprint, finding.ScanID)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.SaveFindings.check_duplicate",
+				"finding_id", finding.ID,
+				"fingerprint", fingerprint,
+			)
+			// Continue with insertion even if duplicate check fails
+			isDuplicate = false
+			firstScanID = finding.ScanID
+			previousStatus = ""
+		}
+
+		// Set status based on duplication and regression detection
+		status := string(types.FindingStatusNew)
+		if isDuplicate {
+			// If previousStatus is "reopened", this is a regression
+			if previousStatus == string(types.FindingStatusReopened) {
+				status = string(types.FindingStatusReopened)
+				s.logger.Warnw("Marking finding as reopened (regression)",
+					"finding_id", finding.ID,
+					"fingerprint", fingerprint,
+					"first_scan_id", firstScanID,
+				)
+			} else {
+				status = string(types.FindingStatusDuplicate)
+				duplicateCount++
+			}
+		}
+		// Override with explicit status if provided
+		if finding.Status != "" {
+			status = finding.Status
+		}
+
+		// Set first_scan_id
+		if finding.FirstScanID != "" {
+			firstScanID = finding.FirstScanID
+		}
+
+		statusCounts[status]++
 
 		refsJSON, err := json.Marshal(finding.References)
 		if err != nil {
@@ -750,19 +909,24 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 		}
 
 		args := map[string]interface{}{
-			"id":          finding.ID,
-			"scan_id":     finding.ScanID,
-			"tool":        finding.Tool,
-			"type":        finding.Type,
-			"severity":    finding.Severity,
-			"title":       finding.Title,
-			"description": finding.Description,
-			"evidence":    finding.Evidence,
-			"solution":    finding.Solution,
-			"refs":        string(refsJSON),
-			"metadata":    string(metaJSON),
-			"created_at":  finding.CreatedAt,
-			"updated_at":  finding.UpdatedAt,
+			"id":             finding.ID,
+			"scan_id":        finding.ScanID,
+			"tool":           finding.Tool,
+			"type":           finding.Type,
+			"severity":       finding.Severity,
+			"title":          finding.Title,
+			"description":    finding.Description,
+			"evidence":       finding.Evidence,
+			"solution":       finding.Solution,
+			"refs":           string(refsJSON),
+			"metadata":       string(metaJSON),
+			"fingerprint":    fingerprint,
+			"first_scan_id":  firstScanID,
+			"status":         status,
+			"verified":       finding.Verified,
+			"false_positive": finding.FalsePositive,
+			"created_at":     finding.CreatedAt,
+			"updated_at":     finding.UpdatedAt,
 		}
 
 		queryStart := time.Now()
@@ -834,6 +998,8 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 		"findings_count", len(findings),
 		"severity_counts", severityCounts,
 		"tool_counts", toolCounts,
+		"status_counts", statusCounts,
+		"duplicate_count", duplicateCount,
 		"total_rows_affected", totalRowsAffected,
 		"total_duration_ms", time.Since(start).Milliseconds(),
 	)
@@ -844,7 +1010,9 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Finding, error) {
 	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
-			   evidence, solution, refs, metadata, created_at, updated_at
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
 		FROM findings
 		WHERE scan_id = %s
 		ORDER BY severity DESC, created_at DESC
@@ -1386,4 +1554,374 @@ func (s *sqlStore) UpdateSubmissionStatus(ctx context.Context, id, status string
 	}
 
 	return nil
+}
+
+// SaveCorrelationResults saves correlation results (attack chains, insights) to the database
+func (s *sqlStore) SaveCorrelationResults(ctx context.Context, results []types.CorrelationResult) error {
+	start := time.Now()
+	ctx, span := s.logger.StartOperation(ctx, "database.SaveCorrelationResults",
+		"results_count", len(results),
+	)
+	var err error
+	defer func() {
+		s.logger.FinishOperation(ctx, span, "database.SaveCorrelationResults", start, err)
+	}()
+
+	if len(results) == 0 {
+		s.logger.WithContext(ctx).Debugw("No correlation results to save",
+			"results_count", 0,
+		)
+		return nil
+	}
+
+	// Extract scan_id from first result for logging
+	scanID := results[0].ScanID
+	s.logger.WithContext(ctx).Infow("Saving correlation results to database",
+		"results_count", len(results),
+		"scan_id", scanID,
+	)
+
+	// Count results by type and severity
+	typeCounts := make(map[string]int)
+	severityCounts := make(map[types.Severity]int)
+	for _, result := range results {
+		typeCounts[result.InsightType]++
+		severityCounts[result.Severity]++
+	}
+
+	s.logger.WithContext(ctx).Debugw("Correlation results breakdown",
+		"scan_id", scanID,
+		"type_counts", typeCounts,
+		"severity_counts", severityCounts,
+	)
+
+	txStart := time.Now()
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.SaveCorrelationResults.begin_tx",
+			"scan_id", scanID,
+			"results_count", len(results),
+		)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			s.logger.Errorw("Failed to rollback transaction",
+				"error", err,
+				"impact", "Transaction may have partially committed",
+			)
+		}
+	}()
+
+	s.logger.LogDuration(ctx, "database.SaveCorrelationResults.begin_tx", txStart,
+		"scan_id", scanID,
+		"success", true,
+	)
+
+	query := `
+		INSERT INTO correlation_results (
+			id, scan_id, insight_type, severity, title, description,
+			confidence, related_findings, attack_path, metadata,
+			created_at, updated_at
+		) VALUES (
+			:id, :scan_id, :insight_type, :severity, :title, :description,
+			:confidence, :related_findings, :attack_path, :metadata,
+			:created_at, :updated_at
+		)
+	`
+
+	insertStart := time.Now()
+	totalRowsAffected := int64(0)
+
+	for i, result := range results {
+		resultStart := time.Now()
+
+		// Marshal JSONB fields
+		relatedFindingsJSON, err := json.Marshal(result.RelatedFindings)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.SaveCorrelationResults.marshal_related_findings",
+				"result_id", result.ID,
+				"scan_id", result.ScanID,
+			)
+			return fmt.Errorf("failed to marshal related_findings for result %s: %w", result.ID, err)
+		}
+
+		attackPathJSON, err := json.Marshal(result.AttackPath)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.SaveCorrelationResults.marshal_attack_path",
+				"result_id", result.ID,
+				"scan_id", result.ScanID,
+			)
+			return fmt.Errorf("failed to marshal attack_path for result %s: %w", result.ID, err)
+		}
+
+		metadataJSON, err := json.Marshal(result.Metadata)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.SaveCorrelationResults.marshal_metadata",
+				"result_id", result.ID,
+				"scan_id", result.ScanID,
+			)
+			return fmt.Errorf("failed to marshal metadata for result %s: %w", result.ID, err)
+		}
+
+		args := map[string]interface{}{
+			"id":                result.ID,
+			"scan_id":           result.ScanID,
+			"insight_type":      result.InsightType,
+			"severity":          result.Severity,
+			"title":             result.Title,
+			"description":       result.Description,
+			"confidence":        result.Confidence,
+			"related_findings":  string(relatedFindingsJSON),
+			"attack_path":       string(attackPathJSON),
+			"metadata":          string(metadataJSON),
+			"created_at":        result.CreatedAt,
+			"updated_at":        result.UpdatedAt,
+		}
+
+		queryStart := time.Now()
+		execResult, err := tx.NamedExecContext(ctx, query, args)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.SaveCorrelationResults.insert",
+				"result_id", result.ID,
+				"scan_id", result.ScanID,
+				"insight_type", result.InsightType,
+				"severity", string(result.Severity),
+			)
+			return fmt.Errorf("failed to insert correlation result %s: %w", result.ID, err)
+		}
+
+		rowsAffected, err := execResult.RowsAffected()
+		if err != nil {
+			s.logger.Errorw("Failed to get rows affected after correlation result insert",
+				"error", err,
+				"result_id", result.ID,
+			)
+			rowsAffected = -1
+		}
+		totalRowsAffected += rowsAffected
+
+		s.logger.LogDatabaseOperation(ctx, "INSERT", "correlation_results", rowsAffected, time.Since(queryStart),
+			"result_id", result.ID,
+			"scan_id", result.ScanID,
+			"insight_type", result.InsightType,
+			"severity", string(result.Severity),
+		)
+
+		s.logger.WithContext(ctx).Debugw("Correlation result saved",
+			"result_id", result.ID,
+			"scan_id", result.ScanID,
+			"insight_type", result.InsightType,
+			"severity", string(result.Severity),
+			"result_index", i+1,
+			"total_results", len(results),
+			"result_duration_ms", time.Since(resultStart).Milliseconds(),
+		)
+	}
+
+	s.logger.LogDuration(ctx, "database.SaveCorrelationResults.insert_all", insertStart,
+		"scan_id", scanID,
+		"results_count", len(results),
+		"total_rows_affected", totalRowsAffected,
+		"success", true,
+	)
+
+	commitStart := time.Now()
+	err = tx.Commit()
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.SaveCorrelationResults.commit",
+			"scan_id", scanID,
+			"results_count", len(results),
+		)
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	s.logger.LogDuration(ctx, "database.SaveCorrelationResults.commit", commitStart,
+		"scan_id", scanID,
+		"results_count", len(results),
+		"success", true,
+	)
+
+	s.logger.WithContext(ctx).Infow("Correlation results saved successfully",
+		"scan_id", scanID,
+		"results_count", len(results),
+		"type_counts", typeCounts,
+		"severity_counts", severityCounts,
+		"total_rows_affected", totalRowsAffected,
+		"total_duration_ms", time.Since(start).Milliseconds(),
+	)
+
+	return nil
+}
+
+// GetCorrelationResults retrieves all correlation results for a scan
+func (s *sqlStore) GetCorrelationResults(ctx context.Context, scanID string) ([]types.CorrelationResult, error) {
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, insight_type, severity, title, description,
+			   confidence, related_findings, attack_path, metadata,
+			   created_at, updated_at
+		FROM correlation_results
+		WHERE scan_id = %s
+		ORDER BY severity DESC, confidence DESC, created_at DESC
+	`, s.getPlaceholder(1))
+
+	rows, err := s.db.QueryContext(ctx, query, scanID)
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.GetCorrelationResults.query",
+			"scan_id", scanID,
+		)
+		return nil, fmt.Errorf("failed to query correlation results: %w", err)
+	}
+	defer s.closeRows2(rows)
+
+	var results []types.CorrelationResult
+	for rows.Next() {
+		var result types.CorrelationResult
+		var relatedFindingsJSON, attackPathJSON, metadataJSON []byte
+
+		err := rows.Scan(
+			&result.ID,
+			&result.ScanID,
+			&result.InsightType,
+			&result.Severity,
+			&result.Title,
+			&result.Description,
+			&result.Confidence,
+			&relatedFindingsJSON,
+			&attackPathJSON,
+			&metadataJSON,
+			&result.CreatedAt,
+			&result.UpdatedAt,
+		)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResults.scan",
+				"scan_id", scanID,
+			)
+			return nil, fmt.Errorf("failed to scan correlation result row: %w", err)
+		}
+
+		// Unmarshal JSONB fields
+		if err := json.Unmarshal(relatedFindingsJSON, &result.RelatedFindings); err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResults.unmarshal_related_findings",
+				"result_id", result.ID,
+			)
+			return nil, fmt.Errorf("failed to unmarshal related_findings: %w", err)
+		}
+
+		if err := json.Unmarshal(attackPathJSON, &result.AttackPath); err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResults.unmarshal_attack_path",
+				"result_id", result.ID,
+			)
+			return nil, fmt.Errorf("failed to unmarshal attack_path: %w", err)
+		}
+
+		if err := json.Unmarshal(metadataJSON, &result.Metadata); err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResults.unmarshal_metadata",
+				"result_id", result.ID,
+			)
+			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+
+		results = append(results, result)
+	}
+
+	if err := rows.Err(); err != nil {
+		s.logger.LogError(ctx, err, "database.GetCorrelationResults.rows_err",
+			"scan_id", scanID,
+		)
+		return nil, fmt.Errorf("error iterating correlation results: %w", err)
+	}
+
+	s.logger.WithContext(ctx).Debugw("Retrieved correlation results",
+		"scan_id", scanID,
+		"results_count", len(results),
+	)
+
+	return results, nil
+}
+
+// GetCorrelationResultsByType retrieves all correlation results of a specific type across all scans
+func (s *sqlStore) GetCorrelationResultsByType(ctx context.Context, insightType string) ([]types.CorrelationResult, error) {
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, insight_type, severity, title, description,
+			   confidence, related_findings, attack_path, metadata,
+			   created_at, updated_at
+		FROM correlation_results
+		WHERE insight_type = %s
+		ORDER BY severity DESC, confidence DESC, created_at DESC
+	`, s.getPlaceholder(1))
+
+	rows, err := s.db.QueryContext(ctx, query, insightType)
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.GetCorrelationResultsByType.query",
+			"insight_type", insightType,
+		)
+		return nil, fmt.Errorf("failed to query correlation results by type: %w", err)
+	}
+	defer s.closeRows2(rows)
+
+	var results []types.CorrelationResult
+	for rows.Next() {
+		var result types.CorrelationResult
+		var relatedFindingsJSON, attackPathJSON, metadataJSON []byte
+
+		err := rows.Scan(
+			&result.ID,
+			&result.ScanID,
+			&result.InsightType,
+			&result.Severity,
+			&result.Title,
+			&result.Description,
+			&result.Confidence,
+			&relatedFindingsJSON,
+			&attackPathJSON,
+			&metadataJSON,
+			&result.CreatedAt,
+			&result.UpdatedAt,
+		)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResultsByType.scan",
+				"insight_type", insightType,
+			)
+			return nil, fmt.Errorf("failed to scan correlation result row: %w", err)
+		}
+
+		// Unmarshal JSONB fields
+		if err := json.Unmarshal(relatedFindingsJSON, &result.RelatedFindings); err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResultsByType.unmarshal_related_findings",
+				"result_id", result.ID,
+			)
+			return nil, fmt.Errorf("failed to unmarshal related_findings: %w", err)
+		}
+
+		if err := json.Unmarshal(attackPathJSON, &result.AttackPath); err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResultsByType.unmarshal_attack_path",
+				"result_id", result.ID,
+			)
+			return nil, fmt.Errorf("failed to unmarshal attack_path: %w", err)
+		}
+
+		if err := json.Unmarshal(metadataJSON, &result.Metadata); err != nil {
+			s.logger.LogError(ctx, err, "database.GetCorrelationResultsByType.unmarshal_metadata",
+				"result_id", result.ID,
+			)
+			return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+
+		results = append(results, result)
+	}
+
+	if err := rows.Err(); err != nil {
+		s.logger.LogError(ctx, err, "database.GetCorrelationResultsByType.rows_err",
+			"insight_type", insightType,
+		)
+		return nil, fmt.Errorf("error iterating correlation results: %w", err)
+	}
+
+	s.logger.WithContext(ctx).Debugw("Retrieved correlation results by type",
+		"insight_type", insightType,
+		"results_count", len(results),
+	)
+
+	return results, nil
 }
