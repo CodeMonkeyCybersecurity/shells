@@ -64,10 +64,12 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -648,6 +650,50 @@ func (s *sqlStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*ty
 	return scans, nil
 }
 
+// generateFindingFingerprint creates a hash for deduplication across scans
+// Fingerprint is based on: tool + type + title (normalized)
+func generateFindingFingerprint(tool, findingType, title string) string {
+	// Normalize: lowercase and trim whitespace
+	normalized := fmt.Sprintf("%s:%s:%s",
+		strings.ToLower(strings.TrimSpace(tool)),
+		strings.ToLower(strings.TrimSpace(findingType)),
+		strings.ToLower(strings.TrimSpace(title)),
+	)
+
+	// Generate SHA256 hash
+	hash := sha256.Sum256([]byte(normalized))
+	return fmt.Sprintf("%x", hash[:16]) // Use first 16 bytes (32 hex chars)
+}
+
+// checkDuplicateFinding checks if a finding with the same fingerprint exists in previous scans
+// Returns: (isDuplicate, firstScanID, error)
+func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, error) {
+	query := `
+		SELECT first_scan_id, scan_id
+		FROM findings
+		WHERE fingerprint = $1
+		ORDER BY created_at ASC
+		LIMIT 1
+	`
+
+	var firstScanID, scanID string
+	err := tx.QueryRowContext(ctx, query, fingerprint).Scan(&firstScanID, &scanID)
+	if err == sql.ErrNoRows {
+		// Not a duplicate - this is the first occurrence
+		return false, currentScanID, nil
+	}
+	if err != nil {
+		return false, "", fmt.Errorf("failed to check duplicate: %w", err)
+	}
+
+	// If first_scan_id is empty (old data before migration), use the scan_id we found
+	if firstScanID == "" {
+		firstScanID = scanID
+	}
+
+	return true, firstScanID, nil
+}
+
 func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) error {
 	start := time.Now()
 	ctx, span := s.logger.StartOperation(ctx, "database.SaveFindings",
@@ -675,6 +721,9 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	// Count findings by severity for logging
 	severityCounts := make(map[types.Severity]int)
 	toolCounts := make(map[string]int)
+	statusCounts := make(map[string]int)
+	duplicateCount := 0
+
 	for _, finding := range findings {
 		severityCounts[finding.Severity]++
 		toolCounts[finding.Tool]++
@@ -714,10 +763,14 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	query := `
 		INSERT INTO findings (
 			id, scan_id, tool, type, severity, title, description,
-			evidence, solution, refs, metadata, created_at, updated_at
+			evidence, solution, refs, metadata,
+			fingerprint, first_scan_id, status, verified, false_positive,
+			created_at, updated_at
 		) VALUES (
 			:id, :scan_id, :tool, :type, :severity, :title, :description,
-			:evidence, :solution, :refs, :metadata, :created_at, :updated_at
+			:evidence, :solution, :refs, :metadata,
+			:fingerprint, :first_scan_id, :status, :verified, :false_positive,
+			:created_at, :updated_at
 		)
 	`
 
@@ -726,6 +779,39 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 
 	for i, finding := range findings {
 		findingStart := time.Now()
+
+		// Generate fingerprint for deduplication
+		fingerprint := generateFindingFingerprint(finding.Tool, finding.Type, finding.Title)
+
+		// Check if this is a duplicate from a previous scan
+		isDuplicate, firstScanID, err := s.checkDuplicateFinding(ctx, tx, fingerprint, finding.ScanID)
+		if err != nil {
+			s.logger.LogError(ctx, err, "database.SaveFindings.check_duplicate",
+				"finding_id", finding.ID,
+				"fingerprint", fingerprint,
+			)
+			// Continue with insertion even if duplicate check fails
+			isDuplicate = false
+			firstScanID = finding.ScanID
+		}
+
+		// Set status based on duplication
+		status := string(types.FindingStatusNew)
+		if isDuplicate {
+			status = string(types.FindingStatusDuplicate)
+			duplicateCount++
+		}
+		// Override with explicit status if provided
+		if finding.Status != "" {
+			status = finding.Status
+		}
+
+		// Set first_scan_id
+		if finding.FirstScanID != "" {
+			firstScanID = finding.FirstScanID
+		}
+
+		statusCounts[status]++
 
 		refsJSON, err := json.Marshal(finding.References)
 		if err != nil {
@@ -750,19 +836,24 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 		}
 
 		args := map[string]interface{}{
-			"id":          finding.ID,
-			"scan_id":     finding.ScanID,
-			"tool":        finding.Tool,
-			"type":        finding.Type,
-			"severity":    finding.Severity,
-			"title":       finding.Title,
-			"description": finding.Description,
-			"evidence":    finding.Evidence,
-			"solution":    finding.Solution,
-			"refs":        string(refsJSON),
-			"metadata":    string(metaJSON),
-			"created_at":  finding.CreatedAt,
-			"updated_at":  finding.UpdatedAt,
+			"id":             finding.ID,
+			"scan_id":        finding.ScanID,
+			"tool":           finding.Tool,
+			"type":           finding.Type,
+			"severity":       finding.Severity,
+			"title":          finding.Title,
+			"description":    finding.Description,
+			"evidence":       finding.Evidence,
+			"solution":       finding.Solution,
+			"refs":           string(refsJSON),
+			"metadata":       string(metaJSON),
+			"fingerprint":    fingerprint,
+			"first_scan_id":  firstScanID,
+			"status":         status,
+			"verified":       finding.Verified,
+			"false_positive": finding.FalsePositive,
+			"created_at":     finding.CreatedAt,
+			"updated_at":     finding.UpdatedAt,
 		}
 
 		queryStart := time.Now()
@@ -834,6 +925,8 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 		"findings_count", len(findings),
 		"severity_counts", severityCounts,
 		"tool_counts", toolCounts,
+		"status_counts", statusCounts,
+		"duplicate_count", duplicateCount,
 		"total_rows_affected", totalRowsAffected,
 		"total_duration_ms", time.Since(start).Milliseconds(),
 	)
@@ -844,7 +937,9 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 func (s *sqlStore) GetFindings(ctx context.Context, scanID string) ([]types.Finding, error) {
 	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
-			   evidence, solution, refs, metadata, created_at, updated_at
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
 		FROM findings
 		WHERE scan_id = %s
 		ORDER BY severity DESC, created_at DESC

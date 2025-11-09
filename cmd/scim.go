@@ -368,7 +368,7 @@ func printSCIMDiscoveryResults(findings []types.Finding, verbose bool) {
 
 // printSCIMTestResults prints SCIM test results
 func printSCIMTestResults(findings []types.Finding, verbose bool) {
-	fmt.Printf("🔒 SCIM Security Test Results\n")
+	fmt.Printf("SCIM Security Test Results\n")
 	fmt.Printf("═══════════════════════════════════\n\n")
 
 	if len(findings) == 0 {

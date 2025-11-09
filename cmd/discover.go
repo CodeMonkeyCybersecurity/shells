@@ -289,7 +289,7 @@ func outputDiscoveryText(session *discovery.DiscoverySession) error {
 		}
 	}
 
-	fmt.Printf("\n💡 Next Steps:\n")
+	fmt.Printf("\nNext Steps:\n")
 	fmt.Printf("   • Run security tests: shells %s\n", session.Target.Value)
 	fmt.Printf("   • View specific assets: shells discover %s --verbose\n", session.Target.Value)
 	if session.HighValueAssets > 0 {

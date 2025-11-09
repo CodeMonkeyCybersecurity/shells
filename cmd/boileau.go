@@ -283,7 +283,7 @@ func runboileauTool(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("\n📁 Results saved to: %s\n", outputDir)
+	fmt.Printf("\nResults saved to: %s\n", outputDir)
 
 	return nil
 }
@@ -383,7 +383,7 @@ func runboileauBatch(cmd *cobra.Command, args []string) error {
 		log.Error("Failed to save batch results", "error", err)
 	}
 
-	fmt.Printf("\n📁 Results saved to: %s\n", outputDir)
+	fmt.Printf("\nResults saved to: %s\n", outputDir)
 
 	return nil
 }
@@ -435,7 +435,7 @@ func runboileauList(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Printf("💡 Usage:\n")
+	fmt.Printf("Usage:\n")
 	fmt.Printf("   shells boileau run [tool] --target [target]\n")
 	fmt.Printf("   shells boileau batch --target [target] --tools tool1,tool2\n")
 

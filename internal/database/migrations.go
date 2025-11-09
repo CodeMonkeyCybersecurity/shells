@@ -72,6 +72,74 @@ func GetAllMigrations() []Migration {
 				DROP TABLE IF EXISTS scan_events CASCADE;
 			`,
 		},
+		{
+			Version:     3,
+			Description: "Add temporal tracking columns to findings table",
+			Up: `
+				ALTER TABLE findings
+				ADD COLUMN IF NOT EXISTS fingerprint TEXT,
+				ADD COLUMN IF NOT EXISTS first_scan_id TEXT,
+				ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'new',
+				ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false,
+				ADD COLUMN IF NOT EXISTS false_positive BOOLEAN DEFAULT false;
+
+				CREATE INDEX IF NOT EXISTS idx_findings_fingerprint ON findings(fingerprint);
+				CREATE INDEX IF NOT EXISTS idx_findings_status ON findings(status);
+				CREATE INDEX IF NOT EXISTS idx_findings_first_scan_id ON findings(first_scan_id);
+
+				COMMENT ON COLUMN findings.fingerprint IS 'Hash for deduplication across scans';
+				COMMENT ON COLUMN findings.first_scan_id IS 'Scan ID where this vulnerability was first detected';
+				COMMENT ON COLUMN findings.status IS 'Lifecycle status: new, active, fixed, duplicate, reopened';
+				COMMENT ON COLUMN findings.verified IS 'Whether finding has been manually verified';
+				COMMENT ON COLUMN findings.false_positive IS 'Whether finding is marked as false positive';
+			`,
+			Down: `
+				DROP INDEX IF EXISTS idx_findings_fingerprint;
+				DROP INDEX IF EXISTS idx_findings_status;
+				DROP INDEX IF EXISTS idx_findings_first_scan_id;
+
+				ALTER TABLE findings
+				DROP COLUMN IF EXISTS fingerprint,
+				DROP COLUMN IF EXISTS first_scan_id,
+				DROP COLUMN IF EXISTS status,
+				DROP COLUMN IF EXISTS verified,
+				DROP COLUMN IF EXISTS false_positive;
+			`,
+		},
+		{
+			Version:     4,
+			Description: "Create correlation_results table for attack chains and insights",
+			Up: `
+				CREATE TABLE IF NOT EXISTS correlation_results (
+					id TEXT PRIMARY KEY,
+					scan_id TEXT NOT NULL REFERENCES scans(id) ON DELETE CASCADE,
+					insight_type TEXT NOT NULL,
+					severity TEXT NOT NULL,
+					title TEXT NOT NULL,
+					description TEXT,
+					confidence FLOAT NOT NULL,
+					related_findings JSONB,
+					attack_path JSONB,
+					metadata JSONB,
+					created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_correlation_scan_id ON correlation_results(scan_id);
+				CREATE INDEX IF NOT EXISTS idx_correlation_severity ON correlation_results(severity);
+				CREATE INDEX IF NOT EXISTS idx_correlation_type ON correlation_results(insight_type);
+				CREATE INDEX IF NOT EXISTS idx_correlation_created_at ON correlation_results(created_at);
+
+				COMMENT ON TABLE correlation_results IS 'Stores correlation insights, attack chains, and vulnerability relationships';
+				COMMENT ON COLUMN correlation_results.insight_type IS 'Type: attack_chain, infrastructure_correlation, temporal_pattern, technology_vulnerability';
+				COMMENT ON COLUMN correlation_results.confidence IS 'Confidence score 0.0-1.0';
+				COMMENT ON COLUMN correlation_results.related_findings IS 'Array of finding IDs that contribute to this insight';
+				COMMENT ON COLUMN correlation_results.attack_path IS 'Step-by-step attack chain with exploitability scores';
+			`,
+			Down: `
+				DROP TABLE IF EXISTS correlation_results CASCADE;
+			`,
+		},
 	}
 }
 

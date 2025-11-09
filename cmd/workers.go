@@ -144,7 +144,7 @@ var workersStartCmd = &cobra.Command{
 	Short: "Start the worker service",
 	Long:  `Start the FastAPI worker service that provides GraphQL and IDOR scanning.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log.Info("🚀 Starting worker service...", "component", "workers")
+		log.Info("Starting worker service...", "component", "workers")
 
 		// Get project root
 		projectRoot, err := os.Getwd()
@@ -241,8 +241,8 @@ var workersStatusCmd = &cobra.Command{
 		}
 
 		log.Info(" Worker service is healthy", "component", "workers")
-		log.Info("🌐 URL: http://localhost:5000", "component", "workers")
-		log.Info("📚 API docs: http://localhost:5000/docs", "component", "workers")
+		log.Info("URL: http://localhost:5000", "component", "workers")
+		log.Info("API docs: http://localhost:5000/docs", "component", "workers")
 
 		return nil
 	},

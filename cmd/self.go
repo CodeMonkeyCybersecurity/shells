@@ -135,7 +135,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			"component", "self_update",
 			"error", err,
 		)
-		fmt.Printf("⚠️  Warning: Database migration failed: %v\n", err)
+		fmt.Printf("Warning: Database migration failed: %v\n", err)
 		fmt.Printf("   You can run migrations manually with: shells db migrate\n")
 	} else {
 		logger.Infow("Database migrations completed successfully",
@@ -156,7 +156,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			"component", "self_update",
 			"error", err,
 		)
-		fmt.Printf("⚠️  Warning: Nuclei installation failed: %v\n", err)
+		fmt.Printf("Warning: Nuclei installation failed: %v\n", err)
 		fmt.Printf("   Nuclei scanning will be disabled until installed\n")
 		fmt.Printf("   You can install manually with: %s/scripts/install-nuclei.sh\n", updateSourceDir)
 	} else {

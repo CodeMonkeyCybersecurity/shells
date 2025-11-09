@@ -266,7 +266,7 @@ COMMANDS:
 			// Give server time to start
 			time.Sleep(2 * time.Second)
 		} else {
-			color.Green("✓ Web server already running\n\n")
+			color.Green("Web server already running\n\n")
 		}
 
 		// Initialize checkpoint manager

@@ -83,7 +83,7 @@ func init() {
 
 func runServe(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	fmt.Println("⚠️  WARNING: 'shells serve' is DEPRECATED")
+	fmt.Println("WARNING: 'shells serve' is DEPRECATED")
 	fmt.Println("   Use 'shells' (no arguments) instead:")
 	fmt.Println("   - shells              # Start server")
 	fmt.Println("   - shells example.com  # Run scan + start server")

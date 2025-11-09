@@ -159,7 +159,7 @@ func resumeFromCheckpoint(cmd *cobra.Command, scanID string) error {
 	defer cancel()
 
 	// Resume the scan with checkpoint state
-	color.Green("✓ Resuming scan from checkpoint\n")
+	color.Green("Resuming scan from checkpoint\n")
 	color.Cyan("  Completed: %v\n", state.CompletedTests)
 	color.Cyan("  Progress: %.0f%%\n\n", state.Progress)
 
@@ -316,7 +316,7 @@ func runOrchestratorWithResume(ctx context.Context, state *checkpoint.State, cmd
 	displayOrchestratorResults(result, config)
 	
 	fmt.Println()
-	color.Green("✓ Resumed scan completed successfully\n")
+	color.Green("Resumed scan completed successfully\n")
 	
 	return nil
 }

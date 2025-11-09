@@ -41,20 +41,50 @@ const (
 	ScanStatusCancelled ScanStatus = "cancelled"
 )
 
+type FindingStatus string
+
+const (
+	FindingStatusNew      FindingStatus = "new"
+	FindingStatusActive   FindingStatus = "active"
+	FindingStatusFixed    FindingStatus = "fixed"
+	FindingStatusDuplicate FindingStatus = "duplicate"
+	FindingStatusReopened FindingStatus = "reopened"
+)
+
 type Finding struct {
-	ID          string                 `json:"id" db:"id"`
-	ScanID      string                 `json:"scan_id" db:"scan_id"`
-	Tool        string                 `json:"tool" db:"tool"`
-	Type        string                 `json:"type" db:"type"`
-	Severity    Severity               `json:"severity" db:"severity"`
-	Title       string                 `json:"title" db:"title"`
-	Description string                 `json:"description" db:"description"`
-	Evidence    string                 `json:"evidence,omitempty" db:"evidence"`
-	Solution    string                 `json:"solution,omitempty" db:"solution"`
-	References  []string               `json:"references,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt   time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at" db:"updated_at"`
+	ID            string                 `json:"id" db:"id"`
+	ScanID        string                 `json:"scan_id" db:"scan_id"`
+	Tool          string                 `json:"tool" db:"tool"`
+	Type          string                 `json:"type" db:"type"`
+	Severity      Severity               `json:"severity" db:"severity"`
+	Title         string                 `json:"title" db:"title"`
+	Description   string                 `json:"description" db:"description"`
+	Evidence      string                 `json:"evidence,omitempty" db:"evidence"`
+	Solution      string                 `json:"solution,omitempty" db:"solution"`
+	References    []string               `json:"references,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	Fingerprint   string                 `json:"fingerprint,omitempty" db:"fingerprint"`       // Hash for deduplication across scans
+	FirstScanID   string                 `json:"first_scan_id,omitempty" db:"first_scan_id"`   // Scan ID where first detected
+	Status        string                 `json:"status,omitempty" db:"status"`                 // new, active, fixed, duplicate, reopened
+	Verified      bool                   `json:"verified" db:"verified"`                       // Manually verified
+	FalsePositive bool                   `json:"false_positive" db:"false_positive"`           // Marked as false positive
+	CreatedAt     time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at" db:"updated_at"`
+}
+
+type CorrelationResult struct {
+	ID              string                 `json:"id" db:"id"`
+	ScanID          string                 `json:"scan_id" db:"scan_id"`
+	InsightType     string                 `json:"insight_type" db:"insight_type"`       // attack_chain, infrastructure_correlation, temporal_pattern, technology_vulnerability
+	Severity        Severity               `json:"severity" db:"severity"`
+	Title           string                 `json:"title" db:"title"`
+	Description     string                 `json:"description,omitempty" db:"description"`
+	Confidence      float64                `json:"confidence" db:"confidence"`           // 0.0-1.0
+	RelatedFindings []string               `json:"related_findings,omitempty"`           // Array of finding IDs
+	AttackPath      []map[string]interface{} `json:"attack_path,omitempty"`              // Step-by-step attack chain
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt       time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at" db:"updated_at"`
 }
 
 type ScanRequest struct {

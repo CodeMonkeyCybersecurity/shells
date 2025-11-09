@@ -511,7 +511,7 @@ func printDiscoveryResults(result struct {
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
 	fmt.Printf(" Target: %s\n", result.Target)
-	fmt.Printf("🕐 Scanned: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Scanned: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
 
 	fmt.Printf(" Summary:\n")
 	fmt.Printf("  • Total endpoints: %d\n", result.Summary.TotalEndpoints)
@@ -542,7 +542,7 @@ func printDiscoveryResults(result struct {
 	fmt.Println()
 
 	if len(result.Endpoints) > 0 {
-		fmt.Printf("🔗 Endpoints Found:\n")
+		fmt.Printf("Endpoints Found:\n")
 		for _, endpoint := range result.Endpoints {
 			fmt.Printf("  • %s [%s] - %s\n", endpoint.URL, endpoint.Method, endpoint.Protocol)
 		}
@@ -559,11 +559,11 @@ func printDiscoveryResults(result struct {
 }
 
 func printTestResults(report *common.AuthReport) {
-	fmt.Printf("🧪 Authentication Test Results\n")
+	fmt.Printf("Authentication Test Results\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
 	fmt.Printf(" Target: %s\n", report.Target)
-	fmt.Printf("⏱️  Duration: %s\n\n", report.EndTime.Sub(report.StartTime))
+	fmt.Printf("Duration: %s\n\n", report.EndTime.Sub(report.StartTime))
 
 	fmt.Printf(" Summary:\n")
 	fmt.Printf("  • Total vulnerabilities: %d\n", report.Summary.TotalVulnerabilities)
@@ -594,11 +594,11 @@ func printChainResults(result struct {
 	Summary   ChainSummary         `json:"summary"`
 	Timestamp time.Time            `json:"timestamp"`
 }) {
-	fmt.Printf("🔗 Attack Chain Analysis Results\n")
+	fmt.Printf("Attack Chain Analysis Results\n")
 	fmt.Printf("═══════════════════════════════════════\n\n")
 
 	fmt.Printf(" Target: %s\n", result.Target)
-	fmt.Printf("🕐 Analyzed: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
+	fmt.Printf("Analyzed: %s\n\n", result.Timestamp.Format("2006-01-02 15:04:05"))
 
 	fmt.Printf(" Summary:\n")
 	fmt.Printf("  • Total chains: %d\n", result.Summary.TotalChains)
@@ -739,7 +739,7 @@ func printComprehensiveDiscoveryResults(result struct {
 
 	fmt.Printf(" Target: %s\n", result.Target)
 	fmt.Printf("🕐 Scanned: %s\n", result.Timestamp.Format("2006-01-02 15:04:05"))
-	fmt.Printf("⏱️  Discovery Time: %s\n\n", result.ComprehensiveResults.DiscoveryTime)
+	fmt.Printf("Discovery Time: %s\n\n", result.ComprehensiveResults.DiscoveryTime)
 
 	// Print comprehensive results
 	fmt.Printf(" Discovery Summary:\n")
@@ -789,7 +789,7 @@ func printComprehensiveDiscoveryResults(result struct {
 
 	// Print recommendations
 	if len(result.ComprehensiveResults.Recommendations) > 0 {
-		fmt.Printf("💡 Recommendations:\n")
+		fmt.Printf("Recommendations:\n")
 		for _, rec := range result.ComprehensiveResults.Recommendations {
 			fmt.Printf("  • %s\n", rec)
 		}

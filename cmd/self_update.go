@@ -40,7 +40,7 @@ func init() {
 
 func runSelfUpdate(cmd *cobra.Command, args []string) error {
 	fmt.Println()
-	fmt.Println("⚠️  WARNING: This command is DEPRECATED")
+	fmt.Println("WARNING: This command is DEPRECATED")
 	fmt.Println("   Use 'shells self update' instead for:")
 	fmt.Println("   - Better backup management")
 	fmt.Println("   - Automatic database migrations")
@@ -162,7 +162,7 @@ func runSelfUpdate(cmd *cobra.Command, args []string) error {
 			"component", "self_update",
 			"error", err,
 		)
-		fmt.Printf("⚠️  Warning: Database migration failed: %v\n", err)
+		fmt.Printf("Warning: Database migration failed: %v\n", err)
 		fmt.Printf("   You can run migrations manually with: shells db migrate\n")
 	} else {
 		log.Info(" Database migrations completed successfully!", "component", "self_update")

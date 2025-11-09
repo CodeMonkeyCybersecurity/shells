@@ -99,7 +99,7 @@ Examples:
 			fmt.Printf(" Token entropy analysis with %d samples\n", samples)
 		}
 		if config.TestHostHeader {
-			fmt.Printf("🌐 Host header injection testing enabled\n")
+			fmt.Printf("Host header injection testing enabled\n")
 		}
 		fmt.Println()
 
@@ -278,13 +278,13 @@ Examples:
 			VerboseOutput: verbose,
 		}
 
-		fmt.Printf("⚡ Testing race conditions for: %s\n", target)
-		fmt.Printf("👥 Concurrent workers: %d\n", workers)
+		fmt.Printf("Testing race conditions for: %s\n", target)
+		fmt.Printf("Concurrent workers: %d\n", workers)
 		if requestDelay > 0 {
-			fmt.Printf("⏱️  Request delay: %dms\n", requestDelay)
+			fmt.Printf("Request delay: %dms\n", requestDelay)
 		}
 		if testPayments {
-			fmt.Printf("💳 Payment race testing enabled\n")
+			fmt.Printf("Payment race testing enabled\n")
 		}
 		if testInventory {
 			fmt.Printf(" Inventory race testing enabled\n")
@@ -501,18 +501,18 @@ Examples:
 			VerboseOutput: verbose,
 		}
 
-		fmt.Printf("💳 Testing e-commerce payment logic for: %s\n", target)
+		fmt.Printf("Testing e-commerce payment logic for: %s\n", target)
 		if testAll || testCart {
-			fmt.Printf("🛒 Shopping cart testing enabled\n")
+			fmt.Printf("Shopping cart testing enabled\n")
 		}
 		if testAll || testPricing {
-			fmt.Printf("💰 Pricing logic testing enabled\n")
+			fmt.Printf("Pricing logic testing enabled\n")
 		}
 		if testAll || testCoupons {
-			fmt.Printf("🎫 Coupon logic testing enabled\n")
+			fmt.Printf("Coupon logic testing enabled\n")
 		}
 		if testAll || testRace {
-			fmt.Printf("⚡ Race condition testing enabled\n")
+			fmt.Printf("Race condition testing enabled\n")
 		}
 		fmt.Println()
 
@@ -546,7 +546,7 @@ Examples:
 			}
 		}
 
-		fmt.Printf("\n💳 E-commerce Security Assessment:\n")
+		fmt.Printf("\nE-commerce Security Assessment:\n")
 		fmt.Printf("   Total vulnerabilities: %d\n", len(results))
 		fmt.Printf("   Critical issues: %d\n", criticalCount)
 		fmt.Printf("   High-risk issues: %d\n", highCount)
@@ -839,7 +839,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("failed to load findings: %w", err)
 			}
-			fmt.Printf("📁 Loaded %d vulnerabilities from %s\n", len(vulnerabilities), findingsFile)
+			fmt.Printf("Loaded %d vulnerabilities from %s\n", len(vulnerabilities), findingsFile)
 		} else {
 			// Run comprehensive testing
 			fmt.Printf(" Running comprehensive business logic tests for: %s\n", target)
@@ -945,7 +945,7 @@ func printRaceResultsJSON(results []logic.RaceConditionTest) {
 }
 
 func printRaceResultsTable(results []logic.RaceConditionTest, verbose bool) {
-	fmt.Printf("⚡ Race Condition Test Results\n")
+	fmt.Printf("Race Condition Test Results\n")
 	fmt.Printf("════════════════════════════\n\n")
 
 	for i, result := range results {
@@ -1042,7 +1042,7 @@ func printPaymentResultsJSON(results []logic.Vulnerability) {
 }
 
 func printPaymentResultsTable(results []logic.Vulnerability, verbose bool) {
-	fmt.Printf("💳 E-commerce Payment Logic Test Results\n")
+	fmt.Printf("E-commerce Payment Logic Test Results\n")
 	fmt.Printf("════════════════════════════════════════\n\n")
 
 	if len(results) == 0 {
@@ -1105,9 +1105,9 @@ func getSeverityEmoji(severity string) string {
 	case logic.SeverityHigh:
 		return ""
 	case logic.SeverityMedium:
-		return "⚡"
+		return "!"
 	case logic.SeverityLow:
-		return "ℹ️"
+		return "i"
 	default:
 		return ""
 	}

@@ -129,7 +129,7 @@ Examples:
 			Type: "web",
 		}
 
-		fmt.Printf("🧪 Demonstrating impact for target: %s\n", target)
+		fmt.Printf("Demonstrating impact for target: %s\n", target)
 		if dryRun {
 			fmt.Printf(" Running in dry-run mode (no actual execution)\n")
 		}
@@ -503,7 +503,7 @@ func printDemonstrationsJSON(demonstrations []atomic.Demonstration) {
 }
 
 func printDemonstrationsTable(demonstrations []atomic.Demonstration, verbose bool) {
-	fmt.Printf("🧪 Demonstration Results (%d techniques)\n", len(demonstrations))
+	fmt.Printf("Demonstration Results (%d techniques)\n", len(demonstrations))
 	fmt.Printf("═══════════════════════════════════════════\n\n")
 
 	for i, demo := range demonstrations {

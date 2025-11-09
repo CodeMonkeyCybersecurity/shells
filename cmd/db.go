@@ -128,9 +128,9 @@ func runDBStatus(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Pending:          %d migrations\n", status["pending_count"])
 
 	if status["is_up_to_date"].(bool) {
-		fmt.Println("\nStatus: ✅ Database is up to date")
+		fmt.Println("\nStatus: Database is up to date")
 	} else {
-		fmt.Println("\nStatus: ⚠️  Pending migrations need to be applied")
+		fmt.Println("\nStatus: Pending migrations need to be applied")
 		fmt.Println("\nRun 'shells db migrate' to apply pending migrations")
 	}
 
@@ -148,7 +148,7 @@ func runDBRollback(cmd *cobra.Command, args []string) error {
 		"version", version,
 	)
 
-	fmt.Printf("⚠️  WARNING: You are about to rollback migration version %d\n", version)
+	fmt.Printf("WARNING: You are about to rollback migration version %d\n", version)
 	fmt.Printf("This will undo changes made by this migration.\n")
 	fmt.Printf("\nPress Enter to continue or Ctrl+C to cancel...")
 	fmt.Scanln()
@@ -180,6 +180,6 @@ func runDBRollback(cmd *cobra.Command, args []string) error {
 		"version", version,
 	)
 
-	fmt.Printf("✅ Migration %d rolled back successfully\n", version)
+	fmt.Printf("Migration %d rolled back successfully\n", version)
 	return nil
 }
