@@ -12,6 +12,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/oauth2"
 	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/api"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/mail"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
@@ -69,11 +70,9 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 			}
 
 		case discovery.ScannerTypeAPI:
-			// API scanner not yet implemented - skip for now
-			log.Warnw("API scanner not yet implemented - skipping",
-				"targets", rec.Targets,
-				"status", "[COMING SOON]",
-				"note", "GraphQL/REST API testing will be added in future release")
+			if err := executeAPIScanner(ctx, rec); err != nil {
+				log.LogError(ctx, err, "API scanner failed")
+			}
 
 		case discovery.ScannerTypeWebCrawl:
 			if err := executeWebCrawlScanner(ctx, rec); err != nil {
@@ -470,21 +469,83 @@ func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation
 	return nil
 }
 
-// executeAPIScanner - STUB - NOT YET IMPLEMENTED
-// TODO: Implement API security testing in future release
-// Planned features:
-// 1. GraphQL introspection
-// 2. REST API authorization bypass
-// 3. Mass assignment
-// 4. Rate limiting bypass
-// 5. API key leakage in responses
-// 6. JWT vulnerabilities
-/*
+// executeAPIScanner executes API security tests (REST and GraphQL)
 func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
-	// Stub implementation - not yet ready for use
+	log.Infow("Running API security tests",
+		"targets", rec.Targets,
+		"priority", rec.Priority,
+	)
+
+	// Create API scanner instance
+	apiScanner := api.NewScanner(log, 60*time.Second)
+
+	var allFindings []types.Finding
+
+	for _, target := range rec.Targets {
+		log.Infow("Scanning API endpoint", "target", target)
+
+		// Run comprehensive API security tests
+		apiFindings, err := apiScanner.ScanAPI(ctx, target)
+		if err != nil {
+			log.Warnw("API scan failed",
+				"error", err,
+				"target", target)
+			continue
+		}
+
+		// Convert API findings to common Finding format
+		for _, apiFinding := range apiFindings {
+			finding := types.Finding{
+				ID:          fmt.Sprintf("api-%s-%s-%d", apiFinding.APIType, apiFinding.VulnerabilityType, time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        fmt.Sprintf("API_%s", apiFinding.VulnerabilityType),
+				Severity:    apiFinding.Severity,
+				Title:       apiFinding.Title,
+				Description: apiFinding.Description,
+				Evidence:    apiFinding.Evidence,
+				Tool:        "api-scanner",
+				Remediation: apiFinding.Remediation,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Metadata: map[string]interface{}{
+					"api_endpoint":       apiFinding.Endpoint,
+					"api_type":           apiFinding.APIType,
+					"http_method":        apiFinding.Method,
+					"http_status_code":   apiFinding.StatusCode,
+					"authentication":     apiFinding.Authentication,
+					"request_body":       apiFinding.RequestBody,
+					"response_body":      apiFinding.ResponseBody,
+					"exploit_payload":    apiFinding.ExploitPayload,
+				},
+			}
+
+			// Merge additional metadata if present
+			if apiFinding.Metadata != nil {
+				for k, v := range apiFinding.Metadata {
+					finding.Metadata[k] = v
+				}
+			}
+
+			allFindings = append(allFindings, finding)
+		}
+
+		log.Infow("API scan completed",
+			"target", target,
+			"vulnerabilities_found", len(apiFindings),
+		)
+	}
+
+	// Save findings to database
+	if store != nil && len(allFindings) > 0 {
+		if err := store.SaveFindings(ctx, allFindings); err != nil {
+			log.Errorw("Failed to save API findings", "error", err)
+			return err
+		}
+		log.Infow("Saved API security findings", "count", len(allFindings))
+	}
+
 	return nil
 }
-*/
 
 func executeWebCrawlScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running web crawler")
