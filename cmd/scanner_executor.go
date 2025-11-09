@@ -10,6 +10,7 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/utils"
 	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/oauth2"
 	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
@@ -269,6 +270,21 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 				UpdatedAt:   time.Now(),
 			})
 		}
+
+		// Run advanced OAuth2 security tests if OAuth2 endpoints detected
+		if len(inventory.WebAuth.OAuth2) > 0 {
+			log.Infow("OAuth2 endpoints detected - running advanced OAuth2 security tests",
+				"endpoint_count", len(inventory.WebAuth.OAuth2),
+				"target", target)
+
+			oauth2Findings := runAdvancedOAuth2Tests(ctx, target, inventory.WebAuth.OAuth2)
+			if len(oauth2Findings) > 0 {
+				log.Infow("Advanced OAuth2 tests completed",
+					"vulnerabilities_found", len(oauth2Findings),
+					"target", target)
+				findings = append(findings, oauth2Findings...)
+			}
+		}
 	}
 
 	// Custom authentication findings
@@ -297,6 +313,68 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 	}
 
 	return nil
+}
+
+// runAdvancedOAuth2Tests runs comprehensive OAuth2 security tests against discovered endpoints
+func runAdvancedOAuth2Tests(ctx context.Context, target string, oauth2Endpoints []authpkg.OAuth2Endpoint) []types.Finding {
+	// Import OAuth2 scanner from internal/plugins/oauth2
+	oauth2Scanner := oauth2.NewScanner(log)
+
+	var allFindings []types.Finding
+
+	for i, endpoint := range oauth2Endpoints {
+		log.Debugw("Testing OAuth2 endpoint",
+			"endpoint_index", i+1,
+			"total_endpoints", len(oauth2Endpoints),
+			"authorize_url", endpoint.AuthorizeURL,
+			"token_url", endpoint.TokenURL)
+
+		// Build scanner options from discovered endpoint
+		options := map[string]string{
+			"auth_url":    endpoint.AuthorizeURL,
+			"token_url":   endpoint.TokenURL,
+			"scopes":      "",
+			"client_id":   endpoint.ClientID,
+			"redirect_uri": target + "/callback", // Default redirect URI
+		}
+
+		if endpoint.UserInfoURL != "" {
+			options["userinfo_url"] = endpoint.UserInfoURL
+		}
+
+		if len(endpoint.Scopes) > 0 {
+			options["scopes"] = strings.Join(endpoint.Scopes, " ")
+		}
+
+		// Run OAuth2 security tests
+		findings, err := oauth2Scanner.Scan(ctx, target, options)
+		if err != nil {
+			log.Warnw("OAuth2 security tests failed",
+				"error", err,
+				"endpoint", endpoint.AuthorizeURL)
+			continue
+		}
+
+		// Enrich findings with timing metadata
+		now := time.Now()
+		for i := range findings {
+			findings[i].CreatedAt = now
+			findings[i].UpdatedAt = now
+			findings[i].ScanID = fmt.Sprintf("scan-%d", now.Unix())
+
+			// Add OAuth2 endpoint context to findings
+			if findings[i].Metadata == nil {
+				findings[i].Metadata = make(map[string]interface{})
+			}
+			findings[i].Metadata["oauth2_authorize_url"] = endpoint.AuthorizeURL
+			findings[i].Metadata["oauth2_token_url"] = endpoint.TokenURL
+			findings[i].Metadata["pkce_supported"] = endpoint.PKCE
+		}
+
+		allFindings = append(allFindings, findings...)
+	}
+
+	return allFindings
 }
 
 func executeSCIMScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
