@@ -140,6 +140,46 @@ func GetAllMigrations() []Migration {
 				DROP TABLE IF EXISTS correlation_results CASCADE;
 			`,
 		},
+		{
+			Version:     5,
+			Description: "Backfill fingerprints and status for existing findings",
+			Up: `
+				-- Update existing findings to set status='active' where NULL
+				-- (New findings after migration v3 will have status='new' by default)
+				UPDATE findings
+				SET status = 'active'
+				WHERE status IS NULL;
+
+				-- Set first_scan_id to scan_id for existing findings where not set
+				-- (This establishes baseline for temporal tracking)
+				UPDATE findings
+				SET first_scan_id = scan_id
+				WHERE first_scan_id IS NULL;
+
+				-- Note: Fingerprint backfill cannot be done in SQL because it requires
+				-- complex logic to extract target from metadata or evidence.
+				-- The application will regenerate fingerprints on next scan using the
+				-- enhanced generateFindingFingerprint() function.
+				-- Old findings without fingerprints will be treated as new occurrences
+				-- until they are rescanned.
+
+				COMMENT ON COLUMN findings.status IS 'Migration v5: Backfilled existing findings with status=active';
+			`,
+			Down: `
+				-- Rollback: Reset backfilled data
+				UPDATE findings
+				SET status = NULL
+				WHERE status = 'active' AND created_at < (
+					SELECT applied_at FROM schema_migrations WHERE version = 5
+				);
+
+				UPDATE findings
+				SET first_scan_id = NULL
+				WHERE first_scan_id = scan_id AND created_at < (
+					SELECT applied_at FROM schema_migrations WHERE version = 5
+				);
+			`,
+		},
 	}
 }
 

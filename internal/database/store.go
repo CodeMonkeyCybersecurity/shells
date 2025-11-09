@@ -651,13 +651,61 @@ func (s *sqlStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*ty
 }
 
 // generateFindingFingerprint creates a hash for deduplication across scans
-// Fingerprint is based on: tool + type + title (normalized)
-func generateFindingFingerprint(tool, findingType, title string) string {
+// Fingerprint is based on: tool + type + title + target (normalized)
+// Target is extracted from metadata["target"] or metadata["endpoint"] or metadata["url"]
+func generateFindingFingerprint(finding types.Finding) string {
+	// Extract target information from metadata
+	target := ""
+	if finding.Metadata != nil {
+		// Try common target field names
+		if t, ok := finding.Metadata["target"].(string); ok {
+			target = t
+		} else if ep, ok := finding.Metadata["endpoint"].(string); ok {
+			target = ep
+		} else if url, ok := finding.Metadata["url"].(string); ok {
+			target = url
+		} else if host, ok := finding.Metadata["host"].(string); ok {
+			target = host
+		} else if param, ok := finding.Metadata["parameter"].(string); ok {
+			// For parameter-specific vulns (e.g., XSS in specific param)
+			target = param
+		}
+	}
+
+	// If no target in metadata, extract from evidence (first line or URL pattern)
+	if target == "" && finding.Evidence != "" {
+		// Try to extract URL or endpoint from evidence
+		// Look for common patterns like "GET /path" or "https://..."
+		evidenceLines := strings.Split(finding.Evidence, "\n")
+		if len(evidenceLines) > 0 {
+			firstLine := strings.TrimSpace(evidenceLines[0])
+			// Extract HTTP method + path pattern
+			if strings.Contains(firstLine, "GET ") || strings.Contains(firstLine, "POST ") ||
+				strings.Contains(firstLine, "PUT ") || strings.Contains(firstLine, "DELETE ") {
+				parts := strings.Fields(firstLine)
+				if len(parts) >= 2 {
+					target = parts[1] // The path
+				}
+			} else if strings.HasPrefix(firstLine, "http://") || strings.HasPrefix(firstLine, "https://") {
+				// Extract hostname and path
+				if idx := strings.Index(firstLine, "://"); idx != -1 {
+					remaining := firstLine[idx+3:]
+					if slashIdx := strings.Index(remaining, "/"); slashIdx != -1 {
+						target = remaining[:slashIdx] + remaining[slashIdx:strings.IndexAny(remaining, "? \t")]
+					} else {
+						target = remaining
+					}
+				}
+			}
+		}
+	}
+
 	// Normalize: lowercase and trim whitespace
-	normalized := fmt.Sprintf("%s:%s:%s",
-		strings.ToLower(strings.TrimSpace(tool)),
-		strings.ToLower(strings.TrimSpace(findingType)),
-		strings.ToLower(strings.TrimSpace(title)),
+	normalized := fmt.Sprintf("%s:%s:%s:%s",
+		strings.ToLower(strings.TrimSpace(finding.Tool)),
+		strings.ToLower(strings.TrimSpace(finding.Type)),
+		strings.ToLower(strings.TrimSpace(finding.Title)),
+		strings.ToLower(strings.TrimSpace(target)),
 	)
 
 	// Generate SHA256 hash
@@ -666,24 +714,26 @@ func generateFindingFingerprint(tool, findingType, title string) string {
 }
 
 // checkDuplicateFinding checks if a finding with the same fingerprint exists in previous scans
-// Returns: (isDuplicate, firstScanID, error)
-func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, error) {
-	query := `
-		SELECT first_scan_id, scan_id
+// Returns: (isDuplicate, firstScanID, previousStatus, error)
+// Also detects regressions when a "fixed" vulnerability reappears
+func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, string, error) {
+	// Get the most recent occurrence to check for regressions
+	recentQuery := `
+		SELECT first_scan_id, scan_id, status
 		FROM findings
 		WHERE fingerprint = $1
-		ORDER BY created_at ASC
+		ORDER BY created_at DESC
 		LIMIT 1
 	`
 
-	var firstScanID, scanID string
-	err := tx.QueryRowContext(ctx, query, fingerprint).Scan(&firstScanID, &scanID)
+	var firstScanID, scanID, previousStatus string
+	err := tx.QueryRowContext(ctx, recentQuery, fingerprint).Scan(&firstScanID, &scanID, &previousStatus)
 	if err == sql.ErrNoRows {
 		// Not a duplicate - this is the first occurrence
-		return false, currentScanID, nil
+		return false, currentScanID, "", nil
 	}
 	if err != nil {
-		return false, "", fmt.Errorf("failed to check duplicate: %w", err)
+		return false, "", "", fmt.Errorf("failed to check duplicate: %w", err)
 	}
 
 	// If first_scan_id is empty (old data before migration), use the scan_id we found
@@ -691,7 +741,19 @@ func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, finge
 		firstScanID = scanID
 	}
 
-	return true, firstScanID, nil
+	// Check for regression (previously fixed vulnerability reappearing)
+	if previousStatus == string(types.FindingStatusFixed) {
+		s.logger.Errorw("REGRESSION DETECTED: Previously fixed vulnerability has reappeared",
+			"fingerprint", fingerprint,
+			"first_scan_id", firstScanID,
+			"last_seen_scan", scanID,
+			"current_scan", currentScanID,
+			"impact", "CRITICAL",
+		)
+		return true, firstScanID, string(types.FindingStatusReopened), nil
+	}
+
+	return true, firstScanID, previousStatus, nil
 }
 
 func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) error {
@@ -780,11 +842,11 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	for i, finding := range findings {
 		findingStart := time.Now()
 
-		// Generate fingerprint for deduplication
-		fingerprint := generateFindingFingerprint(finding.Tool, finding.Type, finding.Title)
+		// Generate fingerprint for deduplication (includes target for uniqueness)
+		fingerprint := generateFindingFingerprint(finding)
 
-		// Check if this is a duplicate from a previous scan
-		isDuplicate, firstScanID, err := s.checkDuplicateFinding(ctx, tx, fingerprint, finding.ScanID)
+		// Check if this is a duplicate from a previous scan (also detects regressions)
+		isDuplicate, firstScanID, previousStatus, err := s.checkDuplicateFinding(ctx, tx, fingerprint, finding.ScanID)
 		if err != nil {
 			s.logger.LogError(ctx, err, "database.SaveFindings.check_duplicate",
 				"finding_id", finding.ID,
@@ -793,13 +855,24 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 			// Continue with insertion even if duplicate check fails
 			isDuplicate = false
 			firstScanID = finding.ScanID
+			previousStatus = ""
 		}
 
-		// Set status based on duplication
+		// Set status based on duplication and regression detection
 		status := string(types.FindingStatusNew)
 		if isDuplicate {
-			status = string(types.FindingStatusDuplicate)
-			duplicateCount++
+			// If previousStatus is "reopened", this is a regression
+			if previousStatus == string(types.FindingStatusReopened) {
+				status = string(types.FindingStatusReopened)
+				s.logger.Warnw("Marking finding as reopened (regression)",
+					"finding_id", finding.ID,
+					"fingerprint", fingerprint,
+					"first_scan_id", firstScanID,
+				)
+			} else {
+				status = string(types.FindingStatusDuplicate)
+				duplicateCount++
+			}
 		}
 		// Override with explicit status if provided
 		if finding.Status != "" {
