@@ -13,6 +13,8 @@ type Config struct {
 	Security     SecurityConfig     `mapstructure:"security"`
 	Tools        ToolsConfig        `mapstructure:"tools"`
 	Platforms    BugBountyPlatforms `mapstructure:"platforms"`
+	AI           AIConfig           `mapstructure:"ai"`
+	Email        EmailConfig        `mapstructure:"email"`
 	ShodanAPIKey string             `mapstructure:"shodan_api_key"`
 	CensysAPIKey string             `mapstructure:"censys_api_key"`
 	CensysSecret string             `mapstructure:"censys_secret"`
@@ -86,6 +88,7 @@ type ToolsConfig struct {
 	BusinessLogic BusinessLogicConfig `mapstructure:"business_logic"`
 	Prowler       ProwlerConfig       `mapstructure:"prowler"`
 	Favicon       FaviconConfig       `mapstructure:"favicon"`
+	Rumble        RumbleConfig        `mapstructure:"rumble"`
 }
 
 type NmapConfig struct {
@@ -329,6 +332,48 @@ type FaviconConfig struct {
 	EnableShodan   bool          `mapstructure:"enable_shodan"`
 	EnableCache    bool          `mapstructure:"enable_cache"`
 	CustomDatabase string        `mapstructure:"custom_database"`
+}
+
+type RumbleConfig struct {
+	Enabled    bool          `mapstructure:"enabled"`
+	APIKey     string        `mapstructure:"api_key"`
+	BaseURL    string        `mapstructure:"base_url"`
+	Timeout    time.Duration `mapstructure:"timeout"`
+	MaxRetries int           `mapstructure:"max_retries"`
+	ScanRate   int           `mapstructure:"scan_rate"`   // Packets per second
+	DeepScan   bool          `mapstructure:"deep_scan"`   // Enable deep scanning
+}
+
+// AIConfig contains OpenAI/Azure OpenAI configuration for AI-powered report generation
+type AIConfig struct {
+	Enabled          bool          `mapstructure:"enabled"`
+	Provider         string        `mapstructure:"provider"`          // "openai" or "azure"
+	APIKey           string        `mapstructure:"api_key"`           // OpenAI API key
+	Model            string        `mapstructure:"model"`             // e.g., "gpt-4-turbo", "gpt-3.5-turbo"
+	AzureEndpoint    string        `mapstructure:"azure_endpoint"`    // Azure OpenAI endpoint
+	AzureAPIKey      string        `mapstructure:"azure_api_key"`     // Azure OpenAI API key
+	AzureDeployment  string        `mapstructure:"azure_deployment"`  // Azure deployment name
+	AzureAPIVersion  string        `mapstructure:"azure_api_version"` // Azure API version
+	MaxTokens        int           `mapstructure:"max_tokens"`        // Maximum tokens per completion
+	Temperature      float32       `mapstructure:"temperature"`       // Temperature (0.0-1.0)
+	Timeout          time.Duration `mapstructure:"timeout"`           // Request timeout
+	MaxCostPerReport float64       `mapstructure:"max_cost_per_report"` // Maximum cost in USD per report
+	EnableCostTracking bool        `mapstructure:"enable_cost_tracking"` // Enable cost tracking
+}
+
+// EmailConfig contains SMTP configuration for email-based report submission
+type EmailConfig struct {
+	Enabled       bool          `mapstructure:"enabled"`
+	SMTPHost      string        `mapstructure:"smtp_host"`      // SMTP server hostname
+	SMTPPort      int           `mapstructure:"smtp_port"`      // SMTP port (587, 465, 25)
+	Username      string        `mapstructure:"username"`       // SMTP username
+	Password      string        `mapstructure:"password"`       // SMTP password
+	FromEmail     string        `mapstructure:"from_email"`     // Sender email address
+	FromName      string        `mapstructure:"from_name"`      // Sender display name
+	UseTLS        bool          `mapstructure:"use_tls"`        // Use STARTTLS
+	UseSSL        bool          `mapstructure:"use_ssl"`        // Use SSL/TLS
+	SkipTLSVerify bool          `mapstructure:"skip_tls_verify"` // Skip TLS verification (not recommended)
+	Timeout       time.Duration `mapstructure:"timeout"`        // Connection timeout
 }
 
 // BugBountyPlatforms contains configuration for all bug bounty platform integrations
@@ -633,6 +678,32 @@ func DefaultConfig() *Config {
 				EnableCache:    true,
 				CustomDatabase: "",
 			},
+			Rumble: RumbleConfig{
+				Enabled:    false,
+				BaseURL:    "https://console.runzero.com/api/v1.0",
+				Timeout:    30 * time.Second,
+				MaxRetries: 3,
+				ScanRate:   1000,
+				DeepScan:   false,
+			},
+		},
+		AI: AIConfig{
+			Enabled:            false,
+			Provider:           "openai",
+			Model:              "gpt-4-turbo",
+			MaxTokens:          4000,
+			Temperature:        0.7,
+			Timeout:            60 * time.Second,
+			MaxCostPerReport:   1.0,
+			EnableCostTracking: true,
+		},
+		Email: EmailConfig{
+			Enabled:       false,
+			SMTPPort:      587,
+			UseTLS:        true,
+			UseSSL:        false,
+			SkipTLSVerify: false,
+			Timeout:       30 * time.Second,
 		},
 		Platforms: BugBountyPlatforms{
 			HackerOne: HackerOneConfig{

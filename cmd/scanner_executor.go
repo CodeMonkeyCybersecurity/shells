@@ -10,7 +10,10 @@ import (
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/utils"
 	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/oauth2"
 	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/api"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/mail"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
@@ -62,18 +65,14 @@ func executeRecommendedScanners(session *discovery.DiscoverySession, recommendat
 			}
 
 		case discovery.ScannerTypeMail:
-			// Mail scanner not yet implemented - skip for now
-			log.Warnw("Mail scanner not yet implemented - skipping",
-				"targets", rec.Targets,
-				"status", "[COMING SOON]",
-				"note", "Mail server testing will be added in future release")
+			if err := executeMailScanner(ctx, rec); err != nil {
+				log.LogError(ctx, err, "Mail scanner failed")
+			}
 
 		case discovery.ScannerTypeAPI:
-			// API scanner not yet implemented - skip for now
-			log.Warnw("API scanner not yet implemented - skipping",
-				"targets", rec.Targets,
-				"status", "[COMING SOON]",
-				"note", "GraphQL/REST API testing will be added in future release")
+			if err := executeAPIScanner(ctx, rec); err != nil {
+				log.LogError(ctx, err, "API scanner failed")
+			}
 
 		case discovery.ScannerTypeWebCrawl:
 			if err := executeWebCrawlScanner(ctx, rec); err != nil {
@@ -269,6 +268,21 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 				UpdatedAt:   time.Now(),
 			})
 		}
+
+		// Run advanced OAuth2 security tests if OAuth2 endpoints detected
+		if len(inventory.WebAuth.OAuth2) > 0 {
+			log.Infow("OAuth2 endpoints detected - running advanced OAuth2 security tests",
+				"endpoint_count", len(inventory.WebAuth.OAuth2),
+				"target", target)
+
+			oauth2Findings := runAdvancedOAuth2Tests(ctx, target, inventory.WebAuth.OAuth2)
+			if len(oauth2Findings) > 0 {
+				log.Infow("Advanced OAuth2 tests completed",
+					"vulnerabilities_found", len(oauth2Findings),
+					"target", target)
+				findings = append(findings, oauth2Findings...)
+			}
+		}
 	}
 
 	// Custom authentication findings
@@ -299,6 +313,68 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 	return nil
 }
 
+// runAdvancedOAuth2Tests runs comprehensive OAuth2 security tests against discovered endpoints
+func runAdvancedOAuth2Tests(ctx context.Context, target string, oauth2Endpoints []authpkg.OAuth2Endpoint) []types.Finding {
+	// Import OAuth2 scanner from internal/plugins/oauth2
+	oauth2Scanner := oauth2.NewScanner(log)
+
+	var allFindings []types.Finding
+
+	for i, endpoint := range oauth2Endpoints {
+		log.Debugw("Testing OAuth2 endpoint",
+			"endpoint_index", i+1,
+			"total_endpoints", len(oauth2Endpoints),
+			"authorize_url", endpoint.AuthorizeURL,
+			"token_url", endpoint.TokenURL)
+
+		// Build scanner options from discovered endpoint
+		options := map[string]string{
+			"auth_url":    endpoint.AuthorizeURL,
+			"token_url":   endpoint.TokenURL,
+			"scopes":      "",
+			"client_id":   endpoint.ClientID,
+			"redirect_uri": target + "/callback", // Default redirect URI
+		}
+
+		if endpoint.UserInfoURL != "" {
+			options["userinfo_url"] = endpoint.UserInfoURL
+		}
+
+		if len(endpoint.Scopes) > 0 {
+			options["scopes"] = strings.Join(endpoint.Scopes, " ")
+		}
+
+		// Run OAuth2 security tests
+		findings, err := oauth2Scanner.Scan(ctx, target, options)
+		if err != nil {
+			log.Warnw("OAuth2 security tests failed",
+				"error", err,
+				"endpoint", endpoint.AuthorizeURL)
+			continue
+		}
+
+		// Enrich findings with timing metadata
+		now := time.Now()
+		for i := range findings {
+			findings[i].CreatedAt = now
+			findings[i].UpdatedAt = now
+			findings[i].ScanID = fmt.Sprintf("scan-%d", now.Unix())
+
+			// Add OAuth2 endpoint context to findings
+			if findings[i].Metadata == nil {
+				findings[i].Metadata = make(map[string]interface{})
+			}
+			findings[i].Metadata["oauth2_authorize_url"] = endpoint.AuthorizeURL
+			findings[i].Metadata["oauth2_token_url"] = endpoint.TokenURL
+			findings[i].Metadata["pkce_supported"] = endpoint.PKCE
+		}
+
+		allFindings = append(allFindings, findings...)
+	}
+
+	return allFindings
+}
+
 func executeSCIMScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running SCIM security tests")
 
@@ -321,37 +397,155 @@ func executeSmugglingScanner(ctx context.Context, rec discovery.ScannerRecommend
 	return nil
 }
 
-// executeMailScanner - STUB - NOT YET IMPLEMENTED
-// TODO: Implement mail server vulnerability testing in future release
-// Planned features:
-// 1. Check webmail interface for XSS/SQLi
-// 2. Test SMTP AUTH bypass
-// 3. Check for open relay
-// 4. Test default credentials
-// 5. Mail header injection
-// 6. Check for exposed admin panels
-/*
+// executeMailScanner executes mail server security tests
 func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
-	// Stub implementation - not yet ready for use
-	return nil
-}
-*/
+	log.Infow("Running mail server security tests",
+		"targets", rec.Targets,
+		"priority", rec.Priority,
+	)
 
-// executeAPIScanner - STUB - NOT YET IMPLEMENTED
-// TODO: Implement API security testing in future release
-// Planned features:
-// 1. GraphQL introspection
-// 2. REST API authorization bypass
-// 3. Mass assignment
-// 4. Rate limiting bypass
-// 5. API key leakage in responses
-// 6. JWT vulnerabilities
-/*
-func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
-	// Stub implementation - not yet ready for use
+	// Create mail scanner instance
+	mailScanner := mail.NewScanner(log, 30*time.Second)
+
+	var allFindings []types.Finding
+
+	for _, target := range rec.Targets {
+		log.Infow("Scanning mail server", "target", target)
+
+		// Run comprehensive mail security tests
+		mailFindings, err := mailScanner.ScanMailServers(ctx, target)
+		if err != nil {
+			log.Warnw("Mail server scan failed",
+				"error", err,
+				"target", target)
+			continue
+		}
+
+		// Convert mail findings to common Finding format
+		for _, mailFinding := range mailFindings {
+			finding := types.Finding{
+				ID:          fmt.Sprintf("mail-%s-%s-%d", mailFinding.Service, mailFinding.VulnerabilityType, time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        fmt.Sprintf("Mail_%s", mailFinding.VulnerabilityType),
+				Severity:    mailFinding.Severity,
+				Title:       mailFinding.Title,
+				Description: mailFinding.Description,
+				Evidence:    mailFinding.Evidence,
+				Tool:        "mail-scanner",
+				Remediation: mailFinding.Remediation,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Metadata: map[string]interface{}{
+					"mail_host":      mailFinding.Host,
+					"mail_port":      mailFinding.Port,
+					"mail_service":   mailFinding.Service,
+					"tls_supported":  mailFinding.TLSSupported,
+					"spf_record":     mailFinding.SPFRecord,
+					"dmarc_record":   mailFinding.DMARCRecord,
+					"dkim_present":   mailFinding.DKIMPresent,
+					"banner":         mailFinding.Banner,
+					"capabilities":   mailFinding.Capabilities,
+				},
+			}
+
+			allFindings = append(allFindings, finding)
+		}
+
+		log.Infow("Mail server scan completed",
+			"target", target,
+			"vulnerabilities_found", len(mailFindings),
+		)
+	}
+
+	// Save findings to database
+	if store != nil && len(allFindings) > 0 {
+		if err := store.SaveFindings(ctx, allFindings); err != nil {
+			log.Errorw("Failed to save mail findings", "error", err)
+			return err
+		}
+		log.Infow("Saved mail security findings", "count", len(allFindings))
+	}
+
 	return nil
 }
-*/
+
+// executeAPIScanner executes API security tests (REST and GraphQL)
+func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
+	log.Infow("Running API security tests",
+		"targets", rec.Targets,
+		"priority", rec.Priority,
+	)
+
+	// Create API scanner instance
+	apiScanner := api.NewScanner(log, 60*time.Second)
+
+	var allFindings []types.Finding
+
+	for _, target := range rec.Targets {
+		log.Infow("Scanning API endpoint", "target", target)
+
+		// Run comprehensive API security tests
+		apiFindings, err := apiScanner.ScanAPI(ctx, target)
+		if err != nil {
+			log.Warnw("API scan failed",
+				"error", err,
+				"target", target)
+			continue
+		}
+
+		// Convert API findings to common Finding format
+		for _, apiFinding := range apiFindings {
+			finding := types.Finding{
+				ID:          fmt.Sprintf("api-%s-%s-%d", apiFinding.APIType, apiFinding.VulnerabilityType, time.Now().Unix()),
+				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
+				Type:        fmt.Sprintf("API_%s", apiFinding.VulnerabilityType),
+				Severity:    apiFinding.Severity,
+				Title:       apiFinding.Title,
+				Description: apiFinding.Description,
+				Evidence:    apiFinding.Evidence,
+				Tool:        "api-scanner",
+				Remediation: apiFinding.Remediation,
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Metadata: map[string]interface{}{
+					"api_endpoint":       apiFinding.Endpoint,
+					"api_type":           apiFinding.APIType,
+					"http_method":        apiFinding.Method,
+					"http_status_code":   apiFinding.StatusCode,
+					"authentication":     apiFinding.Authentication,
+					"request_body":       apiFinding.RequestBody,
+					"response_body":      apiFinding.ResponseBody,
+					"exploit_payload":    apiFinding.ExploitPayload,
+				},
+			}
+
+			// Merge additional metadata if present
+			if apiFinding.Metadata != nil {
+				for k, v := range apiFinding.Metadata {
+					finding.Metadata[k] = v
+				}
+			}
+
+			allFindings = append(allFindings, finding)
+		}
+
+		log.Infow("API scan completed",
+			"target", target,
+			"vulnerabilities_found", len(apiFindings),
+		)
+	}
+
+	// Save findings to database
+	if store != nil && len(allFindings) > 0 {
+		if err := store.SaveFindings(ctx, allFindings); err != nil {
+			log.Errorw("Failed to save API findings", "error", err)
+			return err
+		}
+		log.Infow("Saved API security findings", "count", len(allFindings))
+	}
+
+	return nil
+}
 
 func executeWebCrawlScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running web crawler")
