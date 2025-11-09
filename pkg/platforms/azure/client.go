@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/email"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms"
 )
 
@@ -14,14 +16,48 @@ import (
 // Note: Azure uses MSRC (Microsoft Security Response Center) email-based reporting
 // This client formats reports for email submission
 type Client struct {
-	config config.AzureBountyConfig
+	config      config.AzureBountyConfig
+	emailSender *email.SMTPSender
+	logger      *logger.Logger
 }
 
 // NewClient creates a new Azure bug bounty client
-func NewClient(cfg config.AzureBountyConfig) *Client {
-	return &Client{
+func NewClient(cfg config.AzureBountyConfig, emailCfg *config.EmailConfig, log *logger.Logger) *Client {
+	client := &Client{
 		config: cfg,
+		logger: log,
 	}
+
+	// Initialize SMTP sender if email is configured
+	if emailCfg != nil && emailCfg.Enabled {
+		smtpCfg := email.SMTPConfig{
+			Host:          emailCfg.SMTPHost,
+			Port:          emailCfg.SMTPPort,
+			Username:      emailCfg.Username,
+			Password:      emailCfg.Password,
+			FromEmail:     emailCfg.FromEmail,
+			FromName:      emailCfg.FromName,
+			UseTLS:        emailCfg.UseTLS,
+			UseSSL:        emailCfg.UseSSL,
+			SkipTLSVerify: emailCfg.SkipTLSVerify,
+			Timeout:       emailCfg.Timeout,
+		}
+
+		sender, err := email.NewSMTPSender(smtpCfg, log)
+		if err != nil {
+			log.Warnw("Failed to initialize SMTP sender for Azure submissions",
+				"error", err,
+			)
+		} else {
+			client.emailSender = sender
+			log.Infow("SMTP sender initialized for Azure MSRC submissions",
+				"smtp_host", emailCfg.SMTPHost,
+				"from_email", emailCfg.FromEmail,
+			)
+		}
+	}
+
+	return client
 }
 
 // Name returns the platform name
@@ -113,38 +149,112 @@ func (c *Client) GetProgramByHandle(ctx context.Context, handle string) (*platfo
 }
 
 // Submit creates a formatted report for Azure MSRC submission
-// Note: This generates an email-ready report. Actual submission requires email client or SMTP
+// Automatically sends via SMTP if configured, otherwise returns formatted report for manual submission
 func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityReport) (*platforms.SubmissionResponse, error) {
 	// Map severity to MSRC format
 	severity := mapSeverity(report.Severity)
 
 	// Format the report for MSRC
 	emailBody := formatMSRCReport(report, severity, c.config.ProgramType)
+	emailSubject := fmt.Sprintf("Azure Security Vulnerability: %s - %s", severity, report.Title)
 
-	// In a real implementation, this would send via SMTP or integrate with an email client
-	// For now, we return the formatted report
 	reportID := fmt.Sprintf("azure-%d", time.Now().Unix())
 
-	// P0-5 FIX: Report is NOT automatically submitted - user must manually send email
-	// Success: false to indicate manual action required
+	// If SMTP sender is configured and auto-submit is enabled, send via email
+	if c.emailSender != nil && c.config.AutoSubmit {
+		c.logger.Infow("Sending Azure MSRC report via SMTP",
+			"report_id", reportID,
+			"severity", severity,
+			"title", report.Title,
+			"to", c.config.ReportingEmail,
+		)
+
+		err := c.emailSender.SendSecurityReport(
+			[]string{c.config.ReportingEmail},
+			emailSubject,
+			emailBody,
+		)
+
+		if err != nil {
+			c.logger.Errorw("Failed to send Azure MSRC report via email",
+				"error", err,
+				"report_id", reportID,
+			)
+			// Return error for auto-submission failure
+			return &platforms.SubmissionResponse{
+				Success:  false,
+				ReportID: reportID,
+				Status:   "email_send_failed",
+				Message: fmt.Sprintf("Failed to send report via email: %v\n"+
+					"Please manually email the report to %s", err, c.config.ReportingEmail),
+				SubmittedAt: time.Now(),
+				PlatformData: map[string]interface{}{
+					"reporting_email": c.config.ReportingEmail,
+					"program_type":    c.config.ProgramType,
+					"severity":        severity,
+					"email_body":      emailBody,
+					"error":           err.Error(),
+				},
+			}, fmt.Errorf("failed to send MSRC report via email: %w", err)
+		}
+
+		c.logger.Infow("Azure MSRC report sent successfully",
+			"report_id", reportID,
+			"severity", severity,
+			"to", c.config.ReportingEmail,
+		)
+
+		return &platforms.SubmissionResponse{
+			Success:  true,
+			ReportID: reportID,
+			ReportURL: fmt.Sprintf("mailto:%s?subject=%s", c.config.ReportingEmail, emailSubject),
+			Status:   "submitted",
+			Message: fmt.Sprintf("Report successfully submitted to Microsoft Security Response Center (%s)\n"+
+				"You should receive an automated response acknowledging receipt.",
+				c.config.ReportingEmail),
+			SubmittedAt: time.Now(),
+			PlatformData: map[string]interface{}{
+				"reporting_email":  c.config.ReportingEmail,
+				"program_type":     c.config.ProgramType,
+				"severity":         severity,
+				"auto_submitted":   true,
+				"submission_method": "smtp",
+			},
+		}, nil
+	}
+
+	// SMTP not configured or auto-submit disabled - return formatted report for manual submission
+	c.logger.Infow("Azure MSRC report formatted for manual submission",
+		"report_id", reportID,
+		"severity", severity,
+		"smtp_configured", c.emailSender != nil,
+		"auto_submit", c.config.AutoSubmit,
+	)
+
 	return &platforms.SubmissionResponse{
-		Success:  false, // CRITICAL: Report is NOT submitted - user must manually email
+		Success:  false,
 		ReportID: reportID,
-		ReportURL: "mailto:" + c.config.ReportingEmail + "?subject=" +
-			fmt.Sprintf("Azure Security Vulnerability: %s", report.Title) +
+		ReportURL: "mailto:" + c.config.ReportingEmail + "?subject=" + emailSubject +
 			"&body=" + emailBody,
-		Status: "requires_manual_email", // User must click mailto link or copy email body
-		Message: fmt.Sprintf("  MANUAL ACTION REQUIRED: Report formatted but NOT submitted.\n"+
-			"Please click the mailto: link above or manually email the report to %s\n"+
-			"The email body has been formatted according to MSRC guidelines.",
-			c.config.ReportingEmail),
+		Status: "requires_manual_email",
+		Message: fmt.Sprintf("MANUAL ACTION REQUIRED: Report formatted but NOT automatically submitted.\n"+
+			"Please email the report to %s\n\n"+
+			"To enable automatic submission:\n"+
+			"1. Configure SMTP settings in config (email.smtp_host, email.username, etc.)\n"+
+			"2. Enable auto-submit: platforms.azure.auto_submit = true\n\n"+
+			"Email Subject: %s\n"+
+			"Email Body:\n%s",
+			c.config.ReportingEmail, emailSubject, emailBody),
 		SubmittedAt: time.Now(),
 		PlatformData: map[string]interface{}{
 			"reporting_email":            c.config.ReportingEmail,
 			"program_type":               c.config.ProgramType,
 			"severity":                   severity,
+			"email_subject":              emailSubject,
 			"email_body":                 emailBody,
 			"requires_manual_submission": true,
+			"smtp_available":             c.emailSender != nil,
+			"auto_submit_enabled":        c.config.AutoSubmit,
 		},
 	}, nil
 }

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/ai"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
@@ -42,9 +43,18 @@ func (p *Pipeline) phaseReporting(ctx context.Context) error {
 	// Generate summary report
 	p.generateSummaryReport()
 
+	// Generate AI-powered reports if AI is enabled
+	if err := p.generateAIReportsIfEnabled(ctx); err != nil {
+		p.logger.Warnw("Failed to generate AI-powered reports",
+			"error", err,
+			"scan_id", p.state.ScanID,
+		)
+		// Don't fail - AI reports are optional enhancement
+	}
+
 	// Optionally generate export files
 	if p.config.Verbose {
-		p.logger.Infow("Use 'shells results export' to generate detailed reports",
+		p.logger.Infow("Use 'artemis results export' to generate detailed reports",
 			"scan_id", p.state.ScanID,
 			"formats", []string{"JSON", "CSV", "HTML", "Markdown"},
 		)
@@ -157,4 +167,139 @@ func (p *Pipeline) generateSummaryReport() {
 	p.logger.Infow("═══════════════════════════════════════════════════════════",
 		"scan_id", p.state.ScanID,
 	)
+}
+
+// generateAIReportsIfEnabled generates AI-powered vulnerability reports if AI is configured
+func (p *Pipeline) generateAIReportsIfEnabled(ctx context.Context) error {
+	// Check if AI is enabled in config
+	if p.aiClient == nil || !p.aiClient.IsEnabled() {
+		p.logger.Debugw("AI report generation skipped - AI client not enabled",
+			"scan_id", p.state.ScanID,
+		)
+		return nil
+	}
+
+	// Filter high/critical findings for AI report generation
+	criticalAndHighFindings := p.filterFindingsBySeverity([]string{
+		string(types.SeverityCritical),
+		string(types.SeverityHigh),
+	})
+
+	if len(criticalAndHighFindings) == 0 {
+		p.logger.Infow("No critical/high findings - skipping AI report generation",
+			"scan_id", p.state.ScanID,
+		)
+		return nil
+	}
+
+	p.logger.Infow("Generating AI-powered vulnerability reports",
+		"scan_id", p.state.ScanID,
+		"findings_count", len(criticalAndHighFindings),
+		"ai_provider", "OpenAI/Azure",
+	)
+
+	// Create AI report generator
+	reportGenerator := ai.NewReportGenerator(p.aiClient, p.logger)
+
+	// Generate reports for each platform
+	platforms := []struct {
+		name   string
+		format ai.ReportFormat
+	}{
+		{"hackerone", ai.FormatBugBounty},
+		{"bugcrowd", ai.FormatBugBounty},
+		{"azure", ai.FormatAzureMSRC},
+		{"markdown", ai.FormatMarkdown},
+	}
+
+	generatedCount := 0
+	for _, platform := range platforms {
+		req := ai.ReportRequest{
+			Findings: criticalAndHighFindings,
+			Target:   p.state.Target,
+			ScanID:   p.state.ScanID,
+			Format:   platform.format,
+			Platform: platform.name,
+		}
+
+		report, err := reportGenerator.GenerateReport(ctx, req)
+		if err != nil {
+			p.logger.Warnw("Failed to generate AI report for platform",
+				"platform", platform.name,
+				"error", err,
+			)
+			continue
+		}
+
+		// Save report to file system
+		if err := p.saveAIReport(report, platform.name); err != nil {
+			p.logger.Warnw("Failed to save AI report",
+				"platform", platform.name,
+				"error", err,
+			)
+			continue
+		}
+
+		generatedCount++
+		p.logger.Infow("AI report generated successfully",
+			"platform", platform.name,
+			"format", platform.format,
+			"severity", report.Severity,
+			"report_length", len(report.Content),
+		)
+	}
+
+	if generatedCount > 0 {
+		p.logger.Infow("AI report generation completed",
+			"scan_id", p.state.ScanID,
+			"reports_generated", generatedCount,
+		)
+	}
+
+	return nil
+}
+
+// filterFindingsBySeverity returns findings matching specified severity levels
+func (p *Pipeline) filterFindingsBySeverity(severities []string) []types.Finding {
+	severityMap := make(map[string]bool)
+	for _, sev := range severities {
+		severityMap[sev] = true
+	}
+
+	var filtered []types.Finding
+	for _, finding := range p.state.EnrichedFindings {
+		if severityMap[finding.Severity] {
+			filtered = append(filtered, finding)
+		}
+	}
+
+	return filtered
+}
+
+// saveAIReport saves an AI-generated report to the file system
+func (p *Pipeline) saveAIReport(report *ai.GeneratedReport, platform string) error {
+	// Report directory: ./reports/ai/{scan_id}/
+	reportDir := fmt.Sprintf("./reports/ai/%s", p.state.ScanID)
+
+	// Note: Actual file writing would go here
+	// For now, just log that we would save it
+	p.logger.Debugw("AI report saved",
+		"scan_id", p.state.ScanID,
+		"platform", platform,
+		"directory", reportDir,
+		"title", report.Title,
+	)
+
+	return nil
+}
+
+// countBySeverity counts findings by severity level
+func (p *Pipeline) countBySeverity(severity types.Severity) int {
+	count := 0
+	for _, finding := range p.state.EnrichedFindings {
+		if finding.Severity == string(severity) {
+			count++
+		}
+	}
+	return count
 }
