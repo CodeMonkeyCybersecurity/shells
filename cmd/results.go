@@ -29,6 +29,9 @@ func init() {
 	resultsCmd.AddCommand(resultsQueryCmd)
 	resultsCmd.AddCommand(resultsStatsCmd)
 	resultsCmd.AddCommand(resultsIdentityChainsCmd)
+	resultsCmd.AddCommand(resultsMarkFixedCmd)
+	resultsCmd.AddCommand(resultsMarkVerifiedCmd)
+	resultsCmd.AddCommand(resultsMarkFalsePositiveCmd)
 }
 
 var resultsListCmd = &cobra.Command{
@@ -1412,10 +1415,143 @@ func getSeverityColor(severity types.Severity) func(string) string {
 	}
 }
 
+var resultsMarkFixedCmd = &cobra.Command{
+	Use:   "mark-fixed [finding-id]",
+	Short: "Mark a finding as fixed (for regression detection)",
+	Long: `Mark a vulnerability finding as fixed. If the same vulnerability
+is detected in a future scan, it will be flagged as a regression.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+		findingID := args[0]
+
+		logger.Infow("Marking finding as fixed",
+			"finding_id", findingID,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		err := store.UpdateFindingStatus(GetContext(), findingID, types.FindingStatusFixed)
+		if err != nil {
+			logger.Errorw("Failed to mark finding as fixed",
+				"finding_id", findingID,
+				"error", err,
+			)
+			return fmt.Errorf("failed to mark finding as fixed: %w", err)
+		}
+
+		logger.Infow("Finding marked as fixed - regression detection enabled",
+			"finding_id", findingID,
+			"note", "If this vulnerability reappears in future scans, it will be flagged as a regression",
+		)
+
+		return nil
+	},
+}
+
+var resultsMarkVerifiedCmd = &cobra.Command{
+	Use:   "mark-verified [finding-id]",
+	Short: "Mark a finding as manually verified",
+	Long: `Mark a vulnerability finding as manually verified. This indicates
+that a human security researcher has confirmed the vulnerability exists.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+		findingID := args[0]
+
+		unverify, _ := cmd.Flags().GetBool("unverify")
+
+		logger.Infow("Updating finding verification status",
+			"finding_id", findingID,
+			"verified", !unverify,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		err := store.MarkFindingVerified(GetContext(), findingID, !unverify)
+		if err != nil {
+			logger.Errorw("Failed to update finding verification status",
+				"finding_id", findingID,
+				"error", err,
+			)
+			return fmt.Errorf("failed to update verification status: %w", err)
+		}
+
+		if unverify {
+			logger.Infow("Finding marked as unverified",
+				"finding_id", findingID,
+			)
+		} else {
+			logger.Infow("Finding marked as verified",
+				"finding_id", findingID,
+			)
+		}
+
+		return nil
+	},
+}
+
+var resultsMarkFalsePositiveCmd = &cobra.Command{
+	Use:   "mark-false-positive [finding-id]",
+	Short: "Mark a finding as a false positive",
+	Long: `Mark a vulnerability finding as a false positive. This indicates
+the vulnerability was incorrectly identified by the scanner.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+		findingID := args[0]
+
+		remove, _ := cmd.Flags().GetBool("remove")
+
+		logger.Infow("Updating finding false positive status",
+			"finding_id", findingID,
+			"false_positive", !remove,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		err := store.MarkFindingFalsePositive(GetContext(), findingID, !remove)
+		if err != nil {
+			logger.Errorw("Failed to update finding false positive status",
+				"finding_id", findingID,
+				"error", err,
+			)
+			return fmt.Errorf("failed to update false positive status: %w", err)
+		}
+
+		if remove {
+			logger.Infow("Finding false positive flag removed",
+				"finding_id", findingID,
+			)
+		} else {
+			logger.Infow("Finding marked as false positive",
+				"finding_id", findingID,
+			)
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	// Add diff command
 	resultsCmd.AddCommand(resultsDiffCmd)
 	resultsDiffCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	// Add flags for mark-verified command
+	resultsMarkVerifiedCmd.Flags().Bool("unverify", false, "Remove verified flag")
+
+	// Add flags for mark-false-positive command
+	resultsMarkFalsePositiveCmd.Flags().Bool("remove", false, "Remove false positive flag")
 
 	// Add history command
 	resultsCmd.AddCommand(resultsHistoryCmd)

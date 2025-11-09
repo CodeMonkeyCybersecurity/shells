@@ -26,10 +26,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/enrichment"
 	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/google/uuid"
 )
 
 // ExploitChain represents a sequence of vulnerabilities that combine for higher impact
@@ -48,6 +50,7 @@ type ExploitChain struct {
 type CorrelationEngine struct {
 	logger        *logger.Logger
 	config        BugBountyConfig
+	store         core.ResultStore
 	exploitChainer *correlation.ExploitChainer
 	enricher      *enrichment.ResultEnricher
 }
@@ -56,12 +59,14 @@ type CorrelationEngine struct {
 func NewCorrelationEngine(
 	config BugBountyConfig,
 	logger *logger.Logger,
+	store core.ResultStore,
 	exploitChainer *correlation.ExploitChainer,
 	enricher *enrichment.ResultEnricher,
 ) *CorrelationEngine {
 	return &CorrelationEngine{
 		logger:        logger.WithComponent("correlation"),
 		config:        config,
+		store:         store,
 		exploitChainer: exploitChainer,
 		enricher:      enricher,
 	}
@@ -129,6 +134,24 @@ func (c *CorrelationEngine) Execute(ctx context.Context, state *PipelineState) e
 	// Log detected chains
 	if len(chains) > 0 {
 		c.logExploitChains(state.ScanID, chains)
+
+		// P0 FIX: Save correlation results to database
+		if c.store != nil {
+			correlationResults := c.convertChainsToCorrelationResults(state.ScanID, chains)
+			if err := c.store.SaveCorrelationResults(ctx, correlationResults); err != nil {
+				c.logger.Errorw("Failed to save correlation results",
+					"error", err,
+					"scan_id", state.ScanID,
+					"chains_count", len(chains),
+				)
+				// Don't fail the entire pipeline - just log the error
+			} else {
+				c.logger.Infow("Correlation results saved to database",
+					"scan_id", state.ScanID,
+					"results_saved", len(correlationResults),
+				)
+			}
+		}
 	}
 
 	return nil
@@ -312,4 +335,59 @@ func (c *CorrelationEngine) logExploitChains(scanID string, chains []ExploitChai
 		"scan_id", scanID,
 		"note", "Exploit chains often receive higher bounties than individual vulnerabilities",
 	)
+}
+
+// convertChainsToCorrelationResults converts ExploitChain objects to CorrelationResult for database persistence
+func (c *CorrelationEngine) convertChainsToCorrelationResults(scanID string, chains []ExploitChain) []types.CorrelationResult {
+	results := make([]types.CorrelationResult, 0, len(chains))
+	now := time.Now()
+
+	for _, chain := range chains {
+		// Extract finding IDs from chain steps
+		relatedFindings := make([]string, 0, len(chain.Steps))
+		for _, step := range chain.Steps {
+			relatedFindings = append(relatedFindings, step.ID)
+		}
+
+		// Build attack path with step-by-step breakdown
+		attackPath := make([]map[string]interface{}, 0, len(chain.Steps))
+		for i, step := range chain.Steps {
+			attackPath = append(attackPath, map[string]interface{}{
+				"step":         i + 1,
+				"finding_id":   step.ID,
+				"type":         step.Type,
+				"title":        step.Title,
+				"severity":     step.Severity,
+				"description":  step.Description,
+			})
+		}
+
+		// Build metadata with chain-specific information
+		metadata := map[string]interface{}{
+			"chain_name":    chain.Name,
+			"cvss_score":    chain.CVSSScore,
+			"impact":        chain.Impact,
+			"remediation":   chain.Remediation,
+			"step_count":    len(chain.Steps),
+		}
+
+		result := types.CorrelationResult{
+			ID:              uuid.New().String(),
+			ScanID:          scanID,
+			InsightType:     "attack_chain",
+			Severity:        chain.Severity,
+			Title:           chain.Name,
+			Description:     chain.Description,
+			Confidence:      0.85, // High confidence for detected chains
+			RelatedFindings: relatedFindings,
+			AttackPath:      attackPath,
+			Metadata:        metadata,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+
+		results = append(results, result)
+	}
+
+	return results
 }

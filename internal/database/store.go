@@ -652,48 +652,95 @@ func (s *sqlStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*ty
 
 // generateFindingFingerprint creates a hash for deduplication across scans
 // Fingerprint is based on: tool + type + title + target (normalized)
-// Target is extracted from metadata["target"] or metadata["endpoint"] or metadata["url"]
+// Target is extracted from metadata or evidence with extensive field checking
 func generateFindingFingerprint(finding types.Finding) string {
 	// Extract target information from metadata
 	target := ""
 	if finding.Metadata != nil {
-		// Try common target field names
-		if t, ok := finding.Metadata["target"].(string); ok {
+		// Try common target field names in priority order
+		if t, ok := finding.Metadata["target"].(string); ok && t != "" {
 			target = t
-		} else if ep, ok := finding.Metadata["endpoint"].(string); ok {
+		} else if ep, ok := finding.Metadata["endpoint"].(string); ok && ep != "" {
 			target = ep
-		} else if url, ok := finding.Metadata["url"].(string); ok {
+		} else if url, ok := finding.Metadata["url"].(string); ok && url != "" {
 			target = url
-		} else if host, ok := finding.Metadata["host"].(string); ok {
+		} else if host, ok := finding.Metadata["host"].(string); ok && host != "" {
 			target = host
-		} else if param, ok := finding.Metadata["parameter"].(string); ok {
+		} else if hostname, ok := finding.Metadata["hostname"].(string); ok && hostname != "" {
+			target = hostname
+		} else if domain, ok := finding.Metadata["domain"].(string); ok && domain != "" {
+			target = domain
+		} else if ip, ok := finding.Metadata["ip"].(string); ok && ip != "" {
+			target = ip
+		} else if path, ok := finding.Metadata["path"].(string); ok && path != "" {
+			target = path
+		} else if param, ok := finding.Metadata["parameter"].(string); ok && param != "" {
 			// For parameter-specific vulns (e.g., XSS in specific param)
 			target = param
+		} else if port, ok := finding.Metadata["port"].(string); ok && port != "" {
+			// For port-specific vulns
+			target = port
+		} else if svc, ok := finding.Metadata["service"].(string); ok && svc != "" {
+			target = svc
 		}
 	}
 
-	// If no target in metadata, extract from evidence (first line or URL pattern)
+	// If no target in metadata, extract from evidence
 	if target == "" && finding.Evidence != "" {
-		// Try to extract URL or endpoint from evidence
-		// Look for common patterns like "GET /path" or "https://..."
 		evidenceLines := strings.Split(finding.Evidence, "\n")
-		if len(evidenceLines) > 0 {
-			firstLine := strings.TrimSpace(evidenceLines[0])
-			// Extract HTTP method + path pattern
-			if strings.Contains(firstLine, "GET ") || strings.Contains(firstLine, "POST ") ||
-				strings.Contains(firstLine, "PUT ") || strings.Contains(firstLine, "DELETE ") {
-				parts := strings.Fields(firstLine)
+
+		// Try each line until we find a target
+		for _, line := range evidenceLines {
+			if target != "" {
+				break
+			}
+
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			// Pattern 1: HTTP method + path (e.g., "GET /api/users")
+			if strings.Contains(line, "GET ") || strings.Contains(line, "POST ") ||
+				strings.Contains(line, "PUT ") || strings.Contains(line, "DELETE ") ||
+				strings.Contains(line, "PATCH ") || strings.Contains(line, "OPTIONS ") {
+				parts := strings.Fields(line)
 				if len(parts) >= 2 {
 					target = parts[1] // The path
+					break
 				}
-			} else if strings.HasPrefix(firstLine, "http://") || strings.HasPrefix(firstLine, "https://") {
-				// Extract hostname and path
-				if idx := strings.Index(firstLine, "://"); idx != -1 {
-					remaining := firstLine[idx+3:]
-					if slashIdx := strings.Index(remaining, "/"); slashIdx != -1 {
-						target = remaining[:slashIdx] + remaining[slashIdx:strings.IndexAny(remaining, "? \t")]
-					} else {
-						target = remaining
+			}
+
+			// Pattern 2: Full URL (e.g., "https://example.com/path")
+			if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
+				if idx := strings.Index(line, "://"); idx != -1 {
+					remaining := line[idx+3:]
+					if spaceIdx := strings.IndexAny(remaining, " \t"); spaceIdx != -1 {
+						remaining = remaining[:spaceIdx]
+					}
+					target = remaining
+					break
+				}
+			}
+
+			// Pattern 3: Look for URL: prefix (e.g., "URL: https://example.com")
+			if strings.Contains(line, "URL:") || strings.Contains(line, "url:") {
+				if idx := strings.Index(strings.ToLower(line), "url:"); idx != -1 {
+					urlPart := strings.TrimSpace(line[idx+4:])
+					if urlPart != "" {
+						target = urlPart
+						break
+					}
+				}
+			}
+
+			// Pattern 4: Look for Target: prefix
+			if strings.Contains(line, "Target:") || strings.Contains(line, "target:") {
+				if idx := strings.Index(strings.ToLower(line), "target:"); idx != -1 {
+					targetPart := strings.TrimSpace(line[idx+7:])
+					if targetPart != "" {
+						target = targetPart
+						break
 					}
 				}
 			}
@@ -710,7 +757,23 @@ func generateFindingFingerprint(finding types.Finding) string {
 
 	// Generate SHA256 hash
 	hash := sha256.Sum256([]byte(normalized))
-	return fmt.Sprintf("%x", hash[:16]) // Use first 16 bytes (32 hex chars)
+	fingerprint := fmt.Sprintf("%x", hash[:16]) // Use first 16 bytes (32 hex chars)
+
+	// EDGE CASE HANDLING: Empty target creates weaker fingerprints
+	// If target is empty, the fingerprint is based on tool:type:title only
+	// This allows deduplication of identical findings across scans, but may cause
+	// false positives if the same vulnerability type exists at multiple locations
+	// and we can't extract location from metadata or evidence.
+	//
+	// This is acceptable because:
+	// 1. Most scanners populate metadata["target"] or similar fields
+	// 2. Evidence usually contains URLs or paths we can extract
+	// 3. Manual verification can mark false positives via verified/false_positive fields
+	// 4. Weak fingerprints are better than no deduplication
+	//
+	// To improve: Ensure scanners populate metadata with location info
+
+	return fingerprint
 }
 
 // checkDuplicateFinding checks if a finding with the same fingerprint exists in previous scans
@@ -1105,6 +1168,117 @@ func (s *sqlStore) GetFindingsBySeverity(ctx context.Context, severity types.Sev
 	}
 
 	return findings, nil
+}
+
+// UpdateFindingStatus updates the status of a finding (for lifecycle tracking)
+func (s *sqlStore) UpdateFindingStatus(ctx context.Context, findingID string, status types.FindingStatus) error {
+	ctx, span := s.logger.StartOperation(ctx, "database.UpdateFindingStatus",
+		"finding_id", findingID,
+		"status", status,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		UPDATE findings
+		SET status = %s, updated_at = %s
+		WHERE id = %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2), s.getPlaceholder(3))
+
+	result, err := s.db.ExecContext(ctx, query, string(status), time.Now(), findingID)
+	if err != nil {
+		return fmt.Errorf("failed to update finding status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("finding not found: %s", findingID)
+	}
+
+	s.logger.Infow("Finding status updated",
+		"finding_id", findingID,
+		"new_status", status,
+	)
+
+	return nil
+}
+
+// MarkFindingVerified marks a finding as manually verified or unverified
+func (s *sqlStore) MarkFindingVerified(ctx context.Context, findingID string, verified bool) error {
+	ctx, span := s.logger.StartOperation(ctx, "database.MarkFindingVerified",
+		"finding_id", findingID,
+		"verified", verified,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		UPDATE findings
+		SET verified = %s, updated_at = %s
+		WHERE id = %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2), s.getPlaceholder(3))
+
+	result, err := s.db.ExecContext(ctx, query, verified, time.Now(), findingID)
+	if err != nil {
+		return fmt.Errorf("failed to mark finding verified: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("finding not found: %s", findingID)
+	}
+
+	s.logger.Infow("Finding verification status updated",
+		"finding_id", findingID,
+		"verified", verified,
+	)
+
+	return nil
+}
+
+// MarkFindingFalsePositive marks a finding as a false positive or removes the false positive flag
+func (s *sqlStore) MarkFindingFalsePositive(ctx context.Context, findingID string, falsePositive bool) error {
+	ctx, span := s.logger.StartOperation(ctx, "database.MarkFindingFalsePositive",
+		"finding_id", findingID,
+		"false_positive", falsePositive,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		UPDATE findings
+		SET false_positive = %s, updated_at = %s
+		WHERE id = %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2), s.getPlaceholder(3))
+
+	result, err := s.db.ExecContext(ctx, query, falsePositive, time.Now(), findingID)
+	if err != nil {
+		return fmt.Errorf("failed to mark finding as false positive: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("finding not found: %s", findingID)
+	}
+
+	s.logger.Infow("Finding false positive status updated",
+		"finding_id", findingID,
+		"false_positive", falsePositive,
+	)
+
+	return nil
 }
 
 func (s *sqlStore) GetSummary(ctx context.Context, scanID string) (*types.Summary, error) {

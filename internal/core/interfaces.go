@@ -36,6 +36,11 @@ type ResultStore interface {
 	GetFindings(ctx context.Context, scanID string) ([]types.Finding, error)
 	GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error)
 
+	// Finding status management (for lifecycle tracking and regression detection)
+	UpdateFindingStatus(ctx context.Context, findingID string, status types.FindingStatus) error
+	MarkFindingVerified(ctx context.Context, findingID string, verified bool) error
+	MarkFindingFalsePositive(ctx context.Context, findingID string, falsePositive bool) error
+
 	// Enhanced query methods
 	QueryFindings(ctx context.Context, query FindingQuery) ([]types.Finding, error)
 	GetFindingStats(ctx context.Context) (*FindingStats, error)
