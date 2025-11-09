@@ -27,7 +27,7 @@ func TestNewSAMLScanner(t *testing.T) {
 		t.Fatal("Expected scanner to be initialized")
 	}
 
-	if scanner.httpClient == null {
+	if scanner.httpClient == nil {
 		t.Error("Expected HTTP client to be initialized")
 	}
 
