@@ -88,6 +88,7 @@ type ToolsConfig struct {
 	BusinessLogic BusinessLogicConfig `mapstructure:"business_logic"`
 	Prowler       ProwlerConfig       `mapstructure:"prowler"`
 	Favicon       FaviconConfig       `mapstructure:"favicon"`
+	Rumble        RumbleConfig        `mapstructure:"rumble"`
 }
 
 type NmapConfig struct {
@@ -331,6 +332,16 @@ type FaviconConfig struct {
 	EnableShodan   bool          `mapstructure:"enable_shodan"`
 	EnableCache    bool          `mapstructure:"enable_cache"`
 	CustomDatabase string        `mapstructure:"custom_database"`
+}
+
+type RumbleConfig struct {
+	Enabled    bool          `mapstructure:"enabled"`
+	APIKey     string        `mapstructure:"api_key"`
+	BaseURL    string        `mapstructure:"base_url"`
+	Timeout    time.Duration `mapstructure:"timeout"`
+	MaxRetries int           `mapstructure:"max_retries"`
+	ScanRate   int           `mapstructure:"scan_rate"`   // Packets per second
+	DeepScan   bool          `mapstructure:"deep_scan"`   // Enable deep scanning
 }
 
 // AIConfig contains OpenAI/Azure OpenAI configuration for AI-powered report generation
@@ -666,6 +677,14 @@ func DefaultConfig() *Config {
 				EnableShodan:   false,
 				EnableCache:    true,
 				CustomDatabase: "",
+			},
+			Rumble: RumbleConfig{
+				Enabled:    false,
+				BaseURL:    "https://console.runzero.com/api/v1.0",
+				Timeout:    30 * time.Second,
+				MaxRetries: 3,
+				ScanRate:   1000,
+				DeepScan:   false,
 			},
 		},
 		AI: AIConfig{
