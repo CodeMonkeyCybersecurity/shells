@@ -18,7 +18,7 @@ cd shells
 ./install.sh
 
 # Start web dashboard
-shells serve --port 8080
+artemis serve --port 8080
 
 # Open browser to http://localhost:8080 and start scanning!
 ```
@@ -26,7 +26,7 @@ shells serve --port 8080
 **What install.sh does automatically:**
 -  Installs/updates Go 1.24.4
 -  Installs PostgreSQL and creates database
--  Builds shells binary
+-  Builds artemis binary
 -  Sets up Python workers (GraphCrawler, IDORD)
 -  Configures everything - just run and go!
 
@@ -34,12 +34,12 @@ shells serve --port 8080
 
 ```bash
 # Full automated workflow
-shells example.com
+artemis example.com
 
 # Or specify target type
-shells "Acme Corporation"    # Discover company assets
-shells admin@example.com     # Discover from email
-shells 192.168.1.0/24        # Scan IP range
+artemis "Acme Corporation"    # Discover company assets
+artemis admin@example.com     # Discover from email
+artemis 192.168.1.0/24        # Scan IP range
 ```
 
 ## Features
@@ -98,12 +98,12 @@ shells serve --port 8080
 **After installation:**
 ```bash
 # Start the web dashboard (workers auto-start)
-shells serve --port 8080
+artemis serve --port 8080
 
 # Open http://localhost:8080 in your browser
 
 # Or run a scan directly
-shells example.com
+artemis example.com
 ```
 
 ### Manual Installation (Advanced)
@@ -114,11 +114,11 @@ git clone https://github.com/CodeMonkeyCybersecurity/shells
 cd shells
 
 # Build binary
-go build -o shells
+go build -o artemis
 
 # Optional: Install to PATH
-sudo cp shells /usr/local/bin/
-sudo chmod 755 /usr/local/bin/shells
+sudo cp artemis /usr/local/bin/
+sudo chmod 755 /usr/local/bin/artemis
 ```
 
 ### Requirements
@@ -179,41 +179,41 @@ The main command runs the full orchestrated pipeline:
 
 ```bash
 # Full automated workflow: Discovery → Prioritization → Testing → Reporting
-./shells example.com
+./artemis example.com
 ```
 
 ### Targeted Commands
 
 ```bash
 # Asset discovery only
-./shells discover example.com
+./artemis discover example.com
 
 # Authentication testing
-./shells auth discover --target https://example.com
-./shells auth test --target https://example.com --protocol saml
-./shells auth chain --target https://example.com  # Find attack chains
+./artemis auth discover --target https://example.com
+./artemis auth test --target https://example.com --protocol saml
+./artemis auth chain --target https://example.com  # Find attack chains
 
 # SCIM security testing
-./shells scim discover https://example.com
-./shells scim test https://example.com/scim/v2 --test-all
+./artemis scim discover https://example.com
+./artemis scim test https://example.com/scim/v2 --test-all
 
 # HTTP request smuggling
-./shells smuggle detect https://example.com
-./shells smuggle exploit https://example.com --technique cl.te
+./artemis smuggle detect https://example.com
+./artemis smuggle exploit https://example.com --technique cl.te
 
 # Results querying
-./shells results query --severity critical
-./shells results stats
-./shells results export scan-12345 --format json
+./artemis results query --severity critical
+./artemis results stats
+./artemis results export scan-12345 --format json
 
 # Bug bounty platform integration
-./shells platform programs --platform hackerone
-./shells platform submit <finding-id> --platform bugcrowd --program my-program
-./shells platform auto-submit --severity CRITICAL
+./artemis platform programs --platform hackerone
+./artemis platform submit <finding-id> --platform bugcrowd --program my-program
+./artemis platform auto-submit --severity CRITICAL
 
 # Self-management
-./shells self update                    # Update to latest version
-./shells self update --branch develop   # Update from specific branch
+./artemis self update                    # Update to latest version
+./artemis self update --branch develop   # Update from specific branch
 ```
 
 ### Python Worker Services (GraphQL & IDOR Scanning)
@@ -222,19 +222,19 @@ Shells integrates specialized Python tools for GraphQL and IDOR vulnerability de
 
 ```bash
 # One-time setup (clones GraphCrawler & IDORD, creates venv)
-shells workers setup
+artemis workers setup
 
 # Start worker service
-shells workers start
+artemis workers start
 
 # Or start API server with workers auto-started
-shells serve  # Workers start automatically
+artemis serve  # Workers start automatically
 
 # Check worker health
-shells workers status
+artemis workers status
 
 # Stop workers
-shells workers stop
+artemis workers stop
 ```
 
 **Integrated Tools:**
@@ -262,7 +262,7 @@ shells workers stop
 
 ```bash
 # Using flags
-shells example.com --log-level debug --rate-limit 20 --workers 5
+artemis example.com --log-level debug --rate-limit 20 --workers 5
 
 # Using environment variables
 export SHELLS_LOG_LEVEL=debug
@@ -270,10 +270,10 @@ export SHELLS_DATABASE_DSN="postgres://user:pass@localhost:5432/shells"
 export SHELLS_REDIS_ADDR="localhost:6379"
 export SHELLS_WORKERS=5
 export SHELLS_RATE_LIMIT=20
-shells example.com
+artemis example.com
 
 # Common configuration flags
-shells --help
+artemis --help
   --db-dsn              PostgreSQL connection (default: postgres://shells:shells_password@localhost:5432/shells)
   --log-level           Log level: debug, info, warn, error (default: error)
   --log-format          Log format: json, console (default: console)
@@ -405,11 +405,11 @@ See [docs/BUG-BOUNTY-GUIDE.md](docs/BUG-BOUNTY-GUIDE.md) for complete workflow g
 
 **Typical Usage**:
 1. Research target scope
-2. Run discovery: `./shells discover target.com`
+2. Run discovery: `./artemis discover target.com`
 3. Review discovered assets
-4. Run full scan: `./shells target.com`
-5. Query findings: `./shells results query --severity high`
-6. Export evidence: `./shells results export scan-id --format json`
+4. Run full scan: `./artemis target.com`
+5. Query findings: `./artemis results query --severity high`
+6. Export evidence: `./artemis results export scan-id --format json`
 7. Verify findings manually
 8. Submit responsible disclosure
 
