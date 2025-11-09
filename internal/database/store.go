@@ -73,7 +73,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
@@ -776,9 +776,109 @@ func generateFindingFingerprint(finding types.Finding) string {
 	return fingerprint
 }
 
+// DuplicateInfo holds information about a duplicate finding
+type DuplicateInfo struct {
+	IsDuplicate    bool
+	FirstScanID    string
+	PreviousStatus types.FindingStatus
+}
+
+// batchCheckDuplicateFindings checks multiple fingerprints in a single query (performance optimization)
+// Returns a map of fingerprint -> DuplicateInfo
+func (s *sqlStore) batchCheckDuplicateFindings(ctx context.Context, tx *sqlx.Tx, fingerprints []string, currentScanID string) (map[string]DuplicateInfo, error) {
+	if len(fingerprints) == 0 {
+		return make(map[string]DuplicateInfo), nil
+	}
+
+	var query string
+	var args []interface{}
+
+	// PostgreSQL uses ANY($1) with array parameter
+	if s.cfg.Type == "postgres" {
+		query = `
+			SELECT DISTINCT ON (fingerprint)
+				fingerprint, first_scan_id, scan_id, status
+			FROM findings
+			WHERE fingerprint = ANY($1)
+			ORDER BY fingerprint, created_at DESC
+		`
+		args = []interface{}{pq.Array(fingerprints)}
+	} else {
+		// SQLite uses IN clause with placeholders
+		placeholders := make([]string, len(fingerprints))
+		args = make([]interface{}, len(fingerprints))
+		for i, fp := range fingerprints {
+			placeholders[i] = s.getPlaceholder(i + 1)
+			args[i] = fp
+		}
+
+		query = fmt.Sprintf(`
+			SELECT fingerprint, first_scan_id, scan_id, status
+			FROM (
+				SELECT fingerprint, first_scan_id, scan_id, status,
+					   ROW_NUMBER() OVER (PARTITION BY fingerprint ORDER BY created_at DESC) as rn
+				FROM findings
+				WHERE fingerprint IN (%s)
+			)
+			WHERE rn = 1
+		`, strings.Join(placeholders, ","))
+	}
+
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch check duplicates: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]DuplicateInfo)
+
+	for rows.Next() {
+		var fingerprint, firstScanID, scanID string
+		var previousStatus types.FindingStatus
+
+		if err := rows.Scan(&fingerprint, &firstScanID, &scanID, &previousStatus); err != nil {
+			return nil, fmt.Errorf("failed to scan duplicate row: %w", err)
+		}
+
+		// If first_scan_id is empty (old data before migration), use the scan_id we found
+		if firstScanID == "" {
+			firstScanID = scanID
+		}
+
+		// Check for regression (previously fixed vulnerability reappearing)
+		if previousStatus == types.FindingStatusFixed {
+			s.logger.Errorw("REGRESSION DETECTED: Previously fixed vulnerability has reappeared",
+				"fingerprint", fingerprint,
+				"first_scan_id", firstScanID,
+				"last_seen_scan", scanID,
+				"current_scan", currentScanID,
+				"impact", "CRITICAL",
+			)
+			result[fingerprint] = DuplicateInfo{
+				IsDuplicate:    true,
+				FirstScanID:    firstScanID,
+				PreviousStatus: types.FindingStatusReopened,
+			}
+		} else {
+			result[fingerprint] = DuplicateInfo{
+				IsDuplicate:    true,
+				FirstScanID:    firstScanID,
+				PreviousStatus: previousStatus,
+			}
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating duplicate rows: %w", err)
+	}
+
+	return result, nil
+}
+
 // checkDuplicateFinding checks if a finding with the same fingerprint exists in previous scans
 // Returns: (isDuplicate, firstScanID, previousStatus, error)
 // Also detects regressions when a "fixed" vulnerability reappears
+// NOTE: This is kept for backward compatibility but batchCheckDuplicateFindings should be preferred
 func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, types.FindingStatus, error) {
 	// Get the most recent occurrence to check for regressions
 	recentQuery := `
@@ -903,23 +1003,47 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	insertStart := time.Now()
 	totalRowsAffected := int64(0)
 
+	// P1 OPTIMIZATION: Batch fingerprint lookup (fixes N+1 query problem)
+	// Instead of querying database for each finding (100 findings = 100 queries),
+	// we query once for all fingerprints (100 findings = 1 query)
+	batchLookupStart := time.Now()
+	fingerprints := make([]string, len(findings))
+	for i, finding := range findings {
+		fingerprints[i] = generateFindingFingerprint(finding)
+	}
+
+	duplicateLookup, err := s.batchCheckDuplicateFindings(ctx, tx, fingerprints, scanID)
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.SaveFindings.batch_check_duplicates",
+			"scan_id", scanID,
+			"findings_count", len(findings),
+		)
+		// Initialize empty map and continue (will treat all as new findings)
+		duplicateLookup = make(map[string]DuplicateInfo)
+	}
+
+	s.logger.LogDuration(ctx, "database.SaveFindings.batch_lookup", batchLookupStart,
+		"scan_id", scanID,
+		"fingerprints_checked", len(fingerprints),
+		"duplicates_found", len(duplicateLookup),
+	)
+
 	for i, finding := range findings {
 		findingStart := time.Now()
 
-		// Generate fingerprint for deduplication (includes target for uniqueness)
-		fingerprint := generateFindingFingerprint(finding)
+		// Get fingerprint (already generated in batch lookup phase)
+		fingerprint := fingerprints[i]
 
-		// Check if this is a duplicate from a previous scan (also detects regressions)
-		isDuplicate, firstScanID, previousStatus, err := s.checkDuplicateFinding(ctx, tx, fingerprint, finding.ScanID)
-		if err != nil {
-			s.logger.LogError(ctx, err, "database.SaveFindings.check_duplicate",
-				"finding_id", finding.ID,
-				"fingerprint", fingerprint,
-			)
-			// Continue with insertion even if duplicate check fails
-			isDuplicate = false
-			firstScanID = finding.ScanID
-			previousStatus = ""
+		// Look up duplicate information from batch check
+		dupInfo, found := duplicateLookup[fingerprint]
+		isDuplicate := found
+		firstScanID := finding.ScanID
+		previousStatus := types.FindingStatus("")
+
+		if found {
+			isDuplicate = dupInfo.IsDuplicate
+			firstScanID = dupInfo.FirstScanID
+			previousStatus = dupInfo.PreviousStatus
 		}
 
 		// Set status based on duplication and regression detection
