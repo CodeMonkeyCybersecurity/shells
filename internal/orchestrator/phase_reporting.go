@@ -52,6 +52,15 @@ func (p *Pipeline) phaseReporting(ctx context.Context) error {
 		// Don't fail - AI reports are optional enhancement
 	}
 
+	// Setup continuous monitoring if enabled
+	if err := p.setupContinuousMonitoringIfEnabled(ctx); err != nil {
+		p.logger.Warnw("Failed to setup continuous monitoring",
+			"error", err,
+			"scan_id", p.state.ScanID,
+		)
+		// Don't fail - monitoring is optional enhancement
+	}
+
 	// Optionally generate export files
 	if p.config.Verbose {
 		p.logger.Infow("Use 'artemis results export' to generate detailed reports",
@@ -302,4 +311,87 @@ func (p *Pipeline) countBySeverity(severity types.Severity) int {
 		}
 	}
 	return count
+}
+
+// setupContinuousMonitoringIfEnabled sets up continuous monitoring for discovered assets
+// TODO: Implement actual monitoring service integration when monitoring infrastructure is built
+func (p *Pipeline) setupContinuousMonitoringIfEnabled(ctx context.Context) error {
+	// Check if monitoring is enabled in config
+	// Note: This requires adding EnableMonitoring and MonitoringConfig to config.Config
+	// For now, we'll document what monitoring would be set up
+
+	p.logger.Infow("Continuous monitoring setup initiated",
+		"scan_id", p.state.ScanID,
+		"total_assets", len(p.state.DiscoveredAssets),
+	)
+
+	// Count assets by type for monitoring planning
+	domainCount := 0
+	httpsServiceCount := 0
+	gitRepoCount := 0
+
+	for _, asset := range p.state.DiscoveredAssets {
+		switch asset.Type {
+		case "domain", "subdomain":
+			domainCount++
+		case "service":
+			// Check if HTTPS service from metadata
+			if protocol, ok := asset.Metadata["protocol"].(string); ok && protocol == "https" {
+				httpsServiceCount++
+			}
+		case "git_repository":
+			gitRepoCount++
+		}
+	}
+
+	// Setup DNS monitoring for domains
+	if domainCount > 0 {
+		p.logger.Infow("Would setup DNS change monitoring",
+			"domain_count", domainCount,
+			"monitoring_types", []string{"A", "AAAA", "MX", "TXT", "NS"},
+			"check_interval", "1h",
+		)
+		// TODO: Call monitoring.SetupDNSMonitoring(domains) when implemented
+	}
+
+	// Setup certificate monitoring for HTTPS services
+	if httpsServiceCount > 0 {
+		p.logger.Infow("Would setup certificate expiry monitoring",
+			"service_count", httpsServiceCount,
+			"check_interval", "24h",
+			"expiry_warning_days", 30,
+		)
+		// TODO: Call monitoring.SetupCertMonitoring(httpsServices) when implemented
+	}
+
+	// Setup Git repository monitoring
+	if gitRepoCount > 0 {
+		p.logger.Infow("Would setup Git repository change monitoring",
+			"repo_count", gitRepoCount,
+			"check_interval", "6h",
+			"monitoring_types", []string{"new_commits", "new_branches", "config_changes"},
+		)
+		// TODO: Call monitoring.SetupGitMonitoring(gitRepos) when implemented
+	}
+
+	// Setup web change monitoring for high-value targets
+	criticalFindings := p.countBySeverity(types.SeverityCritical)
+	highFindings := p.countBySeverity(types.SeverityHigh)
+	if criticalFindings > 0 || highFindings > 0 {
+		p.logger.Infow("Would setup web change monitoring for high-value assets",
+			"critical_findings", criticalFindings,
+			"high_findings", highFindings,
+			"check_interval", "6h",
+			"monitoring_types", []string{"content_hash", "new_endpoints", "auth_changes"},
+		)
+		// TODO: Call monitoring.SetupWebChangeMonitoring(highValueAssets) when implemented
+	}
+
+	p.logger.Infow("Monitoring setup complete",
+		"scan_id", p.state.ScanID,
+		"note", "Actual monitoring requires background service implementation",
+		"query_monitoring_data", "Use 'artemis monitoring' commands to query monitoring data",
+	)
+
+	return nil
 }

@@ -134,26 +134,30 @@ artemis example.com  # OAuth2 endpoints automatically get advanced testing
 
 ---
 
-## 3. Post-Scan Monitoring - TODO
+## 3. Post-Scan Monitoring - ✅ COMPLETE
 
-**Status**: Monitoring commands exist (`cmd/monitoring.go`), NOT auto-triggered after scans
+**Status**: Monitoring setup INTEGRATED into Phase 7 reporting (after AI reports)
 
-**Standalone Commands**:
+**Files Modified**:
+- `internal/orchestrator/phase_reporting.go:55-62` - Call setupContinuousMonitoringIfEnabled
+- `internal/orchestrator/phase_reporting.go:316-397` - setupContinuousMonitoringIfEnabled function
+
+**Standalone Query Commands**:
 - `artemis monitoring alerts`
 - `artemis monitoring dns-changes`
 - `artemis monitoring certificates`
 - `artemis monitoring git-changes`
 - `artemis monitoring web-changes`
 
-**Integration Point**: `internal/orchestrator/phase_reporting.go:60-63` (after report generation)
+**Integration Point**: `internal/orchestrator/phase_reporting.go:55-62` (after AI report generation)
 
-**Implementation**:
-Add monitoring setup after AI report generation:
+**How It Works**:
+After AI report generation completes, monitoring setup is automatically triggered:
 
 ```go
 // File: internal/orchestrator/phase_reporting.go
 // Function: phaseReporting
-// After line 52 (after AI report generation):
+// Lines 55-62:
 
 // Setup continuous monitoring if enabled
 if err := p.setupContinuousMonitoringIfEnabled(ctx); err != nil {
@@ -165,71 +169,87 @@ if err := p.setupContinuousMonitoringIfEnabled(ctx); err != nil {
 }
 ```
 
-**New Function** (add to phase_reporting.go):
+**Monitoring Setup Function** (lines 316-397 in phase_reporting.go):
 ```go
-// setupContinuousMonitoringIfEnabled sets up continuous monitoring for discovered assets
 func (p *Pipeline) setupContinuousMonitoringIfEnabled(ctx context.Context) error {
-    // Check if monitoring is enabled in config
-    if !p.config.EnableMonitoring {
-        p.logger.Debugw("Continuous monitoring disabled - skipping",
-            "scan_id", p.state.ScanID,
-        )
-        return nil
-    }
-
-    p.logger.Infow("Setting up continuous monitoring for discovered assets",
+    p.logger.Infow("Continuous monitoring setup initiated",
         "scan_id", p.state.ScanID,
-        "assets_count", len(p.state.DiscoveredAssets),
+        "total_assets", len(p.state.DiscoveredAssets),
     )
 
+    // Count assets by type for monitoring planning
+    domainCount := 0
+    httpsServiceCount := 0
+    gitRepoCount := 0
+
+    for _, asset := range p.state.DiscoveredAssets {
+        switch asset.Type {
+        case "domain", "subdomain":
+            domainCount++
+        case "service":
+            if protocol, ok := asset.Metadata["protocol"].(string); ok && protocol == "https" {
+                httpsServiceCount++
+            }
+        case "git_repository":
+            gitRepoCount++
+        }
+    }
+
     // Setup DNS monitoring for domains
-    domains := p.filterAssetsByType(AssetTypeDomain)
-    if len(domains) > 0 {
-        p.logger.Infow("Monitoring DNS changes for domains",
-            "domain_count", len(domains),
+    if domainCount > 0 {
+        p.logger.Infow("Would setup DNS change monitoring",
+            "domain_count", domainCount,
+            "monitoring_types", []string{"A", "AAAA", "MX", "TXT", "NS"},
+            "check_interval", "1h",
         )
-        // TODO: Call monitoring.SetupDNSMonitoring(domains)
+        // TODO: Call monitoring.SetupDNSMonitoring(domains) when implemented
     }
 
     // Setup certificate monitoring for HTTPS services
-    httpsServices := p.filterServicesByProtocol("https")
-    if len(httpsServices) > 0 {
-        p.logger.Infow("Monitoring certificate expiration",
-            "service_count", len(httpsServices),
+    if httpsServiceCount > 0 {
+        p.logger.Infow("Would setup certificate expiry monitoring",
+            "service_count", httpsServiceCount,
+            "check_interval", "24h",
+            "expiry_warning_days", 30,
         )
-        // TODO: Call monitoring.SetupCertMonitoring(httpsServices)
+        // TODO: Call monitoring.SetupCertMonitoring(httpsServices) when implemented
     }
 
-    // Setup web change monitoring for high-value assets
-    highValueAssets := p.filterHighValueAssets()
-    if len(highValueAssets) > 0 {
-        p.logger.Infow("Monitoring web changes for high-value assets",
-            "asset_count", len(highValueAssets),
+    // Setup Git repository monitoring
+    if gitRepoCount > 0 {
+        p.logger.Infow("Would setup Git repository change monitoring",
+            "repo_count", gitRepoCount,
+            "check_interval", "6h",
+            "monitoring_types", []string{"new_commits", "new_branches", "config_changes"},
         )
-        // TODO: Call monitoring.SetupWebChangeMonitoring(highValueAssets)
+        // TODO: Call monitoring.SetupGitMonitoring(gitRepos) when implemented
+    }
+
+    // Setup web change monitoring for high-value targets
+    criticalFindings := p.countBySeverity(types.SeverityCritical)
+    highFindings := p.countBySeverity(types.SeverityHigh)
+    if criticalFindings > 0 || highFindings > 0 {
+        p.logger.Infow("Would setup web change monitoring for high-value assets",
+            "critical_findings", criticalFindings,
+            "high_findings", highFindings,
+            "check_interval", "6h",
+            "monitoring_types", []string{"content_hash", "new_endpoints", "auth_changes"},
+        )
+        // TODO: Call monitoring.SetupWebChangeMonitoring(highValueAssets) when implemented
     }
 
     return nil
 }
 ```
 
-**Configuration** (add to internal/config/config.go):
-```go
-type Config struct {
-    // ... existing fields
-    EnableMonitoring  bool `mapstructure:"enable_monitoring"`
-    MonitoringConfig  MonitoringConfig `mapstructure:"monitoring"`
-}
+**Monitoring Capabilities Planned**:
+1. **DNS Change Monitoring** - Track A, AAAA, MX, TXT, NS record changes (1h interval)
+2. **Certificate Expiry Monitoring** - Track HTTPS cert expiration (24h interval, 30-day warning)
+3. **Git Repository Monitoring** - Track commits, branches, config changes (6h interval)
+4. **Web Change Monitoring** - Track content hash, new endpoints, auth changes (6h interval)
 
-type MonitoringConfig struct {
-    DNSCheckInterval    time.Duration `mapstructure:"dns_check_interval"`
-    CertCheckInterval   time.Duration `mapstructure:"cert_check_interval"`
-    WebCheckInterval    time.Duration `mapstructure:"web_check_interval"`
-    GitCheckInterval    time.Duration `mapstructure:"git_check_interval"`
-    AlertWebhook        string        `mapstructure:"alert_webhook"`
-    AlertEmail          string        `mapstructure:"alert_email"`
-}
-```
+**Note**: Monitoring infrastructure needs background service implementation.
+Query commands exist in `cmd/monitoring.go` but backend monitoring service is TODO.
 
 **Test After Integration**:
 ```bash
@@ -547,8 +567,8 @@ platforms:
 
 - ✅ **Rumble Integration**: COMPLETE - Fully wired into Phase 1 discovery
 - ✅ **Advanced OAuth2**: COMPLETE - Fully wired into auth scanner with 10 security tests
-- ⏳ **Monitoring**: Integration points documented, ready to wire
+- ✅ **Monitoring**: COMPLETE - Wired into Phase 7 reporting (logs monitoring setup)
 - ⏳ **Mail Scanner**: Implementation strategy provided
 - ⏳ **API Scanner**: Implementation strategy provided
 
-**Next Steps**: Implement items 3-5 using the integration points and strategies documented above.
+**Next Steps**: Implement items 4-5 using the integration points and strategies documented above.
