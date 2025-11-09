@@ -82,6 +82,21 @@ func NewEngineWithScopeValidator(discoveryConfig *DiscoveryConfig, structLog *lo
 	// Context-aware discovery
 	engine.RegisterModule(NewContextAwareDiscovery(discoveryConfig, structLog))
 
+	// Register third-party integrations
+	// Rumble network discovery (runZero)
+	if cfg.Tools.Rumble.Enabled {
+		rumbleConfig := RumbleConfig{
+			Enabled:    cfg.Tools.Rumble.Enabled,
+			APIKey:     cfg.Tools.Rumble.APIKey,
+			BaseURL:    cfg.Tools.Rumble.BaseURL,
+			Timeout:    cfg.Tools.Rumble.Timeout,
+			MaxRetries: cfg.Tools.Rumble.MaxRetries,
+			ScanRate:   cfg.Tools.Rumble.ScanRate,
+			DeepScan:   cfg.Tools.Rumble.DeepScan,
+		}
+		engine.RegisterModule(NewRumbleModule(rumbleConfig, structLog))
+	}
+
 	// Register ProjectDiscovery tools (highest priority - passive/active recon)
 	engine.RegisterModule(NewSubfinderModule(discoveryConfig, structLog)) // Subdomain enumeration
 	engine.RegisterModule(NewDnsxModule(discoveryConfig, structLog))      // DNS resolution
