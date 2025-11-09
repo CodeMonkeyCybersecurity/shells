@@ -65,7 +65,7 @@ type Finding struct {
 	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 	Fingerprint   string                 `json:"fingerprint,omitempty" db:"fingerprint"`       // Hash for deduplication across scans
 	FirstScanID   string                 `json:"first_scan_id,omitempty" db:"first_scan_id"`   // Scan ID where first detected
-	Status        string                 `json:"status,omitempty" db:"status"`                 // new, active, fixed, duplicate, reopened
+	Status        FindingStatus          `json:"status,omitempty" db:"status"`                 // new, active, fixed, duplicate, reopened
 	Verified      bool                   `json:"verified" db:"verified"`                       // Manually verified
 	FalsePositive bool                   `json:"false_positive" db:"false_positive"`           // Marked as false positive
 	CreatedAt     time.Time              `json:"created_at" db:"created_at"`

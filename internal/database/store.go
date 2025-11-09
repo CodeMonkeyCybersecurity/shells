@@ -779,7 +779,7 @@ func generateFindingFingerprint(finding types.Finding) string {
 // checkDuplicateFinding checks if a finding with the same fingerprint exists in previous scans
 // Returns: (isDuplicate, firstScanID, previousStatus, error)
 // Also detects regressions when a "fixed" vulnerability reappears
-func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, string, error) {
+func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, types.FindingStatus, error) {
 	// Get the most recent occurrence to check for regressions
 	recentQuery := `
 		SELECT first_scan_id, scan_id, status
@@ -789,7 +789,8 @@ func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, finge
 		LIMIT 1
 	`
 
-	var firstScanID, scanID, previousStatus string
+	var firstScanID, scanID string
+	var previousStatus types.FindingStatus
 	err := tx.QueryRowContext(ctx, recentQuery, fingerprint).Scan(&firstScanID, &scanID, &previousStatus)
 	if err == sql.ErrNoRows {
 		// Not a duplicate - this is the first occurrence
@@ -805,7 +806,7 @@ func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, finge
 	}
 
 	// Check for regression (previously fixed vulnerability reappearing)
-	if previousStatus == string(types.FindingStatusFixed) {
+	if previousStatus == types.FindingStatusFixed {
 		s.logger.Errorw("REGRESSION DETECTED: Previously fixed vulnerability has reappeared",
 			"fingerprint", fingerprint,
 			"first_scan_id", firstScanID,
@@ -813,7 +814,7 @@ func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, finge
 			"current_scan", currentScanID,
 			"impact", "CRITICAL",
 		)
-		return true, firstScanID, string(types.FindingStatusReopened), nil
+		return true, firstScanID, types.FindingStatusReopened, nil
 	}
 
 	return true, firstScanID, previousStatus, nil
@@ -846,7 +847,7 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	// Count findings by severity for logging
 	severityCounts := make(map[types.Severity]int)
 	toolCounts := make(map[string]int)
-	statusCounts := make(map[string]int)
+	statusCounts := make(map[types.FindingStatus]int)
 	duplicateCount := 0
 
 	for _, finding := range findings {
@@ -922,18 +923,18 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 		}
 
 		// Set status based on duplication and regression detection
-		status := string(types.FindingStatusNew)
+		status := types.FindingStatusNew
 		if isDuplicate {
 			// If previousStatus is "reopened", this is a regression
-			if previousStatus == string(types.FindingStatusReopened) {
-				status = string(types.FindingStatusReopened)
+			if previousStatus == types.FindingStatusReopened {
+				status = types.FindingStatusReopened
 				s.logger.Warnw("Marking finding as reopened (regression)",
 					"finding_id", finding.ID,
 					"fingerprint", fingerprint,
 					"first_scan_id", firstScanID,
 				)
 			} else {
-				status = string(types.FindingStatusDuplicate)
+				status = types.FindingStatusDuplicate
 				duplicateCount++
 			}
 		}

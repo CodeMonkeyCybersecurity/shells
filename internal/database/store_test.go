@@ -271,7 +271,7 @@ func TestUpdateFindingStatus(t *testing.T) {
 		Severity:    types.SeverityHigh,
 		Title:       "Test Vulnerability",
 		Description: "Test Description",
-		Status:      string(types.FindingStatusNew),
+		Status:      types.FindingStatusNew,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -286,7 +286,7 @@ func TestUpdateFindingStatus(t *testing.T) {
 	findings, err := store.GetFindings(ctx, "test-scan-1")
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
-	assert.Equal(t, string(types.FindingStatusFixed), findings[0].Status)
+	assert.Equal(t, types.FindingStatusFixed, findings[0].Status)
 
 	// Try to update non-existent finding
 	err = store.UpdateFindingStatus(ctx, "non-existent", types.FindingStatusFixed)
