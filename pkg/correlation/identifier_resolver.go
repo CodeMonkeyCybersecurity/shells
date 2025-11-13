@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // IdentifierInfo contains parsed identifier information

@@ -9,9 +9,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 const (

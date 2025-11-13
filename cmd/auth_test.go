@@ -12,16 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 	"github.com/spf13/cobra"
 )
 
 // TestMain sets up test environment
 func TestMain(m *testing.M) {
 	// Initialize logger for tests
-	log, err := logger.New(config.LoggerConfig{
+	l, err := logger.New(config.LoggerConfig{
 		Level:  "error", // Quiet logging during tests
 		Format: "json",
 	})
@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Set global logger
-	rootLogger = log
+	log = l
 
 	// Run tests
 	os.Exit(m.Run())
@@ -105,7 +105,8 @@ func TestAuthDiscoverCommand(t *testing.T) {
 					}
 
 					// Simulate discovery
-					t.Logf("Discovering auth endpoints for: %s", target)
+					l := logger.FromContext(context.Background())
+					l.Debugf("Discovering auth endpoints for: %s", target)
 					return nil
 				},
 			}
@@ -132,7 +133,7 @@ func TestAuthDiscoverCommand(t *testing.T) {
 // TestAuthTestCommand_SAML tests SAML vulnerability testing
 func TestAuthTestCommand_SAML(t *testing.T) {
 	// Create mock SAML server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/saml/metadata"):
 			// Return SAML metadata
@@ -154,7 +155,8 @@ func TestAuthTestCommand_SAML(t *testing.T) {
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
-	}))
+	})
+	server := httptest.NewServer(handler)
 	defer server.Close()
 
 	t.Run("detect Golden SAML vulnerability", func(t *testing.T) {
@@ -170,30 +172,32 @@ func TestAuthTestCommand_SAML(t *testing.T) {
 		case <-ctx.Done():
 			t.Fatal("Test timeout")
 		default:
-			t.Logf("SAML scanner integration test for target: %s", target)
+			l := logger.FromContext(ctx)
+			l.Debugf("SAML scanner integration test for target: %s", target)
 			// Integration test passes if we can set up the mock server
 		}
 	})
 
 	t.Run("detect XML Signature Wrapping", func(t *testing.T) {
 		target := server.URL
-		t.Logf("Testing XML Signature Wrapping detection for: %s", target)
+		l := logger.FromContext(context.Background())
+		l.Debugf("Testing XML Signature Wrapping detection for: %s", target)
 		// XSW attack test - verify scanner detects comment-based XSW
 	})
 }
 
 // TestAuthTestCommand_OAuth2JWT tests OAuth2/JWT vulnerability testing
 func TestAuthTestCommand_OAuth2JWT(t *testing.T) {
-	// Create mock OAuth2 server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var issuer string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.Contains(r.URL.Path, "/.well-known/openid-configuration"):
 			// Return OIDC discovery document
 			config := map[string]interface{}{
-				"issuer":                 server.URL,
-				"authorization_endpoint": server.URL + "/oauth/authorize",
-				"token_endpoint":         server.URL + "/oauth/token",
-				"jwks_uri":               server.URL + "/oauth/jwks",
+				"issuer":                 issuer,
+				"authorization_endpoint": issuer + "/oauth/authorize",
+				"token_endpoint":         issuer + "/oauth/token",
+				"jwks_uri":               issuer + "/oauth/jwks",
 			}
 			json.NewEncoder(w).Encode(config)
 
@@ -225,7 +229,9 @@ func TestAuthTestCommand_OAuth2JWT(t *testing.T) {
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
-	}))
+	})
+	server := httptest.NewServer(handler)
+	issuer = server.URL
 	defer server.Close()
 
 	t.Run("detect JWT algorithm confusion", func(t *testing.T) {

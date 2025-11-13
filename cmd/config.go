@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/credentials"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/credentials"
 	"github.com/spf13/cobra"
 )
 

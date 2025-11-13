@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic"
 )
 
 // StateTracker tracks workflow state transitions

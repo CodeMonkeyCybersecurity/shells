@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/secrets"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scanners/secrets"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // runSecretsScanning executes secrets scanning on the target

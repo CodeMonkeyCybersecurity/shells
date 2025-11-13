@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/rumble"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/integrations/rumble"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

@@ -1,7 +1,7 @@
 package adapters
 
 import (
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // FuzzingLogger adapts internal logger.Logger for fuzzing package interface.

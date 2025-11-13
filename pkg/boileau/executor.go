@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/nomad"
 )
 
 // Executor handles the execution of boileau tools

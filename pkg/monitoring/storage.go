@@ -11,8 +11,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // SQLiteStorage implements MonitoringStorage using PostgreSQL

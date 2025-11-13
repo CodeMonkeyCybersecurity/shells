@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // PatternMatcher extracts and matches patterns across findings

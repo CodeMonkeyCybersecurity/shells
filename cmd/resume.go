@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/checkpoint"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/orchestrator"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/checkpoint"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

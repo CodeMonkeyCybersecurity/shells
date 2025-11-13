@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator/scanners"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/scope"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/orchestrator/scanners"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scope"
 )
 
 // ScopeValidator handles bug bounty program scope validation

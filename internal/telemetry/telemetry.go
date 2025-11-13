@@ -16,9 +16,9 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 type telemetry struct {

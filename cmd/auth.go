@@ -1,31 +1,60 @@
 package cmd
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"os"
-	"strings"
-	"time"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "os"
+    "strings"
+    "time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/federation"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
-	"github.com/google/uuid"
-	"github.com/spf13/cobra"
+    "github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+    "github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+    "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
+    "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
+    "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/federation"
+    "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/oauth2"
+    "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/saml"
+    "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/webauthn"
+    "github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+    "github.com/google/uuid"
+    "github.com/spf13/cobra"
 )
+
+type authLoggerAdapter struct {
+    base *logger.Logger
+}
+
+func (a *authLoggerAdapter) Info(msg string, keysAndValues ...interface{}) {
+    if a.base != nil {
+        a.base.Infow(msg, keysAndValues...)
+    }
+}
+
+func (a *authLoggerAdapter) Error(msg string, keysAndValues ...interface{}) {
+    if a.base != nil {
+        a.base.Errorw(msg, keysAndValues...)
+    }
+}
+
+func (a *authLoggerAdapter) Debug(msg string, keysAndValues ...interface{}) {
+    if a.base != nil {
+        a.base.Debugw(msg, keysAndValues...)
+    }
+}
+
+func adaptAuthLogger(l *logger.Logger) common.Logger {
+    if l == nil {
+        return nil
+    }
+    return &authLoggerAdapter{base: l}
+}
 
 // authCmd represents the auth command
 var authCmd = &cobra.Command{
-	Use:   "auth",
-	Short: "Test authentication and identity systems",
-	Long: `Comprehensive authentication security testing framework for modern authentication protocols.
+    Use:   "auth",
+    Short: "Test authentication and identity systems",
+    Long: `Comprehensive authentication security testing framework for modern authentication protocols.
 
 This command provides advanced testing capabilities for:
 - SAML (including Golden SAML attacks)
@@ -98,14 +127,14 @@ Examples:
 		}
 
 		// Also run legacy discovery for federation
-		crossAnalyzer := common.NewCrossProtocolAnalyzer(log)
+		crossAnalyzer := common.NewCrossProtocolAnalyzer(adaptAuthLogger(log))
 		legacyConfig, _ := crossAnalyzer.AnalyzeTarget(target)
 
 		domain := extractDomain(target)
 		httpClient := &http.Client{
 			Timeout: 30 * time.Second,
 		}
-		discoverer := federation.NewFederationDiscoverer(httpClient, log)
+		discoverer := federation.NewFederationDiscoverer(httpClient, adaptAuthLogger(log))
 		federationResult := discoverer.DiscoverAllProviders(domain)
 
 		// Create combined result
@@ -312,14 +341,14 @@ Examples:
 		)
 
 		// Analyze target for vulnerabilities
-		crossAnalyzer := common.NewCrossProtocolAnalyzer(log)
+		crossAnalyzer := common.NewCrossProtocolAnalyzer(adaptAuthLogger(log))
 		config, analyzeErr := crossAnalyzer.AnalyzeTarget(target)
 		if analyzeErr != nil {
 			return fmt.Errorf("target analysis failed: %w", analyzeErr)
 		}
 
 		// Find attack chains
-		chainAnalyzer := common.NewAuthChainAnalyzer(log)
+		chainAnalyzer := common.NewAuthChainAnalyzer(adaptAuthLogger(log))
 		chains := chainAnalyzer.FindBypassChains(config.Configuration, config.Vulnerabilities)
 
 		// Create result
@@ -473,22 +502,22 @@ type ChainSummary struct {
 // Test runner functions
 
 func runSAMLTests(target string, log *logger.Logger) (*common.AuthReport, error) {
-	scanner := saml.NewSAMLScanner(log)
+	scanner := saml.NewSAMLScanner(adaptAuthLogger(log))
 	return scanner.Scan(target, map[string]interface{}{})
 }
 
 func runOAuth2Tests(target string, log *logger.Logger) (*common.AuthReport, error) {
-	scanner := oauth2.NewOAuth2Scanner(log)
+	scanner := oauth2.NewOAuth2Scanner(adaptAuthLogger(log))
 	return scanner.Scan(target, map[string]interface{}{})
 }
 
 func runWebAuthnTests(target string, log *logger.Logger) (*common.AuthReport, error) {
-	scanner := webauthn.NewWebAuthnScanner(log)
+	scanner := webauthn.NewWebAuthnScanner(adaptAuthLogger(log))
 	return scanner.Scan(target, map[string]interface{}{})
 }
 
 func runAllTests(target string, log *logger.Logger) (*common.AuthReport, error) {
-	crossAnalyzer := common.NewCrossProtocolAnalyzer(log)
+	crossAnalyzer := common.NewCrossProtocolAnalyzer(adaptAuthLogger(log))
 	return crossAnalyzer.AnalyzeTarget(target)
 }
 

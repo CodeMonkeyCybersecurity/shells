@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/ai"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/ai"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // phaseReporting executes Phase 7: Reporting

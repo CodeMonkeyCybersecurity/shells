@@ -18,10 +18,12 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/rumble"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/integrations/rumble"
 )
 
 // RumbleModule integrates Rumble network discovery
@@ -29,6 +31,29 @@ type RumbleModule struct {
 	client  *rumble.Client
 	logger  *logger.Logger
 	enabled bool
+}
+
+// rumbleLoggerAdapter bridges *logger.Logger to the rumble.Logger interface
+type rumbleLoggerAdapter struct {
+	l *logger.Logger
+}
+
+func (a *rumbleLoggerAdapter) Info(msg string, keysAndValues ...interface{}) {
+	if a.l != nil {
+		a.l.Infow(msg, keysAndValues...)
+	}
+}
+
+func (a *rumbleLoggerAdapter) Error(msg string, keysAndValues ...interface{}) {
+	if a.l != nil {
+		a.l.Errorw(msg, keysAndValues...)
+	}
+}
+
+func (a *rumbleLoggerAdapter) Debug(msg string, keysAndValues ...interface{}) {
+	if a.l != nil {
+		a.l.Debugw(msg, keysAndValues...)
+	}
 }
 
 // RumbleConfig contains Rumble integration configuration
@@ -58,7 +83,12 @@ func NewRumbleModule(config RumbleConfig, log *logger.Logger) *RumbleModule {
 		MaxRetries: config.MaxRetries,
 	}
 
-	client := rumble.NewClient(rumbleConfig, log)
+	var rumbleLog rumble.Logger
+	if log != nil {
+		rumbleLog = &rumbleLoggerAdapter{l: log}
+	}
+
+	client := rumble.NewClient(rumbleConfig, rumbleLog)
 
 	log.Infow("Rumble discovery module initialized",
 		"enabled", true,
@@ -83,21 +113,37 @@ func (m *RumbleModule) IsEnabled() bool {
 }
 
 // Discover performs Rumble-based asset discovery
-func (m *RumbleModule) Discover(ctx context.Context, target string) ([]*Asset, error) {
+func (m *RumbleModule) Discover(ctx context.Context, target *Target, session *DiscoverySession) (*DiscoveryResult, error) {
 	if !m.enabled {
 		m.logger.Debugw("Rumble module disabled - skipping")
 		return nil, nil
 	}
 
+	if target == nil {
+		return nil, fmt.Errorf("nil discovery target provided to rumble module")
+	}
+
+	targetValue := strings.TrimSpace(target.Value)
+	sessionID := ""
+	if session != nil {
+		sessionID = session.ID
+	}
+
 	m.logger.Infow("Starting Rumble network discovery",
-		"target", target,
+		"target", targetValue,
+		"target_type", target.Type,
+		"session_id", sessionID,
 		"module", m.Name(),
 	)
 
 	start := time.Now()
 
-	// Query Rumble for assets in the target range
-	rumbleAssets, err := m.client.QueryAssets(ctx, target)
+	filters := map[string]string{}
+	if targetValue != "" {
+		filters["search"] = targetValue
+	}
+
+	rumbleAssets, err := m.client.GetAssets(ctx, filters)
 	if err != nil {
 		return nil, fmt.Errorf("rumble asset query failed: %w", err)
 	}
@@ -105,14 +151,21 @@ func (m *RumbleModule) Discover(ctx context.Context, target string) ([]*Asset, e
 	// Convert Rumble assets to Artemis asset format
 	assets := m.convertRumbleAssets(rumbleAssets)
 
-	duration := time.Since(start)
+	result := &DiscoveryResult{
+		Source:        m.Name(),
+		Assets:        assets,
+		Relationships: []*Relationship{},
+		Duration:      time.Since(start),
+	}
+
 	m.logger.Infow("Rumble discovery completed",
-		"target", target,
+		"target", targetValue,
+		"session_id", sessionID,
 		"assets_discovered", len(assets),
-		"duration", duration.String(),
+		"duration", result.Duration.String(),
 	)
 
-	return assets, nil
+	return result, nil
 }
 
 // convertRumbleAssets converts Rumble assets to Artemis asset format
@@ -122,37 +175,37 @@ func (m *RumbleModule) convertRumbleAssets(rumbleAssets []rumble.Asset) []*Asset
 	for _, ra := range rumbleAssets {
 		// Create asset for the host itself
 		asset := &Asset{
-			Type:        AssetTypeIPAddress,
-			Value:       ra.Address,
-			Source:      "rumble",
-			Confidence:  95, // Rumble provides high-confidence data
+			Type:         AssetTypeIP,
+			Value:        ra.Address,
+			Source:       "rumble",
+			Confidence:   0.95, // Rumble provides high-confidence data
 			DiscoveredAt: time.Now(),
-			Metadata: map[string]interface{}{
-				"rumble_id":   ra.ID,
-				"os":          ra.OS,
-				"hostname":    ra.Hostname,
-				"mac":         ra.NetworkInfo.MAC,
-				"vendor":      ra.NetworkInfo.Vendor,
-				"first_seen":  ra.FirstSeen,
-				"last_seen":   ra.LastSeen,
-				"alive":       ra.Alive,
-				"tags":        ra.Tags,
+			Metadata: map[string]string{
+				"rumble_id":  ra.ID,
+				"os":         ra.OS,
+				"hostname":   ra.Hostname,
+				"mac":        ra.NetworkInfo.MAC,
+				"vendor":     ra.NetworkInfo.Vendor,
+				"first_seen": ra.FirstSeen.Format(time.RFC3339),
+				"last_seen":  ra.LastSeen.Format(time.RFC3339),
+				"alive":      strconv.FormatBool(ra.Alive),
+				"tags":       strings.Join(ra.Tags, ","),
 			},
 		}
 
 		// Add hostname as separate asset if available
 		if ra.Hostname != "" {
 			assets = append(assets, &Asset{
-				Type:        AssetTypeDomain,
-				Value:       ra.Hostname,
-				Source:      "rumble",
-				Confidence:  90,
+				Type:         AssetTypeDomain,
+				Value:        ra.Hostname,
+				Source:       "rumble",
+				Confidence:   0.9,
 				DiscoveredAt: time.Now(),
-				Metadata: map[string]interface{}{
-					"rumble_id":       ra.ID,
-					"ip_address":      ra.Address,
-					"os":              ra.OS,
-					"source":          "rumble_hostname",
+				Metadata: map[string]string{
+					"rumble_id":  ra.ID,
+					"ip_address": ra.Address,
+					"os":         ra.OS,
+					"source":     "rumble_hostname",
 				},
 			})
 		}
@@ -160,15 +213,15 @@ func (m *RumbleModule) convertRumbleAssets(rumbleAssets []rumble.Asset) []*Asset
 		// Add DNS names as separate assets
 		for _, dnsName := range ra.NetworkInfo.DNSNames {
 			assets = append(assets, &Asset{
-				Type:        AssetTypeDomain,
-				Value:       dnsName,
-				Source:      "rumble",
-				Confidence:  85,
+				Type:         AssetTypeDomain,
+				Value:        dnsName,
+				Source:       "rumble",
+				Confidence:   0.85,
 				DiscoveredAt: time.Now(),
-				Metadata: map[string]interface{}{
-					"rumble_id":       ra.ID,
-					"ip_address":      ra.Address,
-					"source":          "rumble_dns",
+				Metadata: map[string]string{
+					"rumble_id":  ra.ID,
+					"ip_address": ra.Address,
+					"source":     "rumble_dns",
 				},
 			})
 		}
@@ -176,13 +229,13 @@ func (m *RumbleModule) convertRumbleAssets(rumbleAssets []rumble.Asset) []*Asset
 		// Convert services to assets
 		for _, svc := range ra.Services {
 			serviceAsset := &Asset{
-				Type:        AssetTypeService,
-				Value:       fmt.Sprintf("%s:%d/%s", ra.Address, svc.Port, svc.Protocol),
-				Source:      "rumble",
-				Confidence:  int(svc.Confidence),
+				Type:         AssetTypeService,
+				Value:        fmt.Sprintf("%s:%d/%s", ra.Address, svc.Port, svc.Protocol),
+				Source:       "rumble",
+				Confidence:   svc.Confidence,
 				DiscoveredAt: time.Now(),
-				Metadata: map[string]interface{}{
-					"port":      svc.Port,
+				Metadata: map[string]string{
+					"port":      strconv.Itoa(svc.Port),
 					"protocol":  svc.Protocol,
 					"service":   svc.Service,
 					"product":   svc.Product,
@@ -194,27 +247,25 @@ func (m *RumbleModule) convertRumbleAssets(rumbleAssets []rumble.Asset) []*Asset
 
 			// Add certificate information if available
 			if svc.Certificate != nil {
-				serviceAsset.Metadata["certificate"] = map[string]interface{}{
-					"subject":       svc.Certificate.Subject,
-					"issuer":        svc.Certificate.Issuer,
-					"not_before":    svc.Certificate.NotBefore,
-					"not_after":     svc.Certificate.NotAfter,
-					"serial_number": svc.Certificate.SerialNumber,
-					"san_dns":       svc.Certificate.SANs,
-				}
+				serviceAsset.Metadata["cert_subject"] = svc.Certificate.Subject
+				serviceAsset.Metadata["cert_issuer"] = svc.Certificate.Issuer
+				serviceAsset.Metadata["cert_not_before"] = svc.Certificate.NotBefore.Format(time.RFC3339)
+				serviceAsset.Metadata["cert_not_after"] = svc.Certificate.NotAfter.Format(time.RFC3339)
+				serviceAsset.Metadata["cert_serial"] = svc.Certificate.SerialNumber
+				serviceAsset.Metadata["cert_sans"] = strings.Join(svc.Certificate.SubjectAltName, ",")
 
 				// Add SAN DNS names as separate domain assets
-				for _, san := range svc.Certificate.SANs {
+				for _, san := range svc.Certificate.SubjectAltName {
 					assets = append(assets, &Asset{
-						Type:        AssetTypeDomain,
-						Value:       san,
-						Source:      "rumble",
-						Confidence:  80,
+						Type:         AssetTypeDomain,
+						Value:        san,
+						Source:       "rumble",
+						Confidence:   0.8,
 						DiscoveredAt: time.Now(),
-						Metadata: map[string]interface{}{
+						Metadata: map[string]string{
 							"source":     "rumble_certificate_san",
 							"ip_address": ra.Address,
-							"port":       svc.Port,
+							"port":       strconv.Itoa(svc.Port),
 							"rumble_id":  ra.ID,
 						},
 					})
@@ -229,6 +280,20 @@ func (m *RumbleModule) convertRumbleAssets(rumbleAssets []rumble.Asset) []*Asset
 	}
 
 	return assets
+}
+
+// CanHandle determines if this module should process the provided discovery target
+func (m *RumbleModule) CanHandle(target *Target) bool {
+	if !m.enabled || target == nil {
+		return false
+	}
+
+	switch target.Type {
+	case TargetTypeIP, TargetTypeIPRange, TargetTypeNetwork, TargetTypeDomain, TargetTypeSubdomain:
+		return true
+	default:
+		return false
+	}
 }
 
 // Priority returns the module's execution priority (lower = earlier)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/validation"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/validation"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	authdiscovery "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	authdiscovery "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,14 +21,25 @@ import (
 
 // mockResultStore is a mock implementation of core.ResultStore
 type mockResultStore struct {
-	saveScanCalled     bool
-	updateScanCalled   bool
-	saveFindingsCalled bool
-	savedFindings      []types.Finding
-	scanID             string
-	err                error
-	returnScan         *types.ScanRequest
-	returnFindings     []types.Finding
+	saveScanCalled       bool
+	updateScanCalled     bool
+	saveFindingsCalled   bool
+	savedFindings        []types.Finding
+	scanID               string
+	err                  error
+	returnScan           *types.ScanRequest
+	returnFindings       []types.Finding
+	savedCorrelation     map[string][]types.CorrelationResult
+	savedCorrelationType map[string][]types.CorrelationResult
+}
+
+func (m *mockResultStore) ensureCorrelationMaps() {
+	if m.savedCorrelation == nil {
+		m.savedCorrelation = make(map[string][]types.CorrelationResult)
+	}
+	if m.savedCorrelationType == nil {
+		m.savedCorrelationType = make(map[string][]types.CorrelationResult)
+	}
 }
 
 func (m *mockResultStore) SaveScan(ctx context.Context, scan *types.ScanRequest) error {
@@ -87,6 +98,61 @@ func (m *mockResultStore) GetSummary(ctx context.Context, scanID string) (*types
 
 func (m *mockResultStore) SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error {
 	return m.err
+}
+
+func (m *mockResultStore) UpdateFindingStatus(ctx context.Context, findingID string, status types.FindingStatus) error {
+	return m.err
+}
+
+func (m *mockResultStore) MarkFindingVerified(ctx context.Context, findingID string, verified bool) error {
+	return m.err
+}
+
+func (m *mockResultStore) MarkFindingFalsePositive(ctx context.Context, findingID string, falsePositive bool) error {
+	return m.err
+}
+
+func (m *mockResultStore) GetRegressions(ctx context.Context, limit int) ([]types.Finding, error) {
+	return m.returnFindings, m.err
+}
+
+func (m *mockResultStore) GetVulnerabilityTimeline(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	return m.returnFindings, m.err
+}
+
+func (m *mockResultStore) GetFindingsByFingerprint(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	return m.returnFindings, m.err
+}
+
+func (m *mockResultStore) GetNewFindings(ctx context.Context, sinceDate time.Time) ([]types.Finding, error) {
+	return m.returnFindings, m.err
+}
+
+func (m *mockResultStore) GetFixedFindings(ctx context.Context, limit int) ([]types.Finding, error) {
+	return m.returnFindings, m.err
+}
+
+func (m *mockResultStore) SaveCorrelationResults(ctx context.Context, results []types.CorrelationResult) error {
+	m.ensureCorrelationMaps()
+	if len(results) == 0 {
+		return m.err
+	}
+	scanID := results[0].ScanID
+	m.savedCorrelation[scanID] = append(m.savedCorrelation[scanID], results...)
+	for _, res := range results {
+		m.savedCorrelationType[res.InsightType] = append(m.savedCorrelationType[res.InsightType], res)
+	}
+	return m.err
+}
+
+func (m *mockResultStore) GetCorrelationResults(ctx context.Context, scanID string) ([]types.CorrelationResult, error) {
+	m.ensureCorrelationMaps()
+	return m.savedCorrelation[scanID], m.err
+}
+
+func (m *mockResultStore) GetCorrelationResultsByType(ctx context.Context, insightType string) ([]types.CorrelationResult, error) {
+	m.ensureCorrelationMaps()
+	return m.savedCorrelationType[insightType], m.err
 }
 
 func (m *mockResultStore) Close() error {
@@ -474,10 +540,10 @@ func TestConvertAuthInventoryToFindings_WebAuth(t *testing.T) {
 		WebAuth: &authdiscovery.WebAuthMethods{
 			FormLogin: []authdiscovery.FormLoginEndpoint{
 				{
-					URL:            "https://example.com/login",
-					Method:         "POST",
-					UsernameField:  "username",
-					PasswordField:  "password",
+					URL:           "https://example.com/login",
+					Method:        "POST",
+					UsernameField: "username",
+					PasswordField: "password",
 				},
 			},
 		},

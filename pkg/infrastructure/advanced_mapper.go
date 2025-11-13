@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // AdvancedInfrastructureMapper provides comprehensive infrastructure discovery

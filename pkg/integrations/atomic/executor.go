@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/security"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/nomad"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/security"
 )
 
 // AtomicExecutor handles safe execution of atomic tests

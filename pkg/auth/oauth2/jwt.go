@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )
 
 // JWTAnalyzer performs advanced JWT/JWS/JWE analysis

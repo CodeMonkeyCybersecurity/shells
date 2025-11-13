@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )
 
 // mockLogger implements common.Logger for testing

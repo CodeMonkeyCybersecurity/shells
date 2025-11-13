@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/adapters"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/protocol"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/adapters"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/protocol"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/spf13/cobra"
 )
 

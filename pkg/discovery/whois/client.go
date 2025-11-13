@@ -3,7 +3,7 @@ package whois
 import (
 	"context"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"io"
 	"net"
 	"net/http"
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 	"github.com/likexian/whois"
 	whoisparser "github.com/likexian/whois-parser"
 )

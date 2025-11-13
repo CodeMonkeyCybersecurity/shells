@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/oauth2"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/spf13/cobra"
 )
 

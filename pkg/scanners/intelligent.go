@@ -4,7 +4,7 @@ package scanner
 import (
 	"context"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net"
 	"net/http"
 	"sort"
@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/passive"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/passive"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // IntelligentScanner uses passive intelligence to guide active scanning

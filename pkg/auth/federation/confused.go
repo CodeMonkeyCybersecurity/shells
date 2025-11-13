@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )
 
 // FederationAnalyzer analyzes federation vulnerabilities

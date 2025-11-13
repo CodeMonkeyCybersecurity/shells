@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // Scanner provides favicon scanning and technology identification

@@ -9,7 +9,7 @@ package orchestrator
 import (
 	"testing"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/scope"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scope"
 )
 
 // TestPlatformIntegrationDisabledWhenNilManager validates behavior with nil scope manager

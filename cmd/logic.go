@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic/core"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic/payments"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic/recovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic/payments"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic/recovery"
 	"github.com/spf13/cobra"
 )
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/nomad"
 	"github.com/spf13/cobra"
 )
 

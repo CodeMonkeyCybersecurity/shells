@@ -75,10 +75,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 type sqlStore struct {
@@ -794,7 +794,7 @@ func (s *sqlStore) batchCheckDuplicateFindings(ctx context.Context, tx *sqlx.Tx,
 	var args []interface{}
 
 	// PostgreSQL uses ANY($1) with array parameter
-	if s.cfg.Type == "postgres" {
+	if s.cfg.Driver == "postgres" {
 		query = `
 			SELECT DISTINCT ON (fingerprint)
 				fingerprint, first_scan_id, scan_id, status
@@ -1301,8 +1301,9 @@ func (s *sqlStore) UpdateFindingStatus(ctx context.Context, findingID string, st
 		"finding_id", findingID,
 		"status", status,
 	)
+	start := time.Now()
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.UpdateFindingStatus", start, err) }()
 
 	query := fmt.Sprintf(`
 		UPDATE findings
@@ -1338,8 +1339,9 @@ func (s *sqlStore) MarkFindingVerified(ctx context.Context, findingID string, ve
 		"finding_id", findingID,
 		"verified", verified,
 	)
+	start := time.Now()
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.MarkFindingVerified", start, err) }()
 
 	query := fmt.Sprintf(`
 		UPDATE findings
@@ -1375,8 +1377,9 @@ func (s *sqlStore) MarkFindingFalsePositive(ctx context.Context, findingID strin
 		"finding_id", findingID,
 		"false_positive", falsePositive,
 	)
+	start := time.Now()
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.MarkFindingFalsePositive", start, err) }()
 
 	query := fmt.Sprintf(`
 		UPDATE findings
@@ -1412,7 +1415,8 @@ func (s *sqlStore) GetRegressions(ctx context.Context, limit int) ([]types.Findi
 		"limit", limit,
 	)
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	start := time.Now()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.GetRegressions", start, err) }()
 
 	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
@@ -1440,7 +1444,8 @@ func (s *sqlStore) GetVulnerabilityTimeline(ctx context.Context, fingerprint str
 		"fingerprint", fingerprint,
 	)
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	start := time.Now()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.GetVulnerabilityTimeline", start, err) }()
 
 	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
@@ -1467,7 +1472,8 @@ func (s *sqlStore) GetFindingsByFingerprint(ctx context.Context, fingerprint str
 		"fingerprint", fingerprint,
 	)
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	start := time.Now()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.GetFindingsByFingerprint", start, err) }()
 
 	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
@@ -1494,7 +1500,8 @@ func (s *sqlStore) GetNewFindings(ctx context.Context, sinceDate time.Time) ([]t
 		"since_date", sinceDate,
 	)
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	start := time.Now()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.GetNewFindings", start, err) }()
 
 	// Get findings where first_scan_id's created_at is after sinceDate
 	query := fmt.Sprintf(`
@@ -1528,7 +1535,8 @@ func (s *sqlStore) GetFixedFindings(ctx context.Context, limit int) ([]types.Fin
 		"limit", limit,
 	)
 	var err error
-	defer func() { s.logger.EndOperation(ctx, span, err) }()
+	start := time.Now()
+	defer func() { s.logger.FinishOperation(ctx, span, "database.GetFixedFindings", start, err) }()
 
 	query := fmt.Sprintf(`
 		SELECT id, scan_id, tool, type, severity, title, description,
@@ -2150,18 +2158,18 @@ func (s *sqlStore) SaveCorrelationResults(ctx context.Context, results []types.C
 		}
 
 		args := map[string]interface{}{
-			"id":                result.ID,
-			"scan_id":           result.ScanID,
-			"insight_type":      result.InsightType,
-			"severity":          result.Severity,
-			"title":             result.Title,
-			"description":       result.Description,
-			"confidence":        result.Confidence,
-			"related_findings":  string(relatedFindingsJSON),
-			"attack_path":       string(attackPathJSON),
-			"metadata":          string(metadataJSON),
-			"created_at":        result.CreatedAt,
-			"updated_at":        result.UpdatedAt,
+			"id":               result.ID,
+			"scan_id":          result.ScanID,
+			"insight_type":     result.InsightType,
+			"severity":         result.Severity,
+			"title":            result.Title,
+			"description":      result.Description,
+			"confidence":       result.Confidence,
+			"related_findings": string(relatedFindingsJSON),
+			"attack_path":      string(attackPathJSON),
+			"metadata":         string(metadataJSON),
+			"created_at":       result.CreatedAt,
+			"updated_at":       result.UpdatedAt,
 		}
 
 		queryStart := time.Now()

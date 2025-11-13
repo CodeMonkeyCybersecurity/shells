@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scim"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/spf13/cobra"
 )
 

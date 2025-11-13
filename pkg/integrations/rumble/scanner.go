@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // Scanner implements the rumble scanner for shells

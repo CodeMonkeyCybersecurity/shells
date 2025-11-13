@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // DnsxModule wraps ProjectDiscovery's dnsx for DNS enumeration

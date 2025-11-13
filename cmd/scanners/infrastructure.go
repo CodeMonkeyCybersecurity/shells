@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"time"
 
-	nomadpkg "github.com/CodeMonkeyCybersecurity/shells/cmd/nomad"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	nomadpkg "github.com/CodeMonkeyCybersecurity/artemis/cmd/nomad"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/nomad"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // GetNomadClient returns a Nomad client and whether Nomad is available

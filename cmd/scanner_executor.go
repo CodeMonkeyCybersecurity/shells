@@ -7,15 +7,89 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/utils"
-	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/plugins/oauth2"
-	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/api"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/mail"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/cmd/scanners"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	authpkg "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/utils"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scanners/api"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scanners/mail"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
+
+type structuredLoggerAdapter struct {
+	base *logger.Logger
+}
+
+func convertSeverity(sev string) types.Severity {
+	switch strings.ToLower(sev) {
+	case "critical":
+		return types.SeverityCritical
+	case "high":
+		return types.SeverityHigh
+	case "medium":
+		return types.SeverityMedium
+	case "low":
+		return types.SeverityLow
+	default:
+		return types.SeverityInfo
+	}
+}
+
+func (a *structuredLoggerAdapter) Info(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Infow(msg, keysAndValues...)
+	}
+}
+
+func (a *structuredLoggerAdapter) Infow(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Infow(msg, keysAndValues...)
+	}
+}
+
+func (a *structuredLoggerAdapter) Debug(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Debugw(msg, keysAndValues...)
+	}
+}
+
+func (a *structuredLoggerAdapter) Debugw(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Debugw(msg, keysAndValues...)
+	}
+}
+
+func (a *structuredLoggerAdapter) Warn(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Warnw(msg, keysAndValues...)
+	}
+}
+
+func (a *structuredLoggerAdapter) Warnw(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Warnw(msg, keysAndValues...)
+	}
+}
+
+func (a *structuredLoggerAdapter) Error(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Errorw(msg, keysAndValues...)
+	}
+}
+
+func (a *structuredLoggerAdapter) Errorw(msg string, keysAndValues ...interface{}) {
+	if a.base != nil {
+		a.base.Errorw(msg, keysAndValues...)
+	}
+}
+
+func adaptStructuredLogger(l *logger.Logger) *structuredLoggerAdapter {
+	if l == nil {
+		return nil
+	}
+	return &structuredLoggerAdapter{base: l}
+}
 
 // executeRecommendedScanners executes the scanners recommended by the intelligent selector
 // FIXME: This function needs major optimization for bug bounty
@@ -185,24 +259,20 @@ func executeAuthScanner(ctx context.Context, rec discovery.ScannerRecommendation
 func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.ScannerRecommendation) error {
 	log.Infow("Executing comprehensive auth scanner locally",
 		"target", target,
-		"args", rec.Arguments)
+		"args", rec.Arguments,
+	)
 
-	// Import the auth discovery package
 	authDiscovery := authpkg.NewComprehensiveAuthDiscovery(log)
 
-	// Run comprehensive auth discovery
 	inventory, err := authDiscovery.DiscoverAll(ctx, target)
 	if err != nil {
 		log.Errorw("Auth discovery failed", "error", err, "target", target)
 		return err
 	}
 
-	// Convert inventory to findings
 	var findings []types.Finding
 
-	// Network authentication findings
 	if inventory.NetworkAuth != nil {
-		// LDAP findings
 		for _, ldap := range inventory.NetworkAuth.LDAP {
 			findings = append(findings, types.Finding{
 				ID:          fmt.Sprintf("auth-ldap-%s-%d", ldap.Host, time.Now().Unix()),
@@ -218,7 +288,6 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 			})
 		}
 
-		// Add findings for other network auth methods
 		if len(inventory.NetworkAuth.Kerberos) > 0 {
 			findings = append(findings, types.Finding{
 				ID:          fmt.Sprintf("auth-kerberos-%d", time.Now().Unix()),
@@ -235,9 +304,7 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 		}
 	}
 
-	// Web authentication findings
 	if inventory.WebAuth != nil {
-		// Form login findings
 		for _, form := range inventory.WebAuth.FormLogin {
 			findings = append(findings, types.Finding{
 				ID:          fmt.Sprintf("auth-form-%d", time.Now().Unix()),
@@ -253,7 +320,6 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 			})
 		}
 
-		// OAuth2/OIDC findings
 		if len(inventory.WebAuth.OAuth2) > 0 || len(inventory.WebAuth.OIDC) > 0 {
 			findings = append(findings, types.Finding{
 				ID:          fmt.Sprintf("auth-oauth-%d", time.Now().Unix()),
@@ -268,24 +334,8 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 				UpdatedAt:   time.Now(),
 			})
 		}
-
-		// Run advanced OAuth2 security tests if OAuth2 endpoints detected
-		if len(inventory.WebAuth.OAuth2) > 0 {
-			log.Infow("OAuth2 endpoints detected - running advanced OAuth2 security tests",
-				"endpoint_count", len(inventory.WebAuth.OAuth2),
-				"target", target)
-
-			oauth2Findings := runAdvancedOAuth2Tests(ctx, target, inventory.WebAuth.OAuth2)
-			if len(oauth2Findings) > 0 {
-				log.Infow("Advanced OAuth2 tests completed",
-					"vulnerabilities_found", len(oauth2Findings),
-					"target", target)
-				findings = append(findings, oauth2Findings...)
-			}
-		}
 	}
 
-	// Custom authentication findings
 	for _, custom := range inventory.CustomAuth {
 		findings = append(findings, types.Finding{
 			ID:          fmt.Sprintf("auth-custom-%s-%d", custom.Type, time.Now().Unix()),
@@ -301,7 +351,6 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 		})
 	}
 
-	// Save all findings
 	if store != nil && len(findings) > 0 {
 		if err := store.SaveFindings(ctx, findings); err != nil {
 			log.Errorw("Failed to save auth findings", "error", err)
@@ -313,72 +362,9 @@ func executeAuthScannerLocal(ctx context.Context, target string, rec discovery.S
 	return nil
 }
 
-// runAdvancedOAuth2Tests runs comprehensive OAuth2 security tests against discovered endpoints
-func runAdvancedOAuth2Tests(ctx context.Context, target string, oauth2Endpoints []authpkg.OAuth2Endpoint) []types.Finding {
-	// Import OAuth2 scanner from internal/plugins/oauth2
-	oauth2Scanner := oauth2.NewScanner(log)
-
-	var allFindings []types.Finding
-
-	for i, endpoint := range oauth2Endpoints {
-		log.Debugw("Testing OAuth2 endpoint",
-			"endpoint_index", i+1,
-			"total_endpoints", len(oauth2Endpoints),
-			"authorize_url", endpoint.AuthorizeURL,
-			"token_url", endpoint.TokenURL)
-
-		// Build scanner options from discovered endpoint
-		options := map[string]string{
-			"auth_url":    endpoint.AuthorizeURL,
-			"token_url":   endpoint.TokenURL,
-			"scopes":      "",
-			"client_id":   endpoint.ClientID,
-			"redirect_uri": target + "/callback", // Default redirect URI
-		}
-
-		if endpoint.UserInfoURL != "" {
-			options["userinfo_url"] = endpoint.UserInfoURL
-		}
-
-		if len(endpoint.Scopes) > 0 {
-			options["scopes"] = strings.Join(endpoint.Scopes, " ")
-		}
-
-		// Run OAuth2 security tests
-		findings, err := oauth2Scanner.Scan(ctx, target, options)
-		if err != nil {
-			log.Warnw("OAuth2 security tests failed",
-				"error", err,
-				"endpoint", endpoint.AuthorizeURL)
-			continue
-		}
-
-		// Enrich findings with timing metadata
-		now := time.Now()
-		for i := range findings {
-			findings[i].CreatedAt = now
-			findings[i].UpdatedAt = now
-			findings[i].ScanID = fmt.Sprintf("scan-%d", now.Unix())
-
-			// Add OAuth2 endpoint context to findings
-			if findings[i].Metadata == nil {
-				findings[i].Metadata = make(map[string]interface{})
-			}
-			findings[i].Metadata["oauth2_authorize_url"] = endpoint.AuthorizeURL
-			findings[i].Metadata["oauth2_token_url"] = endpoint.TokenURL
-			findings[i].Metadata["pkce_supported"] = endpoint.PKCE
-		}
-
-		allFindings = append(allFindings, findings...)
-	}
-
-	return allFindings
-}
-
 func executeSCIMScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running SCIM security tests")
 
-	// Would execute actual SCIM scanner
 	for _, target := range rec.Targets {
 		log.Debugw("Executing SCIM scanner", "target", target)
 	}
@@ -389,7 +375,6 @@ func executeSCIMScanner(ctx context.Context, rec discovery.ScannerRecommendation
 func executeSmugglingScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running HTTP request smuggling tests")
 
-	// Would execute actual smuggling scanner
 	for _, target := range rec.Targets {
 		log.Debugw("Executing smuggling scanner", "target", target)
 	}
@@ -397,7 +382,6 @@ func executeSmugglingScanner(ctx context.Context, rec discovery.ScannerRecommend
 	return nil
 }
 
-// executeMailScanner executes mail server security tests
 func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running mail server security tests",
 		"targets", rec.Targets,
@@ -405,7 +389,7 @@ func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation
 	)
 
 	// Create mail scanner instance
-	mailScanner := mail.NewScanner(log, 30*time.Second)
+	mailScanner := mail.NewScanner(adaptStructuredLogger(log), 30*time.Second)
 
 	var allFindings []types.Finding
 
@@ -427,24 +411,24 @@ func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation
 				ID:          fmt.Sprintf("mail-%s-%s-%d", mailFinding.Service, mailFinding.VulnerabilityType, time.Now().Unix()),
 				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
 				Type:        fmt.Sprintf("Mail_%s", mailFinding.VulnerabilityType),
-				Severity:    mailFinding.Severity,
+				Severity:    convertSeverity(mailFinding.Severity),
 				Title:       mailFinding.Title,
 				Description: mailFinding.Description,
 				Evidence:    mailFinding.Evidence,
 				Tool:        "mail-scanner",
-				Remediation: mailFinding.Remediation,
+				Solution:    mailFinding.Remediation,
 				CreatedAt:   time.Now(),
 				UpdatedAt:   time.Now(),
 				Metadata: map[string]interface{}{
-					"mail_host":      mailFinding.Host,
-					"mail_port":      mailFinding.Port,
-					"mail_service":   mailFinding.Service,
-					"tls_supported":  mailFinding.TLSSupported,
-					"spf_record":     mailFinding.SPFRecord,
-					"dmarc_record":   mailFinding.DMARCRecord,
-					"dkim_present":   mailFinding.DKIMPresent,
-					"banner":         mailFinding.Banner,
-					"capabilities":   mailFinding.Capabilities,
+					"mail_host":     mailFinding.Host,
+					"mail_port":     mailFinding.Port,
+					"mail_service":  mailFinding.Service,
+					"tls_supported": mailFinding.TLSSupported,
+					"spf_record":    mailFinding.SPFRecord,
+					"dmarc_record":  mailFinding.DMARCRecord,
+					"dkim_present":  mailFinding.DKIMPresent,
+					"banner":        mailFinding.Banner,
+					"capabilities":  mailFinding.Capabilities,
 				},
 			}
 
@@ -469,7 +453,6 @@ func executeMailScanner(ctx context.Context, rec discovery.ScannerRecommendation
 	return nil
 }
 
-// executeAPIScanner executes API security tests (REST and GraphQL)
 func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation) error {
 	log.Infow("Running API security tests",
 		"targets", rec.Targets,
@@ -477,7 +460,7 @@ func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation)
 	)
 
 	// Create API scanner instance
-	apiScanner := api.NewScanner(log, 60*time.Second)
+	apiScanner := api.NewScanner(adaptStructuredLogger(log), 60*time.Second)
 
 	var allFindings []types.Finding
 
@@ -499,23 +482,23 @@ func executeAPIScanner(ctx context.Context, rec discovery.ScannerRecommendation)
 				ID:          fmt.Sprintf("api-%s-%s-%d", apiFinding.APIType, apiFinding.VulnerabilityType, time.Now().Unix()),
 				ScanID:      fmt.Sprintf("scan-%d", time.Now().Unix()),
 				Type:        fmt.Sprintf("API_%s", apiFinding.VulnerabilityType),
-				Severity:    apiFinding.Severity,
+				Severity:    convertSeverity(apiFinding.Severity),
 				Title:       apiFinding.Title,
 				Description: apiFinding.Description,
 				Evidence:    apiFinding.Evidence,
 				Tool:        "api-scanner",
-				Remediation: apiFinding.Remediation,
+				Solution:    apiFinding.Remediation,
 				CreatedAt:   time.Now(),
 				UpdatedAt:   time.Now(),
 				Metadata: map[string]interface{}{
-					"api_endpoint":       apiFinding.Endpoint,
-					"api_type":           apiFinding.APIType,
-					"http_method":        apiFinding.Method,
-					"http_status_code":   apiFinding.StatusCode,
-					"authentication":     apiFinding.Authentication,
-					"request_body":       apiFinding.RequestBody,
-					"response_body":      apiFinding.ResponseBody,
-					"exploit_payload":    apiFinding.ExploitPayload,
+					"api_endpoint":     apiFinding.Endpoint,
+					"api_type":         apiFinding.APIType,
+					"http_method":      apiFinding.Method,
+					"http_status_code": apiFinding.StatusCode,
+					"authentication":   apiFinding.Authentication,
+					"request_body":     apiFinding.RequestBody,
+					"response_body":    apiFinding.ResponseBody,
+					"exploit_payload":  apiFinding.ExploitPayload,
 				},
 			}
 

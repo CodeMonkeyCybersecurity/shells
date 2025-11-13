@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	authdiscovery "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/secrets"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	authdiscovery "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scanners/secrets"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 func TestConvertSecretFindings(t *testing.T) {

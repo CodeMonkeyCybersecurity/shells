@@ -6,11 +6,11 @@
 package cmd
 
 import (
-	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/display"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/helpers"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/display"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/helpers"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // Re-export display functions from pkg/cli/display

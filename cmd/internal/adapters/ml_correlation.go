@@ -3,11 +3,11 @@ package adapters
 import (
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/ml"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/ml"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // MLHistoryStore adapts core.ResultStore for ML package usage.

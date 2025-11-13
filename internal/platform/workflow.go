@@ -5,26 +5,33 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/aws"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/azure"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/bugcrowd"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/hackerone"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/aws"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/azure"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/bugcrowd"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/hackerone"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // WorkflowManager handles automated platform submission workflows
 type WorkflowManager struct {
 	config    *config.Config
 	platforms map[string]platforms.Platform
+	log       *logger.Logger
 }
 
 // NewWorkflowManager creates a new workflow manager
-func NewWorkflowManager(cfg *config.Config) *WorkflowManager {
+func NewWorkflowManager(cfg *config.Config, log *logger.Logger) *WorkflowManager {
+	if log == nil {
+		log, _ = logger.New(cfg.Logger)
+	}
+
 	wm := &WorkflowManager{
 		config:    cfg,
 		platforms: make(map[string]platforms.Platform),
+		log:       log,
 	}
 
 	// Initialize enabled platforms
@@ -38,7 +45,9 @@ func NewWorkflowManager(cfg *config.Config) *WorkflowManager {
 		wm.platforms["aws"] = aws.NewClient(cfg.Platforms.AWS)
 	}
 	if cfg.Platforms.Azure.Enabled {
-		wm.platforms["azure"] = azure.NewClient(cfg.Platforms.Azure)
+		emailCfg := cfg.Email
+		azureLog := wm.log.WithComponent("azure-platform")
+		wm.platforms["azure"] = azure.NewClient(cfg.Platforms.Azure, &emailCfg, azureLog)
 	}
 
 	return wm

@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 type Scanner interface {

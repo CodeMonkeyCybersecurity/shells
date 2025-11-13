@@ -368,7 +368,7 @@ artemis uses **otelzap** (OpenTelemetry + Zap) for ALL output, including user-fa
 Every package should initialize a logger with a component name:
 
 ```go
-import "github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+import "github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 
 // In main/command functions
 log, err := logger.New(cfg.Logger)

@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/atomic"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/integrations/atomic"
 	"github.com/spf13/cobra"
 )
 

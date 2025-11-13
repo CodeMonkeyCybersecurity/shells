@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/workflow"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/workflow"
 	"github.com/spf13/cobra"
 )
 

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // SubfinderModule wraps ProjectDiscovery's subfinder for subdomain enumeration

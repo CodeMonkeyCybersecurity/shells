@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // SmartDiscovery implements intelligent attack surface discovery

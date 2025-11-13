@@ -3,8 +3,8 @@ package discovery
 import (
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // TargetType represents the type of input target

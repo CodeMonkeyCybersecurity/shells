@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/hackerone"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/hackerone"
 )
 
 // Client implements the AWS Vulnerability Research Program client

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/database"
 	"github.com/spf13/cobra"
 )
 

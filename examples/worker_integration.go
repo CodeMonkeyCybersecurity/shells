@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/workers"
 )
 
 func main() {

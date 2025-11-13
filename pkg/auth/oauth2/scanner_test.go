@@ -1,18 +1,15 @@
 package oauth2
 
 import (
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )
 
 // mockLogger implements common.Logger for testing
@@ -143,7 +140,7 @@ func TestOAuth2Scan_JWTAlgorithmConfusion(t *testing.T) {
 					found := false
 					for _, vuln := range report.Vulnerabilities {
 						if strings.Contains(vuln.Title, tt.vulnerabilityType) ||
-						   strings.Contains(vuln.Description, tt.vulnerabilityType) {
+							strings.Contains(vuln.Description, tt.vulnerabilityType) {
 							found = true
 
 							// Verify severity is critical for algorithm confusion
@@ -202,10 +199,10 @@ func TestOAuth2Scan_PKCEBypass(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.Contains(r.URL.Path, "/.well-known/openid-configuration") {
 					config := map[string]interface{}{
-						"issuer":                                server.URL,
-						"authorization_endpoint":                server.URL + "/oauth/authorize",
-						"token_endpoint":                        server.URL + "/oauth/token",
-						"code_challenge_methods_supported":      []string{},
+						"issuer":                           server.URL,
+						"authorization_endpoint":           server.URL + "/oauth/authorize",
+						"token_endpoint":                   server.URL + "/oauth/token",
+						"code_challenge_methods_supported": []string{},
 					}
 
 					if tt.supportsPKCE {
@@ -255,7 +252,7 @@ func TestOAuth2Scan_PKCEBypass(t *testing.T) {
 				found := false
 				for _, vuln := range report.Vulnerabilities {
 					if strings.Contains(vuln.Title, "PKCE") ||
-					   strings.Contains(vuln.Description, "PKCE") {
+						strings.Contains(vuln.Description, "PKCE") {
 						found = true
 
 						// Verify CWE and CVSS
@@ -337,7 +334,7 @@ func TestOAuth2Scan_StateValidation(t *testing.T) {
 				found := false
 				for _, vuln := range report.Vulnerabilities {
 					if strings.Contains(vuln.Title, "State") ||
-					   strings.Contains(vuln.Title, "CSRF") {
+						strings.Contains(vuln.Title, "CSRF") {
 						found = true
 						break
 					}
@@ -356,8 +353,8 @@ func TestOAuth2Scan_ScopeEscalation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/.well-known/openid-configuration") {
 			config := map[string]interface{}{
-				"issuer":         server.URL,
-				"token_endpoint": server.URL + "/oauth/token",
+				"issuer":           server.URL,
+				"token_endpoint":   server.URL + "/oauth/token",
 				"scopes_supported": []string{"read", "write", "admin"},
 			}
 			json.NewEncoder(w).Encode(config)
@@ -397,7 +394,7 @@ func TestOAuth2Scan_ScopeEscalation(t *testing.T) {
 	found := false
 	for _, vuln := range report.Vulnerabilities {
 		if strings.Contains(vuln.Title, "Scope") ||
-		   strings.Contains(vuln.Description, "escalation") {
+			strings.Contains(vuln.Description, "escalation") {
 			found = true
 			break
 		}
@@ -428,7 +425,7 @@ func TestJWTAnalyzer_AlgorithmNone(t *testing.T) {
 	found := false
 	for _, vuln := range vulns {
 		if strings.Contains(vuln.Title, "none") ||
-		   strings.Contains(vuln.Title, "Algorithm") {
+			strings.Contains(vuln.Title, "Algorithm") {
 			found = true
 
 			// Verify severity

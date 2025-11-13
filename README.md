@@ -13,7 +13,7 @@ Shells is a comprehensive security scanning platform designed for bug bounty hun
 
 ```bash
 # Clone and run install script (handles everything automatically)
-git clone https://github.com/CodeMonkeyCybersecurity/shells
+git clone https://github.com/CodeMonkeyCybersecurity/artemis
 cd shells
 ./install.sh
 
@@ -73,7 +73,7 @@ artemis 192.168.1.0/24        # Scan IP range
 
 ```bash
 # Clone and install (one command does it all!)
-git clone https://github.com/CodeMonkeyCybersecurity/shells
+git clone https://github.com/CodeMonkeyCybersecurity/artemis
 cd shells
 ./install.sh
 
@@ -110,7 +110,7 @@ artemis example.com
 
 ```bash
 # Clone repository
-git clone https://github.com/CodeMonkeyCybersecurity/shells
+git clone https://github.com/CodeMonkeyCybersecurity/artemis
 cd shells
 
 # Build binary
@@ -455,7 +455,7 @@ We welcome contributions! Please:
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/CodeMonkeyCybersecurity/shells/issues)
+- **Issues**: [GitHub Issues](https://github.com/CodeMonkeyCybersecurity/artemis/issues)
 - **Documentation**: See `/docs` directory
 - **Contact**: Code Monkey Cybersecurity
 

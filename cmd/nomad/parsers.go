@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/nomad"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // parseScanResults parses scan output from Nomad job logs and converts to findings

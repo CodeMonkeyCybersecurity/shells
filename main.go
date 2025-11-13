@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/CodeMonkeyCybersecurity/shells/cmd"
+	"github.com/CodeMonkeyCybersecurity/artemis/cmd"
 )
 
 func main() {

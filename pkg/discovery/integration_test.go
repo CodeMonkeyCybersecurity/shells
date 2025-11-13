@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/certlogs"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/ipv6"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/passivedns"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/techstack"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery/certlogs"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery/ipv6"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery/passivedns"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery/techstack"
 )
 
 func TestIntegratedDiscovery(t *testing.T) {

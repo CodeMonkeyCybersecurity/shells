@@ -2,12 +2,12 @@ package oauth2
 
 import (
 	"encoding/json"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )
 
 // OAuth2Discoverer discovers OAuth2/OIDC endpoints

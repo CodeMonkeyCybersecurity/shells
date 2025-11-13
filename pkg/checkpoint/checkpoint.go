@@ -137,8 +137,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // State represents a saved checkpoint of a scan's progress

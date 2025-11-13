@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
-	discoverypkg "github.com/CodeMonkeyCybersecurity/shells/pkg/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
+	discoverypkg "github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -47,6 +47,19 @@ func NewEngineWithConfig(discoveryConfig *DiscoveryConfig, structLog *logger.Log
 	// Register enhanced discovery module with config
 	engine.RegisterModule(NewEnhancedDiscovery(discoveryConfig, structLog, cfg))
 
+	if cfg != nil && cfg.Tools.Rumble.Enabled {
+		rumbleConfig := RumbleConfig{
+			Enabled:    cfg.Tools.Rumble.Enabled,
+			APIKey:     cfg.Tools.Rumble.APIKey,
+			BaseURL:    cfg.Tools.Rumble.BaseURL,
+			Timeout:    cfg.Tools.Rumble.Timeout,
+			MaxRetries: cfg.Tools.Rumble.MaxRetries,
+			ScanRate:   cfg.Tools.Rumble.ScanRate,
+			DeepScan:   cfg.Tools.Rumble.DeepScan,
+		}
+		engine.RegisterModule(NewRumbleModule(rumbleConfig, structLog))
+	}
+
 	return engine
 }
 
@@ -81,21 +94,6 @@ func NewEngineWithScopeValidator(discoveryConfig *DiscoveryConfig, structLog *lo
 	// Register default modules
 	// Context-aware discovery
 	engine.RegisterModule(NewContextAwareDiscovery(discoveryConfig, structLog))
-
-	// Register third-party integrations
-	// Rumble network discovery (runZero)
-	if cfg.Tools.Rumble.Enabled {
-		rumbleConfig := RumbleConfig{
-			Enabled:    cfg.Tools.Rumble.Enabled,
-			APIKey:     cfg.Tools.Rumble.APIKey,
-			BaseURL:    cfg.Tools.Rumble.BaseURL,
-			Timeout:    cfg.Tools.Rumble.Timeout,
-			MaxRetries: cfg.Tools.Rumble.MaxRetries,
-			ScanRate:   cfg.Tools.Rumble.ScanRate,
-			DeepScan:   cfg.Tools.Rumble.DeepScan,
-		}
-		engine.RegisterModule(NewRumbleModule(rumbleConfig, structLog))
-	}
 
 	// Register ProjectDiscovery tools (highest priority - passive/active recon)
 	engine.RegisterModule(NewSubfinderModule(discoveryConfig, structLog)) // Subdomain enumeration

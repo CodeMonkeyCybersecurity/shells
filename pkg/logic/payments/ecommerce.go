@@ -2,13 +2,13 @@ package payments
 
 import (
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic"
 	"github.com/google/uuid"
 )
 

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 func TestColorStatus(t *testing.T) {

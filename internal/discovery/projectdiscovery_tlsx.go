@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )
 
 // TlsxModule wraps ProjectDiscovery's tlsx for certificate analysis

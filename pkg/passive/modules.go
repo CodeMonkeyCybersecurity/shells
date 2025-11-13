@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 
 // PassiveModules contains all passive scanning modules

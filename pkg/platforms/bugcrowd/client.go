@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms"
 )
 
 // Client implements the Bugcrowd API client

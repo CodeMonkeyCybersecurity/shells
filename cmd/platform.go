@@ -7,15 +7,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
-	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/aws"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/azure"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/bugcrowd"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/hackerone"
-	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/database"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/aws"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/azure"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/bugcrowd"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/hackerone"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -441,7 +441,8 @@ func getPlatformClient(name string) (platforms.Platform, error) {
 		if !cfg.Platforms.Azure.Enabled {
 			return nil, fmt.Errorf("Azure bounty integration not enabled in config")
 		}
-		return azure.NewClient(cfg.Platforms.Azure), nil
+		emailCfg := cfg.Email
+		return azure.NewClient(cfg.Platforms.Azure, &emailCfg, GetLogger().WithComponent("azure-platform")), nil
 	default:
 		return nil, fmt.Errorf("unknown platform: %s", name)
 	}
