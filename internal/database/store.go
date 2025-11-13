@@ -73,7 +73,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 
 	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
 	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
@@ -652,48 +652,95 @@ func (s *sqlStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*ty
 
 // generateFindingFingerprint creates a hash for deduplication across scans
 // Fingerprint is based on: tool + type + title + target (normalized)
-// Target is extracted from metadata["target"] or metadata["endpoint"] or metadata["url"]
+// Target is extracted from metadata or evidence with extensive field checking
 func generateFindingFingerprint(finding types.Finding) string {
 	// Extract target information from metadata
 	target := ""
 	if finding.Metadata != nil {
-		// Try common target field names
-		if t, ok := finding.Metadata["target"].(string); ok {
+		// Try common target field names in priority order
+		if t, ok := finding.Metadata["target"].(string); ok && t != "" {
 			target = t
-		} else if ep, ok := finding.Metadata["endpoint"].(string); ok {
+		} else if ep, ok := finding.Metadata["endpoint"].(string); ok && ep != "" {
 			target = ep
-		} else if url, ok := finding.Metadata["url"].(string); ok {
+		} else if url, ok := finding.Metadata["url"].(string); ok && url != "" {
 			target = url
-		} else if host, ok := finding.Metadata["host"].(string); ok {
+		} else if host, ok := finding.Metadata["host"].(string); ok && host != "" {
 			target = host
-		} else if param, ok := finding.Metadata["parameter"].(string); ok {
+		} else if hostname, ok := finding.Metadata["hostname"].(string); ok && hostname != "" {
+			target = hostname
+		} else if domain, ok := finding.Metadata["domain"].(string); ok && domain != "" {
+			target = domain
+		} else if ip, ok := finding.Metadata["ip"].(string); ok && ip != "" {
+			target = ip
+		} else if path, ok := finding.Metadata["path"].(string); ok && path != "" {
+			target = path
+		} else if param, ok := finding.Metadata["parameter"].(string); ok && param != "" {
 			// For parameter-specific vulns (e.g., XSS in specific param)
 			target = param
+		} else if port, ok := finding.Metadata["port"].(string); ok && port != "" {
+			// For port-specific vulns
+			target = port
+		} else if svc, ok := finding.Metadata["service"].(string); ok && svc != "" {
+			target = svc
 		}
 	}
 
-	// If no target in metadata, extract from evidence (first line or URL pattern)
+	// If no target in metadata, extract from evidence
 	if target == "" && finding.Evidence != "" {
-		// Try to extract URL or endpoint from evidence
-		// Look for common patterns like "GET /path" or "https://..."
 		evidenceLines := strings.Split(finding.Evidence, "\n")
-		if len(evidenceLines) > 0 {
-			firstLine := strings.TrimSpace(evidenceLines[0])
-			// Extract HTTP method + path pattern
-			if strings.Contains(firstLine, "GET ") || strings.Contains(firstLine, "POST ") ||
-				strings.Contains(firstLine, "PUT ") || strings.Contains(firstLine, "DELETE ") {
-				parts := strings.Fields(firstLine)
+
+		// Try each line until we find a target
+		for _, line := range evidenceLines {
+			if target != "" {
+				break
+			}
+
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			// Pattern 1: HTTP method + path (e.g., "GET /api/users")
+			if strings.Contains(line, "GET ") || strings.Contains(line, "POST ") ||
+				strings.Contains(line, "PUT ") || strings.Contains(line, "DELETE ") ||
+				strings.Contains(line, "PATCH ") || strings.Contains(line, "OPTIONS ") {
+				parts := strings.Fields(line)
 				if len(parts) >= 2 {
 					target = parts[1] // The path
+					break
 				}
-			} else if strings.HasPrefix(firstLine, "http://") || strings.HasPrefix(firstLine, "https://") {
-				// Extract hostname and path
-				if idx := strings.Index(firstLine, "://"); idx != -1 {
-					remaining := firstLine[idx+3:]
-					if slashIdx := strings.Index(remaining, "/"); slashIdx != -1 {
-						target = remaining[:slashIdx] + remaining[slashIdx:strings.IndexAny(remaining, "? \t")]
-					} else {
-						target = remaining
+			}
+
+			// Pattern 2: Full URL (e.g., "https://example.com/path")
+			if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
+				if idx := strings.Index(line, "://"); idx != -1 {
+					remaining := line[idx+3:]
+					if spaceIdx := strings.IndexAny(remaining, " \t"); spaceIdx != -1 {
+						remaining = remaining[:spaceIdx]
+					}
+					target = remaining
+					break
+				}
+			}
+
+			// Pattern 3: Look for URL: prefix (e.g., "URL: https://example.com")
+			if strings.Contains(line, "URL:") || strings.Contains(line, "url:") {
+				if idx := strings.Index(strings.ToLower(line), "url:"); idx != -1 {
+					urlPart := strings.TrimSpace(line[idx+4:])
+					if urlPart != "" {
+						target = urlPart
+						break
+					}
+				}
+			}
+
+			// Pattern 4: Look for Target: prefix
+			if strings.Contains(line, "Target:") || strings.Contains(line, "target:") {
+				if idx := strings.Index(strings.ToLower(line), "target:"); idx != -1 {
+					targetPart := strings.TrimSpace(line[idx+7:])
+					if targetPart != "" {
+						target = targetPart
+						break
 					}
 				}
 			}
@@ -710,13 +757,129 @@ func generateFindingFingerprint(finding types.Finding) string {
 
 	// Generate SHA256 hash
 	hash := sha256.Sum256([]byte(normalized))
-	return fmt.Sprintf("%x", hash[:16]) // Use first 16 bytes (32 hex chars)
+	fingerprint := fmt.Sprintf("%x", hash[:16]) // Use first 16 bytes (32 hex chars)
+
+	// EDGE CASE HANDLING: Empty target creates weaker fingerprints
+	// If target is empty, the fingerprint is based on tool:type:title only
+	// This allows deduplication of identical findings across scans, but may cause
+	// false positives if the same vulnerability type exists at multiple locations
+	// and we can't extract location from metadata or evidence.
+	//
+	// This is acceptable because:
+	// 1. Most scanners populate metadata["target"] or similar fields
+	// 2. Evidence usually contains URLs or paths we can extract
+	// 3. Manual verification can mark false positives via verified/false_positive fields
+	// 4. Weak fingerprints are better than no deduplication
+	//
+	// To improve: Ensure scanners populate metadata with location info
+
+	return fingerprint
+}
+
+// DuplicateInfo holds information about a duplicate finding
+type DuplicateInfo struct {
+	IsDuplicate    bool
+	FirstScanID    string
+	PreviousStatus types.FindingStatus
+}
+
+// batchCheckDuplicateFindings checks multiple fingerprints in a single query (performance optimization)
+// Returns a map of fingerprint -> DuplicateInfo
+func (s *sqlStore) batchCheckDuplicateFindings(ctx context.Context, tx *sqlx.Tx, fingerprints []string, currentScanID string) (map[string]DuplicateInfo, error) {
+	if len(fingerprints) == 0 {
+		return make(map[string]DuplicateInfo), nil
+	}
+
+	var query string
+	var args []interface{}
+
+	// PostgreSQL uses ANY($1) with array parameter
+	if s.cfg.Type == "postgres" {
+		query = `
+			SELECT DISTINCT ON (fingerprint)
+				fingerprint, first_scan_id, scan_id, status
+			FROM findings
+			WHERE fingerprint = ANY($1)
+			ORDER BY fingerprint, created_at DESC
+		`
+		args = []interface{}{pq.Array(fingerprints)}
+	} else {
+		// SQLite uses IN clause with placeholders
+		placeholders := make([]string, len(fingerprints))
+		args = make([]interface{}, len(fingerprints))
+		for i, fp := range fingerprints {
+			placeholders[i] = s.getPlaceholder(i + 1)
+			args[i] = fp
+		}
+
+		query = fmt.Sprintf(`
+			SELECT fingerprint, first_scan_id, scan_id, status
+			FROM (
+				SELECT fingerprint, first_scan_id, scan_id, status,
+					   ROW_NUMBER() OVER (PARTITION BY fingerprint ORDER BY created_at DESC) as rn
+				FROM findings
+				WHERE fingerprint IN (%s)
+			)
+			WHERE rn = 1
+		`, strings.Join(placeholders, ","))
+	}
+
+	rows, err := tx.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch check duplicates: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]DuplicateInfo)
+
+	for rows.Next() {
+		var fingerprint, firstScanID, scanID string
+		var previousStatus types.FindingStatus
+
+		if err := rows.Scan(&fingerprint, &firstScanID, &scanID, &previousStatus); err != nil {
+			return nil, fmt.Errorf("failed to scan duplicate row: %w", err)
+		}
+
+		// If first_scan_id is empty (old data before migration), use the scan_id we found
+		if firstScanID == "" {
+			firstScanID = scanID
+		}
+
+		// Check for regression (previously fixed vulnerability reappearing)
+		if previousStatus == types.FindingStatusFixed {
+			s.logger.Errorw("REGRESSION DETECTED: Previously fixed vulnerability has reappeared",
+				"fingerprint", fingerprint,
+				"first_scan_id", firstScanID,
+				"last_seen_scan", scanID,
+				"current_scan", currentScanID,
+				"impact", "CRITICAL",
+			)
+			result[fingerprint] = DuplicateInfo{
+				IsDuplicate:    true,
+				FirstScanID:    firstScanID,
+				PreviousStatus: types.FindingStatusReopened,
+			}
+		} else {
+			result[fingerprint] = DuplicateInfo{
+				IsDuplicate:    true,
+				FirstScanID:    firstScanID,
+				PreviousStatus: previousStatus,
+			}
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating duplicate rows: %w", err)
+	}
+
+	return result, nil
 }
 
 // checkDuplicateFinding checks if a finding with the same fingerprint exists in previous scans
 // Returns: (isDuplicate, firstScanID, previousStatus, error)
 // Also detects regressions when a "fixed" vulnerability reappears
-func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, string, error) {
+// NOTE: This is kept for backward compatibility but batchCheckDuplicateFindings should be preferred
+func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, fingerprint, currentScanID string) (bool, string, types.FindingStatus, error) {
 	// Get the most recent occurrence to check for regressions
 	recentQuery := `
 		SELECT first_scan_id, scan_id, status
@@ -726,7 +889,8 @@ func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, finge
 		LIMIT 1
 	`
 
-	var firstScanID, scanID, previousStatus string
+	var firstScanID, scanID string
+	var previousStatus types.FindingStatus
 	err := tx.QueryRowContext(ctx, recentQuery, fingerprint).Scan(&firstScanID, &scanID, &previousStatus)
 	if err == sql.ErrNoRows {
 		// Not a duplicate - this is the first occurrence
@@ -742,7 +906,7 @@ func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, finge
 	}
 
 	// Check for regression (previously fixed vulnerability reappearing)
-	if previousStatus == string(types.FindingStatusFixed) {
+	if previousStatus == types.FindingStatusFixed {
 		s.logger.Errorw("REGRESSION DETECTED: Previously fixed vulnerability has reappeared",
 			"fingerprint", fingerprint,
 			"first_scan_id", firstScanID,
@@ -750,7 +914,7 @@ func (s *sqlStore) checkDuplicateFinding(ctx context.Context, tx *sqlx.Tx, finge
 			"current_scan", currentScanID,
 			"impact", "CRITICAL",
 		)
-		return true, firstScanID, string(types.FindingStatusReopened), nil
+		return true, firstScanID, types.FindingStatusReopened, nil
 	}
 
 	return true, firstScanID, previousStatus, nil
@@ -783,7 +947,7 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	// Count findings by severity for logging
 	severityCounts := make(map[types.Severity]int)
 	toolCounts := make(map[string]int)
-	statusCounts := make(map[string]int)
+	statusCounts := make(map[types.FindingStatus]int)
 	duplicateCount := 0
 
 	for _, finding := range findings {
@@ -839,38 +1003,62 @@ func (s *sqlStore) SaveFindings(ctx context.Context, findings []types.Finding) e
 	insertStart := time.Now()
 	totalRowsAffected := int64(0)
 
+	// P1 OPTIMIZATION: Batch fingerprint lookup (fixes N+1 query problem)
+	// Instead of querying database for each finding (100 findings = 100 queries),
+	// we query once for all fingerprints (100 findings = 1 query)
+	batchLookupStart := time.Now()
+	fingerprints := make([]string, len(findings))
+	for i, finding := range findings {
+		fingerprints[i] = generateFindingFingerprint(finding)
+	}
+
+	duplicateLookup, err := s.batchCheckDuplicateFindings(ctx, tx, fingerprints, scanID)
+	if err != nil {
+		s.logger.LogError(ctx, err, "database.SaveFindings.batch_check_duplicates",
+			"scan_id", scanID,
+			"findings_count", len(findings),
+		)
+		// Initialize empty map and continue (will treat all as new findings)
+		duplicateLookup = make(map[string]DuplicateInfo)
+	}
+
+	s.logger.LogDuration(ctx, "database.SaveFindings.batch_lookup", batchLookupStart,
+		"scan_id", scanID,
+		"fingerprints_checked", len(fingerprints),
+		"duplicates_found", len(duplicateLookup),
+	)
+
 	for i, finding := range findings {
 		findingStart := time.Now()
 
-		// Generate fingerprint for deduplication (includes target for uniqueness)
-		fingerprint := generateFindingFingerprint(finding)
+		// Get fingerprint (already generated in batch lookup phase)
+		fingerprint := fingerprints[i]
 
-		// Check if this is a duplicate from a previous scan (also detects regressions)
-		isDuplicate, firstScanID, previousStatus, err := s.checkDuplicateFinding(ctx, tx, fingerprint, finding.ScanID)
-		if err != nil {
-			s.logger.LogError(ctx, err, "database.SaveFindings.check_duplicate",
-				"finding_id", finding.ID,
-				"fingerprint", fingerprint,
-			)
-			// Continue with insertion even if duplicate check fails
-			isDuplicate = false
-			firstScanID = finding.ScanID
-			previousStatus = ""
+		// Look up duplicate information from batch check
+		dupInfo, found := duplicateLookup[fingerprint]
+		isDuplicate := found
+		firstScanID := finding.ScanID
+		previousStatus := types.FindingStatus("")
+
+		if found {
+			isDuplicate = dupInfo.IsDuplicate
+			firstScanID = dupInfo.FirstScanID
+			previousStatus = dupInfo.PreviousStatus
 		}
 
 		// Set status based on duplication and regression detection
-		status := string(types.FindingStatusNew)
+		status := types.FindingStatusNew
 		if isDuplicate {
 			// If previousStatus is "reopened", this is a regression
-			if previousStatus == string(types.FindingStatusReopened) {
-				status = string(types.FindingStatusReopened)
+			if previousStatus == types.FindingStatusReopened {
+				status = types.FindingStatusReopened
 				s.logger.Warnw("Marking finding as reopened (regression)",
 					"finding_id", finding.ID,
 					"fingerprint", fingerprint,
 					"first_scan_id", firstScanID,
 				)
 			} else {
-				status = string(types.FindingStatusDuplicate)
+				status = types.FindingStatusDuplicate
 				duplicateCount++
 			}
 		}
@@ -1102,6 +1290,303 @@ func (s *sqlStore) GetFindingsBySeverity(ctx context.Context, severity types.Sev
 		}
 
 		findings = append(findings, finding)
+	}
+
+	return findings, nil
+}
+
+// UpdateFindingStatus updates the status of a finding (for lifecycle tracking)
+func (s *sqlStore) UpdateFindingStatus(ctx context.Context, findingID string, status types.FindingStatus) error {
+	ctx, span := s.logger.StartOperation(ctx, "database.UpdateFindingStatus",
+		"finding_id", findingID,
+		"status", status,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		UPDATE findings
+		SET status = %s, updated_at = %s
+		WHERE id = %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2), s.getPlaceholder(3))
+
+	result, err := s.db.ExecContext(ctx, query, string(status), time.Now(), findingID)
+	if err != nil {
+		return fmt.Errorf("failed to update finding status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("finding not found: %s", findingID)
+	}
+
+	s.logger.Infow("Finding status updated",
+		"finding_id", findingID,
+		"new_status", status,
+	)
+
+	return nil
+}
+
+// MarkFindingVerified marks a finding as manually verified or unverified
+func (s *sqlStore) MarkFindingVerified(ctx context.Context, findingID string, verified bool) error {
+	ctx, span := s.logger.StartOperation(ctx, "database.MarkFindingVerified",
+		"finding_id", findingID,
+		"verified", verified,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		UPDATE findings
+		SET verified = %s, updated_at = %s
+		WHERE id = %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2), s.getPlaceholder(3))
+
+	result, err := s.db.ExecContext(ctx, query, verified, time.Now(), findingID)
+	if err != nil {
+		return fmt.Errorf("failed to mark finding verified: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("finding not found: %s", findingID)
+	}
+
+	s.logger.Infow("Finding verification status updated",
+		"finding_id", findingID,
+		"verified", verified,
+	)
+
+	return nil
+}
+
+// MarkFindingFalsePositive marks a finding as a false positive or removes the false positive flag
+func (s *sqlStore) MarkFindingFalsePositive(ctx context.Context, findingID string, falsePositive bool) error {
+	ctx, span := s.logger.StartOperation(ctx, "database.MarkFindingFalsePositive",
+		"finding_id", findingID,
+		"false_positive", falsePositive,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		UPDATE findings
+		SET false_positive = %s, updated_at = %s
+		WHERE id = %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2), s.getPlaceholder(3))
+
+	result, err := s.db.ExecContext(ctx, query, falsePositive, time.Now(), findingID)
+	if err != nil {
+		return fmt.Errorf("failed to mark finding as false positive: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("finding not found: %s", findingID)
+	}
+
+	s.logger.Infow("Finding false positive status updated",
+		"finding_id", findingID,
+		"false_positive", falsePositive,
+	)
+
+	return nil
+}
+
+// GetRegressions returns findings that were marked as fixed and then reopened (regressions)
+func (s *sqlStore) GetRegressions(ctx context.Context, limit int) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetRegressions",
+		"limit", limit,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE status = %s
+		ORDER BY created_at DESC
+		LIMIT %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2))
+
+	rows, err := s.db.QueryContext(ctx, query, types.FindingStatusReopened, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query regressions: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetVulnerabilityTimeline returns all instances of a specific vulnerability across scans (full lifecycle)
+func (s *sqlStore) GetVulnerabilityTimeline(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetVulnerabilityTimeline",
+		"fingerprint", fingerprint,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE fingerprint = %s
+		ORDER BY created_at ASC
+	`, s.getPlaceholder(1))
+
+	rows, err := s.db.QueryContext(ctx, query, fingerprint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query vulnerability timeline: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetFindingsByFingerprint returns all findings with a specific fingerprint (across all scans)
+func (s *sqlStore) GetFindingsByFingerprint(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetFindingsByFingerprint",
+		"fingerprint", fingerprint,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE fingerprint = %s
+		ORDER BY created_at DESC
+	`, s.getPlaceholder(1))
+
+	rows, err := s.db.QueryContext(ctx, query, fingerprint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query findings by fingerprint: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetNewFindings returns findings that first appeared after a specific date
+func (s *sqlStore) GetNewFindings(ctx context.Context, sinceDate time.Time) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetNewFindings",
+		"since_date", sinceDate,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	// Get findings where first_scan_id's created_at is after sinceDate
+	query := fmt.Sprintf(`
+		SELECT f.id, f.scan_id, f.tool, f.type, f.severity, f.title, f.description,
+			   f.evidence, f.solution, f.refs, f.metadata,
+			   f.fingerprint, f.first_scan_id, f.status, f.verified, f.false_positive,
+			   f.created_at, f.updated_at
+		FROM findings f
+		INNER JOIN (
+			SELECT fingerprint, MIN(created_at) as first_seen
+			FROM findings
+			GROUP BY fingerprint
+		) first ON f.fingerprint = first.fingerprint
+		WHERE first.first_seen >= %s
+		  AND f.status = %s
+		ORDER BY first.first_seen DESC
+	`, s.getPlaceholder(1), s.getPlaceholder(2))
+
+	rows, err := s.db.QueryContext(ctx, query, sinceDate, types.FindingStatusNew)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query new findings: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// GetFixedFindings returns findings that have been marked as fixed
+func (s *sqlStore) GetFixedFindings(ctx context.Context, limit int) ([]types.Finding, error) {
+	ctx, span := s.logger.StartOperation(ctx, "database.GetFixedFindings",
+		"limit", limit,
+	)
+	var err error
+	defer func() { s.logger.EndOperation(ctx, span, err) }()
+
+	query := fmt.Sprintf(`
+		SELECT id, scan_id, tool, type, severity, title, description,
+			   evidence, solution, refs, metadata,
+			   fingerprint, first_scan_id, status, verified, false_positive,
+			   created_at, updated_at
+		FROM findings
+		WHERE status = %s
+		ORDER BY updated_at DESC
+		LIMIT %s
+	`, s.getPlaceholder(1), s.getPlaceholder(2))
+
+	rows, err := s.db.QueryContext(ctx, query, types.FindingStatusFixed, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query fixed findings: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanFindings(rows)
+}
+
+// scanFindings is a helper function to scan rows into Finding structs
+func (s *sqlStore) scanFindings(rows *sql.Rows) ([]types.Finding, error) {
+	findings := []types.Finding{}
+
+	for rows.Next() {
+		var finding types.Finding
+		var refsJSON, metaJSON string
+
+		err := rows.Scan(
+			&finding.ID, &finding.ScanID, &finding.Tool, &finding.Type,
+			&finding.Severity, &finding.Title, &finding.Description,
+			&finding.Evidence, &finding.Solution, &refsJSON, &metaJSON,
+			&finding.Fingerprint, &finding.FirstScanID, &finding.Status,
+			&finding.Verified, &finding.FalsePositive,
+			&finding.CreatedAt, &finding.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan finding: %w", err)
+		}
+
+		if refsJSON != "" {
+			if err := json.Unmarshal([]byte(refsJSON), &finding.References); err != nil {
+				s.logger.Warn("Failed to unmarshal references for finding", "finding_id", finding.ID, "error", err)
+			}
+		}
+
+		if metaJSON != "" {
+			if err := json.Unmarshal([]byte(metaJSON), &finding.Metadata); err != nil {
+				s.logger.Warn("Failed to unmarshal metadata for finding", "finding_id", finding.ID, "error", err)
+			}
+		}
+
+		findings = append(findings, finding)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating findings: %w", err)
 	}
 
 	return findings, nil

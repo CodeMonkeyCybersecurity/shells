@@ -29,6 +29,13 @@ func init() {
 	resultsCmd.AddCommand(resultsQueryCmd)
 	resultsCmd.AddCommand(resultsStatsCmd)
 	resultsCmd.AddCommand(resultsIdentityChainsCmd)
+	resultsCmd.AddCommand(resultsMarkFixedCmd)
+	resultsCmd.AddCommand(resultsMarkVerifiedCmd)
+	resultsCmd.AddCommand(resultsMarkFalsePositiveCmd)
+	resultsCmd.AddCommand(resultsRegressionsCmd)
+	resultsCmd.AddCommand(resultsTimelineCmd)
+	resultsCmd.AddCommand(resultsNewFindingsCmd)
+	resultsCmd.AddCommand(resultsFixedFindingsCmd)
 }
 
 var resultsListCmd = &cobra.Command{
@@ -1412,10 +1419,367 @@ func getSeverityColor(severity types.Severity) func(string) string {
 	}
 }
 
+var resultsMarkFixedCmd = &cobra.Command{
+	Use:   "mark-fixed [finding-id]",
+	Short: "Mark a finding as fixed (for regression detection)",
+	Long: `Mark a vulnerability finding as fixed. If the same vulnerability
+is detected in a future scan, it will be flagged as a regression.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+		findingID := args[0]
+
+		logger.Infow("Marking finding as fixed",
+			"finding_id", findingID,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		err := store.UpdateFindingStatus(GetContext(), findingID, types.FindingStatusFixed)
+		if err != nil {
+			logger.Errorw("Failed to mark finding as fixed",
+				"finding_id", findingID,
+				"error", err,
+			)
+			return fmt.Errorf("failed to mark finding as fixed: %w", err)
+		}
+
+		logger.Infow("Finding marked as fixed - regression detection enabled",
+			"finding_id", findingID,
+			"note", "If this vulnerability reappears in future scans, it will be flagged as a regression",
+		)
+
+		return nil
+	},
+}
+
+var resultsMarkVerifiedCmd = &cobra.Command{
+	Use:   "mark-verified [finding-id]",
+	Short: "Mark a finding as manually verified",
+	Long: `Mark a vulnerability finding as manually verified. This indicates
+that a human security researcher has confirmed the vulnerability exists.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+		findingID := args[0]
+
+		unverify, _ := cmd.Flags().GetBool("unverify")
+
+		logger.Infow("Updating finding verification status",
+			"finding_id", findingID,
+			"verified", !unverify,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		err := store.MarkFindingVerified(GetContext(), findingID, !unverify)
+		if err != nil {
+			logger.Errorw("Failed to update finding verification status",
+				"finding_id", findingID,
+				"error", err,
+			)
+			return fmt.Errorf("failed to update verification status: %w", err)
+		}
+
+		if unverify {
+			logger.Infow("Finding marked as unverified",
+				"finding_id", findingID,
+			)
+		} else {
+			logger.Infow("Finding marked as verified",
+				"finding_id", findingID,
+			)
+		}
+
+		return nil
+	},
+}
+
+var resultsMarkFalsePositiveCmd = &cobra.Command{
+	Use:   "mark-false-positive [finding-id]",
+	Short: "Mark a finding as a false positive",
+	Long: `Mark a vulnerability finding as a false positive. This indicates
+the vulnerability was incorrectly identified by the scanner.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+		findingID := args[0]
+
+		remove, _ := cmd.Flags().GetBool("remove")
+
+		logger.Infow("Updating finding false positive status",
+			"finding_id", findingID,
+			"false_positive", !remove,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		err := store.MarkFindingFalsePositive(GetContext(), findingID, !remove)
+		if err != nil {
+			logger.Errorw("Failed to update finding false positive status",
+				"finding_id", findingID,
+				"error", err,
+			)
+			return fmt.Errorf("failed to update false positive status: %w", err)
+		}
+
+		if remove {
+			logger.Infow("Finding false positive flag removed",
+				"finding_id", findingID,
+			)
+		} else {
+			logger.Infow("Finding marked as false positive",
+				"finding_id", findingID,
+			)
+		}
+
+		return nil
+	},
+}
+
+var resultsRegressionsCmd = &cobra.Command{
+	Use:   "regressions",
+	Short: "List vulnerabilities that were fixed and then reappeared",
+	Long: `Show findings that were marked as fixed but have since reappeared
+in subsequent scans (regression detection).`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
+		limit, _ := cmd.Flags().GetInt("limit")
+		output, _ := cmd.Flags().GetString("output")
+
+		logger.Infow("Querying regressions",
+			"limit", limit,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		findings, err := store.GetRegressions(GetContext(), limit)
+		if err != nil {
+			logger.Errorw("Failed to query regressions",
+				"error", err,
+			)
+			return fmt.Errorf("failed to query regressions: %w", err)
+		}
+
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(findings, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			logger.Infow("Regressions found",
+				"count", len(findings),
+			)
+			printFindings(findings)
+		}
+
+		return nil
+	},
+}
+
+var resultsTimelineCmd = &cobra.Command{
+	Use:   "timeline [fingerprint]",
+	Short: "Show the full lifecycle of a specific vulnerability",
+	Long: `Display all instances of a vulnerability across scans to see its
+complete lifecycle (when first detected, when fixed, if it reappeared).`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+		fingerprint := args[0]
+
+		output, _ := cmd.Flags().GetString("output")
+
+		logger.Infow("Querying vulnerability timeline",
+			"fingerprint", fingerprint,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		findings, err := store.GetVulnerabilityTimeline(GetContext(), fingerprint)
+		if err != nil {
+			logger.Errorw("Failed to query vulnerability timeline",
+				"fingerprint", fingerprint,
+				"error", err,
+			)
+			return fmt.Errorf("failed to query timeline: %w", err)
+		}
+
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(findings, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			logger.Infow("Timeline entries found",
+				"fingerprint", fingerprint,
+				"count", len(findings),
+			)
+
+			if len(findings) == 0 {
+				logger.Infow("No findings found for this fingerprint")
+				return nil
+			}
+
+			logger.Infow("Vulnerability Lifecycle",
+				"first_seen", findings[0].CreatedAt,
+				"last_seen", findings[len(findings)-1].CreatedAt,
+				"total_instances", len(findings),
+			)
+
+			printFindings(findings)
+		}
+
+		return nil
+	},
+}
+
+var resultsNewFindingsCmd = &cobra.Command{
+	Use:   "new-findings",
+	Short: "List vulnerabilities that appeared recently",
+	Long: `Show findings that first appeared after a specific date.
+Useful for tracking new vulnerabilities discovered over time.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
+		days, _ := cmd.Flags().GetInt("days")
+		output, _ := cmd.Flags().GetString("output")
+
+		sinceDate := time.Now().AddDate(0, 0, -days)
+
+		logger.Infow("Querying new findings",
+			"since_date", sinceDate,
+			"days", days,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		findings, err := store.GetNewFindings(GetContext(), sinceDate)
+		if err != nil {
+			logger.Errorw("Failed to query new findings",
+				"error", err,
+				"since_date", sinceDate,
+			)
+			return fmt.Errorf("failed to query new findings: %w", err)
+		}
+
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(findings, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			logger.Infow("New findings",
+				"count", len(findings),
+				"since_days", days,
+			)
+			printFindings(findings)
+		}
+
+		return nil
+	},
+}
+
+var resultsFixedFindingsCmd = &cobra.Command{
+	Use:   "fixed-findings",
+	Short: "List vulnerabilities that have been marked as fixed",
+	Long: `Show findings that have been marked as fixed by security researchers.
+Useful for tracking remediation progress.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		logger := GetLogger().WithComponent("results")
+
+		limit, _ := cmd.Flags().GetInt("limit")
+		output, _ := cmd.Flags().GetString("output")
+
+		logger.Infow("Querying fixed findings",
+			"limit", limit,
+		)
+
+		store := GetStore()
+		if store == nil {
+			return fmt.Errorf("database not initialized")
+		}
+
+		findings, err := store.GetFixedFindings(GetContext(), limit)
+		if err != nil {
+			logger.Errorw("Failed to query fixed findings",
+				"error", err,
+			)
+			return fmt.Errorf("failed to query fixed findings: %w", err)
+		}
+
+		if output == "json" {
+			jsonData, _ := json.MarshalIndent(findings, "", "  ")
+			fmt.Println(string(jsonData))
+		} else {
+			logger.Infow("Fixed findings",
+				"count", len(findings),
+			)
+			printFindings(findings)
+		}
+
+		return nil
+	},
+}
+
+func printFindings(findings []types.Finding) {
+	if len(findings) == 0 {
+		fmt.Println("No findings")
+		return
+	}
+
+	for i, finding := range findings {
+		fmt.Printf("\n[%d] %s - %s\n", i+1, finding.Severity, finding.Title)
+		fmt.Printf("    Tool: %s | Type: %s\n", finding.Tool, finding.Type)
+		fmt.Printf("    Status: %s | First Seen: %s\n", finding.Status, finding.FirstScanID)
+		fmt.Printf("    Scan: %s | Created: %s\n", finding.ScanID, finding.CreatedAt.Format("2006-01-02 15:04:05"))
+		if finding.Fingerprint != "" {
+			fmt.Printf("    Fingerprint: %s\n", finding.Fingerprint)
+		}
+		if finding.Verified {
+			fmt.Printf("    [VERIFIED]\n")
+		}
+		if finding.FalsePositive {
+			fmt.Printf("    [FALSE POSITIVE]\n")
+		}
+	}
+	fmt.Println()
+}
+
 func init() {
 	// Add diff command
 	resultsCmd.AddCommand(resultsDiffCmd)
 	resultsDiffCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	// Add flags for mark-verified command
+	resultsMarkVerifiedCmd.Flags().Bool("unverify", false, "Remove verified flag")
+
+	// Add flags for mark-false-positive command
+	resultsMarkFalsePositiveCmd.Flags().Bool("remove", false, "Remove false positive flag")
+
+	// Add flags for temporal query commands
+	resultsRegressionsCmd.Flags().IntP("limit", "l", 50, "Maximum number of regressions to show")
+	resultsRegressionsCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	resultsTimelineCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	resultsNewFindingsCmd.Flags().IntP("days", "d", 7, "Number of days to look back")
+	resultsNewFindingsCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
+
+	resultsFixedFindingsCmd.Flags().IntP("limit", "l", 50, "Maximum number of fixed findings to show")
+	resultsFixedFindingsCmd.Flags().StringP("output", "o", "text", "Output format (text, json)")
 
 	// Add history command
 	resultsCmd.AddCommand(resultsHistoryCmd)

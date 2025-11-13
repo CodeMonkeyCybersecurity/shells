@@ -180,6 +180,107 @@ func GetAllMigrations() []Migration {
 				);
 			`,
 		},
+		{
+			Version:     6,
+			Description: "Add database constraints and GIN indexes for performance and data integrity",
+			Up: `
+				-- Add foreign key constraint for first_scan_id (ensures referential integrity)
+				-- Note: This assumes first_scan_id references scans(id)
+				-- Skip if constraint already exists
+				DO $$
+				BEGIN
+					IF NOT EXISTS (
+						SELECT 1 FROM pg_constraint
+						WHERE conname = 'fk_findings_first_scan_id'
+					) THEN
+						ALTER TABLE findings
+						ADD CONSTRAINT fk_findings_first_scan_id
+						FOREIGN KEY (first_scan_id) REFERENCES scans(id) ON DELETE SET NULL;
+					END IF;
+				END $$;
+
+				-- Add check constraint for status enum (prevents invalid status values)
+				DO $$
+				BEGIN
+					IF NOT EXISTS (
+						SELECT 1 FROM pg_constraint
+						WHERE conname = 'chk_findings_status'
+					) THEN
+						ALTER TABLE findings
+						ADD CONSTRAINT chk_findings_status
+						CHECK (status IN ('new', 'active', 'fixed', 'duplicate', 'reopened'));
+					END IF;
+				END $$;
+
+				-- Add check constraint for severity enum
+				DO $$
+				BEGIN
+					IF NOT EXISTS (
+						SELECT 1 FROM pg_constraint
+						WHERE conname = 'chk_findings_severity'
+					) THEN
+						ALTER TABLE findings
+						ADD CONSTRAINT chk_findings_severity
+						CHECK (severity IN ('critical', 'high', 'medium', 'low', 'info'));
+					END IF;
+				END $$;
+
+				-- Add NOT NULL constraints for critical fields
+				ALTER TABLE findings ALTER COLUMN fingerprint SET NOT NULL;
+				ALTER TABLE findings ALTER COLUMN first_scan_id SET NOT NULL;
+				ALTER TABLE findings ALTER COLUMN status SET NOT NULL;
+
+				-- Add GIN indexes for JSONB columns (PostgreSQL only, enables fast JSONB queries)
+				-- These indexes dramatically improve queries like: metadata @> '{"key": "value"}'
+				CREATE INDEX IF NOT EXISTS idx_findings_metadata_gin ON findings USING GIN (metadata);
+				CREATE INDEX IF NOT EXISTS idx_correlation_related_findings_gin ON correlation_results USING GIN (related_findings);
+				CREATE INDEX IF NOT EXISTS idx_correlation_attack_path_gin ON correlation_results USING GIN (attack_path);
+				CREATE INDEX IF NOT EXISTS idx_correlation_metadata_gin ON correlation_results USING GIN (metadata);
+
+				-- Add composite indexes for common query patterns
+				-- Regression queries: WHERE status = 'reopened' ORDER BY created_at DESC
+				CREATE INDEX IF NOT EXISTS idx_findings_status_created ON findings(status, created_at DESC);
+
+				-- Timeline queries: WHERE fingerprint = ? ORDER BY created_at ASC
+				CREATE INDEX IF NOT EXISTS idx_findings_fingerprint_created ON findings(fingerprint, created_at ASC);
+
+				-- Fixed findings: WHERE status = 'fixed' ORDER BY updated_at DESC
+				CREATE INDEX IF NOT EXISTS idx_findings_status_updated ON findings(status, updated_at DESC);
+
+				-- Add unique constraint on fingerprint + scan_id (prevents exact duplicates within same scan)
+				CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_fingerprint_scan_unique ON findings(fingerprint, scan_id);
+
+				-- Add comments for documentation
+				COMMENT ON CONSTRAINT fk_findings_first_scan_id ON findings IS 'Ensures first_scan_id references valid scan';
+				COMMENT ON CONSTRAINT chk_findings_status ON findings IS 'Enforces valid status enum values';
+				COMMENT ON CONSTRAINT chk_findings_severity ON findings IS 'Enforces valid severity enum values';
+			`,
+			Down: `
+				-- Remove composite indexes
+				DROP INDEX IF EXISTS idx_findings_status_created;
+				DROP INDEX IF EXISTS idx_findings_fingerprint_created;
+				DROP INDEX IF EXISTS idx_findings_status_updated;
+				DROP INDEX IF EXISTS idx_findings_fingerprint_scan_unique;
+
+				-- Remove GIN indexes
+				DROP INDEX IF EXISTS idx_findings_metadata_gin;
+				DROP INDEX IF EXISTS idx_correlation_related_findings_gin;
+				DROP INDEX IF EXISTS idx_correlation_attack_path_gin;
+				DROP INDEX IF EXISTS idx_correlation_metadata_gin;
+
+				-- Remove NOT NULL constraints
+				ALTER TABLE findings ALTER COLUMN fingerprint DROP NOT NULL;
+				ALTER TABLE findings ALTER COLUMN first_scan_id DROP NOT NULL;
+				ALTER TABLE findings ALTER COLUMN status DROP NOT NULL;
+
+				-- Remove check constraints
+				ALTER TABLE findings DROP CONSTRAINT IF EXISTS chk_findings_status;
+				ALTER TABLE findings DROP CONSTRAINT IF EXISTS chk_findings_severity;
+
+				-- Remove foreign key constraint
+				ALTER TABLE findings DROP CONSTRAINT IF EXISTS fk_findings_first_scan_id;
+			`,
+		},
 	}
 }
 

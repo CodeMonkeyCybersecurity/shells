@@ -1756,6 +1756,7 @@ func (e *BugBountyEngine) ExecuteWithPipeline(ctx context.Context, target string
 	pipeline.correlationEngine = NewCorrelationEngine(
 		e.config,
 		e.logger,
+		e.store,
 		exploitChainer,
 		e.enricher,
 	)
