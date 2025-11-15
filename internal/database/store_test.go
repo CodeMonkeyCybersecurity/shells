@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -395,19 +395,14 @@ func TestMarkFindingFalsePositive(t *testing.T) {
 
 // Helper function to set up a test store
 func setupTestStore(t *testing.T) (*sqlStore, func()) {
-	// Create logger
-	log, err := logger.New(logger.Config{
-		Level:  "info",
-		Format: "json",
-	})
-	require.NoError(t, err)
-
 	// Create in-memory SQLite database
-	store, err := NewResultStore(Config{
-		Type:     "sqlite",
-		Host:     ":memory:",
-		Database: "test",
-	}, log)
+	store, err := NewStore(config.DatabaseConfig{
+		Driver:          "sqlite3",
+		DSN:             ":memory:",
+		MaxConnections:  1,
+		MaxIdleConns:    1,
+		ConnMaxLifetime: time.Minute,
+	})
 	require.NoError(t, err)
 
 	sqlStore, ok := store.(*sqlStore)

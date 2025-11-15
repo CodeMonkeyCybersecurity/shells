@@ -76,8 +76,9 @@ type DefaultCertificateClient struct {
 // ADVERSARIAL REVIEW STATUS (2025-10-30)
 // Issue: Production used DefaultCertificateClient with no fallback - when crt.sh returns 503 errors, all certificate discovery fails
 // Fix: Changed to return EnhancedCertificateClient with multiple fallback sources:
-//   1. Direct TLS connection (fast, reliable, no API dependency)
-//   2. crt.sh HTTP API (fallback if TLS fails)
+//  1. Direct TLS connection (fast, reliable, no API dependency)
+//  2. crt.sh HTTP API (fallback if TLS fails)
+//
 // Impact: Certificate retrieval success rate improved from 0% to 95%+ when crt.sh is down
 // Testing: Verified with anthropic.com, github.com, cloudflare.com
 // Priority: P0 (data retrieval failure)

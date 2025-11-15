@@ -76,7 +76,8 @@ func TestOAuth2Scan_JWTAlgorithmConfusion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock server
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.Contains(r.URL.Path, "/.well-known/openid-configuration") {
 					config := map[string]interface{}{
 						"issuer":                 server.URL,
@@ -196,7 +197,8 @@ func TestOAuth2Scan_PKCEBypass(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.Contains(r.URL.Path, "/.well-known/openid-configuration") {
 					config := map[string]interface{}{
 						"issuer":                           server.URL,
@@ -292,7 +294,8 @@ func TestOAuth2Scan_StateValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.Contains(r.URL.Path, "/.well-known/openid-configuration") {
 					config := map[string]interface{}{
 						"issuer":                 server.URL,
@@ -350,7 +353,8 @@ func TestOAuth2Scan_StateValidation(t *testing.T) {
 
 // TestOAuth2Scan_ScopeEscalation tests scope escalation detection
 func TestOAuth2Scan_ScopeEscalation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/.well-known/openid-configuration") {
 			config := map[string]interface{}{
 				"issuer":           server.URL,
@@ -446,7 +450,8 @@ func TestConcurrentOAuth2Scans(t *testing.T) {
 	// Run with: go test -race
 	logger := &mockLogger{}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(10 * time.Millisecond)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"issuer": server.URL,
@@ -512,7 +517,8 @@ func BenchmarkOAuth2Scan(b *testing.B) {
 	logger := &mockLogger{}
 	scanner := NewOAuth2Scanner(logger)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"issuer": server.URL,
 		})

@@ -16,13 +16,13 @@ import (
 
 // OpenAPISpec represents a parsed OpenAPI/Swagger specification
 type OpenAPISpec struct {
-	OpenAPI    string                       `json:"openapi" yaml:"openapi"` // OpenAPI version
-	Swagger    string                       `json:"swagger" yaml:"swagger"` // Swagger version
-	Info       SpecInfo                     `json:"info" yaml:"info"`
-	Servers    []SpecServer                 `json:"servers" yaml:"servers"`
+	OpenAPI    string                         `json:"openapi" yaml:"openapi"` // OpenAPI version
+	Swagger    string                         `json:"swagger" yaml:"swagger"` // Swagger version
+	Info       SpecInfo                       `json:"info" yaml:"info"`
+	Servers    []SpecServer                   `json:"servers" yaml:"servers"`
 	Paths      map[string]map[string]PathItem `json:"paths" yaml:"paths"`
-	Components SpecComponents               `json:"components" yaml:"components"`
-	Security   []map[string][]string        `json:"security" yaml:"security"`
+	Components SpecComponents                 `json:"components" yaml:"components"`
+	Security   []map[string][]string          `json:"security" yaml:"security"`
 }
 
 // SpecInfo contains API metadata
@@ -40,21 +40,21 @@ type SpecServer struct {
 
 // PathItem represents a single API path with operations
 type PathItem struct {
-	Summary     string              `json:"summary" yaml:"summary"`
-	Description string              `json:"description" yaml:"description"`
-	Parameters  []Parameter         `json:"parameters" yaml:"parameters"`
-	RequestBody *RequestBody        `json:"requestBody" yaml:"requestBody"`
-	Responses   map[string]Response `json:"responses" yaml:"responses"`
+	Summary     string                `json:"summary" yaml:"summary"`
+	Description string                `json:"description" yaml:"description"`
+	Parameters  []Parameter           `json:"parameters" yaml:"parameters"`
+	RequestBody *RequestBody          `json:"requestBody" yaml:"requestBody"`
+	Responses   map[string]Response   `json:"responses" yaml:"responses"`
 	Security    []map[string][]string `json:"security" yaml:"security"`
 }
 
 // Parameter represents an API parameter
 type Parameter struct {
-	Name        string      `json:"name" yaml:"name"`
-	In          string      `json:"in" yaml:"in"` // path, query, header, cookie
-	Description string      `json:"description" yaml:"description"`
-	Required    bool        `json:"required" yaml:"required"`
-	Schema      *Schema     `json:"schema" yaml:"schema"`
+	Name        string  `json:"name" yaml:"name"`
+	In          string  `json:"in" yaml:"in"` // path, query, header, cookie
+	Description string  `json:"description" yaml:"description"`
+	Required    bool    `json:"required" yaml:"required"`
+	Schema      *Schema `json:"schema" yaml:"schema"`
 }
 
 // RequestBody represents request body specification
@@ -86,28 +86,28 @@ type Response struct {
 
 // SpecComponents contains reusable components
 type SpecComponents struct {
-	Schemas         map[string]*Schema         `json:"schemas" yaml:"schemas"`
-	SecuritySchemes map[string]SecurityScheme  `json:"securitySchemes" yaml:"securitySchemes"`
+	Schemas         map[string]*Schema        `json:"schemas" yaml:"schemas"`
+	SecuritySchemes map[string]SecurityScheme `json:"securitySchemes" yaml:"securitySchemes"`
 }
 
 // SecurityScheme represents an authentication scheme
 type SecurityScheme struct {
-	Type        string `json:"type" yaml:"type"` // apiKey, http, oauth2, openIdConnect
+	Type        string `json:"type" yaml:"type"`     // apiKey, http, oauth2, openIdConnect
 	Scheme      string `json:"scheme" yaml:"scheme"` // For http type: bearer, basic
-	In          string `json:"in" yaml:"in"` // For apiKey: header, query, cookie
-	Name        string `json:"name" yaml:"name"` // For apiKey: header name
+	In          string `json:"in" yaml:"in"`         // For apiKey: header, query, cookie
+	Name        string `json:"name" yaml:"name"`     // For apiKey: header name
 	Description string `json:"description" yaml:"description"`
 }
 
 // APIEndpoint represents a discovered API endpoint
 type APIEndpoint struct {
-	URL        string              // Full URL
-	Pattern    string              // URL pattern (e.g., /api/users/{id})
-	Method     string              // HTTP method
-	Parameters []Parameter         // Parameters
-	RequiresAuth bool             // Whether authentication is required
-	DataModel  *Schema            // Expected request/response schema
-	Context    map[string]interface{}
+	URL          string      // Full URL
+	Pattern      string      // URL pattern (e.g., /api/users/{id})
+	Method       string      // HTTP method
+	Parameters   []Parameter // Parameters
+	RequiresAuth bool        // Whether authentication is required
+	DataModel    *Schema     // Expected request/response schema
+	Context      map[string]interface{}
 }
 
 // extractEndpointsFromSpec extracts all API endpoints from OpenAPI spec
@@ -254,9 +254,9 @@ func (s *RESTAPIScanner) testSwaggerSpecVulnerabilities(ctx context.Context, spe
 			ConfidenceScore: 1.0,
 			Timestamp:       time.Now(),
 			Context: map[string]interface{}{
-				"spec_version":   fmt.Sprintf("%s%s", spec.OpenAPI, spec.Swagger),
-				"total_paths":    len(spec.Paths),
-				"has_security":   len(spec.Security) > 0,
+				"spec_version": fmt.Sprintf("%s%s", spec.OpenAPI, spec.Swagger),
+				"total_paths":  len(spec.Paths),
+				"has_security": len(spec.Security) > 0,
 			},
 		}
 		findings = append(findings, finding)
@@ -265,14 +265,14 @@ func (s *RESTAPIScanner) testSwaggerSpecVulnerabilities(ctx context.Context, spe
 	// Check 2: Sensitive information in spec
 	if s.containsSensitiveInfo(spec) {
 		finding := APIFinding{
-			FindingType: "swagger_sensitive_info",
-			Severity:    types.SeverityHigh,
-			Method:      "GET",
-			URL:         baseURL,
-			Description: "Swagger specification contains sensitive information",
-			Evidence:    "Spec contains potentially sensitive endpoint descriptions, parameter names, or data models",
-			Impact:      "Exposed internal implementation details and potential attack vectors",
-			Remediation: "Review and sanitize Swagger spec - remove internal notes, debug endpoints, and sensitive parameter descriptions",
+			FindingType:     "swagger_sensitive_info",
+			Severity:        types.SeverityHigh,
+			Method:          "GET",
+			URL:             baseURL,
+			Description:     "Swagger specification contains sensitive information",
+			Evidence:        "Spec contains potentially sensitive endpoint descriptions, parameter names, or data models",
+			Impact:          "Exposed internal implementation details and potential attack vectors",
+			Remediation:     "Review and sanitize Swagger spec - remove internal notes, debug endpoints, and sensitive parameter descriptions",
 			ConfidenceScore: 0.85,
 			Timestamp:       time.Now(),
 		}
@@ -282,14 +282,14 @@ func (s *RESTAPIScanner) testSwaggerSpecVulnerabilities(ctx context.Context, spe
 	// Check 3: No authentication schemes defined
 	if len(spec.Components.SecuritySchemes) == 0 && len(spec.Security) == 0 {
 		finding := APIFinding{
-			FindingType: "swagger_no_auth_schemes",
-			Severity:    types.SeverityMedium,
-			Method:      "GET",
-			URL:         baseURL,
-			Description: "Swagger spec defines no authentication schemes",
-			Evidence:    "No securitySchemes defined in components and no global security requirements",
-			Impact:      "API may lack proper authentication or spec is incomplete",
-			Remediation: "Define proper authentication schemes in Swagger spec",
+			FindingType:     "swagger_no_auth_schemes",
+			Severity:        types.SeverityMedium,
+			Method:          "GET",
+			URL:             baseURL,
+			Description:     "Swagger spec defines no authentication schemes",
+			Evidence:        "No securitySchemes defined in components and no global security requirements",
+			Impact:          "API may lack proper authentication or spec is incomplete",
+			Remediation:     "Define proper authentication schemes in Swagger spec",
 			ConfidenceScore: 0.70,
 			Timestamp:       time.Now(),
 		}

@@ -4,7 +4,6 @@ package archive
 import (
 	"context"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )

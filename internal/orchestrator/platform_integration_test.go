@@ -73,10 +73,10 @@ func TestResolvePlatformType(t *testing.T) {
 	integration := NewPlatformIntegration(nil, logger, BugBountyConfig{})
 
 	tests := []struct {
-		name          string
-		platformName  string
-		expectedType  scope.Platform
-		expectError   bool
+		name         string
+		platformName string
+		expectedType scope.Platform
+		expectError  bool
 	}{
 		{"HackerOne", "hackerone", scope.PlatformHackerOne, false},
 		{"HackerOne Short", "h1", scope.PlatformHackerOne, false},

@@ -283,7 +283,7 @@ func runOrchestratorWithResume(ctx context.Context, state *checkpoint.State, cmd
 	// P1-23 FIX: Restore configuration from checkpoint metadata (not CLI flags)
 	// This ensures resumed scan has same settings as original scan
 	config := buildOrchestratorConfigFromCheckpoint(cmd, state)
-	
+
 	// Print banner
 	fmt.Println()
 	color.New(color.FgCyan, color.Bold).Println("═══ Shells - Bug Bounty Automation (RESUME MODE) ═══")
@@ -291,32 +291,32 @@ func runOrchestratorWithResume(ctx context.Context, state *checkpoint.State, cmd
 	fmt.Printf("  Scan ID: %s\n", state.ScanID)
 	fmt.Printf("  Checkpoint from: %s\n", state.UpdatedAt.Format(time.RFC1123))
 	fmt.Println()
-	
+
 	// Initialize orchestrator
 	engine, err := orchestrator.NewBugBountyEngine(store, &noopTelemetry{}, log, config)
 	if err != nil {
 		return fmt.Errorf("failed to initialize orchestrator: %w", err)
 	}
-	
+
 	// Resume from checkpoint
 	result, err := engine.ResumeFromCheckpoint(ctx, state)
 	if err != nil {
 		return fmt.Errorf("resume failed: %w", err)
 	}
-	
+
 	// Display results (same as normal scan)
 	if result.OrganizationInfo != nil {
 		displayOrganizationFootprinting(result.OrganizationInfo)
 	}
-	
+
 	if len(result.DiscoveredAssets) > 0 {
 		displayAssetDiscoveryResults(result.DiscoveredAssets, result.DiscoverySession)
 	}
-	
+
 	displayOrchestratorResults(result, config)
-	
+
 	fmt.Println()
 	color.Green("Resumed scan completed successfully\n")
-	
+
 	return nil
 }

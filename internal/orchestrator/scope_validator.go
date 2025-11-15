@@ -51,10 +51,10 @@ func NewScopeValidator(
 
 // ValidationResult contains the results of scope validation
 type ValidationResult struct {
-	InScope      []*scanners.AssetPriority
-	OutOfScope   []*scanners.AssetPriority
-	Unknown      []*scanners.AssetPriority
-	Duration     time.Duration
+	InScope    []*scanners.AssetPriority
+	OutOfScope []*scanners.AssetPriority
+	Unknown    []*scanners.AssetPriority
+	Duration   time.Duration
 }
 
 // FilterAssets validates assets against bug bounty program scope

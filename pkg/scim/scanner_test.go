@@ -318,7 +318,7 @@ func TestScan_BulkOperations(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:ServiceProviderConfig"},
 				"bulk": map[string]interface{}{
-					"supported":    true,
+					"supported":     true,
 					"maxOperations": 1000, // Vulnerable: too high
 				},
 			})

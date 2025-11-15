@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -144,13 +145,15 @@ func TestReportGeneratorBugBountyFormat(t *testing.T) {
 	findings := []types.Finding{
 		{
 			Type:        "SQL_INJECTION",
-			Severity:    "HIGH",
-			CVSS:        8.5,
-			CWE:         "CWE-89",
+			Severity:    types.SeverityHigh,
 			Description: "SQL injection vulnerability in login endpoint allows authentication bypass",
 			Evidence:    "Payload: ' OR '1'='1 successfully bypassed authentication",
-			Remediation: "Use parameterized queries instead of string concatenation",
 			Tool:        "artemis-sqli-scanner",
+			Metadata: map[string]interface{}{
+				"cvss":        8.5,
+				"cwe":         "CWE-89",
+				"remediation": "Use parameterized queries instead of string concatenation",
+			},
 		},
 	}
 
@@ -200,13 +203,15 @@ func TestReportGeneratorMultiplePlatforms(t *testing.T) {
 	findings := []types.Finding{
 		{
 			Type:        "XSS",
-			Severity:    "MEDIUM",
-			CVSS:        6.5,
-			CWE:         "CWE-79",
+			Severity:    types.SeverityMedium,
 			Description: "Reflected cross-site scripting in search parameter",
 			Evidence:    "<script>alert(document.cookie)</script> was reflected in response",
-			Remediation: "Implement proper output encoding and Content Security Policy",
 			Tool:        "artemis-xss-scanner",
+			Metadata: map[string]interface{}{
+				"cvss":        6.5,
+				"cwe":         "CWE-79",
+				"remediation": "Implement proper output encoding and Content Security Policy",
+			},
 		},
 	}
 
@@ -257,7 +262,7 @@ func TestCostTracking(t *testing.T) {
 }
 
 func createTestLogger(t *testing.T) *logger.Logger {
-	cfg := logger.Config{
+	cfg := config.LoggerConfig{
 		Level:  "debug",
 		Format: "console",
 	}

@@ -567,4 +567,3 @@ func (f *EngineFactory) buildOrganizationFootprinting(
 func (f *EngineFactory) buildScopeValidator(scopeManager *scope.Manager) *ScopeValidator {
 	return NewScopeValidator(scopeManager, f.logger, f.config)
 }
-

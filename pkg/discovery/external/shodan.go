@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net/http"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )

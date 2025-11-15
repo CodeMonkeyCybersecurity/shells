@@ -1242,7 +1242,7 @@ Examples:
 
 		if output == "json" {
 			result := map[string]interface{}{
-				"target":    target,
+				"target": target,
 				"time_window": map[string]interface{}{
 					"start": startTime,
 					"end":   endTime,
@@ -1361,7 +1361,7 @@ func displayScanHistory(target string, scans []*types.ScanRequest, scanHistory [
 	for i, histItem := range scanHistory {
 		scan := scans[i]
 		findings := histItem["findings"].(int)
-		
+
 		fmt.Printf("  %d. %s\n", i+1, scan.ID)
 		fmt.Printf("     Date: %s\n", scan.CreatedAt.Format("2006-01-02 15:04"))
 		fmt.Printf("     Status: %s\n", scan.Status)

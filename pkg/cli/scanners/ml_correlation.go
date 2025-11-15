@@ -286,4 +286,3 @@ func buildCorrelationSolution(insight correlation.CorrelatedInsight) string {
 
 	return solution.String()
 }
-

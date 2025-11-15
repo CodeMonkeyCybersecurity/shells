@@ -6,12 +6,13 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )

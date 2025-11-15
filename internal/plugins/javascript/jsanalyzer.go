@@ -3,7 +3,6 @@ package javascript
 import (
 	"context"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"

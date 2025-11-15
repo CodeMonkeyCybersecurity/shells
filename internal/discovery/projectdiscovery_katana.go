@@ -24,18 +24,18 @@ type KatanaModule struct {
 
 // CrawlResult represents katana crawl results
 type CrawlResult struct {
-	URL           string
-	Endpoint      string
-	Method        string // GET, POST, etc.
-	StatusCode    int
-	ContentType   string
-	Parameters    []string
-	Forms         []FormInfo
-	APIEndpoints  []string
-	JSFiles       []string
-	Technologies  []string
-	Depth         int
-	Source        string // Link source
+	URL          string
+	Endpoint     string
+	Method       string // GET, POST, etc.
+	StatusCode   int
+	ContentType  string
+	Parameters   []string
+	Forms        []FormInfo
+	APIEndpoints []string
+	JSFiles      []string
+	Technologies []string
+	Depth        int
+	Source       string // Link source
 }
 
 // FormInfo represents discovered forms

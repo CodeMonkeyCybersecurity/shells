@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )

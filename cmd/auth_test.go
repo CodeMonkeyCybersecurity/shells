@@ -112,7 +112,12 @@ func TestAuthDiscoverCommand(t *testing.T) {
 			}
 
 			// Execute command
-			err := cmd.RunE(cmd, []string{tt.target})
+			args := []string{}
+			if tt.target != "" {
+				args = []string{tt.target}
+			}
+
+			err := cmd.RunE(cmd, args)
 
 			// Restore stdout
 			w.Close()

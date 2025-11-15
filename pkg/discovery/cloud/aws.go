@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 )

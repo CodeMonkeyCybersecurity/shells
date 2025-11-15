@@ -91,7 +91,7 @@ type ManagerConfig struct {
 	DefaultScannerTimeout time.Duration
 
 	// Filtering
-	EnabledScanners []string // Empty = all enabled
+	EnabledScanners  []string // Empty = all enabled
 	DisabledScanners []string // Scanners to skip
 
 	// Execution strategy

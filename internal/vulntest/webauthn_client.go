@@ -6,8 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"strings"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 )
 
 // WebAuthnClient handles FIDO2/WebAuthn vulnerability testing

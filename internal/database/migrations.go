@@ -465,12 +465,12 @@ func (mr *MigrationRunner) GetMigrationStatus(ctx context.Context) (map[string]i
 	}
 
 	return map[string]interface{}{
-		"current_version":  appliedVersion,
-		"latest_version":   latestVersion,
-		"pending_count":    pendingCount,
-		"is_up_to_date":    pendingCount == 0,
-		"applied_count":    len(appliedMigrations),
-		"available_count":  len(allMigrations),
+		"current_version": appliedVersion,
+		"latest_version":  latestVersion,
+		"pending_count":   pendingCount,
+		"is_up_to_date":   pendingCount == 0,
+		"applied_count":   len(appliedMigrations),
+		"available_count": len(allMigrations),
 	}, nil
 }
 

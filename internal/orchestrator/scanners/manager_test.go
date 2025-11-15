@@ -41,10 +41,10 @@ func newMockScanner(name, scannerType string, priority int) *mockScanner {
 	}
 }
 
-func (m *mockScanner) Name() string                                    { return m.name }
-func (m *mockScanner) Type() string                                    { return m.scannerType }
-func (m *mockScanner) Priority() int                                   { return m.priority }
-func (m *mockScanner) CanHandle(asset *AssetPriority) bool             { return true }
+func (m *mockScanner) Name() string                        { return m.name }
+func (m *mockScanner) Type() string                        { return m.scannerType }
+func (m *mockScanner) Priority() int                       { return m.priority }
+func (m *mockScanner) CanHandle(asset *AssetPriority) bool { return true }
 
 func (m *mockScanner) Execute(ctx context.Context, assets []*AssetPriority) ([]types.Finding, error) {
 	m.mu.Lock()

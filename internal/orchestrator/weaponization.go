@@ -37,11 +37,11 @@ import (
 // AttackSurface represents the analyzed attack surface of discovered assets
 type AttackSurface struct {
 	// Categorized endpoints
-	AuthEndpoints    []AuthEndpoint    // SAML, OAuth2, WebAuthn, JWT
-	APIEndpoints     []APIEndpoint     // REST, GraphQL, SOAP
-	AdminPanels      []AdminPanel      // /admin, /dashboard, /panel
-	FileUploads      []FileUpload      // File upload forms
-	PaymentFlows     []PaymentFlow     // Payment/transaction endpoints
+	AuthEndpoints []AuthEndpoint // SAML, OAuth2, WebAuthn, JWT
+	APIEndpoints  []APIEndpoint  // REST, GraphQL, SOAP
+	AdminPanels   []AdminPanel   // /admin, /dashboard, /panel
+	FileUploads   []FileUpload   // File upload forms
+	PaymentFlows  []PaymentFlow  // Payment/transaction endpoints
 
 	// Analysis results
 	ThreatModel        *ThreatModel        // Tech stack → likely vulnerabilities
@@ -50,21 +50,21 @@ type AttackSurface struct {
 
 // AuthEndpoint represents discovered authentication mechanisms
 type AuthEndpoint struct {
-	URL          string
-	Type         string // "SAML", "OAuth2", "WebAuthn", "JWT", "Session"
-	Metadata     map[string]interface{}
-	Priority     int
-	Confidence   float64
+	URL        string
+	Type       string // "SAML", "OAuth2", "WebAuthn", "JWT", "Session"
+	Metadata   map[string]interface{}
+	Priority   int
+	Confidence float64
 }
 
 // APIEndpoint represents discovered API endpoints
 type APIEndpoint struct {
-	URL            string
-	Type           string // "REST", "GraphQL", "SOAP"
-	Specification  string // Path to Swagger/OpenAPI spec
-	Methods        []string
-	AuthRequired   bool
-	Priority       int
+	URL           string
+	Type          string // "REST", "GraphQL", "SOAP"
+	Specification string // Path to Swagger/OpenAPI spec
+	Methods       []string
+	AuthRequired  bool
+	Priority      int
 }
 
 // AdminPanel represents discovered admin/privileged interfaces
@@ -94,20 +94,20 @@ type PaymentFlow struct {
 
 // ThreatModel maps technology stack to likely vulnerabilities
 type ThreatModel struct {
-	TechStack          []string          // Detected technologies
-	LikelyVulns        []string          // CWE IDs likely for this stack
-	RecommendedScanners []string          // Scanner names to run
-	PriorityAdjustments map[string]int    // Target URL → priority boost
+	TechStack           []string       // Detected technologies
+	LikelyVulns         []string       // CWE IDs likely for this stack
+	RecommendedScanners []string       // Scanner names to run
+	PriorityAdjustments map[string]int // Target URL → priority boost
 }
 
 // PrioritizedTarget represents a target with assigned priority and scanners
 type PrioritizedTarget struct {
-	URL             string
-	AssetType       discovery.AssetType
-	Priority        int    // 1 (highest) to 5 (lowest)
-	Reason          string // Why this priority?
+	URL              string
+	AssetType        discovery.AssetType
+	Priority         int    // 1 (highest) to 5 (lowest)
+	Reason           string // Why this priority?
 	AssignedScanners []string
-	IsHighValue     bool
+	IsHighValue      bool
 }
 
 // WeaponizationEngine analyzes attack surface and prioritizes targets
@@ -198,11 +198,11 @@ func (w *WeaponizationEngine) Execute(ctx context.Context, state *PipelineState)
 // analyzeEndpoints categorizes discovered assets into endpoint types
 func (w *WeaponizationEngine) analyzeEndpoints(ctx context.Context, assets []discovery.Asset) *AttackSurface {
 	surface := &AttackSurface{
-		AuthEndpoints:    []AuthEndpoint{},
-		APIEndpoints:     []APIEndpoint{},
-		AdminPanels:      []AdminPanel{},
-		FileUploads:      []FileUpload{},
-		PaymentFlows:     []PaymentFlow{},
+		AuthEndpoints: []AuthEndpoint{},
+		APIEndpoints:  []APIEndpoint{},
+		AdminPanels:   []AdminPanel{},
+		FileUploads:   []FileUpload{},
+		PaymentFlows:  []PaymentFlow{},
 	}
 
 	for _, asset := range assets {

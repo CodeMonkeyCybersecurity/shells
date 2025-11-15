@@ -37,12 +37,12 @@ func TestSaveAndLoad(t *testing.T) {
 	// Create test state
 	scanID := "test-scan-12345"
 	state := &State{
-		ScanID:       scanID,
-		Target:       "example.com",
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-		Progress:     50.0,
-		CurrentPhase: "testing",
+		ScanID:         scanID,
+		Target:         "example.com",
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+		Progress:       50.0,
+		CurrentPhase:   "testing",
 		CompletedTests: []string{"auth", "scim"},
 		Findings: []types.Finding{
 			{

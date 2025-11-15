@@ -33,13 +33,13 @@ type BountyConfig struct {
 	TotalTimeout     time.Duration
 
 	// Discovery settings
-	MaxAssets             int
-	MaxDepth              int
-	EnablePortScan        bool
-	EnableWebCrawl        bool
-	EnableDNS             bool
-	SkipDiscovery         bool
-	EnableSubdomainEnum   bool
+	MaxAssets              int
+	MaxDepth               int
+	EnablePortScan         bool
+	EnableWebCrawl         bool
+	EnableDNS              bool
+	SkipDiscovery          bool
+	EnableSubdomainEnum    bool
 	EnableCertTransparency bool
 
 	// Testing settings
@@ -236,13 +236,13 @@ func convertToOrchestratorConfig(config *BountyConfig) orchestrator.BugBountyCon
 		ScanTimeout:      config.ScanTimeout,
 		TotalTimeout:     config.TotalTimeout,
 
-		MaxAssets:             config.MaxAssets,
-		MaxDepth:              config.MaxDepth,
-		EnablePortScan:        config.EnablePortScan,
-		EnableWebCrawl:        config.EnableWebCrawl,
-		EnableDNS:             config.EnableDNS,
-		SkipDiscovery:         config.SkipDiscovery,
-		EnableSubdomainEnum:   config.EnableSubdomainEnum,
+		MaxAssets:              config.MaxAssets,
+		MaxDepth:               config.MaxDepth,
+		EnablePortScan:         config.EnablePortScan,
+		EnableWebCrawl:         config.EnableWebCrawl,
+		EnableDNS:              config.EnableDNS,
+		SkipDiscovery:          config.SkipDiscovery,
+		EnableSubdomainEnum:    config.EnableSubdomainEnum,
 		EnableCertTransparency: config.EnableCertTransparency,
 
 		EnableAuthTesting:    config.EnableAuthTesting,

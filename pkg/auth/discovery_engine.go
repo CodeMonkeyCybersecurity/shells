@@ -5,12 +5,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"

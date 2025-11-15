@@ -23,17 +23,17 @@ type TlsxModule struct {
 
 // CertificateInfo represents TLS certificate information
 type CertificateInfo struct {
-	CommonName       string
-	SANs             []string // Subject Alternative Names
-	Organization     string
-	Issuer           string
-	NotBefore        time.Time
-	NotAfter         time.Time
-	SerialNumber     string
-	Fingerprint      string
-	SelfSigned       bool
-	TLSVersion       string
-	CipherSuite      string
+	CommonName         string
+	SANs               []string // Subject Alternative Names
+	Organization       string
+	Issuer             string
+	NotBefore          time.Time
+	NotAfter           time.Time
+	SerialNumber       string
+	Fingerprint        string
+	SelfSigned         bool
+	TLSVersion         string
+	CipherSuite        string
 	PublicKeyAlgorithm string
 	SignatureAlgorithm string
 }
@@ -98,15 +98,15 @@ func (m *TlsxModule) Discover(ctx context.Context, target *Target, session *Disc
 				Tags:       []string{"certificate", "tls", "tlsx", "ct_logs"},
 				Technology: []string{},
 				Metadata: map[string]string{
-					"cert_common_name":    cert.CommonName,
-					"cert_organization":   cert.Organization,
-					"cert_issuer":         cert.Issuer,
-					"cert_fingerprint":    cert.Fingerprint,
-					"cert_not_before":     cert.NotBefore.Format(time.RFC3339),
-					"cert_not_after":      cert.NotAfter.Format(time.RFC3339),
-					"cert_serial_number":  cert.SerialNumber,
-					"discovery_method":    "certificate_transparency",
-					"tool":                "tlsx",
+					"cert_common_name":   cert.CommonName,
+					"cert_organization":  cert.Organization,
+					"cert_issuer":        cert.Issuer,
+					"cert_fingerprint":   cert.Fingerprint,
+					"cert_not_before":    cert.NotBefore.Format(time.RFC3339),
+					"cert_not_after":     cert.NotAfter.Format(time.RFC3339),
+					"cert_serial_number": cert.SerialNumber,
+					"discovery_method":   "certificate_transparency",
+					"tool":               "tlsx",
 				},
 				DiscoveredAt: time.Now(),
 				LastSeen:     time.Now(),
@@ -177,9 +177,9 @@ func (m *TlsxModule) extractOrganizationFromCerts(certs []*CertificateInfo) *Org
 	// Extract organization info from first cert
 	cert := certs[0]
 	orgCtx := &OrganizationContext{
-		OrgName:       cert.Organization,
-		KnownDomains:  []string{},
-		Technologies:  []string{},
+		OrgName:      cert.Organization,
+		KnownDomains: []string{},
+		Technologies: []string{},
 	}
 
 	// Collect all domains from SANs

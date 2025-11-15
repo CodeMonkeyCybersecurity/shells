@@ -38,12 +38,12 @@ func TestCertificateDiscovery(t *testing.T) {
 
 	// Setup organization correlator with all features enabled
 	corrCfg := correlation.CorrelatorConfig{
-		EnableWhois:   true,
-		EnableCerts:   true,
-		EnableASN:     true,
+		EnableWhois:    true,
+		EnableCerts:    true,
+		EnableASN:      true,
 		EnableLinkedIn: false, // Skip for this test
-		EnableGitHub:  false,  // Skip for this test
-		CacheTTL:      1 * time.Hour,
+		EnableGitHub:   false, // Skip for this test
+		CacheTTL:       1 * time.Hour,
 	}
 
 	fmt.Println("📊 Configuration:")

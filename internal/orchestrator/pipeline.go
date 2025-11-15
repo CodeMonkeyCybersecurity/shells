@@ -180,11 +180,11 @@ func (p PipelinePhase) String() string {
 // PipelineState tracks progress through the Kill Chain pipeline
 type PipelineState struct {
 	// Identification
-	ScanID       string
-	Target       string
-	TargetType   discovery.TargetType
-	StartedAt    time.Time
-	CompletedAt  *time.Time
+	ScanID      string
+	Target      string
+	TargetType  discovery.TargetType
+	StartedAt   time.Time
+	CompletedAt *time.Time
 
 	// Phase tracking
 	CurrentPhase    PipelinePhase
@@ -192,29 +192,29 @@ type PipelineState struct {
 	PhaseErrors     map[PipelinePhase][]string
 
 	// Discovery results (Phase 1)
-	DiscoverySession     *discovery.DiscoverySession
-	DiscoveredAssets     []discovery.Asset // All discovered assets (before filtering)
-	InScopeAssets        []discovery.Asset // Filtered by scope validation
-	OutOfScopeAssets     []discovery.Asset // Excluded by scope rules
-	OrganizationContext  *discovery.OrganizationContext // Organization context for scope expansion
+	DiscoverySession    *discovery.DiscoverySession
+	DiscoveredAssets    []discovery.Asset              // All discovered assets (before filtering)
+	InScopeAssets       []discovery.Asset              // Filtered by scope validation
+	OutOfScopeAssets    []discovery.Asset              // Excluded by scope rules
+	OrganizationContext *discovery.OrganizationContext // Organization context for scope expansion
 
 	// Weaponization results (Phase 2)
-	AttackSurface       *AttackSurface           // Analyzed attack surface
-	PrioritizedTargets  []PrioritizedTarget      // Targets sorted by priority
-	ScannerAssignments  map[string][]string      // target URL → scanner names
+	AttackSurface      *AttackSurface      // Analyzed attack surface
+	PrioritizedTargets []PrioritizedTarget // Targets sorted by priority
+	ScannerAssignments map[string][]string // target URL → scanner names
 
 	// Exploitation results (Phase 4)
-	RawFindings           []types.Finding        // Findings before enrichment
+	RawFindings            []types.Finding        // Findings before enrichment
 	AuthenticationSessions map[string]interface{} // Auth sessions for API testing
 
 	// Correlation results (Phase 6)
-	EnrichedFindings []types.Finding   // Findings after CVSS, exploits, remediation
-	ExploitChains    []ExploitChain    // Detected vulnerability chains
+	EnrichedFindings []types.Finding // Findings after CVSS, exploits, remediation
+	ExploitChains    []ExploitChain  // Detected vulnerability chains
 
 	// Iteration tracking (feedback loop)
-	IterationCount       int
-	NewAssetsLastIter    int // Assets discovered in last iteration
-	FeedbackLoopActive   bool // True if iterating due to new discoveries
+	IterationCount     int
+	NewAssetsLastIter  int  // Assets discovered in last iteration
+	FeedbackLoopActive bool // True if iterating due to new discoveries
 
 	// Checkpointing
 	LastCheckpointAt *time.Time
@@ -222,16 +222,16 @@ type PipelineState struct {
 
 // Pipeline orchestrates the full Cyber Kill Chain aligned bug bounty workflow
 type Pipeline struct {
-	state   *PipelineState
-	config  BugBountyConfig
-	logger  *logger.Logger
-	store   core.ResultStore
+	state  *PipelineState
+	config BugBountyConfig
+	logger *logger.Logger
+	store  core.ResultStore
 
 	// Phase executors
-	discoveryEngine      *discovery.Engine
-	weaponizationEngine  *WeaponizationEngine
-	exploitationEngine   *ExploitationEngine
-	correlationEngine    *CorrelationEngine
+	discoveryEngine     *discovery.Engine
+	weaponizationEngine *WeaponizationEngine
+	exploitationEngine  *ExploitationEngine
+	correlationEngine   *CorrelationEngine
 
 	// Checkpointing
 	checkpointManager *checkpoint.Manager
@@ -625,11 +625,11 @@ func (p *Pipeline) extractNewAssetsFromFindings() []discovery.Asset {
 		if finding.Metadata != nil {
 			if endpoint, ok := finding.Metadata["endpoint"].(string); ok && endpoint != "" {
 				asset := discovery.Asset{
-					ID:          uuid.New().String(),
-					Type:        discovery.AssetTypeURL,
-					Value:       endpoint,
-					Source:      "finding_metadata",
-					Confidence:  0.9,
+					ID:           uuid.New().String(),
+					Type:         discovery.AssetTypeURL,
+					Value:        endpoint,
+					Source:       "finding_metadata",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
 				}
 				if !seenAssets[asset.Value] {
@@ -639,11 +639,11 @@ func (p *Pipeline) extractNewAssetsFromFindings() []discovery.Asset {
 			}
 			if subdomain, ok := finding.Metadata["subdomain"].(string); ok && subdomain != "" {
 				asset := discovery.Asset{
-					ID:          uuid.New().String(),
-					Type:        discovery.AssetTypeDomain,
-					Value:       subdomain,
-					Source:      "finding_metadata",
-					Confidence:  0.9,
+					ID:           uuid.New().String(),
+					Type:         discovery.AssetTypeDomain,
+					Value:        subdomain,
+					Source:       "finding_metadata",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
 				}
 				if !seenAssets[asset.Value] {
@@ -653,11 +653,11 @@ func (p *Pipeline) extractNewAssetsFromFindings() []discovery.Asset {
 			}
 			if ip, ok := finding.Metadata["ip_address"].(string); ok && ip != "" {
 				asset := discovery.Asset{
-					ID:          uuid.New().String(),
-					Type:        discovery.AssetTypeIP,
-					Value:       ip,
-					Source:      "finding_metadata",
-					Confidence:  0.9,
+					ID:           uuid.New().String(),
+					Type:         discovery.AssetTypeIP,
+					Value:        ip,
+					Source:       "finding_metadata",
+					Confidence:   0.9,
 					DiscoveredAt: time.Now(),
 				}
 				if !seenAssets[asset.Value] {
@@ -735,11 +735,11 @@ func extractAssetsFromText(text string) []discovery.Asset {
 	urlMatches := urlPattern.FindAllString(text, -1)
 	for _, url := range urlMatches {
 		assets = append(assets, discovery.Asset{
-			ID:          uuid.New().String(),
-			Type:        discovery.AssetTypeURL,
-			Value:       url,
-			Source:      "finding_evidence",
-			Confidence:  0.95,
+			ID:           uuid.New().String(),
+			Type:         discovery.AssetTypeURL,
+			Value:        url,
+			Source:       "finding_evidence",
+			Confidence:   0.95,
 			DiscoveredAt: time.Now(),
 		})
 	}
@@ -752,11 +752,11 @@ func extractAssetsFromText(text string) []discovery.Asset {
 			continue
 		}
 		assets = append(assets, discovery.Asset{
-			ID:          uuid.New().String(),
-			Type:        discovery.AssetTypeDomain,
-			Value:       domain,
-			Source:      "finding_evidence",
-			Confidence:  0.85,
+			ID:           uuid.New().String(),
+			Type:         discovery.AssetTypeDomain,
+			Value:        domain,
+			Source:       "finding_evidence",
+			Confidence:   0.85,
 			DiscoveredAt: time.Now(),
 		})
 	}
@@ -767,11 +767,11 @@ func extractAssetsFromText(text string) []discovery.Asset {
 		// Skip invalid IPs (e.g., version numbers)
 		if isValidIP(ip) {
 			assets = append(assets, discovery.Asset{
-				ID:          uuid.New().String(),
-				Type:        discovery.AssetTypeIP,
-				Value:       ip,
-				Source:      "finding_evidence",
-				Confidence:  0.9,
+				ID:           uuid.New().String(),
+				Type:         discovery.AssetTypeIP,
+				Value:        ip,
+				Source:       "finding_evidence",
+				Confidence:   0.9,
 				DiscoveredAt: time.Now(),
 			})
 		}

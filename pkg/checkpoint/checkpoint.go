@@ -9,39 +9,39 @@
 // KEY FEATURES:
 //
 // 1. Automatic Checkpoint Saves:
-//    - After each major phase (discovery, prioritization, testing, storage)
-//    - Every 5 minutes during long-running operations (configurable)
-//    - On graceful shutdown (Ctrl+C, SIGTERM)
+//   - After each major phase (discovery, prioritization, testing, storage)
+//   - Every 5 minutes during long-running operations (configurable)
+//   - On graceful shutdown (Ctrl+C, SIGTERM)
 //
 // 2. Resume Capability:
-//    - Load checkpoint by full scan ID or short suffix
-//    - Skip completed phases and tests
-//    - Preserve all findings collected so far
-//    - Continue from exact point of interruption
+//   - Load checkpoint by full scan ID or short suffix
+//   - Skip completed phases and tests
+//   - Preserve all findings collected so far
+//   - Continue from exact point of interruption
 //
 // 3. Storage Format:
-//    - Human-readable JSON files in ~/.shells/checkpoints/
-//    - Each checkpoint file named: {scan_id}.json
-//    - Includes: progress, current phase, completed tests, findings, metadata
+//   - Human-readable JSON files in ~/.shells/checkpoints/
+//   - Each checkpoint file named: {scan_id}.json
+//   - Includes: progress, current phase, completed tests, findings, metadata
 //
 // 4. Automatic Cleanup:
-//    - Old checkpoints (>7 days) automatically cleaned up
-//    - Successful scan completion deletes checkpoint
-//    - Manual cleanup via shells resume --cleanup
+//   - Old checkpoints (>7 days) automatically cleaned up
+//   - Successful scan completion deletes checkpoint
+//   - Manual cleanup via shells resume --cleanup
 //
 // USAGE EXAMPLES:
 //
-//   // Basic scan (automatically saves checkpoints)
-//   shells example.com
-//   // ... press Ctrl+C during scan ...
-//   // Progress saved to checkpoint: bounty-1234567890-abc123
-//   // Resume with: shells resume abc123
+//	// Basic scan (automatically saves checkpoints)
+//	shells example.com
+//	// ... press Ctrl+C during scan ...
+//	// Progress saved to checkpoint: bounty-1234567890-abc123
+//	// Resume with: shells resume abc123
 //
-//   // Resume interrupted scan
-//   shells resume abc123
+//	// Resume interrupted scan
+//	shells resume abc123
 //
-//   // List available checkpoints
-//   shells resume --list
+//	// List available checkpoints
+//	shells resume --list
 //
 // INTEGRATION POINTS:
 //
@@ -65,47 +65,47 @@
 // CHECKPOINT LIFECYCLE:
 //
 // 1. Scan Start:
-//    - Initialize checkpoint state with scan ID and target
-//    - Save initial checkpoint (0% complete)
+//   - Initialize checkpoint state with scan ID and target
+//   - Save initial checkpoint (0% complete)
 //
 // 2. During Scan:
-//    - Save checkpoint after each major phase (25%, 35%, 85%, 95%)
-//    - Save periodic checkpoints every 5 minutes
-//    - Update progress, current phase, completed tests, findings
+//   - Save checkpoint after each major phase (25%, 35%, 85%, 95%)
+//   - Save periodic checkpoints every 5 minutes
+//   - Update progress, current phase, completed tests, findings
 //
 // 3. Graceful Shutdown (Ctrl+C):
-//    - Shutdown handler triggers checkpoint save
-//    - Save current progress with all accumulated data
-//    - Display resume command to user
+//   - Shutdown handler triggers checkpoint save
+//   - Save current progress with all accumulated data
+//   - Display resume command to user
 //
 // 4. Scan Completion:
-//    - Save final checkpoint (100% complete)
-//    - Optionally delete checkpoint (scan complete, no need to resume)
+//   - Save final checkpoint (100% complete)
+//   - Optionally delete checkpoint (scan complete, no need to resume)
 //
 // 5. Resume:
-//    - Load checkpoint state from disk
-//    - Skip completed phases (discovery if already done)
-//    - Skip completed tests (auth, scim, etc. if already run)
-//    - Continue from current phase with preserved findings
+//   - Load checkpoint state from disk
+//   - Skip completed phases (discovery if already done)
+//   - Skip completed tests (auth, scim, etc. if already run)
+//   - Continue from current phase with preserved findings
 //
 // CHECKPOINT FILE FORMAT (JSON):
 //
-// {
-//   "scan_id": "bounty-1234567890-abc123",
-//   "target": "example.com",
-//   "progress": 50.0,
-//   "current_phase": "testing",
-//   "created_at": "2025-10-06T10:00:00Z",
-//   "updated_at": "2025-10-06T10:15:00Z",
-//   "discovered_assets": [...],
-//   "completed_tests": ["auth", "scim"],
-//   "findings": [...],
-//   "metadata": {
-//     "quick_mode": false,
-//     "timeout": "30m",
-//     "enable_dns": true
-//   }
-// }
+//	{
+//	  "scan_id": "bounty-1234567890-abc123",
+//	  "target": "example.com",
+//	  "progress": 50.0,
+//	  "current_phase": "testing",
+//	  "created_at": "2025-10-06T10:00:00Z",
+//	  "updated_at": "2025-10-06T10:15:00Z",
+//	  "discovered_assets": [...],
+//	  "completed_tests": ["auth", "scim"],
+//	  "findings": [...],
+//	  "metadata": {
+//	    "quick_mode": false,
+//	    "timeout": "30m",
+//	    "enable_dns": true
+//	  }
+//	}
 //
 // IMPLEMENTATION STATUS:
 //
@@ -125,7 +125,6 @@
 // - Checkpoint diff/comparison between runs
 // - Checkpoint repair/recovery for corrupted files
 // - Checkpoint export/import for scan migration
-//
 package checkpoint
 
 import (
@@ -228,11 +227,11 @@ type Asset struct {
 	Title        string            `json:"title,omitempty"`
 	Technology   []string          `json:"technology,omitempty"`
 	Metadata     map[string]string `json:"metadata,omitempty"`
-	Priority     int               `json:"priority"`               // P0-16: Asset testing priority
-	Source       string            `json:"source,omitempty"`       // P0-16: Discovery source (crt.sh, dns, etc.)
-	Confidence   float64           `json:"confidence"`             // P0-16: Reliability score
-	DiscoveredAt time.Time         `json:"discovered_at"`          // P0-16: When first found
-	LastSeen     time.Time         `json:"last_seen,omitempty"`    // P0-16: When last confirmed
+	Priority     int               `json:"priority"`            // P0-16: Asset testing priority
+	Source       string            `json:"source,omitempty"`    // P0-16: Discovery source (crt.sh, dns, etc.)
+	Confidence   float64           `json:"confidence"`          // P0-16: Reliability score
+	DiscoveredAt time.Time         `json:"discovered_at"`       // P0-16: When first found
+	LastSeen     time.Time         `json:"last_seen,omitempty"` // P0-16: When last confirmed
 }
 
 // Manager handles checkpoint storage and retrieval

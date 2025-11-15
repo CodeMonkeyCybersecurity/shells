@@ -86,7 +86,7 @@ func (su *ShellsUpdater) Assess() (*UpdateState, error) {
 		}
 	} else if os.IsNotExist(err) {
 		return nil, fmt.Errorf("shells source directory not found at %s - cannot self-update\n"+
-			"Clone the repository first: git clone https://github.com/CodeMonkeyCybersecurity/shells %s",
+			"Clone the repository first: git clone https://github.com/CodeMonkeyCybersecurity/artemis %s",
 			su.config.SourceDir, su.config.SourceDir)
 	}
 

@@ -3,12 +3,13 @@ package vulntest
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 )
 
 // HTTPClient is a wrapper around http.Client with vulnerability testing helpers

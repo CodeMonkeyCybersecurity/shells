@@ -34,7 +34,9 @@ func NewFallbackStorage(log *logger.Logger) *FallbackStorage {
 // Returns error only if BOTH database AND fallback fail
 func (fs *FallbackStorage) SaveFindingsWithFallback(
 	ctx context.Context,
-	store interface{ SaveFindings(context.Context, []types.Finding) error },
+	store interface {
+		SaveFindings(context.Context, []types.Finding) error
+	},
 	scanID string,
 	findings []types.Finding,
 ) error {

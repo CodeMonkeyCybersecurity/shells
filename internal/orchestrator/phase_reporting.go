@@ -189,9 +189,9 @@ func (p *Pipeline) generateAIReportsIfEnabled(ctx context.Context) error {
 	}
 
 	// Filter high/critical findings for AI report generation
-	criticalAndHighFindings := p.filterFindingsBySeverity([]string{
-		string(types.SeverityCritical),
-		string(types.SeverityHigh),
+	criticalAndHighFindings := p.filterFindingsBySeverity([]types.Severity{
+		types.SeverityCritical,
+		types.SeverityHigh,
 	})
 
 	if len(criticalAndHighFindings) == 0 {
@@ -269,15 +269,15 @@ func (p *Pipeline) generateAIReportsIfEnabled(ctx context.Context) error {
 }
 
 // filterFindingsBySeverity returns findings matching specified severity levels
-func (p *Pipeline) filterFindingsBySeverity(severities []string) []types.Finding {
-	severityMap := make(map[string]bool)
+func (p *Pipeline) filterFindingsBySeverity(severities []types.Severity) []types.Finding {
+	severityMap := make(map[types.Severity]struct{}, len(severities))
 	for _, sev := range severities {
-		severityMap[sev] = true
+		severityMap[sev] = struct{}{}
 	}
 
 	var filtered []types.Finding
 	for _, finding := range p.state.EnrichedFindings {
-		if severityMap[finding.Severity] {
+		if _, ok := severityMap[finding.Severity]; ok {
 			filtered = append(filtered, finding)
 		}
 	}
@@ -300,17 +300,6 @@ func (p *Pipeline) saveAIReport(report *ai.GeneratedReport, platform string) err
 	)
 
 	return nil
-}
-
-// countBySeverity counts findings by severity level
-func (p *Pipeline) countBySeverity(severity types.Severity) int {
-	count := 0
-	for _, finding := range p.state.EnrichedFindings {
-		if finding.Severity == string(severity) {
-			count++
-		}
-	}
-	return count
 }
 
 // setupContinuousMonitoringIfEnabled sets up continuous monitoring for discovered assets
@@ -336,7 +325,7 @@ func (p *Pipeline) setupContinuousMonitoringIfEnabled(ctx context.Context) error
 			domainCount++
 		case "service":
 			// Check if HTTPS service from metadata
-			if protocol, ok := asset.Metadata["protocol"].(string); ok && protocol == "https" {
+			if protocol, ok := asset.Metadata["protocol"]; ok && protocol == "https" {
 				httpsServiceCount++
 			}
 		case "git_repository":

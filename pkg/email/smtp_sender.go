@@ -88,8 +88,8 @@ type SMTPConfig struct {
 	FromName  string // Sender display name
 
 	// TLS settings
-	UseTLS       bool // Use STARTTLS
-	UseSSL       bool // Use SSL/TLS from connection start
+	UseTLS        bool // Use STARTTLS
+	UseSSL        bool // Use SSL/TLS from connection start
 	SkipTLSVerify bool // Skip TLS certificate verification (not recommended)
 
 	// Connection settings

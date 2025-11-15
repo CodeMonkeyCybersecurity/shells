@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	logconfig "github.com/CodeMonkeyCybersecurity/artemis/internal/config"
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -286,7 +287,7 @@ Discovery Tool: Artemis Security Scanner
 }
 
 func createTestLogger(t *testing.T) *logger.Logger {
-	cfg := logger.Config{
+	cfg := logconfig.LoggerConfig{
 		Level:  "debug",
 		Format: "console",
 	}

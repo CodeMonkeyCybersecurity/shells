@@ -253,8 +253,8 @@ func TestScannerPriorityOrdering(t *testing.T) {
 	mediumPriority := NewMockScanner("medium-priority", "api", 2)
 	lowPriority := NewMockScanner("low-priority", "misc", 3)
 
-	engine.scannerManager.Register("low", lowPriority)      // Register out of order
-	engine.scannerManager.Register("high", highPriority)    // to test sorting
+	engine.scannerManager.Register("low", lowPriority)   // Register out of order
+	engine.scannerManager.Register("high", highPriority) // to test sorting
 	engine.scannerManager.Register("medium", mediumPriority)
 
 	// Get list of scanner names

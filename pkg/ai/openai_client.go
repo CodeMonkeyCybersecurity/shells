@@ -86,19 +86,19 @@ type Config struct {
 	Model  string // e.g., "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"
 
 	// For Azure OpenAI
-	AzureEndpoint    string
-	AzureAPIKey      string
-	AzureDeployment  string
-	AzureAPIVersion  string
+	AzureEndpoint   string
+	AzureAPIKey     string
+	AzureDeployment string
+	AzureAPIVersion string
 
 	// Generation settings
-	MaxTokens        int
-	Temperature      float32
-	EnableStreaming  bool
-	Timeout          time.Duration
+	MaxTokens       int
+	Temperature     float32
+	EnableStreaming bool
+	Timeout         time.Duration
 
 	// Cost controls
-	MaxCostPerReport float64 // Maximum cost in USD per report
+	MaxCostPerReport   float64 // Maximum cost in USD per report
 	EnableCostTracking bool
 }
 

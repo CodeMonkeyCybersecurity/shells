@@ -61,12 +61,12 @@ type RESTAPIConfig struct {
 	NoAuthHeaders map[string]string // Unauthenticated requests
 
 	// Request parameters
-	Timeout          time.Duration
-	MaxWorkers       int
-	RateLimit        int // Requests per second
-	FollowRedirects  bool
-	UserAgent        string
-	CustomHeaders    map[string]string
+	Timeout         time.Duration
+	MaxWorkers      int
+	RateLimit       int // Requests per second
+	FollowRedirects bool
+	UserAgent       string
+	CustomHeaders   map[string]string
 
 	// Detection thresholds
 	StatusCodeFilters []int   // Valid status codes to flag (default: 200, 201)
@@ -399,8 +399,8 @@ func (s *RESTAPIScanner) testHTTPMethods(ctx context.Context, endpoints []APIEnd
 						Description: fmt.Sprintf("HTTP method %s is allowed on endpoint %s", m, ep.Pattern),
 						Evidence: fmt.Sprintf("Request: %s %s\nResponse: %d\nExpected: Method not allowed",
 							m, ep.URL, resp.StatusCode),
-						Impact:      s.determineMethodImpact(m),
-						Remediation: s.getMethodRemediation(m),
+						Impact:          s.determineMethodImpact(m),
+						Remediation:     s.getMethodRemediation(m),
 						ConfidenceScore: 0.90,
 						Timestamp:       time.Now(),
 						Context: map[string]interface{}{
@@ -573,8 +573,8 @@ func (s *RESTAPIScanner) testAuthenticationBypass(ctx context.Context, endpoints
 					Description: fmt.Sprintf("Authentication bypass via malformed token (%s)", test.name),
 					Evidence: fmt.Sprintf("Malformed auth header '%s' bypassed authentication (Status: %d)",
 						test.header["Authorization"], resp.StatusCode),
-					Impact:      "Authentication can be bypassed with malformed tokens",
-					Remediation: "Implement strict token validation and return 401 for invalid tokens",
+					Impact:          "Authentication can be bypassed with malformed tokens",
+					Remediation:     "Implement strict token validation and return 401 for invalid tokens",
 					ConfidenceScore: 0.90,
 					Timestamp:       time.Now(),
 					Context: map[string]interface{}{

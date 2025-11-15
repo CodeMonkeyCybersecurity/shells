@@ -2,10 +2,11 @@ package oauth2
 
 import (
 	"encoding/json"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )

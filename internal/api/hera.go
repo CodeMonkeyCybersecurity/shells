@@ -5,14 +5,18 @@
 //	STATUS: Database schema issues FIXED
 //
 // Previous P0 database schema mismatches have been resolved:
-//  - hera_whois_cache schema now matches queries (✅ FIXED)
-//  - hera_threat_intel schema now matches queries (✅ FIXED)
-//  - hera_stats schema now matches queries (✅ FIXED)
-//  - Driver detection (getPlaceholder, currentDate, now) working (✅ FIXED)
 //
-//	REMAINING ISSUES:
+//   - hera_whois_cache schema now matches queries (✅ FIXED)
 //
-//	  P1 ISSUES (HIGH - Major Functionality Gaps):
+//   - hera_threat_intel schema now matches queries (✅ FIXED)
+//
+//   - hera_stats schema now matches queries (✅ FIXED)
+//
+//   - Driver detection (getPlaceholder, currentDate, now) working (✅ FIXED)
+//
+//     REMAINING ISSUES:
+//
+//     P1 ISSUES (HIGH - Major Functionality Gaps):
 //
 // P1-1: No Actual WHOIS Integration (Line 234)
 //

@@ -69,39 +69,39 @@ type IDORConfig struct {
 	VictimHeaders map[string]string // Headers for victim user (horizontal testing)
 
 	// Response analysis
-	StatusCodeFilters []int     // Only consider these status codes (default: 200)
-	MinResponseSize   int       // Minimum response size to consider (avoid empty responses)
-	SimilarityThresh  float64   // Similarity threshold for response comparison (0.0-1.0)
-	UserAgent         string    // Custom user agent
-	FollowRedirects   bool      // Follow HTTP redirects
+	StatusCodeFilters []int   // Only consider these status codes (default: 200)
+	MinResponseSize   int     // Minimum response size to consider (avoid empty responses)
+	SimilarityThresh  float64 // Similarity threshold for response comparison (0.0-1.0)
+	UserAgent         string  // Custom user agent
+	FollowRedirects   bool    // Follow HTTP redirects
 	CustomHeaders     map[string]string
 
 	// Smart features
-	SmartRangeDetection   bool // Automatically detect valid ID ranges
+	SmartRangeDetection    bool // Automatically detect valid ID ranges
 	SmartStopOnConsecutive int  // Stop after N consecutive 404s (default: 50)
-	ExtractIDsFromContent bool // Extract valid IDs from response content
+	ExtractIDsFromContent  bool // Extract valid IDs from response content
 }
 
 // IDORFinding represents a discovered IDOR vulnerability
 type IDORFinding struct {
-	FindingType      string                 // sequential_id, uuid, horizontal_privesc, vertical_privesc
-	Severity         types.Severity         // Severity level
-	URL              string                 // Affected URL
-	Method           string                 // HTTP method
-	OriginalID       string                 // Original ID tested
-	AccessibleID     string                 // ID that should be inaccessible but is
-	StatusCode       int                    // Response status code
-	ResponseSize     int                    // Response size
-	ResponseHash     string                 // Hash of response for deduplication
-	Evidence         string                 // Evidence of vulnerability
-	Description      string                 // Human-readable description
-	Impact           string                 // Security impact
-	Remediation      string                 // Fix recommendations
-	Context          map[string]interface{} // Additional context
-	Timestamp        time.Time              // When discovered
-	ConfidenceScore  float64                // 0.0-1.0 confidence in finding
-	ExploitPayload   string                 // PoC exploit
-	AffectedIDRange  []string               // List of accessible IDs (if many)
+	FindingType       string                 // sequential_id, uuid, horizontal_privesc, vertical_privesc
+	Severity          types.Severity         // Severity level
+	URL               string                 // Affected URL
+	Method            string                 // HTTP method
+	OriginalID        string                 // Original ID tested
+	AccessibleID      string                 // ID that should be inaccessible but is
+	StatusCode        int                    // Response status code
+	ResponseSize      int                    // Response size
+	ResponseHash      string                 // Hash of response for deduplication
+	Evidence          string                 // Evidence of vulnerability
+	Description       string                 // Human-readable description
+	Impact            string                 // Security impact
+	Remediation       string                 // Fix recommendations
+	Context           map[string]interface{} // Additional context
+	Timestamp         time.Time              // When discovered
+	ConfidenceScore   float64                // 0.0-1.0 confidence in finding
+	ExploitPayload    string                 // PoC exploit
+	AffectedIDRange   []string               // List of accessible IDs (if many)
 	PatternDiscovered string                 // ID generation pattern (if detected)
 }
 
@@ -380,7 +380,7 @@ func (s *IDORScanner) testSequentialIDs(ctx context.Context, target string, idIn
 			OriginalID:      idInfo.Value,
 			AffectedIDRange: accessibleIDs,
 			StatusCode:      200,
-			Description: fmt.Sprintf("Mass IDOR exposure via sequential ID enumeration - %d accessible resources discovered", len(accessibleIDs)),
+			Description:     fmt.Sprintf("Mass IDOR exposure via sequential ID enumeration - %d accessible resources discovered", len(accessibleIDs)),
 			Evidence: fmt.Sprintf("Sequential IDs from %d to %d are accessible without proper authorization. "+
 				"Total exposed resources: %d. Sample accessible IDs: %v",
 				startID, endID, len(accessibleIDs), accessibleIDs[:min(10, len(accessibleIDs))]),
@@ -473,8 +473,8 @@ func (s *IDORScanner) testSingleID(ctx context.Context, target string, idInfo *I
 			Evidence: fmt.Sprintf("Resource with ID %s is accessible without proper authorization. "+
 				"Response status: %d, Size: %d bytes, Similarity to baseline: %.2f%%",
 				testID, resp.StatusCode, len(body), similarity*100),
-			Impact: "Attacker can access other users' resources by manipulating the ID parameter",
-			Remediation: "Implement proper authorization checks before returning resource data",
+			Impact:          "Attacker can access other users' resources by manipulating the ID parameter",
+			Remediation:     "Implement proper authorization checks before returning resource data",
 			ConfidenceScore: similarity,
 			Timestamp:       time.Now(),
 			Context: map[string]interface{}{
@@ -620,15 +620,15 @@ func (s *IDORScanner) testHorizontalPrivilegeEscalation(ctx context.Context, tar
 		body, _ := s.readResponseBody(resp)
 
 		finding := IDORFinding{
-			FindingType:     "horizontal_privilege_escalation",
-			Severity:        types.SeverityCritical,
-			URL:             testURL,
-			Method:          "GET",
-			OriginalID:      idInfo.Value,
-			AccessibleID:    idInfo.Value,
-			StatusCode:      resp.StatusCode,
-			ResponseSize:    len(body),
-			Description:     "Horizontal privilege escalation - User A can access User B's resource",
+			FindingType:  "horizontal_privilege_escalation",
+			Severity:     types.SeverityCritical,
+			URL:          testURL,
+			Method:       "GET",
+			OriginalID:   idInfo.Value,
+			AccessibleID: idInfo.Value,
+			StatusCode:   resp.StatusCode,
+			ResponseSize: len(body),
+			Description:  "Horizontal privilege escalation - User A can access User B's resource",
 			Evidence: fmt.Sprintf("Victim user credentials were able to access resource ID %s which belongs to another user. "+
 				"Response status: %d, Size: %d bytes", idInfo.Value, resp.StatusCode, len(body)),
 			Impact: "CRITICAL: Any authenticated user can access other users' resources by knowing or guessing their ID. " +
@@ -641,7 +641,7 @@ func (s *IDORScanner) testHorizontalPrivilegeEscalation(ctx context.Context, tar
 			ConfidenceScore: 0.98,
 			Timestamp:       time.Now(),
 			Context: map[string]interface{}{
-				"attack_type": "horizontal_privilege_escalation",
+				"attack_type":         "horizontal_privilege_escalation",
 				"victim_headers_used": true,
 			},
 		}

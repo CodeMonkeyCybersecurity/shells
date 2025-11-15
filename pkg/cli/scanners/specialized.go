@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/adapters"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/boileau"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/adapters"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/fuzzing"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/protocol"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scim"

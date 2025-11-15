@@ -16,6 +16,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/likexian/whois v1.15.6
 	github.com/likexian/whois-parser v1.24.20
+	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/miekg/dns v1.1.68
 	github.com/redis/go-redis/v9 v9.16.0
 	github.com/sashabaranov/go-openai v1.41.2
@@ -100,7 +101,6 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-sqlite3 v1.14.28 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect

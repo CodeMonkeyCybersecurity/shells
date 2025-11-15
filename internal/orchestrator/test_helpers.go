@@ -97,18 +97,31 @@ func (m *MockScanner) Execute(ctx context.Context, assets []*scanners.AssetPrior
 
 // MockResultStore implements core.ResultStore interface for testing
 type MockResultStore struct {
-	savedScans     map[string]*types.ScanRequest
-	savedFindings  map[string][]types.Finding
-	SaveScanCalled bool // Track if SaveScan was called (for integration tests)
-	mu             sync.RWMutex
+	savedScans        map[string]*types.ScanRequest
+	savedFindings     map[string][]types.Finding
+	correlation       map[string][]types.CorrelationResult
+	correlationByType map[string][]types.CorrelationResult
+	scanEvents        []storedScanEvent
+	SaveScanCalled    bool // Track if SaveScan was called (for integration tests)
+	mu                sync.RWMutex
 }
 
 // NewMockResultStore creates a mock result store
 func NewMockResultStore() *MockResultStore {
 	return &MockResultStore{
-		savedScans:    make(map[string]*types.ScanRequest),
-		savedFindings: make(map[string][]types.Finding),
+		savedScans:        make(map[string]*types.ScanRequest),
+		savedFindings:     make(map[string][]types.Finding),
+		correlation:       make(map[string][]types.CorrelationResult),
+		correlationByType: make(map[string][]types.CorrelationResult),
 	}
+}
+
+type storedScanEvent struct {
+	scanID    string
+	eventType string
+	component string
+	message   string
+	metadata  map[string]interface{}
 }
 
 func (m *MockResultStore) SaveScan(ctx context.Context, scan *types.ScanRequest) error {
@@ -244,6 +257,15 @@ func (m *MockResultStore) SearchFindings(ctx context.Context, searchTerm string,
 }
 
 func (m *MockResultStore) SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.scanEvents = append(m.scanEvents, storedScanEvent{
+		scanID:    scanID,
+		eventType: eventType,
+		component: component,
+		message:   message,
+		metadata:  metadata,
+	})
 	return nil
 }
 
@@ -266,6 +288,153 @@ func (m *MockResultStore) GetSummary(ctx context.Context, scanID string) (*types
 
 func (m *MockResultStore) Close() error {
 	return nil
+}
+
+func (m *MockResultStore) UpdateFindingStatus(ctx context.Context, findingID string, status types.FindingStatus) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for scanID, findings := range m.savedFindings {
+		for i, finding := range findings {
+			if finding.ID == findingID {
+				finding.Status = status
+				m.savedFindings[scanID][i] = finding
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (m *MockResultStore) MarkFindingVerified(ctx context.Context, findingID string, verified bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for scanID, findings := range m.savedFindings {
+		for i, finding := range findings {
+			if finding.ID == findingID {
+				finding.Verified = verified
+				m.savedFindings[scanID][i] = finding
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (m *MockResultStore) MarkFindingFalsePositive(ctx context.Context, findingID string, falsePositive bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for scanID, findings := range m.savedFindings {
+		for i, finding := range findings {
+			if finding.ID == findingID {
+				finding.FalsePositive = falsePositive
+				m.savedFindings[scanID][i] = finding
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (m *MockResultStore) GetRegressions(ctx context.Context, limit int) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindings {
+		for _, finding := range findings {
+			if finding.Status == types.FindingStatusReopened {
+				results = append(results, finding)
+			}
+		}
+	}
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
+}
+
+func (m *MockResultStore) GetVulnerabilityTimeline(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindings {
+		for _, finding := range findings {
+			if finding.Fingerprint == fingerprint {
+				results = append(results, finding)
+			}
+		}
+	}
+	return results, nil
+}
+
+func (m *MockResultStore) GetFindingsByFingerprint(ctx context.Context, fingerprint string) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindings {
+		for _, finding := range findings {
+			if finding.Fingerprint == fingerprint {
+				results = append(results, finding)
+			}
+		}
+	}
+	return results, nil
+}
+
+func (m *MockResultStore) GetNewFindings(ctx context.Context, sinceDate time.Time) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindings {
+		for _, finding := range findings {
+			if finding.CreatedAt.After(sinceDate) {
+				results = append(results, finding)
+			}
+		}
+	}
+	return results, nil
+}
+
+func (m *MockResultStore) GetFixedFindings(ctx context.Context, limit int) ([]types.Finding, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindings {
+		for _, finding := range findings {
+			if finding.Status == types.FindingStatusFixed {
+				results = append(results, finding)
+			}
+		}
+	}
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
+}
+
+func (m *MockResultStore) SaveCorrelationResults(ctx context.Context, results []types.CorrelationResult) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(results) == 0 {
+		return nil
+	}
+	scanID := results[0].ScanID
+	m.correlation[scanID] = append(m.correlation[scanID], results...)
+	for _, res := range results {
+		m.correlationByType[res.InsightType] = append(m.correlationByType[res.InsightType], res)
+	}
+	return nil
+}
+
+func (m *MockResultStore) GetCorrelationResults(ctx context.Context, scanID string) ([]types.CorrelationResult, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return append([]types.CorrelationResult(nil), m.correlation[scanID]...), nil
+}
+
+func (m *MockResultStore) GetCorrelationResultsByType(ctx context.Context, insightType string) ([]types.CorrelationResult, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return append([]types.CorrelationResult(nil), m.correlationByType[insightType]...), nil
 }
 
 // GetSavedFindingsCount returns count of findings saved for a scan

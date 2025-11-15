@@ -49,8 +49,8 @@ func TestDiscoveryFindingsPassedToVulnerabilityTesting(t *testing.T) {
 					Value: "https://login.example.com",
 					Type:  discovery.AssetTypeURL,
 					Title: "Login Page",
-					Metadata: map[string]string{
-						"auth_detected": "true",
+					Metadata: map[string]interface{}{
+						"auth_detected": true,
 					},
 				},
 				"asset2": {
@@ -114,8 +114,8 @@ func TestDiscoveryFindingsPassedToVulnerabilityTesting(t *testing.T) {
 					ID:    "url1",
 					Value: "https://admin.example.com",
 					Type:  discovery.AssetTypeURL,
-					Metadata: map[string]string{
-						"technologies": "Ghost,Express.js",
+					Metadata: map[string]interface{}{
+						"technologies": []string{"Ghost", "Express.js"},
 					},
 				},
 			},
@@ -153,9 +153,9 @@ func TestDiscoveryFindingsPassedToVulnerabilityTesting(t *testing.T) {
 					Value: "https://admin.example.com/login",
 					Type:  discovery.AssetTypeURL,
 					Title: "Admin Login",
-					Metadata: map[string]string{
-						"is_admin":      "true",
-						"auth_detected": "true",
+					Metadata: map[string]interface{}{
+						"is_admin":      true,
+						"auth_detected": true,
 					},
 				},
 				"regular-1": {
@@ -170,7 +170,7 @@ func TestDiscoveryFindingsPassedToVulnerabilityTesting(t *testing.T) {
 		}
 
 		// Mark high-value asset
-		session.Assets["high-value-1"].Metadata["high_value"] = "true"
+		session.Assets["high-value-1"].Metadata["high_value"] = true
 
 		// ACT
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -198,11 +198,11 @@ func TestOrganizationCorrelationSpidersRelatedDomains(t *testing.T) {
 		require.NoError(t, err)
 
 		corrConfig := correlation.CorrelatorConfig{
-			EnableWhois:   true,
-			EnableCerts:   true,
-			EnableASN:     false, // Disable for faster test
+			EnableWHOIS:    true,
+			EnableCertLogs: true,
+			EnableASN:      false, // Disable for faster test
 			EnableLinkedIn: false,
-			CacheTTL:      5 * time.Minute,
+			CacheTTL:       5 * time.Minute,
 		}
 
 		correlator := correlation.NewEnhancedOrganizationCorrelator(corrConfig, log)
@@ -238,9 +238,9 @@ func TestOrganizationCorrelationSpidersRelatedDomains(t *testing.T) {
 		require.NoError(t, err)
 
 		corrConfig := correlation.CorrelatorConfig{
-			EnableCerts:  true,
-			EnableWhois: false, // Disable for faster test
-			CacheTTL:    5 * time.Minute,
+			EnableCertLogs: true,
+			EnableWHOIS:    false, // Disable for faster test
+			CacheTTL:       5 * time.Minute,
 		}
 
 		correlator := correlation.NewEnhancedOrganizationCorrelator(corrConfig, log)
@@ -279,7 +279,7 @@ func TestOrganizationCorrelationSpidersRelatedDomains(t *testing.T) {
 
 		corrConfig := correlation.CorrelatorConfig{
 			EnableASN:   true,
-			EnableWhois: true,
+			EnableWHOIS: true,
 			CacheTTL:    5 * time.Minute,
 		}
 
@@ -371,20 +371,20 @@ func TestAssetRelationshipMapping(t *testing.T) {
 			},
 			Relationships: map[string]*discovery.Relationship{
 				"rel1": {
-					ID:         "rel1",
-					Source:     "parent",
-					Target:     "child1",
-					Type:       discovery.RelationTypeSubdomain,
-					Weight:     1.0,
-					Metadata:   map[string]string{"discovered_by": "dns-enumeration"},
+					ID:           "rel1",
+					SourceID:     "parent",
+					TargetID:     "child1",
+					Type:         "subdomain",
+					Confidence:   1.0,
+					DiscoveredBy: "dns-enumeration",
 				},
 				"rel2": {
-					ID:         "rel2",
-					Source:     "parent",
-					Target:     "child2",
-					Type:       discovery.RelationTypeSubdomain,
-					Weight:     1.0,
-					Metadata:   map[string]string{"discovered_by": "dns-enumeration"},
+					ID:           "rel2",
+					SourceID:     "parent",
+					TargetID:     "child2",
+					Type:         "subdomain",
+					Confidence:   1.0,
+					DiscoveredBy: "dns-enumeration",
 				},
 			},
 		}
@@ -398,8 +398,8 @@ func TestAssetRelationshipMapping(t *testing.T) {
 		t.Logf("   Child assets: %d", len(session.Relationships))
 
 		for _, rel := range session.Relationships {
-			source := session.Assets[rel.Source]
-			target := session.Assets[rel.Target]
+			source := session.Assets[rel.SourceID]
+			target := session.Assets[rel.TargetID]
 			t.Logf("   Relationship: %s → %s (type: %s)",
 				source.Value, target.Value, rel.Type)
 		}
@@ -414,7 +414,7 @@ func TestAssetRelationshipMapping(t *testing.T) {
 					ID:    "saml-endpoint",
 					Value: "https://sso.example.com/saml",
 					Type:  discovery.AssetTypeURL,
-					Metadata: map[string]string{
+					Metadata: map[string]interface{}{
 						"auth_type": "saml",
 					},
 				},
@@ -422,7 +422,7 @@ func TestAssetRelationshipMapping(t *testing.T) {
 					ID:    "oauth-endpoint",
 					Value: "https://oauth.example.com",
 					Type:  discovery.AssetTypeURL,
-					Metadata: map[string]string{
+					Metadata: map[string]interface{}{
 						"auth_type": "oauth2",
 					},
 				},
@@ -455,8 +455,8 @@ func TestIntelligentScannerSelection(t *testing.T) {
 					ID:    "app",
 					Value: "https://blog.example.com",
 					Type:  discovery.AssetTypeURL,
-					Metadata: map[string]string{
-						"technologies": "Ghost,Node.js,Express.js",
+					Metadata: map[string]interface{}{
+						"technologies": []string{"Ghost", "Node.js", "Express.js"},
 						"cms":          "Ghost",
 						"version":      "5.130",
 					},
@@ -489,10 +489,10 @@ func TestIntelligentScannerSelection(t *testing.T) {
 					ID:    "api",
 					Value: "https://api.example.com/v1",
 					Type:  discovery.AssetTypeURL,
-					Metadata: map[string]string{
+					Metadata: map[string]interface{}{
 						"api_type":    "REST",
 						"auth_method": "bearer",
-						"endpoints":   "/users,/auth,/admin",
+						"endpoints":   []string{"/users", "/auth", "/admin"},
 					},
 				},
 			},

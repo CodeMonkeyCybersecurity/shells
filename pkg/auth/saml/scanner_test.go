@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )
 
 // mockLogger implements common.Logger for testing
@@ -272,7 +270,7 @@ func TestSAMLScan_XMLSignatureWrapping(t *testing.T) {
 					found := false
 					for _, finding := range findings {
 						if strings.Contains(finding.Title, tt.xswVariant) ||
-						   strings.Contains(finding.Description, "XML Signature Wrapping") {
+							strings.Contains(finding.Description, "XML Signature Wrapping") {
 							found = true
 							break
 						}
@@ -319,7 +317,7 @@ func TestSAMLScan_AssertionManipulation(t *testing.T) {
 		foundPrivEsc := false
 		for _, finding := range findings {
 			if strings.Contains(finding.Title, "Privilege") ||
-			   strings.Contains(finding.Title, "Assertion") {
+				strings.Contains(finding.Title, "Assertion") {
 				foundPrivEsc = true
 				break
 			}

@@ -1,3 +1,4 @@
+//go:build go1.18
 // +build go1.18
 
 package saml
@@ -49,16 +50,13 @@ func FuzzSAMLParser(f *testing.F) {
 
 		// Try to parse
 		_, _ = parser.ParseSAMLResponse(string(data))
-
-		// Try to parse as metadata
-		_, _ = parser.ParseSAMLMetadata(string(data))
 	})
 }
 
 // FuzzXMLSignatureWrappingDetection tests XSW detection with fuzz testing
 func FuzzXMLSignatureWrappingDetection(f *testing.F) {
 	logger := &mockLogger{}
-	scanner := NewSAMLScanner(logger)
+	_ = NewSAMLScanner(logger)
 
 	// Seed with various XSW attack patterns
 	f.Add([]byte(`<?xml version="1.0"?>

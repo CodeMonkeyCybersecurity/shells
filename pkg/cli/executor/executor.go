@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/utils"
 	"github.com/CodeMonkeyCybersecurity/artemis/cmd"
 	"github.com/CodeMonkeyCybersecurity/artemis/cmd/scanners"
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
 	authpkg "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/utils"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 )
 

@@ -74,6 +74,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"

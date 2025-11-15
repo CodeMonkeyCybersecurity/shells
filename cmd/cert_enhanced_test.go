@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 	"testing"
+	"time"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
@@ -33,9 +33,9 @@ func TestCertEnhanced(t *testing.T) {
 
 	// Test with multiple domains
 	testDomains := []string{
-		"anthropic.com",    // AI company
-		"github.com",       // Should have many SANs
-		"cloudflare.com",   // CDN with many properties
+		"anthropic.com",  // AI company
+		"github.com",     // Should have many SANs
+		"cloudflare.com", // CDN with many properties
 	}
 
 	for _, domain := range testDomains {

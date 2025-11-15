@@ -19,22 +19,22 @@ import (
 type IDType string
 
 const (
-	IDTypeSequential   IDType = "sequential"    // Numeric sequential IDs (1, 2, 3, 123, etc.)
-	IDTypeUUID         IDType = "uuid"          // UUID format (v1, v4, etc.)
-	IDTypeGUID         IDType = "guid"          // GUID format (Microsoft)
-	IDTypeHashed       IDType = "hashed"        // Hashed IDs (MD5, SHA1, SHA256, etc.)
-	IDTypeAlphanumeric IDType = "alphanumeric"  // Mixed alphanumeric (abc123, user_456)
-	IDTypeBase64       IDType = "base64"        // Base64 encoded
-	IDTypeUnknown      IDType = "unknown"       // Unknown/custom format
+	IDTypeSequential   IDType = "sequential"   // Numeric sequential IDs (1, 2, 3, 123, etc.)
+	IDTypeUUID         IDType = "uuid"         // UUID format (v1, v4, etc.)
+	IDTypeGUID         IDType = "guid"         // GUID format (Microsoft)
+	IDTypeHashed       IDType = "hashed"       // Hashed IDs (MD5, SHA1, SHA256, etc.)
+	IDTypeAlphanumeric IDType = "alphanumeric" // Mixed alphanumeric (abc123, user_456)
+	IDTypeBase64       IDType = "base64"       // Base64 encoded
+	IDTypeUnknown      IDType = "unknown"      // Unknown/custom format
 )
 
 // IDInfo contains extracted information about an ID parameter
 type IDInfo struct {
-	Value     string // The actual ID value (e.g., "123", "abc-def-ghi")
-	Type      IDType // The detected ID type
-	Location  string // "path" or "query"
-	ParamName string // Query parameter name (if location is "query")
-	Pattern   string // Regex pattern matched
+	Value      string  // The actual ID value (e.g., "123", "abc-def-ghi")
+	Type       IDType  // The detected ID type
+	Location   string  // "path" or "query"
+	ParamName  string  // Query parameter name (if location is "query")
+	Pattern    string  // Regex pattern matched
 	Confidence float64 // Confidence in type detection (0.0-1.0)
 }
 
@@ -63,8 +63,8 @@ func NewIDPatternAnalyzer() *IDPatternAnalyzer {
 	return &IDPatternAnalyzer{
 		patterns: map[string]*regexp.Regexp{
 			// UUID patterns
-			"uuid_v1": regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`),
-			"uuid_v4": regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`),
+			"uuid_v1":  regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-1[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`),
+			"uuid_v4":  regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`),
 			"uuid_any": regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`),
 
 			// Sequential numeric
@@ -94,9 +94,9 @@ type AccessTracker struct {
 
 // AccessRecord tracks when and how an ID was accessed
 type AccessRecord struct {
-	ID          string
-	Timestamp   time.Time
-	StatusCode  int
+	ID           string
+	Timestamp    time.Time
+	StatusCode   int
 	ResponseSize int
 	Accessible   bool
 }
@@ -111,9 +111,9 @@ func NewAccessTracker() *AccessTracker {
 // Record records an access attempt
 func (a *AccessTracker) Record(id string, statusCode, size int, accessible bool) {
 	a.accessed[id] = AccessRecord{
-		ID:          id,
-		Timestamp:   time.Now(),
-		StatusCode:  statusCode,
+		ID:           id,
+		Timestamp:    time.Now(),
+		StatusCode:   statusCode,
 		ResponseSize: size,
 		Accessible:   accessible,
 	}

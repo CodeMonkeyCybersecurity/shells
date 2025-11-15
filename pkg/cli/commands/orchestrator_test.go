@@ -474,10 +474,10 @@ func TestConvertAuthInventoryToFindings_WebAuth(t *testing.T) {
 		WebAuth: &authdiscovery.WebAuthMethods{
 			FormLogin: []authdiscovery.FormLoginEndpoint{
 				{
-					URL:            "https://example.com/login",
-					Method:         "POST",
-					UsernameField:  "username",
-					PasswordField:  "password",
+					URL:           "https://example.com/login",
+					Method:        "POST",
+					UsernameField: "username",
+					PasswordField: "password",
 				},
 			},
 		},

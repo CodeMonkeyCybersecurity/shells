@@ -4,9 +4,10 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net"
 	"strings"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
 	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"

@@ -105,8 +105,8 @@ func TestWebAuthnScan_CredentialSubstitution(t *testing.T) {
 						"pubKeyCredParams": []map[string]interface{}{
 							{"type": "public-key", "alg": -7}, // ES256
 						},
-						"timeout":             60000,
-						"attestation":         "none",
+						"timeout":     60000,
+						"attestation": "none",
 						"authenticatorSelection": map[string]interface{}{
 							"authenticatorAttachment": "cross-platform",
 							"userVerification":        "preferred",
@@ -185,7 +185,7 @@ func TestWebAuthnScan_CredentialSubstitution(t *testing.T) {
 				foundVuln := false
 				for _, vuln := range report.Vulnerabilities {
 					if strings.Contains(vuln.Title, "Credential") &&
-					   (strings.Contains(vuln.Title, "Substitution") || strings.Contains(vuln.Description, "substitution")) {
+						(strings.Contains(vuln.Title, "Substitution") || strings.Contains(vuln.Description, "substitution")) {
 						foundVuln = true
 
 						// Verify severity
@@ -246,7 +246,7 @@ func TestWebAuthnScan_ChallengeReuse(t *testing.T) {
 	foundReuse := false
 	for _, vuln := range report.Vulnerabilities {
 		if strings.Contains(vuln.Title, "Challenge") &&
-		   (strings.Contains(vuln.Title, "Reuse") || strings.Contains(vuln.Description, "reuse")) {
+			(strings.Contains(vuln.Title, "Reuse") || strings.Contains(vuln.Description, "reuse")) {
 			foundReuse = true
 
 			// Verify severity is high or critical
@@ -265,17 +265,17 @@ func TestWebAuthnScan_ChallengeReuse(t *testing.T) {
 // TestWebAuthnScan_AttestationBypass tests attestation validation bypass
 func TestWebAuthnScan_AttestationBypass(t *testing.T) {
 	tests := []struct {
-		name               string
+		name                 string
 		validatesAttestation bool
 		expectVulnerable     bool
 	}{
 		{
-			name:               "accepts any attestation",
+			name:                 "accepts any attestation",
 			validatesAttestation: false,
 			expectVulnerable:     true,
 		},
 		{
-			name:               "validates attestation properly",
+			name:                 "validates attestation properly",
 			validatesAttestation: true,
 			expectVulnerable:     false,
 		},
@@ -337,7 +337,7 @@ func TestWebAuthnScan_AttestationBypass(t *testing.T) {
 				foundVuln := false
 				for _, vuln := range report.Vulnerabilities {
 					if strings.Contains(vuln.Title, "Attestation") ||
-					   strings.Contains(vuln.Description, "attestation") {
+						strings.Contains(vuln.Description, "attestation") {
 						foundVuln = true
 						break
 					}
@@ -387,8 +387,8 @@ func TestWebAuthnScan_UserVerificationBypass(t *testing.T) {
 	foundUVBypass := false
 	for _, vuln := range report.Vulnerabilities {
 		if strings.Contains(vuln.Title, "User Verification") ||
-		   strings.Contains(vuln.Title, "UV") ||
-		   strings.Contains(vuln.Description, "user verification") {
+			strings.Contains(vuln.Title, "UV") ||
+			strings.Contains(vuln.Description, "user verification") {
 			foundUVBypass = true
 			break
 		}
@@ -435,7 +435,7 @@ func TestWebAuthnScan_OriginValidation(t *testing.T) {
 	foundOriginIssue := false
 	for _, vuln := range report.Vulnerabilities {
 		if strings.Contains(vuln.Title, "Origin") ||
-		   strings.Contains(vuln.Description, "origin") {
+			strings.Contains(vuln.Description, "origin") {
 			foundOriginIssue = true
 			break
 		}

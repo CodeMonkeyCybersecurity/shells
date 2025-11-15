@@ -375,18 +375,18 @@ func buildCorrelationSolution(insight correlation.CorrelatedInsight) string {
 
 func getNetworkAuthCount(networkAuth *authdiscovery.NetworkAuthMethods) int {
 	return len(networkAuth.SSH) + len(networkAuth.RDP) +
-		   len(networkAuth.Kerberos) + len(networkAuth.LDAP) +
-		   len(networkAuth.RADIUS) + len(networkAuth.SMB) +
-		   len(networkAuth.SMTP) + len(networkAuth.IMAP)
+		len(networkAuth.Kerberos) + len(networkAuth.LDAP) +
+		len(networkAuth.RADIUS) + len(networkAuth.SMB) +
+		len(networkAuth.SMTP) + len(networkAuth.IMAP)
 }
 
 func getWebAuthCount(webAuth *authdiscovery.WebAuthMethods) int {
 	return len(webAuth.FormLogin) + len(webAuth.BasicAuth) +
-		   len(webAuth.OAuth2) + len(webAuth.SAML) +
-		   len(webAuth.OIDC) + len(webAuth.WebAuthn) +
-		   len(webAuth.CAS) + len(webAuth.JWT) +
-		   len(webAuth.NTLM) + len(webAuth.Cookies) +
-		   len(webAuth.Headers)
+		len(webAuth.OAuth2) + len(webAuth.SAML) +
+		len(webAuth.OIDC) + len(webAuth.WebAuthn) +
+		len(webAuth.CAS) + len(webAuth.JWT) +
+		len(webAuth.NTLM) + len(webAuth.Cookies) +
+		len(webAuth.Headers)
 }
 
 func getAPIAuthCount(apiAuth *authdiscovery.APIAuthMethods) int {

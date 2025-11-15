@@ -61,11 +61,11 @@ type BugBountyEngine struct {
 	checkpointManager  CheckpointManager
 
 	// Output and Persistence (REFACTORED: extracted from bounty_engine.go)
-	outputFormatter           *OutputFormatter
-	persistenceManager        *PersistenceManager
-	platformIntegration       *PlatformIntegration
-	organizationFootprinting  *OrganizationFootprinting
-	scopeValidator            *ScopeValidator
+	outputFormatter          *OutputFormatter
+	persistenceManager       *PersistenceManager
+	platformIntegration      *PlatformIntegration
+	organizationFootprinting *OrganizationFootprinting
+	scopeValidator           *ScopeValidator
 
 	// Configuration
 	config BugBountyConfig
@@ -116,10 +116,10 @@ type BugBountyConfig struct {
 	EnableNucleiScan     bool // Nuclei vulnerability templates (CVEs, misconfigurations)
 
 	// Cloud security testing
-	EnableCloudAudit bool   // Multi-cloud security auditing (Prowler)
+	EnableCloudAudit bool     // Multi-cloud security auditing (Prowler)
 	CloudProviders   []string // ["aws", "azure", "gcp"] - providers to audit
-	CloudProfile     string // CIS profile: "cis", "hipaa", "gdpr", "pci-dss"
-	AWSProfile       string // AWS credential profile (default: "default")
+	CloudProfile     string   // CIS profile: "cis", "hipaa", "gdpr", "pci-dss"
+	AWSProfile       string   // AWS credential profile (default: "default")
 	AWSRegions       []string // AWS regions to scan (default: all)
 
 	// Database and persistence
@@ -200,11 +200,11 @@ func DefaultBugBountyConfig() BugBountyConfig {
 		EnableNucleiScan:     true, // Nuclei vulnerability scanner (CVEs, misconfigurations, exposures)
 
 		// Cloud security auditing
-		EnableCloudAudit: false,            // Disabled by default (requires cloud credentials)
+		EnableCloudAudit: false,           // Disabled by default (requires cloud credentials)
 		CloudProviders:   []string{"aws"}, // AWS only by default
-		CloudProfile:     "cis",            // CIS benchmarks
-		AWSProfile:       "default",        // AWS credential profile
-		AWSRegions:       []string{},       // Empty = all regions
+		CloudProfile:     "cis",           // CIS benchmarks
+		AWSProfile:       "default",       // AWS credential profile
+		AWSRegions:       []string{},      // Empty = all regions
 
 		// Database and persistence - track everything over time
 		EnableTemporalSnapshots: true,           // Save snapshots for historical comparison
@@ -1355,7 +1355,7 @@ func (e *BugBountyEngine) executePrioritizationPhase(assets []*discovery.Asset, 
 	for _, asset := range assets {
 		priority := &scanners.AssetPriority{
 			Asset:    asset,
-			Priority:    0,
+			Priority: 0,
 			Features: e.analyzeAssetFeatures(asset),
 		}
 
@@ -1698,7 +1698,6 @@ func (e *BugBountyEngine) executeTestingPhase(ctx context.Context, target string
 func (e *BugBountyEngine) GetRateLimiter() *ratelimit.Limiter {
 	return e.rateLimiter
 }
-
 
 // ExecuteWithPipeline runs the bug bounty scan using the Kill Chain aligned pipeline
 //

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/adapters"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/boileau"
+	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/adapters"
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
 	"github.com/spf13/cobra"
 )

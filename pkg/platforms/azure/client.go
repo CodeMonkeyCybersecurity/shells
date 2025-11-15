@@ -205,19 +205,19 @@ func (c *Client) Submit(ctx context.Context, report *platforms.VulnerabilityRepo
 		)
 
 		return &platforms.SubmissionResponse{
-			Success:  true,
-			ReportID: reportID,
+			Success:   true,
+			ReportID:  reportID,
 			ReportURL: fmt.Sprintf("mailto:%s?subject=%s", c.config.ReportingEmail, emailSubject),
-			Status:   "submitted",
+			Status:    "submitted",
 			Message: fmt.Sprintf("Report successfully submitted to Microsoft Security Response Center (%s)\n"+
 				"You should receive an automated response acknowledging receipt.",
 				c.config.ReportingEmail),
 			SubmittedAt: time.Now(),
 			PlatformData: map[string]interface{}{
-				"reporting_email":  c.config.ReportingEmail,
-				"program_type":     c.config.ProgramType,
-				"severity":         severity,
-				"auto_submitted":   true,
+				"reporting_email":   c.config.ReportingEmail,
+				"program_type":      c.config.ProgramType,
+				"severity":          severity,
+				"auto_submitted":    true,
 				"submission_method": "smtp",
 			},
 		}, nil

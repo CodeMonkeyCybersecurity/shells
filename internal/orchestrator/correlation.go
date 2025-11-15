@@ -48,11 +48,11 @@ type ExploitChain struct {
 
 // CorrelationEngine detects exploit chains and enriches findings
 type CorrelationEngine struct {
-	logger        *logger.Logger
-	config        BugBountyConfig
-	store         core.ResultStore
+	logger         *logger.Logger
+	config         BugBountyConfig
+	store          core.ResultStore
 	exploitChainer *correlation.ExploitChainer
-	enricher      *enrichment.ResultEnricher
+	enricher       *enrichment.ResultEnricher
 }
 
 // NewCorrelationEngine creates a new correlation engine
@@ -64,11 +64,11 @@ func NewCorrelationEngine(
 	enricher *enrichment.ResultEnricher,
 ) *CorrelationEngine {
 	return &CorrelationEngine{
-		logger:        logger.WithComponent("correlation"),
-		config:        config,
-		store:         store,
+		logger:         logger.WithComponent("correlation"),
+		config:         config,
+		store:          store,
 		exploitChainer: exploitChainer,
-		enricher:      enricher,
+		enricher:       enricher,
 	}
 }
 
@@ -353,22 +353,22 @@ func (c *CorrelationEngine) convertChainsToCorrelationResults(scanID string, cha
 		attackPath := make([]map[string]interface{}, 0, len(chain.Steps))
 		for i, step := range chain.Steps {
 			attackPath = append(attackPath, map[string]interface{}{
-				"step":         i + 1,
-				"finding_id":   step.ID,
-				"type":         step.Type,
-				"title":        step.Title,
-				"severity":     step.Severity,
-				"description":  step.Description,
+				"step":        i + 1,
+				"finding_id":  step.ID,
+				"type":        step.Type,
+				"title":       step.Title,
+				"severity":    step.Severity,
+				"description": step.Description,
 			})
 		}
 
 		// Build metadata with chain-specific information
 		metadata := map[string]interface{}{
-			"chain_name":    chain.Name,
-			"cvss_score":    chain.CVSSScore,
-			"impact":        chain.Impact,
-			"remediation":   chain.Remediation,
-			"step_count":    len(chain.Steps),
+			"chain_name":  chain.Name,
+			"cvss_score":  chain.CVSSScore,
+			"impact":      chain.Impact,
+			"remediation": chain.Remediation,
+			"step_count":  len(chain.Steps),
 		}
 
 		result := types.CorrelationResult{

@@ -27,20 +27,20 @@ type HttpxModule struct {
 
 // HttpxProbeResult represents httpx probe results
 type HttpxProbeResult struct {
-	URL            string
-	StatusCode     int
-	ContentLength  int
-	Title          string
-	Technologies   []string
-	Headers        map[string]string
-	Server         string
-	CDN            string
-	WebServer      string
-	ResponseTime   time.Duration
-	TLSInfo        *TLSInfo
-	IsAlive        bool
-	FinalURL       string // After redirects
-	RedirectChain  []string
+	URL           string
+	StatusCode    int
+	ContentLength int
+	Title         string
+	Technologies  []string
+	Headers       map[string]string
+	Server        string
+	CDN           string
+	WebServer     string
+	ResponseTime  time.Duration
+	TLSInfo       *TLSInfo
+	IsAlive       bool
+	FinalURL      string // After redirects
+	RedirectChain []string
 }
 
 // TLSInfo represents TLS/SSL certificate information
@@ -220,9 +220,9 @@ func (m *HttpxModule) getMockProbeResult(target string) *HttpxProbeResult {
 			"WordPress:6.0",
 		},
 		Headers: map[string]string{
-			"Server":         "nginx/1.21.0",
-			"Content-Type":   "text/html",
-			"X-Powered-By":   "PHP/8.0",
+			"Server":          "nginx/1.21.0",
+			"Content-Type":    "text/html",
+			"X-Powered-By":    "PHP/8.0",
 			"X-Frame-Options": "DENY",
 		},
 		Server:       "nginx/1.21.0",

@@ -71,15 +71,15 @@ func TestDiscoveryToFindingsFlow(t *testing.T) {
 
 	// Create discovery config
 	discoveryConfig := &discovery.DiscoveryConfig{
-		MaxDepth:      1,
-		MaxAssets:     10,
-		Timeout:       30 * time.Second,
-		EnableDNS:     true,
-		EnableCertLog: true,
+		MaxDepth:       1,
+		MaxAssets:      10,
+		Timeout:        30 * time.Second,
+		EnableDNS:      true,
+		EnableCertLog:  true,
 		EnablePortScan: false, // Skip for speed
 		EnableWebCrawl: false, // Skip for speed
-		HighValueOnly: true,
-		MaxWorkers:    5,
+		HighValueOnly:  true,
+		MaxWorkers:     5,
 	}
 	config.DiscoveryConfig = discoveryConfig
 
@@ -90,7 +90,7 @@ func TestDiscoveryToFindingsFlow(t *testing.T) {
 	// Register mock scanner to verify assets reach testing phase
 	discoveredAssetURLs := []string{}
 	mockScanner := &AssetTrackingScanner{
-		name:          "test-scanner",
+		name:           "test-scanner",
 		discoveredURLs: &discoveredAssetURLs,
 	}
 	engine.scannerManager.Register("test", mockScanner)
@@ -156,7 +156,7 @@ Scan Stored:         %v
 Duration:            %s
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `, target, len(result.DiscoveredAssets), len(assetTypes),
-	len(discoveredAssetURLs), store.SaveScanCalled, result.Duration)
+		len(discoveredAssetURLs), store.SaveScanCalled, result.Duration)
 }
 
 // TestDiscoveryEngineInitialization verifies discovery engine is properly wired
@@ -271,15 +271,15 @@ func TestDiscoveryPerformanceBaseline(t *testing.T) {
 	require.NoError(t, err)
 
 	discoveryConfig := &discovery.DiscoveryConfig{
-		MaxDepth:      1,
-		MaxAssets:     50,
-		Timeout:       60 * time.Second,
-		EnableDNS:     true,
-		EnableCertLog: true,
+		MaxDepth:       1,
+		MaxAssets:      50,
+		Timeout:        60 * time.Second,
+		EnableDNS:      true,
+		EnableCertLog:  true,
 		EnablePortScan: false,
 		EnableWebCrawl: false,
-		HighValueOnly: true,
-		MaxWorkers:    10,
+		HighValueOnly:  true,
+		MaxWorkers:     10,
 	}
 
 	discoveryEngine := discovery.NewEngine(discoveryConfig, log)

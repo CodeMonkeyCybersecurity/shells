@@ -8,13 +8,14 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"io"
 	"math/big"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 
 	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
 )

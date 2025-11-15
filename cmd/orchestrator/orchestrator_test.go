@@ -25,12 +25,23 @@ type mockResultStore struct {
 	updateScanCalled     bool
 	saveFindingsCalled   bool
 	savedFindings        []types.Finding
+	savedFindingsByScan  map[string][]types.Finding
+	savedScans           map[string]*types.ScanRequest
 	scanID               string
 	err                  error
 	returnScan           *types.ScanRequest
 	returnFindings       []types.Finding
 	savedCorrelation     map[string][]types.CorrelationResult
 	savedCorrelationType map[string][]types.CorrelationResult
+	savedEvents          []storedScanEvent
+}
+
+type storedScanEvent struct {
+	scanID    string
+	eventType string
+	component string
+	message   string
+	metadata  map[string]interface{}
 }
 
 func (m *mockResultStore) ensureCorrelationMaps() {
@@ -42,61 +53,174 @@ func (m *mockResultStore) ensureCorrelationMaps() {
 	}
 }
 
+func (m *mockResultStore) ensureStorage() {
+	if m.savedFindingsByScan == nil {
+		m.savedFindingsByScan = make(map[string][]types.Finding)
+	}
+	if m.savedScans == nil {
+		m.savedScans = make(map[string]*types.ScanRequest)
+	}
+}
+
 func (m *mockResultStore) SaveScan(ctx context.Context, scan *types.ScanRequest) error {
 	m.saveScanCalled = true
+	m.ensureStorage()
+	if scan != nil {
+		m.savedScans[scan.ID] = scan
+	}
 	return m.err
 }
 
 func (m *mockResultStore) UpdateScan(ctx context.Context, scan *types.ScanRequest) error {
 	m.updateScanCalled = true
+	m.ensureStorage()
+	if scan != nil {
+		m.savedScans[scan.ID] = scan
+	}
 	return m.err
 }
 
 func (m *mockResultStore) GetScan(ctx context.Context, scanID string) (*types.ScanRequest, error) {
 	m.scanID = scanID
+	m.ensureStorage()
+	if scan, ok := m.savedScans[scanID]; ok {
+		return scan, m.err
+	}
 	return m.returnScan, m.err
 }
 
 func (m *mockResultStore) ListScans(ctx context.Context, filter core.ScanFilter) ([]*types.ScanRequest, error) {
+	m.ensureStorage()
 	return []*types.ScanRequest{m.returnScan}, m.err
 }
 
 func (m *mockResultStore) SaveFindings(ctx context.Context, findings []types.Finding) error {
 	m.saveFindingsCalled = true
 	m.savedFindings = append(m.savedFindings, findings...)
+	m.ensureStorage()
+	if len(findings) > 0 {
+		scanID := findings[0].ScanID
+		m.savedFindingsByScan[scanID] = append(m.savedFindingsByScan[scanID], findings...)
+	}
 	return m.err
 }
 
 func (m *mockResultStore) GetFindings(ctx context.Context, scanID string) ([]types.Finding, error) {
 	m.scanID = scanID
+	m.ensureStorage()
+	if stored, ok := m.savedFindingsByScan[scanID]; ok {
+		return stored, m.err
+	}
 	return m.returnFindings, m.err
 }
 
 func (m *mockResultStore) GetFindingsBySeverity(ctx context.Context, severity types.Severity) ([]types.Finding, error) {
+	m.ensureStorage()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindingsByScan {
+		for _, f := range findings {
+			if f.Severity == severity {
+				results = append(results, f)
+			}
+		}
+	}
+	if len(results) > 0 {
+		return results, m.err
+	}
 	return m.returnFindings, m.err
 }
 
 func (m *mockResultStore) QueryFindings(ctx context.Context, query core.FindingQuery) ([]types.Finding, error) {
+	m.ensureStorage()
+	results := make([]types.Finding, 0)
+	for scanID, findings := range m.savedFindingsByScan {
+		if query.ScanID != "" && query.ScanID != scanID {
+			continue
+		}
+		results = append(results, findings...)
+	}
+	if len(results) > 0 {
+		return results, m.err
+	}
 	return m.returnFindings, m.err
 }
 
 func (m *mockResultStore) GetFindingStats(ctx context.Context) (*core.FindingStats, error) {
-	return &core.FindingStats{}, m.err
+	m.ensureStorage()
+	stats := &core.FindingStats{
+		Total:      0,
+		BySeverity: make(map[types.Severity]int),
+		ByTool:     make(map[string]int),
+		ByType:     make(map[string]int),
+	}
+	for _, findings := range m.savedFindingsByScan {
+		stats.Total += len(findings)
+		for _, f := range findings {
+			stats.BySeverity[f.Severity]++
+			stats.ByTool[f.Tool]++
+			stats.ByType[f.Type]++
+		}
+	}
+	return stats, m.err
 }
 
 func (m *mockResultStore) GetRecentCriticalFindings(ctx context.Context, limit int) ([]types.Finding, error) {
+	m.ensureStorage()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindingsByScan {
+		for _, f := range findings {
+			if f.Severity == types.SeverityCritical {
+				results = append(results, f)
+			}
+		}
+	}
+	if len(results) > limit && limit > 0 {
+		results = results[:limit]
+	}
+	if len(results) > 0 {
+		return results, m.err
+	}
 	return m.returnFindings, m.err
 }
 
 func (m *mockResultStore) SearchFindings(ctx context.Context, searchTerm string, limit int) ([]types.Finding, error) {
+	m.ensureStorage()
+	results := make([]types.Finding, 0)
+	for _, findings := range m.savedFindingsByScan {
+		results = append(results, findings...)
+	}
+	if len(results) > limit && limit > 0 {
+		results = results[:limit]
+	}
+	if len(results) > 0 {
+		return results, m.err
+	}
 	return m.returnFindings, m.err
 }
 
 func (m *mockResultStore) GetSummary(ctx context.Context, scanID string) (*types.Summary, error) {
-	return &types.Summary{}, m.err
+	m.ensureStorage()
+	summary := &types.Summary{
+		BySeverity: make(map[types.Severity]int),
+		ByTool:     make(map[string]int),
+	}
+	findings := m.savedFindingsByScan[scanID]
+	summary.Total = len(findings)
+	for _, f := range findings {
+		summary.BySeverity[f.Severity]++
+		summary.ByTool[f.Tool]++
+	}
+	return summary, m.err
 }
 
 func (m *mockResultStore) SaveScanEvent(ctx context.Context, scanID string, eventType string, component string, message string, metadata map[string]interface{}) error {
+	m.savedEvents = append(m.savedEvents, storedScanEvent{
+		scanID:    scanID,
+		eventType: eventType,
+		component: component,
+		message:   message,
+		metadata:  metadata,
+	})
 	return m.err
 }
 

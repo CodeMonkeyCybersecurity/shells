@@ -98,7 +98,7 @@ func (s *ProwlerScanner) CanHandle(asset *scanners.AssetPriority) bool {
 	// Check if asset has cloud-related tags
 	for _, tag := range asset.Asset.Tags {
 		if strings.Contains(tag, "aws") || strings.Contains(tag, "azure") || strings.Contains(tag, "gcp") ||
-		   strings.Contains(tag, "cloud") {
+			strings.Contains(tag, "cloud") {
 			return true
 		}
 	}

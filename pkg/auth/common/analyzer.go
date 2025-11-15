@@ -2,11 +2,12 @@ package common
 
 import (
 	"fmt"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
 )
 
 // CrossProtocolAnalyzer analyzes vulnerabilities across authentication protocols

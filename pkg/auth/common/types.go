@@ -18,6 +18,14 @@ const (
 	ProtocolJWT      AuthProtocol = "JWT"
 )
 
+const (
+	SeverityCritical = "CRITICAL"
+	SeverityHigh     = "HIGH"
+	SeverityMedium   = "MEDIUM"
+	SeverityLow      = "LOW"
+	SeverityInfo     = "INFO"
+)
+
 // Vulnerability represents a security vulnerability in authentication
 type Vulnerability struct {
 	ID          string       `json:"id"`

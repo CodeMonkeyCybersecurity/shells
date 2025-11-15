@@ -32,10 +32,10 @@ import (
 
 // OrganizationFootprinting handles organization asset discovery and correlation
 type OrganizationFootprinting struct {
-	correlator     *correlation.OrganizationCorrelator
+	correlator      *correlation.OrganizationCorrelator
 	outputFormatter *OutputFormatter
-	logger         *logger.Logger
-	config         BugBountyConfig
+	logger          *logger.Logger
+	config          BugBountyConfig
 }
 
 // NewOrganizationFootprinting creates a new organization footprinting manager
@@ -55,9 +55,9 @@ func NewOrganizationFootprinting(
 
 // FootprintingResult contains the results of organization footprinting
 type FootprintingResult struct {
-	Organization  *correlation.Organization
-	Domains       []string
-	PhaseResult   PhaseResult
+	Organization *correlation.Organization
+	Domains      []string
+	PhaseResult  PhaseResult
 }
 
 // CorrelateOrganization performs organization footprinting and correlation

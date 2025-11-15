@@ -35,12 +35,12 @@ func NewReportGenerator(client *Client, logger *logger.Logger) *ReportGenerator 
 type ReportFormat string
 
 const (
-	FormatBugBounty   ReportFormat = "bug_bounty"   // Bug bounty platform format (HackerOne, Bugcrowd)
-	FormatMarkdown    ReportFormat = "markdown"     // Markdown technical report
-	FormatHTML        ReportFormat = "html"         // HTML report
-	FormatJSON        ReportFormat = "json"         // Structured JSON report
-	FormatAzureMSRC   ReportFormat = "azure_msrc"   // Microsoft Security Response Center email format
-	FormatAWSVRP      ReportFormat = "aws_vrp"      // AWS Vulnerability Reporting Program format
+	FormatBugBounty ReportFormat = "bug_bounty" // Bug bounty platform format (HackerOne, Bugcrowd)
+	FormatMarkdown  ReportFormat = "markdown"   // Markdown technical report
+	FormatHTML      ReportFormat = "html"       // HTML report
+	FormatJSON      ReportFormat = "json"       // Structured JSON report
+	FormatAzureMSRC ReportFormat = "azure_msrc" // Microsoft Security Response Center email format
+	FormatAWSVRP    ReportFormat = "aws_vrp"    // AWS Vulnerability Reporting Program format
 )
 
 // ReportRequest contains parameters for report generation
@@ -58,16 +58,16 @@ type ReportRequest struct {
 
 // GeneratedReport contains the AI-generated report and metadata
 type GeneratedReport struct {
-	Title           string
-	Content         string
-	Summary         string
-	Severity        string
-	CVSS            float64
-	CWE             []string
-	Platform        string
-	Format          ReportFormat
-	GeneratedAt     time.Time
-	TokensUsed      int
+	Title            string
+	Content          string
+	Summary          string
+	Severity         string
+	CVSS             float64
+	CWE              []string
+	Platform         string
+	Format           ReportFormat
+	GeneratedAt      time.Time
+	TokensUsed       int
 	EstimatedCostUSD float64
 }
 
@@ -147,57 +147,18 @@ func (rg *ReportGenerator) buildPrompt(req ReportRequest) string {
 		prompt.WriteString(fmt.Sprintf("## Vulnerability %d\n", i+1))
 		prompt.WriteString(fmt.Sprintf("Type: %s\n", finding.Type))
 		prompt.WriteString(fmt.Sprintf("Severity: %s\n", finding.Severity))
-		// Optional fields from metadata
-		if finding.Metadata != nil {
-			if v, ok := finding.Metadata["cvss"]; ok {
-				switch val := v.(type) {
-				case float64:
-					if val > 0 {
-						prompt.WriteString(fmt.Sprintf("CVSS Score: %.1f\n", val))
-					}
-				case float32:
-					if float64(val) > 0 {
-						prompt.WriteString(fmt.Sprintf("CVSS Score: %.1f\n", float64(val)))
-					}
-				case string:
-					if val != "" {
-						prompt.WriteString(fmt.Sprintf("CVSS Score: %s\n", val))
-					}
-				}
-			}
-			if v, ok := finding.Metadata["cwe"]; ok {
-				switch val := v.(type) {
-				case string:
-					if val != "" {
-						prompt.WriteString(fmt.Sprintf("CWE: %s\n", val))
-					}
-				case []string:
-					if len(val) > 0 {
-						prompt.WriteString(fmt.Sprintf("CWE: %s\n", strings.Join(val, ", ")))
-					}
-				case []interface{}:
-					arr := make([]string, 0, len(val))
-					for _, it := range val {
-						if s, ok := it.(string); ok && s != "" {
-							arr = append(arr, s)
-						}
-					}
-					if len(arr) > 0 {
-						prompt.WriteString(fmt.Sprintf("CWE: %s\n", strings.Join(arr, ", ")))
-					}
-				}
-			}
+		if finding.CVSS > 0 {
+			prompt.WriteString(fmt.Sprintf("CVSS Score: %.1f\n", finding.CVSS))
+		}
+		if finding.CWE != "" {
+			prompt.WriteString(fmt.Sprintf("CWE: %s\n", finding.CWE))
 		}
 		prompt.WriteString(fmt.Sprintf("Description: %s\n", finding.Description))
 		if finding.Evidence != "" {
 			prompt.WriteString(fmt.Sprintf("Evidence: %s\n", finding.Evidence))
 		}
-		if finding.Metadata != nil {
-			if v, ok := finding.Metadata["remediation"]; ok {
-				if s, ok := v.(string); ok && s != "" {
-					prompt.WriteString(fmt.Sprintf("Recommended Fix: %s\n", s))
-				}
-			}
+		if finding.Remediation != "" {
+			prompt.WriteString(fmt.Sprintf("Recommended Fix: %s\n", finding.Remediation))
 		}
 		prompt.WriteString("\n")
 	}
@@ -477,10 +438,10 @@ func (rg *ReportGenerator) calculateOverallSeverity(findings []types.Finding) st
 	highestVal := 0
 
 	for _, finding := range findings {
-		if val, ok := severityOrder[strings.ToUpper(string(finding.Severity))]; ok {
+		if val, ok := severityOrder[strings.ToUpper(finding.Severity)]; ok {
 			if val > highestVal {
 				highestVal = val
-				highestSev = strings.ToUpper(string(finding.Severity))
+				highestSev = strings.ToUpper(finding.Severity)
 			}
 		}
 	}
@@ -492,22 +453,8 @@ func (rg *ReportGenerator) calculateOverallSeverity(findings []types.Finding) st
 func (rg *ReportGenerator) calculateHighestCVSS(findings []types.Finding) float64 {
 	highest := 0.0
 	for _, finding := range findings {
-		if finding.Metadata == nil {
-			continue
-		}
-		if v, ok := finding.Metadata["cvss"]; ok {
-			switch val := v.(type) {
-			case float64:
-				if val > highest {
-					highest = val
-				}
-			case float32:
-				if float64(val) > highest {
-					highest = float64(val)
-				}
-			case string:
-				// ignore string for numeric max
-			}
+		if finding.CVSS > highest {
+			highest = finding.CVSS
 		}
 	}
 	return highest
@@ -519,31 +466,9 @@ func (rg *ReportGenerator) collectCWEs(findings []types.Finding) []string {
 	var cwes []string
 
 	for _, finding := range findings {
-		if finding.Metadata == nil {
-			continue
-		}
-		if v, ok := finding.Metadata["cwe"]; ok {
-			switch val := v.(type) {
-			case string:
-				if val != "" && !cweMap[val] {
-					cweMap[val] = true
-					cwes = append(cwes, val)
-				}
-			case []string:
-				for _, s := range val {
-					if s != "" && !cweMap[s] {
-						cweMap[s] = true
-						cwes = append(cwes, s)
-					}
-				}
-			case []interface{}:
-				for _, it := range val {
-					if s, ok := it.(string); ok && s != "" && !cweMap[s] {
-						cweMap[s] = true
-						cwes = append(cwes, s)
-					}
-				}
-			}
+		if finding.CWE != "" && !cweMap[finding.CWE] {
+			cweMap[finding.CWE] = true
+			cwes = append(cwes, finding.CWE)
 		}
 	}
 

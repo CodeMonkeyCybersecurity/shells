@@ -18,13 +18,13 @@ type BugBountyResult struct {
 	StartTime time.Time
 
 	// Mutable fields protected by resultMutex
-	EndTime      time.Time
-	Duration     time.Duration
-	Status       string
-	DiscoveredAt int // Number of discovered assets
-	TestedAssets int
+	EndTime       time.Time
+	Duration      time.Duration
+	Status        string
+	DiscoveredAt  int // Number of discovered assets
+	TestedAssets  int
 	TotalFindings int
-	resultMutex  sync.RWMutex
+	resultMutex   sync.RWMutex
 
 	// Organization and discovery metadata (write-once, then read-only)
 	OrganizationInfo *correlation.Organization
@@ -32,10 +32,10 @@ type BugBountyResult struct {
 	metadataMutex    sync.RWMutex
 
 	// Collections that can be mutated concurrently (each protected separately)
-	Findings         []types.Finding
-	findingsMutex    sync.RWMutex // P0-19: Protects Findings from race conditions
+	Findings      []types.Finding
+	findingsMutex sync.RWMutex // P0-19: Protects Findings from race conditions
 
-	PhaseResults     map[string]PhaseResult
+	PhaseResults      map[string]PhaseResult
 	phaseResultsMutex sync.RWMutex // P0-20: Protects PhaseResults map from concurrent writes
 
 	DiscoveredAssets []*discovery.Asset
@@ -56,12 +56,12 @@ type PhaseResult struct {
 // NewBugBountyResult creates a new thread-safe result container
 func NewBugBountyResult(scanID, target string, startTime time.Time) *BugBountyResult {
 	return &BugBountyResult{
-		ScanID:       scanID,
-		Target:       target,
-		StartTime:    startTime,
-		Status:       "running",
-		PhaseResults: make(map[string]PhaseResult),
-		Findings:     []types.Finding{},
+		ScanID:           scanID,
+		Target:           target,
+		StartTime:        startTime,
+		Status:           "running",
+		PhaseResults:     make(map[string]PhaseResult),
+		Findings:         []types.Finding{},
 		DiscoveredAssets: []*discovery.Asset{},
 	}
 }
