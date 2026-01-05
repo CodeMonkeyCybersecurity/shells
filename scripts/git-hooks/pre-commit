@@ -1,0 +1,44 @@
+#!/bin/bash
+# pre-commit hook - Validates critical files before commit
+#
+# Install: cp scripts/git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Or run: make install-hooks
+
+set -e
+
+# Check if go.mod module path is being changed
+if git diff --cached --name-only | grep -q "^go.mod$"; then
+    # Get the module path from staged go.mod
+    staged_module=$(git show :go.mod | grep "^module " | awk '{print $2}')
+
+    # Verify it's still shells
+    if [[ "$staged_module" != "github.com/CodeMonkeyCybersecurity/shells" ]]; then
+        echo ""
+        echo "ERROR: Module path change detected!"
+        echo ""
+        echo "  Current: $staged_module"
+        echo "  Expected: github.com/CodeMonkeyCybersecurity/shells"
+        echo ""
+        echo "The project module path must remain 'github.com/CodeMonkeyCybersecurity/shells'."
+        echo "If you need to change this, get explicit owner approval first."
+        echo ""
+        exit 1
+    fi
+fi
+
+# Run gofmt on staged Go files
+staged_go_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+if [[ -n "$staged_go_files" ]]; then
+    unformatted=$(gofmt -l $staged_go_files 2>/dev/null || true)
+    if [[ -n "$unformatted" ]]; then
+        echo ""
+        echo "WARNING: Some Go files are not formatted:"
+        echo "$unformatted"
+        echo ""
+        echo "Run 'gofmt -w' on these files or 'make fmt'"
+        echo ""
+        # Warning only, don't block
+    fi
+fi
+
+exit 0

@@ -1,0 +1,26 @@
+# CODEOWNERS - Require human approval for critical files
+#
+# These patterns require explicit human review before merging.
+# AI agents (Claude, etc.) cannot approve changes to these files.
+
+# Project identity and module path - NEVER change without owner approval
+go.mod @CodeMonkeyCybersecurity/owners
+go.sum @CodeMonkeyCybersecurity/owners
+
+# Repository configuration
+.github/ @CodeMonkeyCybersecurity/owners
+.gitignore @CodeMonkeyCybersecurity/owners
+
+# Build and deployment
+Makefile @CodeMonkeyCybersecurity/owners
+Dockerfile* @CodeMonkeyCybersecurity/owners
+docker-compose*.yml @CodeMonkeyCybersecurity/owners
+
+# Documentation that defines project identity
+README.md @CodeMonkeyCybersecurity/owners
+CLAUDE.md @CodeMonkeyCybersecurity/owners
+LICENSE* @CodeMonkeyCybersecurity/owners
+
+# Configuration files
+*.yaml @CodeMonkeyCybersecurity/owners
+*.yml @CodeMonkeyCybersecurity/owners

@@ -1,4 +1,4 @@
-.PHONY: all deps build install test clean fmt vet
+.PHONY: all deps build install test clean fmt vet install-hooks
 
 # Default target
 all: build
@@ -38,3 +38,11 @@ check: fmt vet test
 # Development build with race detection
 dev:
 	go build -race -o shells .
+
+# Install git hooks for development
+install-hooks:
+	@echo "Installing git hooks..."
+	@cp scripts/git-hooks/pre-commit .git/hooks/pre-commit
+	@cp scripts/git-hooks/pre-push .git/hooks/pre-push
+	@chmod +x .git/hooks/pre-commit .git/hooks/pre-push
+	@echo "Git hooks installed successfully."
