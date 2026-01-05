@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 	"github.com/spf13/cobra"
 )
 

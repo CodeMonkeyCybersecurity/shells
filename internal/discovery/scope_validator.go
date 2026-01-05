@@ -3,8 +3,8 @@ package discovery
 import (
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scope"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scope"
 )
 
 // ScopeValidator validates discovered assets against scope

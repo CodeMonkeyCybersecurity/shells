@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	authdiscovery "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	authdiscovery "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

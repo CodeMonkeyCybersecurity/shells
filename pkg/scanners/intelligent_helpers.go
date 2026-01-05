@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/passive"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/passive"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // validateFindings validates and filters findings

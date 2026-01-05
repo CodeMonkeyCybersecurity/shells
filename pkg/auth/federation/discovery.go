@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
 )
 
 // FederationDiscoverer discovers federation endpoints and providers

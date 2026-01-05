@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // BugBountyResult contains the complete results of a bug bounty scan

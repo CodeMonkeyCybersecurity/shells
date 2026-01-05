@@ -3,7 +3,7 @@ package smuggling
 import (
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // SmuggleTechnique represents a request smuggling technique

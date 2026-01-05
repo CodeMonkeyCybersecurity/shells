@@ -7,8 +7,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery/certlogs"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/certlogs"
 	"github.com/likexian/whois"
 	whoisparser "github.com/likexian/whois-parser"
 )

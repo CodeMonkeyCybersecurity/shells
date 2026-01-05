@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // HttpxModule wraps ProjectDiscovery's httpx for HTTP service probing

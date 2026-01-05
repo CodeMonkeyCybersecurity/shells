@@ -9,8 +9,8 @@ package orchestrator
 import (
 	"testing"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/orchestrator/scanners"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator/scanners"
 )
 
 // TestScopeValidatorDisabledWhenNilManager validates behavior with nil scope manager

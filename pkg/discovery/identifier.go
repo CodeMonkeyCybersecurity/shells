@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // IdentifierType represents the type of identifier provided

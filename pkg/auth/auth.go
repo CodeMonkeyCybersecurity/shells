@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // Discovery handles authentication endpoint discovery

@@ -258,7 +258,7 @@ curl "http://localhost:8000/jobs?status=finished&limit=10"
 ## Go Client Integration
 
 ```go
-import "github.com/CodeMonkeyCybersecurity/artemis/pkg/workers"
+import "github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
 
 // Create client
 client := workers.NewClient("http://localhost:8000")

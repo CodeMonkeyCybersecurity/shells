@@ -8,8 +8,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/database"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scope"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scope"
 	"github.com/spf13/cobra"
 )
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/integrations/prowler"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/prowler"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/spf13/cobra"
 )
 

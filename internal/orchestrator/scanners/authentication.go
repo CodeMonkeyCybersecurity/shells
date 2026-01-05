@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/oauth2"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/saml"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/webauthn"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/oauth2"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/saml"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/webauthn"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/google/uuid"
 )
 

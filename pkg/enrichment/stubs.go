@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // Stub methods to fix compilation

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
 )
 
 // FlowAnalyzer analyzes OAuth2 flows for security vulnerabilities

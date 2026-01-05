@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	logconfig "github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	logconfig "github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -170,7 +170,7 @@ func TestSendSecurityReport(t *testing.T) {
 		Username:  os.Getenv("SMTP_USERNAME"),
 		Password:  os.Getenv("SMTP_PASSWORD"),
 		FromEmail: os.Getenv("SMTP_FROM_EMAIL"),
-		FromName:  "Artemis Security Scanner",
+		FromName:  "Shells Security Scanner",
 		UseTLS:    true,
 		Timeout:   30 * time.Second,
 	}
@@ -189,8 +189,8 @@ func TestSendSecurityReport(t *testing.T) {
 		to = []string{config.FromEmail} // Send to self if no test recipient specified
 	}
 
-	subject := "Test Security Report from Artemis"
-	body := `This is a test security vulnerability report from Artemis Security Scanner.
+	subject := "Test Security Report from Shells"
+	body := `This is a test security vulnerability report from Shells Security Scanner.
 
 VULNERABILITY: SQL Injection
 SEVERITY: HIGH
@@ -228,7 +228,7 @@ func TestSendMSRCReport(t *testing.T) {
 		Username:  os.Getenv("SMTP_USERNAME"),
 		Password:  os.Getenv("SMTP_PASSWORD"),
 		FromEmail: os.Getenv("SMTP_FROM_EMAIL"),
-		FromName:  "Artemis Security Scanner",
+		FromName:  "Shells Security Scanner",
 		UseTLS:    true,
 		Timeout:   30 * time.Second,
 	}
@@ -255,7 +255,7 @@ CVSS Score: 7.5
 TITLE: Test Vulnerability Report
 
 DESCRIPTION:
-This is a test report from Artemis Security Scanner integration tests.
+This is a test report from Shells Security Scanner integration tests.
 This is NOT a real vulnerability report.
 
 AFFECTED ASSET:
@@ -270,7 +270,7 @@ N/A - This is a test.
 
 ---
 Discovered: 2025-01-09
-Discovery Tool: Artemis Security Scanner
+Discovery Tool: Shells Security Scanner
 `
 
 	// For safety, we DO NOT actually call SendMSRCReport in tests

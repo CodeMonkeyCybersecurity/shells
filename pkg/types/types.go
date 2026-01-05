@@ -68,6 +68,9 @@ type Finding struct {
 	Status        FindingStatus          `json:"status,omitempty" db:"status"`                 // new, active, fixed, duplicate, reopened
 	Verified      bool                   `json:"verified" db:"verified"`                       // Manually verified
 	FalsePositive bool                   `json:"false_positive" db:"false_positive"`           // Marked as false positive
+	CVSS          float64                `json:"cvss,omitempty" db:"cvss"`                     // CVSS score (0.0-10.0)
+	CWE           string                 `json:"cwe,omitempty" db:"cwe"`                       // CWE identifier (e.g., CWE-79)
+	Remediation   string                 `json:"remediation,omitempty" db:"remediation"`       // Recommended fix
 	CreatedAt     time.Time              `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time              `json:"updated_at" db:"updated_at"`
 }

@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	nomadpkg "github.com/CodeMonkeyCybersecurity/artemis/cmd/nomad"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/security"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	nomadpkg "github.com/CodeMonkeyCybersecurity/shells/cmd/nomad"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/security"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )

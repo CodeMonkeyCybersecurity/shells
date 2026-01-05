@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/utils"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/passive"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/utils"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/passive"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // runPassiveIntelligence executes passive intelligence gathering

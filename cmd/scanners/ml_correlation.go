@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/cmd/internal/adapters"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/ml"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/adapters"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/ml"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // RunMLPrediction uses machine learning to predict vulnerabilities

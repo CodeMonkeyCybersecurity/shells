@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -148,7 +148,7 @@ func TestReportGeneratorBugBountyFormat(t *testing.T) {
 			Severity:    types.SeverityHigh,
 			Description: "SQL injection vulnerability in login endpoint allows authentication bypass",
 			Evidence:    "Payload: ' OR '1'='1 successfully bypassed authentication",
-			Tool:        "artemis-sqli-scanner",
+			Tool:        "shells-sqli-scanner",
 			Metadata: map[string]interface{}{
 				"cvss":        8.5,
 				"cwe":         "CWE-89",
@@ -206,7 +206,7 @@ func TestReportGeneratorMultiplePlatforms(t *testing.T) {
 			Severity:    types.SeverityMedium,
 			Description: "Reflected cross-site scripting in search parameter",
 			Evidence:    "<script>alert(document.cookie)</script> was reflected in response",
-			Tool:        "artemis-xss-scanner",
+			Tool:        "shells-xss-scanner",
 			Metadata: map[string]interface{}{
 				"cvss":        6.5,
 				"cwe":         "CWE-79",

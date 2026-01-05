@@ -1,6 +1,6 @@
-# Artemis Integration Guide
+# Shells Integration Guide
 
-**Purpose**: Complete integration guide for wiring standalone features into the main `artemis [target]` pipeline.
+**Purpose**: Complete integration guide for wiring standalone features into the main `shells [target]` pipeline.
 
 **Status**: Rumble integration COMPLETE. Others documented with integration points.
 
@@ -33,12 +33,12 @@ tools:
 **How It Works**:
 1. If `tools.rumble.enabled = true` and API key is set, Rumble module is registered
 2. During Phase 1 discovery, Rumble queries runZero for assets in target range
-3. Rumble assets are converted to Artemis asset format (IP, hostname, services, certificates)
+3. Rumble assets are converted to Shells asset format (IP, hostname, services, certificates)
 4. Assets automatically flow into Phase 3 (Vulnerability Testing)
 
 **Test**:
 ```bash
-artemis example.com --config .artemis.yaml  # With rumble.enabled = true
+shells example.com --config .shells.yaml  # With rumble.enabled = true
 ```
 
 ---
@@ -129,7 +129,7 @@ func runAdvancedOAuth2Tests(ctx context.Context, target string, oauth2Endpoints 
 
 **Test After Integration**:
 ```bash
-artemis example.com  # OAuth2 endpoints automatically get advanced testing
+shells example.com  # OAuth2 endpoints automatically get advanced testing
 ```
 
 ---
@@ -143,11 +143,11 @@ artemis example.com  # OAuth2 endpoints automatically get advanced testing
 - `internal/orchestrator/phase_reporting.go:316-397` - setupContinuousMonitoringIfEnabled function
 
 **Standalone Query Commands**:
-- `artemis monitoring alerts`
-- `artemis monitoring dns-changes`
-- `artemis monitoring certificates`
-- `artemis monitoring git-changes`
-- `artemis monitoring web-changes`
+- `shells monitoring alerts`
+- `shells monitoring dns-changes`
+- `shells monitoring certificates`
+- `shells monitoring git-changes`
+- `shells monitoring web-changes`
 
 **Integration Point**: `internal/orchestrator/phase_reporting.go:55-62` (after AI report generation)
 
@@ -253,7 +253,7 @@ Query commands exist in `cmd/monitoring.go` but backend monitoring service is TO
 
 **Test After Integration**:
 ```bash
-artemis example.com --enable-monitoring  # Automatically sets up monitoring
+shells example.com --enable-monitoring  # Automatically sets up monitoring
 ```
 
 ---
@@ -505,29 +505,29 @@ After implementing each integration, test with:
 
 ```bash
 # Full pipeline test
-artemis example.com --verbose
+shells example.com --verbose
 
 # Check discovery phase includes Rumble
-artemis example.com --verbose 2>&1 | grep -i "rumble"
+shells example.com --verbose 2>&1 | grep -i "rumble"
 
 # Check auth scanner includes OAuth2 advanced tests
-artemis example.com --verbose 2>&1 | grep -i "oauth2.*advanced"
+shells example.com --verbose 2>&1 | grep -i "oauth2.*advanced"
 
 # Check monitoring setup runs
-artemis example.com --enable-monitoring --verbose 2>&1 | grep -i "monitoring"
+shells example.com --enable-monitoring --verbose 2>&1 | grep -i "monitoring"
 
 # Check mail scanner executes
-artemis example.com --verbose 2>&1 | grep -i "mail.*scan"
+shells example.com --verbose 2>&1 | grep -i "mail.*scan"
 
 # Check API scanner executes
-artemis example.com --verbose 2>&1 | grep -i "api.*scan"
+shells example.com --verbose 2>&1 | grep -i "api.*scan"
 ```
 
 ---
 
 ## Configuration Reference
 
-Complete `.artemis.yaml` with all integrations enabled:
+Complete `.shells.yaml` with all integrations enabled:
 
 ```yaml
 tools:
@@ -580,4 +580,4 @@ platforms:
 - ✅ **Mail Scanner**: COMPLETE - Full SMTP/POP3/IMAP security testing (open relay, SPF/DMARC, etc.)
 - ✅ **API Scanner**: COMPLETE - GraphQL and REST API security testing (introspection, IDOR, rate limiting, etc.)
 
-All standalone features have been successfully integrated into the main `artemis [target]` pipeline!
+All standalone features have been successfully integrated into the main `shells [target]` pipeline!

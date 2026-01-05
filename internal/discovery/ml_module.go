@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/ml"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/ml"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // MLDiscovery uses machine learning for intelligent discovery and vulnerability prediction

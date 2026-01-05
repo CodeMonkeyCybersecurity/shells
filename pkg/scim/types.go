@@ -3,7 +3,7 @@ package scim
 import (
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // SCIMEndpoint represents a discovered SCIM endpoint

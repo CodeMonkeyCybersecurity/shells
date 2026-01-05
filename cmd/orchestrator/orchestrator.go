@@ -10,17 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/cmd/bugbounty"
-	"github.com/CodeMonkeyCybersecurity/artemis/cmd/scanners"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/nomad"
-	authdiscovery "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scim"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/smuggling"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/bugbounty"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/nomad"
+	authdiscovery "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/smuggling"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // Orchestrator coordinates the full security testing workflow.

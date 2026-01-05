@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	pkgdiscovery "github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	pkgdiscovery "github.com/CodeMonkeyCybersecurity/shells/pkg/discovery"
 )
 
 // ContextAwareDiscovery performs intelligent discovery based on target context

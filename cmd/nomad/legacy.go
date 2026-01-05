@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/security"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/security"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // RunLegacyScan executes a scan using the legacy Nomad job template approach

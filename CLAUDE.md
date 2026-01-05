@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**artemis** is a security scanning tool built in Go by Code Monkey Cybersecurity (ABN 77 177 673 061).
+**shells** is a security scanning tool built in Go by Code Monkey Cybersecurity (ABN 77 177 673 061).
 
 **Motto**: "Cybersecurity. With humans."
 
@@ -56,7 +56,7 @@ When looking for context, Claude should:
 ### Build and Test
 ```bash
 make deps          # Download dependencies and run go mod tidy
-make build         # Build the binary (./artemis)
+make build         # Build the binary (./shells)
 make dev           # Build with race detection for development
 make test          # Run all tests
 make check         # Run fmt, vet, and test (use before committing)
@@ -172,7 +172,7 @@ This is a security tool - when contributing:
 
 ## Intelligent Asset Discovery & Point-and-Click Mode
 
-**artemis** is designed as a comprehensive "point and click" security scanner. Run `artemis cybermonkey.net.au` and the tool automatically:
+**shells** is designed as a comprehensive "point and click" security scanner. Run `shells cybermonkey.net.au` and the tool automatically:
 
 1. **Discovers everything** related to the target
 2. **Tests everything** for vulnerabilities
@@ -187,7 +187,7 @@ The target can be:
 
 ### Comprehensive Asset Discovery Pipeline
 
-When you run `artemis [target]`, the tool executes the FULL discovery pipeline:
+When you run `shells [target]`, the tool executes the FULL discovery pipeline:
 
 #### Phase 1: Organization Footprinting
 - **WHOIS Analysis**: Organization name, registrant email, admin contact, technical contact
@@ -221,7 +221,7 @@ When you run `artemis [target]`, the tool executes the FULL discovery pipeline:
 
 ### Comprehensive Vulnerability Testing
 
-After discovery, artemis automatically tests EVERYTHING for vulnerabilities:
+After discovery, shells automatically tests EVERYTHING for vulnerabilities:
 
 #### Authentication Testing
 - **SAML**: Golden SAML, XML signature wrapping, assertion manipulation
@@ -272,16 +272,16 @@ After discovery, artemis automatically tests EVERYTHING for vulnerabilities:
 #### Query Historical Data:
 ```bash
 # View all scans for a target
-artemis results query --target example.com --show-history
+shells results query --target example.com --show-history
 
 # Compare current vs last scan
-artemis results diff scan-12345 scan-12346
+shells results diff scan-12345 scan-12346
 
 # Find new vulnerabilities since last month
-artemis results query --target example.com --since 30d --status new
+shells results query --target example.com --since 30d --status new
 
 # Track vulnerability fix rate
-artemis results stats --target example.com --metric fix-rate
+shells results stats --target example.com --metric fix-rate
 ```
 
 ### Technical Implementation Notes
@@ -304,10 +304,10 @@ artemis results stats --target example.com --metric fix-rate
 
 ### Command Structure
 
-- `artemis [target]` - Full automated discovery and testing
-- Maintain existing granular commands: `artemis scan`, `artemis logic`, etc.
-- Add `artemis discover [target]` for discovery-only mode
-- Add `artemis resume [scan-id]` to resume interrupted scans
+- `shells [target]` - Full automated discovery and testing
+- Maintain existing granular commands: `shells scan`, `shells logic`, etc.
+- Add `shells discover [target]` for discovery-only mode
+- Add `shells resume [scan-id]` to resume interrupted scans
 
 ## Common Workflows
 
@@ -317,16 +317,16 @@ artemis results stats --target example.com --metric fix-rate
 shells "Acme Corporation"
 
 # Discover and test everything related to a domain
-artemis acme.com
+shells acme.com
 
 # Discover and test everything in an IP range
 shells 192.168.1.0/24
 
 # Discovery only (no testing)
-artemis discover acme.com
+shells discover acme.com
 
 # Resume interrupted scan
-artemis resume scan-12345
+shells resume scan-12345
 ```
 
 ### Database Operations
@@ -356,7 +356,7 @@ artemis resume scan-12345
 
 ### Structured Logging with OpenTelemetry
 
-artemis uses **otelzap** (OpenTelemetry + Zap) for ALL output, including user-facing messages. This provides:
+shells uses **otelzap** (OpenTelemetry + Zap) for ALL output, including user-facing messages. This provides:
 - Distributed tracing across services
 - Structured JSON logs for parsing/analysis
 - Machine-readable output for automation
@@ -368,7 +368,7 @@ artemis uses **otelzap** (OpenTelemetry + Zap) for ALL output, including user-fa
 Every package should initialize a logger with a component name:
 
 ```go
-import "github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+import "github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 
 // In main/command functions
 log, err := logger.New(cfg.Logger)
@@ -512,7 +512,7 @@ log.Infow("API key configured",
 - Use OpenTelemetry tracing for distributed operations
 - Check worker logs for scanning issues
 - Monitor Redis queue for job status
-- Parse JSON logs for automation: `artemis scan example.com --log-format json | jq`
+- Parse JSON logs for automation: `shells scan example.com --log-format json | jq`
 
 ## Important Files
 
@@ -528,51 +528,51 @@ log.Infow("API key configured",
 ### SCIM Vulnerability Testing
 ```bash
 # Discover SCIM endpoints
-artemis scim discover https://example.com
+shells scim discover https://example.com
 
 # Run comprehensive SCIM security tests
-artemis scim test https://example.com/scim/v2 --test-all
-artemis scim test https://example.com/scim/v2 --test-filters --test-auth
+shells scim test https://example.com/scim/v2 --test-all
+shells scim test https://example.com/scim/v2 --test-filters --test-auth
 
 # Test provisioning vulnerabilities
-artemis scim provision https://example.com/scim/v2/Users --dry-run
-artemis scim provision https://example.com/scim/v2/Users --test-privesc
+shells scim provision https://example.com/scim/v2/Users --dry-run
+shells scim provision https://example.com/scim/v2/Users --test-privesc
 ```
 
 ### HTTP Request Smuggling Detection
 ```bash
 # Detect smuggling vulnerabilities
-artemis smuggle detect https://example.com
-artemis smuggle detect https://example.com --technique cl.te --differential
+shells smuggle detect https://example.com
+shells smuggle detect https://example.com --technique cl.te --differential
 
 # Exploit discovered vulnerabilities
-artemis smuggle exploit https://example.com --technique te.cl
-artemis smuggle exploit https://example.com --cache-poison
+shells smuggle exploit https://example.com --technique te.cl
+shells smuggle exploit https://example.com --cache-poison
 ```
 
 ### Enhanced Results Querying
 ```bash
 # Query findings with advanced filters
-artemis results query --severity critical
-artemis results query --tool scim --type "SCIM_UNAUTHORIZED_ACCESS"
-artemis results query --search "injection" --limit 20
-artemis results query --target example.com --days 7
+shells results query --severity critical
+shells results query --tool scim --type "SCIM_UNAUTHORIZED_ACCESS"
+shells results query --search "injection" --limit 20
+shells results query --target example.com --days 7
 
 # View statistics and analytics
-artemis results stats
-artemis results stats --output json
+shells results stats
+shells results stats --output json
 
 # Search findings with full-text search
-artemis results search --term "Golden SAML" --limit 10
-artemis results search --term "JWT algorithm confusion"
+shells results search --term "Golden SAML" --limit 10
+shells results search --term "JWT algorithm confusion"
 
 # Get recent critical findings
-artemis results recent --severity critical --limit 20
+shells results recent --severity critical --limit 20
 
 # Export results in various formats
-artemis results export [scan-id] --format json
-artemis results export [scan-id] --format csv --output findings.csv
-artemis results export [scan-id] --format html --output report.html
+shells results export [scan-id] --format json
+shells results export [scan-id] --format csv --output findings.csv
+shells results export [scan-id] --format html --output report.html
 ```
 
 ### Key Vulnerability Types
@@ -598,7 +598,7 @@ The authentication testing framework provides comprehensive security testing for
 
 ### Available Commands
 
-#### `artemis auth discover --target <url>`
+#### `shells auth discover --target <url>`
 Discovers authentication endpoints and methods for a target:
 - SAML endpoints and metadata discovery
 - OAuth2/OIDC configuration endpoint detection
@@ -607,14 +607,14 @@ Discovers authentication endpoints and methods for a target:
 - Trust relationship mapping
 - Protocol capability analysis
 
-#### `artemis auth test --target <url> --protocol <protocol>`
+#### `shells auth test --target <url> --protocol <protocol>`
 Runs comprehensive security tests against authentication systems:
 - **SAML**: Golden SAML attacks, XML signature wrapping, signature bypass, assertion manipulation
 - **OAuth2/OIDC**: JWT attacks, flow vulnerabilities, PKCE bypass, state validation
 - **WebAuthn/FIDO2**: Virtual authenticator attacks, credential manipulation, challenge reuse
 - **Federation**: Confused deputy attacks, trust misconfigurations, IdP spoofing
 
-#### `artemis auth chain --target <url>`
+#### `shells auth chain --target <url>`
 Finds authentication bypass chains and attack paths:
 - Cross-protocol vulnerability chaining
 - Authentication downgrade path analysis
@@ -622,7 +622,7 @@ Finds authentication bypass chains and attack paths:
 - Multi-step bypass scenario identification
 - Attack path visualization
 
-#### `artemis auth all --target <url>`
+#### `shells auth all --target <url>`
 Runs comprehensive authentication security analysis including discovery, testing, and chain analysis with detailed reporting.
 
 ### Protocol-Specific Testing Capabilities
@@ -704,26 +704,26 @@ All authentication testing results are automatically stored with:
 
 ```bash
 # Discover authentication methods and endpoints
-artemis auth discover --target https://example.com --verbose
+shells auth discover --target https://example.com --verbose
 
 # Test SAML implementation for Golden SAML and XSW attacks
-artemis auth test --target https://example.com --protocol saml --output json
+shells auth test --target https://example.com --protocol saml --output json
 
 # Analyze JWT tokens for algorithm confusion and key attacks
-artemis auth test --target "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." --protocol jwt
+shells auth test --target "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." --protocol jwt
 
 # Test WebAuthn implementation with virtual authenticator
-artemis auth test --target https://example.com --protocol webauthn
+shells auth test --target https://example.com --protocol webauthn
 
 # Find cross-protocol attack chains
-artemis auth chain --target https://example.com --max-depth 5
+shells auth chain --target https://example.com --max-depth 5
 
 # Comprehensive authentication security analysis
-artemis auth all --target https://example.com --output json --save-report auth-report.json
+shells auth all --target https://example.com --output json --save-report auth-report.json
 
 # Query stored authentication findings
-artemis results query --tool auth --severity CRITICAL
-artemis results stats --tool auth
+shells results query --tool auth --severity CRITICAL
+shells results stats --tool auth
 ```
 
 ### Integration with Core Security Framework
@@ -731,15 +731,15 @@ artemis results stats --tool auth
 #### Database Query Integration
 ```bash
 # Query authentication-specific findings
-artemis results query --tool saml --severity HIGH
-artemis results query --tool oauth2 --type "JWT Vulnerability"
-artemis results query --tool webauthn --target "example.com"
-artemis results query --tool federation --from-date "2024-01-01"
+shells results query --tool saml --severity HIGH
+shells results query --tool oauth2 --type "JWT Vulnerability"
+shells results query --tool webauthn --target "example.com"
+shells results query --tool federation --from-date "2024-01-01"
 
 # Generate authentication security statistics
-artemis results stats --tool auth
-artemis results recent --tool saml --limit 10
-artemis results search --term "Golden SAML"
+shells results stats --tool auth
+shells results recent --tool saml --limit 10
+shells results search --term "Golden SAML"
 ```
 
 #### Advanced Finding Analysis

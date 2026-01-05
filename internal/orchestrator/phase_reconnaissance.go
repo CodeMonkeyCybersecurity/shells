@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
 )
 
 // phaseReconnaissance executes Phase 1: Reconnaissance

@@ -1,14 +1,14 @@
-# Artemis Pipeline Verification
+# Shells Pipeline Verification
 
 **Date:** 2025-11-09
 **Status:** VERIFIED via Code Analysis + Tests
 
 ## Purpose
 
-This document verifies the two critical claims about Artemis's pipeline behavior:
+This document verifies the two critical claims about Shells's pipeline behavior:
 
 1. **Discovery findings → Vulnerability testing**: Discovered assets automatically flow into comprehensive vulnerability testing
-2. **Organization correlation → Spider out**: Artemis discovers related domains owned by the same organization
+2. **Organization correlation → Spider out**: Shells discovers related domains owned by the same organization
 
 ---
 
@@ -270,12 +270,12 @@ ALL Discovered Assets → Comprehensive Testing
 
 ---
 
-## 3. Complete Example: artemis cybermonkey.net.au
+## 3. Complete Example: shells cybermonkey.net.au
 
 ### What Actually Happens
 
 ```bash
-$ artemis cybermonkey.net.au
+$ shells cybermonkey.net.au
 ```
 
 **Phase 1: Initial Discovery** (internal/discovery/engine.go:127-200)
@@ -429,7 +429,7 @@ Already verifies:
 
 **Status:** ✅ **VERIFIED - WORKING AS DESIGNED**
 
-The Artemis pipeline operates exactly as documented:
+The Shells pipeline operates exactly as documented:
 
 1. **Target input** → Classification
 2. **Classification** → Organization resolution

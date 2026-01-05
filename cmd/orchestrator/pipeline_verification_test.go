@@ -7,7 +7,7 @@
 //   2. Organization correlation → Spiders out to related domains
 //
 // These tests validate the claims made in documentation about
-// how Artemis processes targets end-to-end.
+// how Shells processes targets end-to-end.
 
 package orchestrator
 
@@ -17,10 +17,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -186,7 +186,7 @@ func TestDiscoveryFindingsPassedToVulnerabilityTesting(t *testing.T) {
 }
 
 // TestOrganizationCorrelationSpidersRelatedDomains verifies that
-// Artemis discovers related domains through organization correlation
+// Shells discovers related domains through organization correlation
 func TestOrganizationCorrelationSpidersRelatedDomains(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping organization correlation test in short mode")
@@ -516,7 +516,7 @@ func TestEndToEndPipelineFlow(t *testing.T) {
 	}
 
 	t.Run("Complete pipeline: cybermonkey.net.au simulation", func(t *testing.T) {
-		// This test simulates what would happen with: artemis cybermonkey.net.au
+		// This test simulates what would happen with: shells cybermonkey.net.au
 
 		// ARRANGE
 		store := &mockResultStore{}

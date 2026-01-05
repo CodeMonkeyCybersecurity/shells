@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery/favicon"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/discovery/favicon"
 	"github.com/spf13/cobra"
 )
 

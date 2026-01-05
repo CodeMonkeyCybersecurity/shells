@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 )
 
 // DBEventLogger wraps a logger and automatically saves important events to the database

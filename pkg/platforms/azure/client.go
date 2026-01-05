@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/email"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/email"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms"
 )
 
 // Client implements the Microsoft Azure Bug Bounty client

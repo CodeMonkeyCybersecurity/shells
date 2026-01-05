@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/cmd/internal/adapters"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/boileau"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/fuzzing"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/protocol"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scim"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/smuggling"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/internal/adapters"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/boileau"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/fuzzing"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/protocol"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scim"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/smuggling"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // runSCIMTests executes SCIM vulnerability tests

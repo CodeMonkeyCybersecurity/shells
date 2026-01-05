@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/aws"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/azure"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/bugcrowd"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/platforms/hackerone"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/aws"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/azure"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/bugcrowd"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/platforms/hackerone"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // WorkflowManager handles automated platform submission workflows

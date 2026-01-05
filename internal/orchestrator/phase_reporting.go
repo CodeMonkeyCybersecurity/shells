@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/ai"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/ai"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // phaseReporting executes Phase 7: Reporting
@@ -63,7 +63,7 @@ func (p *Pipeline) phaseReporting(ctx context.Context) error {
 
 	// Optionally generate export files
 	if p.config.Verbose {
-		p.logger.Infow("Use 'artemis results export' to generate detailed reports",
+		p.logger.Infow("Use 'shells results export' to generate detailed reports",
 			"scan_id", p.state.ScanID,
 			"formats", []string{"JSON", "CSV", "HTML", "Markdown"},
 		)
@@ -379,7 +379,7 @@ func (p *Pipeline) setupContinuousMonitoringIfEnabled(ctx context.Context) error
 	p.logger.Infow("Monitoring setup complete",
 		"scan_id", p.state.ScanID,
 		"note", "Actual monitoring requires background service implementation",
-		"query_monitoring_data", "Use 'artemis monitoring' commands to query monitoring data",
+		"query_monitoring_data", "Use 'shells monitoring' commands to query monitoring data",
 	)
 
 	return nil

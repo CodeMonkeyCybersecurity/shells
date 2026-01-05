@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // Config represents Prowler configuration
