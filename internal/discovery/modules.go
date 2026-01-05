@@ -11,12 +11,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/intel/certs"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/intel/cloudflare"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/certs"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/intel/cloudflare"
 )
 
 // DomainDiscovery discovers assets related to domains

@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // MailServerAnalyzer performs comprehensive mail server analysis

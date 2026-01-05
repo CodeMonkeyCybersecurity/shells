@@ -4,7 +4,7 @@
 //
 // IMPLEMENTATION OVERVIEW:
 // This package provides AI-powered vulnerability report generation using OpenAI or Azure OpenAI.
-// It integrates with the Artemis orchestrator pipeline to automatically generate professional
+// It integrates with the Shells orchestrator pipeline to automatically generate professional
 // bug bounty reports from discovered vulnerabilities.
 //
 // FEATURES:
@@ -64,7 +64,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/sashabaranov/go-openai"
 )
 

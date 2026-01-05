@@ -28,7 +28,7 @@
 //     username: "your-email@gmail.com"
 //     password: "app-password"  # Use app-specific password, NOT your main password
 //     from_email: "your-email@gmail.com"
-//     from_name: "Artemis Security Scanner"
+//     from_name: "Shells Security Scanner"
 //     use_tls: true
 //     use_ssl: false
 //     timeout: 30s
@@ -72,7 +72,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // SMTPConfig contains SMTP server configuration
@@ -416,7 +416,7 @@ func (s *SMTPSender) SendSecurityReport(to []string, subject, body string) error
 		Body:    body,
 		Headers: map[string]string{
 			"X-Report-Type": "Security Vulnerability",
-			"X-Sender":      "Artemis Security Scanner",
+			"X-Sender":      "Shells Security Scanner",
 		},
 	}
 

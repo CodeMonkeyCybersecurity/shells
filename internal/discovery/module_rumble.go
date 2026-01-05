@@ -11,7 +11,7 @@
 // - Operating system identification
 // - Certificate extraction and analysis
 // - Network topology mapping
-// - Automatic conversion to Artemis asset format
+// - Automatic conversion to Shells asset format
 
 package discovery
 
@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/integrations/rumble"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/rumble"
 )
 
 // RumbleModule integrates Rumble network discovery
@@ -148,7 +148,7 @@ func (m *RumbleModule) Discover(ctx context.Context, target *Target, session *Di
 		return nil, fmt.Errorf("rumble asset query failed: %w", err)
 	}
 
-	// Convert Rumble assets to Artemis asset format
+	// Convert Rumble assets to Shells asset format
 	assets := m.convertRumbleAssets(rumbleAssets)
 
 	result := &DiscoveryResult{
@@ -168,7 +168,7 @@ func (m *RumbleModule) Discover(ctx context.Context, target *Target, session *Di
 	return result, nil
 }
 
-// convertRumbleAssets converts Rumble assets to Artemis asset format
+// convertRumbleAssets converts Rumble assets to Shells asset format
 func (m *RumbleModule) convertRumbleAssets(rumbleAssets []rumble.Asset) []*Asset {
 	var assets []*Asset
 

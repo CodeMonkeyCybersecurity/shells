@@ -15,7 +15,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/ssh/terminal"
 )

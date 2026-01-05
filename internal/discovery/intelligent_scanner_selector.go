@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	pkgdiscovery "github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	pkgdiscovery "github.com/CodeMonkeyCybersecurity/shells/pkg/discovery"
 )
 
 // ScannerType represents a type of scanner

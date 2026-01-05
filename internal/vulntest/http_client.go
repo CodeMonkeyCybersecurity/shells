@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 )
 
 // HTTPClient is a wrapper around http.Client with vulnerability testing helpers

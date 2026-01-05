@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // CTLogClient queries Certificate Transparency logs

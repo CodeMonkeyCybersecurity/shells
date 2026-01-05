@@ -7,7 +7,7 @@ package display
 import (
 	"fmt"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/fatih/color"
 )
 

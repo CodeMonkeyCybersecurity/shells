@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/cmd"
-	"github.com/CodeMonkeyCybersecurity/artemis/cmd/scanners"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	authpkg "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/utils"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/utils"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 var (

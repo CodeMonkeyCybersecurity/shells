@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // OpenAPISpec represents a parsed OpenAPI/Swagger specification

@@ -21,8 +21,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	discoverypkg "github.com/CodeMonkeyCybersecurity/artemis/pkg/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	discoverypkg "github.com/CodeMonkeyCybersecurity/shells/pkg/discovery"
 )
 
 // phaseTargetClassification executes Phase 0: Target Classification & Scope Loading

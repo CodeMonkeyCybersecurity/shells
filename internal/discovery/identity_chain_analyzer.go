@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // generateID generates a simple UUID-like identifier

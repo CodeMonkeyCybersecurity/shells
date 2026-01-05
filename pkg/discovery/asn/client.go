@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // ASNClient performs ASN lookups and expansion

@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
 	"github.com/google/uuid"
 )
 

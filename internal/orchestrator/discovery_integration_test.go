@@ -41,9 +41,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/orchestrator/scanners"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator/scanners"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/logic"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/logic"
 )
 
 // EmailChecker simulates email checking functionality

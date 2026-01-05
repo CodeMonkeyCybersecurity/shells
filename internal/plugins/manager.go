@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
 )
 
 type manager struct {

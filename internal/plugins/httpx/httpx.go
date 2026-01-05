@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type httpxScanner struct {

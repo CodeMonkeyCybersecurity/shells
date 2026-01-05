@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // TestResultThreadSafety validates concurrent access doesn't cause race conditions

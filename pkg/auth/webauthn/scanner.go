@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
 )
 
 // WebAuthnScanner implements WebAuthn/FIDO2 security testing

@@ -10,7 +10,7 @@ deps:
 
 # Build the binary
 build:
-	go build -o artemis .
+	go build -o shells .
 
 # Install to GOPATH/bin
 install:
@@ -22,7 +22,7 @@ test:
 
 # Clean build artifacts
 clean:
-	rm -f artemis
+	rm -f shells
 
 # Format code
 fmt:
@@ -37,4 +37,4 @@ check: fmt vet test
 
 # Development build with race detection
 dev:
-	go build -race -o artemis .
+	go build -race -o shells .

@@ -20,10 +20,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/orchestrator/scanners"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/integrations/prowler"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator/scanners"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/integrations/prowler"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // ProwlerScanner performs multi-cloud security auditing using Prowler

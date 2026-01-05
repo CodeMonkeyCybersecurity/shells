@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/google/uuid"
 )
 

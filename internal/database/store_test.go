@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/config"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/config"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

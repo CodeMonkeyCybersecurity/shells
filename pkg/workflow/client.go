@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 )
 
 // AirflowClient provides integration with Apache Airflow

@@ -7,14 +7,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/cmd/scanners"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	authpkg "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/utils"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scanners/api"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scanners/mail"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/cmd/scanners"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	authpkg "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/utils"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/api"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/mail"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 type structuredLoggerAdapter struct {

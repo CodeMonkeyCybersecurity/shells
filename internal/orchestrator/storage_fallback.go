@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // FallbackStorage handles saving findings to JSON when database fails

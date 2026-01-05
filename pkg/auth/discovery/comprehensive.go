@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-ldap/ldap/v3"
 )

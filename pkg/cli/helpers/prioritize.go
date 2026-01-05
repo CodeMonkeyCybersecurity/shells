@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // BugBountyAssetPriority represents a prioritized asset for bug bounty testing

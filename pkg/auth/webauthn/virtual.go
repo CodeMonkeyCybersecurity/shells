@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/common"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/auth/common"
 )
 
 // VirtualAuthenticator provides virtual authenticator functionality for testing

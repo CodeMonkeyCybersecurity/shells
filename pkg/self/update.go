@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
 )
 
 // UpdateConfig holds configuration for Shells self-update
@@ -86,7 +86,7 @@ func (su *ShellsUpdater) Assess() (*UpdateState, error) {
 		}
 	} else if os.IsNotExist(err) {
 		return nil, fmt.Errorf("shells source directory not found at %s - cannot self-update\n"+
-			"Clone the repository first: git clone https://github.com/CodeMonkeyCybersecurity/artemis %s",
+			"Clone the repository first: git clone https://github.com/CodeMonkeyCybersecurity/shells %s",
 			su.config.SourceDir, su.config.SourceDir)
 	}
 

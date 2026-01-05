@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // ReportGenerator generates AI-powered vulnerability reports
@@ -438,10 +438,10 @@ func (rg *ReportGenerator) calculateOverallSeverity(findings []types.Finding) st
 	highestVal := 0
 
 	for _, finding := range findings {
-		if val, ok := severityOrder[strings.ToUpper(finding.Severity)]; ok {
+		if val, ok := severityOrder[strings.ToUpper(string(finding.Severity))]; ok {
 			if val > highestVal {
 				highestVal = val
-				highestSev = strings.ToUpper(finding.Severity)
+				highestSev = strings.ToUpper(string(finding.Severity))
 			}
 		}
 	}

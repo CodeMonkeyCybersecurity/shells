@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/workers"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/workers"
 	"github.com/spf13/cobra"
 )
 

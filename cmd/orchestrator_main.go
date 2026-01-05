@@ -8,9 +8,9 @@ package cmd
 import (
 	"context"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/core"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/logger"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/cli/commands"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/core"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/logger"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/cli/commands"
 	"github.com/spf13/cobra"
 )
 

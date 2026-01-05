@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // ResultEnricher enriches scan findings with additional context

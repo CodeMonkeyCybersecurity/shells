@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	authdiscovery "github.com/CodeMonkeyCybersecurity/artemis/pkg/auth/discovery"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/correlation"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/scanners/secrets"
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	authdiscovery "github.com/CodeMonkeyCybersecurity/shells/pkg/auth/discovery"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/correlation"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/scanners/secrets"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 // ConvertSecretFindings converts secret scanner findings to standard findings

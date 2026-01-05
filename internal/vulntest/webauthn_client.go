@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/httpclient"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/httpclient"
 )
 
 // WebAuthnClient handles FIDO2/WebAuthn vulnerability testing

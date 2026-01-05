@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/database"
-	"github.com/CodeMonkeyCybersecurity/artemis/internal/orchestrator"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/database"
+	"github.com/CodeMonkeyCybersecurity/shells/internal/orchestrator"
 )
 
 // TestBugBountyWorkflowEndToEnd is a smoke test that validates the complete workflow

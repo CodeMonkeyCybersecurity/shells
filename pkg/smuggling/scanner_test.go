@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodeMonkeyCybersecurity/artemis/pkg/types"
+	"github.com/CodeMonkeyCybersecurity/shells/pkg/types"
 )
 
 func TestScanner_Name(t *testing.T) {
