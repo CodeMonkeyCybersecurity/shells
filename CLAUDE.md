@@ -51,6 +51,41 @@ When looking for context, Claude should:
 - **Actionable**: Every criticism includes a concrete fix
 - **Human-focused**: Remember this tool serves security researchers who need reliable results
 
+### AI Agent Boundaries (MANDATORY)
+
+**NEVER do these without explicit human authorization:**
+
+1. **Project Identity Changes**
+   - NEVER rename the project, module path, or executable
+   - NEVER change `go.mod` module path
+   - NEVER rename the GitHub repository
+   - The project is called `shells` - this is final
+
+2. **Architectural Decisions**
+   - NEVER restructure the entire codebase
+   - NEVER change the primary language or framework
+   - NEVER migrate to different infrastructure (e.g., Kubernetes)
+   - ASK before making changes that affect >50 files
+
+3. **External Dependencies**
+   - NEVER add major new dependencies without asking
+   - NEVER remove existing dependencies that are in use
+   - NEVER upgrade to major versions (e.g., v1 → v2)
+
+4. **Configuration and Deployment**
+   - NEVER modify CI/CD pipelines without asking
+   - NEVER change deployment targets or methods
+   - NEVER modify security-sensitive configurations
+
+**ALWAYS do these:**
+
+1. **Ask before major changes** - If a change affects project identity, architecture, or >20 files, ask first
+2. **Verify builds** - Run `go build ./...` before committing
+3. **Follow existing patterns** - Match the style and structure of existing code
+4. **Document decisions** - Add inline comments explaining non-obvious choices
+
+**Incident Reference**: PR #4 renamed the project from `shells` to `artemis` without authorization, causing divergent branches and build failures. This section exists to prevent similar incidents.
+
 ## Common Development Commands
 
 ### Build and Test
